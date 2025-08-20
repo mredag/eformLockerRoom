@@ -1,0 +1,32 @@
+{
+  "name": "eform-locker-system",
+  "version": "1.0.0",
+  "description": "RFID-based locker management system",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "cli": "tsx src/cli/provision.ts",
+    "config-test": "tsx src/cli/config-test.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "fastify": "^4.24.3",
+    "sqlite3": "^5.1.6",
+    "argon2": "^0.31.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/uuid": "^9.0.5",
+    "esbuild": "^0.19.5",
+    "tsx": "^3.14.0",
+    "typescript": "^5.2.2",
+    "vitest": "^0.34.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
