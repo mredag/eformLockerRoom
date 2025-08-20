@@ -1,0 +1,33 @@
+{
+  "name": "@eform/gateway",
+  "version": "1.0.0",
+  "description": "Eform Locker System - Gateway Service",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:sqlite3",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "provision": "tsx src/utils/provision.ts",
+    "config-test": "tsx src/utils/config-test.ts"
+  },
+  "dependencies": {
+    "fastify": "^4.24.3",
+    "sqlite3": "^5.1.6",
+    "argon2": "^0.31.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/uuid": "^9.0.5",
+    "esbuild": "^0.19.5",
+    "tsx": "^3.14.0",
+    "typescript": "^5.2.2",
+    "vitest": "^0.34.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

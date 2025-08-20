@@ -1,0 +1,83 @@
+{
+  "system": {
+    "name": "Eform Locker System",
+    "version": "1.0.0",
+    "environment": "production"
+  },
+  "database": {
+    "path": "./data/eform.db",
+    "wal_mode": true,
+    "backup_interval_hours": 24,
+    "retention_days": 30
+  },
+  "services": {
+    "gateway": {
+      "port": 3000,
+      "host": "0.0.0.0",
+      "max_connections": 100
+    },
+    "kiosk": {
+      "port": 3001,
+      "heartbeat_interval_seconds": 10,
+      "command_poll_interval_seconds": 2
+    },
+    "panel": {
+      "port": 3002,
+      "session_timeout_minutes": 60,
+      "max_login_attempts": 5
+    },
+    "agent": {
+      "update_check_interval_minutes": 30,
+      "update_server_url": "https://updates.eform.local"
+    }
+  },
+  "hardware": {
+    "modbus": {
+      "port": "/dev/ttyUSB0",
+      "baudrate": 9600,
+      "timeout_ms": 1000,
+      "pulse_duration_ms": 400,
+      "burst_duration_seconds": 10,
+      "burst_interval_ms": 2000,
+      "command_interval_ms": 300
+    },
+    "rfid": {
+      "reader_type": "hid",
+      "debounce_ms": 500,
+      "scan_timeout_ms": 5000
+    }
+  },
+  "security": {
+    "provisioning_secret": "change-this-in-production",
+    "session_secret": "change-this-in-production",
+    "pin_rotation_days": 90,
+    "lockout_duration_minutes": 5,
+    "rate_limits": {
+      "ip_per_minute": 30,
+      "card_per_minute": 60,
+      "locker_per_minute": 6,
+      "device_per_20_seconds": 1
+    }
+  },
+  "lockers": {
+    "reserve_ttl_seconds": 90,
+    "offline_threshold_seconds": 30,
+    "bulk_operation_interval_ms": 300,
+    "master_lockout_fails": 5,
+    "master_lockout_minutes": 5
+  },
+  "qr": {
+    "token_ttl_seconds": 5,
+    "hmac_secret": "change-this-in-production"
+  },
+  "logging": {
+    "level": "info",
+    "retention_days": 30,
+    "max_file_size_mb": 100,
+    "rotate_daily": true
+  },
+  "i18n": {
+    "default_language": "tr",
+    "supported_languages": ["tr", "en"]
+  }
+}

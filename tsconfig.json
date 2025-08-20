@@ -3,17 +3,53 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "node",
-    "strict": true,
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "allowJs": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "baseUrl": ".",
+    "paths": {
+      "@eform/shared/*": ["shared/*"],
+      "@eform/gateway/*": ["app/gateway/src/*"],
+      "@eform/kiosk/*": ["app/kiosk/src/*"],
+      "@eform/panel/*": ["app/panel/src/*"],
+      "@eform/agent/*": ["app/agent/src/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": [
+    "src/**/*",
+    "app/**/*",
+    "shared/**/*",
+    "scripts/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/dist",
+    "**/__tests__",
+    "**/*.test.ts"
+  ],
+  "references": [
+    { "path": "./shared" },
+    { "path": "./app/gateway" },
+    { "path": "./app/kiosk" },
+    { "path": "./app/panel" },
+    { "path": "./app/agent" }
+  ]
 }

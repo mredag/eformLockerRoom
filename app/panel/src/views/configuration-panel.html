@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Management - Eform Locker System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #ecf0f1;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background: #d5dbdb;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .config-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #3498db;
+        }
+
+        .config-item label {
+            font-weight: 600;
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .config-item .value {
+            font-size: 18px;
+            color: #27ae60;
+            font-weight: 500;
+        }
+
+        .kiosk-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 15px;
+        }
+
+        .kiosk-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #95a5a6;
+        }
+
+        .kiosk-card.up-to-date {
+            border-left-color: #27ae60;
+        }
+
+        .kiosk-card.pending-update {
+            border-left-color: #f39c12;
+        }
+
+        .kiosk-card.updating {
+            border-left-color: #3498db;
+        }
+
+        .kiosk-card.failed {
+            border-left-color: #e74c3c;
+        }
+
+        .kiosk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .kiosk-id {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-badge.up-to-date {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-badge.pending-update {
+            background: #fef9e7;
+            color: #f39c12;
+        }
+
+        .status-badge.updating {
+            background: #ebf3fd;
+            color: #3498db;
+        }
+
+        .status-badge.failed {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .kiosk-details {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .kiosk-details div {
+            margin-bottom: 5px;
+        }
+
+        .deployment-history {
+            overflow-x: auto;
+        }
+
+        .deployment-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .deployment-table th,
+        .deployment-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .deployment-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .deployment-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .error {
+            background: #fadbd8;
+            color: #e74c3c;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Configuration Management</h1>
+            <p>Monitor and manage system configuration across all kiosks</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('current-config')">Current Configuration</button>
+            <button class="tab" onclick="showTab('kiosk-status')">Kiosk Status</button>
+            <button class="tab" onclick="showTab('deployment-history')">Deployment History</button>
+        </div>
+
+        <div id="current-config" class="tab-content active">
+            <button class="refresh-btn" onclick="loadCurrentConfig()">Refresh Configuration</button>
+            <div id="config-content">
+                <div class="loading">Loading configuration...</div>
+            </div>
+        </div>
+
+        <div id="kiosk-status" class="tab-content">
+            <button class="refresh-btn" onclick="loadKioskStatus()">Refresh Status</button>
+            <div id="kiosk-content">
+                <div class="loading">Loading kiosk status...</div>
+            </div>
+        </div>
+
+        <div id="deployment-history" class="tab-content">
+            <button class="refresh-btn" onclick="loadDeploymentHistory()">Refresh History</button>
+            <div id="deployment-content">
+                <div class="loading">Loading deployment history...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Load content if not already loaded
+            if (tabId === 'current-config') {
+                loadCurrentConfig();
+            } else if (tabId === 'kiosk-status') {
+                loadKioskStatus();
+            } else if (tabId === 'deployment-history') {
+                loadDeploymentHistory();
+            }
+        }
+
+        // Load current configuration
+        async function loadCurrentConfig() {
+            const content = document.getElementById('config-content');
+            content.innerHTML = '<div class="loading">Loading configuration...</div>';
+            
+            try {
+                const response = await fetch('/api/configuration/default');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const config = result.data;
+                    let html = '<div class="config-grid">';
+                    
+                    for (const [key, value] of Object.entries(config)) {
+                        html += `
+                            <div class="config-item">
+                                <label>${key.replace(/_/g, ' ')}</label>
+                                <div class="value">${value}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    html += '</div>';
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<div class="error">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<div class="error">Failed to load configuration: ${error.message}</div>`;
+            }
+        }
+
+        // Load kiosk status
+        async function loadKioskStatus() {
+            const content = document.getElementById('kiosk-content');
+            content.innerHTML = '<div class="loading">Loading kiosk status...</div>';
+            
+            try {
+                const response = await fetch('/api/configuration/kiosks/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const statuses = result.data;
+                    
+                    if (statuses.length === 0) {
+                        content.innerHTML = '<div class="loading">No kiosks found</div>';
+                        return;
+                    }
+                    
+                    let html = '<div class="kiosk-status">';
+                    
+                    for (const status of statuses) {
+                        html += `
+                            <div class="kiosk-card ${status.config_status}">
+                                <div class="kiosk-header">
+                                    <div class="kiosk-id">${status.kiosk_id}</div>
+                                    <div class="status-badge ${status.config_status}">
+                                        ${status.config_status.replace('_', ' ')}
+                                    </div>
+                                </div>
+                                <div class="kiosk-details">
+                                    <div><strong>Current Version:</strong> ${status.current_config_version || 'None'}</div>
+                                    <div><strong>Current Hash:</strong> ${status.current_config_hash ? status.current_config_hash.substring(0, 12) + '...' : 'None'}</div>
+                                    ${status.pending_config_version ? `<div><strong>Pending Version:</strong> ${status.pending_config_version}</div>` : ''}
+                                    ${status.last_config_update ? `<div><strong>Last Update:</strong> ${new Date(status.last_config_update).toLocaleString()}</div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    html += '</div>';
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<div class="error">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<div class="error">Failed to load kiosk status: ${error.message}</div>`;
+            }
+        }
+
+        // Load deployment history
+        async function loadDeploymentHistory() {
+            const content = document.getElementById('deployment-content');
+            content.innerHTML = '<div class="loading">Loading deployment history...</div>';
+            
+            try {
+                const response = await fetch('/api/configuration/deployments');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const deployments = result.data;
+                    
+                    if (deployments.length === 0) {
+                        content.innerHTML = '<div class="loading">No deployments found</div>';
+                        return;
+                    }
+                    
+                    let html = `
+                        <div class="deployment-history">
+                            <table class="deployment-table">
+                                <thead>
+                                    <tr>
+                                        <th>Version</th>
+                                        <th>Target</th>
+                                        <th>Status</th>
+                                        <th>Created By</th>
+                                        <th>Created At</th>
+                                        <th>Deployed At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    for (const deployment of deployments) {
+                        const target = deployment.kiosk_id || deployment.zone || 'All Kiosks';
+                        html += `
+                            <tr>
+                                <td>${deployment.config_version}</td>
+                                <td>${target}</td>
+                                <td>
+                                    <span class="status-badge ${deployment.status}">
+                                        ${deployment.status.replace('_', ' ')}
+                                    </span>
+                                </td>
+                                <td>${deployment.created_by}</td>
+                                <td>${new Date(deployment.created_at).toLocaleString()}</td>
+                                <td>${deployment.deployed_at ? new Date(deployment.deployed_at).toLocaleString() : '-'}</td>
+                            </tr>
+                        `;
+                    }
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<div class="error">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<div class="error">Failed to load deployment history: ${error.message}</div>`;
+            }
+        }
+
+        // Load initial content
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentConfig();
+        });
+    </script>
+</body>
+</html>
