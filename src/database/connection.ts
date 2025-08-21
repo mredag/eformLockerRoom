@@ -1,13 +1,15 @@
 import sqlite3 from 'sqlite3';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { promisify } from 'util';
 
 export class DatabaseConnection {
   private db: sqlite3.Database;
   private static instance: DatabaseConnection;
+  private isInitialized: boolean = false;
 
   private constructor(dbPath: string = './data/eform.db') {
-    this.db = new sqlite3.Database(dbPath, (err) => {
+    this.db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
       if (err) {
         console.error('Error opening database:', err);
         throw err;
@@ -15,11 +17,25 @@ export class DatabaseConnection {
       console.log('Connected to SQLite database');
     });
 
-    // Enable WAL mode for better concurrent access
-    this.db.run('PRAGMA journal_mode = WAL');
-    this.db.run('PRAGMA synchronous = NORMAL');
-    this.db.run('PRAGMA cache_size = 1000');
-    this.db.run('PRAGMA temp_store = memory');
+    this.initializePragmas();
+  }
+
+  private async initializePragmas(): Promise<void> {
+    try {
+      // Enable WAL mode for better concurrent access
+      await this.run('PRAGMA journal_mode = WAL');
+      await this.run('PRAGMA synchronous = NORMAL');
+      await this.run('PRAGMA cache_size = 1000');
+      await this.run('PRAGMA temp_store = memory');
+      await this.run('PRAGMA foreign_keys = ON');
+      await this.run('PRAGMA busy_timeout = 30000'); // 30 second timeout
+      
+      this.isInitialized = true;
+      console.log('Database WAL mode and pragmas initialized');
+    } catch (error) {
+      console.error('Error initializing database pragmas:', error);
+      throw error;
+    }
   }
 
   public static getInstance(dbPath?: string): DatabaseConnection {
@@ -30,10 +46,20 @@ export class DatabaseConnection {
   }
 
   public static resetInstance(): void {
-    DatabaseConnection.instance = null as any;
+    if (DatabaseConnection.instance) {
+      DatabaseConnection.instance.close();
+      DatabaseConnection.instance = null as any;
+    }
+  }
+
+  public async waitForInitialization(): Promise<void> {
+    while (!this.isInitialized) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
   }
 
   public async initializeSchema(): Promise<void> {
+    await this.waitForInitialization();
     return new Promise((resolve, reject) => {
       const schemaPath = join(__dirname, 'schema.sql');
       const schema = readFileSync(schemaPath, 'utf8');
@@ -55,6 +81,7 @@ export class DatabaseConnection {
   }
 
   public async run(sql: string, params: any[] = []): Promise<sqlite3.RunResult> {
+    await this.waitForInitialization();
     return new Promise((resolve, reject) => {
       this.db.run(sql, params, function(err) {
         if (err) {
@@ -67,6 +94,7 @@ export class DatabaseConnection {
   }
 
   public async get<T>(sql: string, params: any[] = []): Promise<T | undefined> {
+    await this.waitForInitialization();
     return new Promise((resolve, reject) => {
       this.db.get(sql, params, (err, row) => {
         if (err) {
@@ -79,6 +107,7 @@ export class DatabaseConnection {
   }
 
   public async all<T>(sql: string, params: any[] = []): Promise<T[]> {
+    await this.waitForInitialization();
     return new Promise((resolve, reject) => {
       this.db.all(sql, params, (err, rows) => {
         if (err) {
@@ -88,6 +117,31 @@ export class DatabaseConnection {
         }
       });
     });
+  }
+
+  public async exec(sql: string): Promise<void> {
+    await this.waitForInitialization();
+    return new Promise((resolve, reject) => {
+      this.db.exec(sql, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  public async beginTransaction(): Promise<void> {
+    await this.run('BEGIN TRANSACTION');
+  }
+
+  public async commit(): Promise<void> {
+    await this.run('COMMIT');
+  }
+
+  public async rollback(): Promise<void> {
+    await this.run('ROLLBACK');
   }
 
   public async close(): Promise<void> {

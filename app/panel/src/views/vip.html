@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIP Contract Management - Eform Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .nav-links a:hover {
+            background-color: #ecf0f1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-success {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #229954;
+        }
+
+        .btn-warning {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background-color: #138496;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 0.5rem;
+        }
+
+        .contracts-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            color: #2c3e50;
+        }
+
+        .contracts-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .contracts-table th,
+        .contracts-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .contracts-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .contracts-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-expired {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-cancelled {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-expiring {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-pending {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+
+        .status-approved {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-rejected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-completed {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .history-timeline {
+            border-left: 2px solid #e0e0e0;
+            padding-left: 1rem;
+            margin-left: 1rem;
+        }
+
+        .history-item {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .history-item::before {
+            content: '';
+            position: absolute;
+            left: -1.5rem;
+            top: 0.5rem;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #3498db;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .history-action {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .history-timestamp {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .history-details {
+            background-color: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .history-changes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .history-change {
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .history-old {
+            background-color: #f8d7da;
+            border-left: 3px solid #dc3545;
+        }
+
+        .history-new {
+            background-color: #d4edda;
+            border-left: 3px solid #28a745;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            color: #2c3e50;
+        }
+
+        .close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #7f8c8d;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 1rem;
+            color: #95a5a6;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .contracts-table {
+                font-size: 0.9rem;
+            }
+
+            .contracts-table th,
+            .contracts-table td {
+                padding: 0.5rem;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>VIP Contract Management</h1>
+        <div class="nav-links">
+            <a href="/panel/dashboard">Dashboard</a>
+            <a href="/panel/lockers">Lockers</a>
+            <a href="/panel/vip" class="active">VIP Contracts</a>
+            <a href="/panel/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalContracts">-</div>
+                <div class="stat-label">Total Contracts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeContracts">-</div>
+                <div class="stat-label">Active Contracts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="expiredContracts">-</div>
+                <div class="stat-label">Expired Contracts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="expiringSoonContracts">-</div>
+                <div class="stat-label">Expiring Soon</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="expired">Expired</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="kioskFilter">Kiosk</label>
+                    <select id="kioskFilter">
+                        <option value="">All Kiosks</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="expiringSoonFilter">Expiring Soon</label>
+                    <select id="expiringSoonFilter">
+                        <option value="">All</option>
+                        <option value="true">Expiring in 7 days</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contracts Section -->
+        <div class="contracts-section">
+            <div class="section-header">
+                <h2 class="section-title">VIP Contracts</h2>
+                <div>
+                    <button class="btn btn-primary" onclick="showTransferRequests()" style="margin-right: 1rem;">Transfer Requests</button>
+                    <button class="btn btn-success" onclick="showCreateModal()">Create New Contract</button>
+                </div>
+            </div>
+
+            <div id="contractsContent">
+                <div class="loading">Loading contracts...</div>
+            </div>
+        </div>
+
+        <!-- Transfer Requests Section -->
+        <div class="contracts-section" id="transferRequestsSection" style="display: none; margin-top: 2rem;">
+            <div class="section-header">
+                <h2 class="section-title">VIP Transfer Requests</h2>
+                <div>
+                    <button class="btn btn-secondary" onclick="hideTransferRequests()">Back to Contracts</button>
+                </div>
+            </div>
+
+            <div id="transferRequestsContent">
+                <div class="loading">Loading transfer requests...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Contract Modal -->
+    <div id="contractModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Create VIP Contract</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+
+            <div id="modalAlert"></div>
+
+            <form id="contractForm">
+                <input type="hidden" id="contractId" name="contractId">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="kioskId">Kiosk *</label>
+                        <select id="kioskId" name="kioskId" required>
+                            <option value="">Select Kiosk</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="lockerId">Locker *</label>
+                        <select id="lockerId" name="lockerId" required>
+                            <option value="">Select Locker</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rfidCard">RFID Card *</label>
+                        <input type="text" id="rfidCard" name="rfidCard" required 
+                               placeholder="Enter RFID card ID">
+                    </div>
+                    <div class="form-group">
+                        <label for="backupCard">Backup Card</label>
+                        <input type="text" id="backupCard" name="backupCard" 
+                               placeholder="Enter backup card ID (optional)">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startDate">Start Date *</label>
+                        <input type="date" id="startDate" name="startDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endDate">End Date *</label>
+                        <input type="date" id="endDate" name="endDate" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Create Contract</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Extend Contract Modal -->
+    <div id="extendModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Extend VIP Contract</h3>
+                <span class="close" onclick="closeExtendModal()">&times;</span>
+            </div>
+
+            <div id="extendAlert"></div>
+
+            <form id="extendForm">
+                <input type="hidden" id="extendContractId">
+                
+                <div class="form-group">
+                    <label for="currentEndDate">Current End Date</label>
+                    <input type="date" id="currentEndDate" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="newEndDate">New End Date *</label>
+                    <input type="date" id="newEndDate" name="newEndDate" required>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Extend Contract</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeExtendModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Card Modal -->
+    <div id="changeCardModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Change VIP Contract Card</h3>
+                <span class="close" onclick="closeChangeCardModal()">&times;</span>
+            </div>
+
+            <div id="changeCardAlert"></div>
+
+            <form id="changeCardForm">
+                <input type="hidden" id="changeCardContractId">
+                
+                <div class="form-group">
+                    <label for="currentCard">Current Card</label>
+                    <input type="text" id="currentCard" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="newCard">New Card *</label>
+                    <input type="text" id="newCard" name="newCard" required 
+                           placeholder="Enter new RFID card ID">
+                </div>
+
+                <div class="form-group">
+                    <label for="changeReason">Reason</label>
+                    <textarea id="changeReason" name="reason" 
+                              placeholder="Enter reason for card change (optional)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Change Card</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeChangeCardModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cancel Contract Modal -->
+    <div id="cancelModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Cancel VIP Contract</h3>
+                <span class="close" onclick="closeCancelModal()">&times;</span>
+            </div>
+
+            <div id="cancelAlert"></div>
+
+            <form id="cancelForm">
+                <input type="hidden" id="cancelContractId">
+                
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone. The VIP contract will be cancelled and the locker will be returned to normal operation.
+                </div>
+
+                <div class="form-group">
+                    <label for="cancelReason">Reason for Cancellation *</label>
+                    <textarea id="cancelReason" name="reason" required 
+                              placeholder="Enter reason for cancellation"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-danger">Cancel Contract</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">Keep Contract</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transfer Contract Modal -->
+    <div id="transferModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Transfer VIP Contract</h3>
+                <span class="close" onclick="closeTransferModal()">&times;</span>
+            </div>
+
+            <div id="transferAlert"></div>
+
+            <form id="transferForm">
+                <input type="hidden" id="transferContractId">
+                
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> Transfer requests require approval before execution. The old card will be cancelled if a new card is provided.
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="currentLocation">Current Location</label>
+                        <input type="text" id="currentLocation" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="currentTransferCard">Current Card</label>
+                        <input type="text" id="currentTransferCard" readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="toKioskId">Target Kiosk *</label>
+                        <select id="toKioskId" name="toKioskId" required onchange="loadTargetLockers()">
+                            <option value="">Select Target Kiosk</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="toLockerId">Target Locker *</label>
+                        <select id="toLockerId" name="toLockerId" required>
+                            <option value="">Select Target Locker</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="newRfidCard">New RFID Card (Optional)</label>
+                    <input type="text" id="newRfidCard" name="newRfidCard" 
+                           placeholder="Enter new RFID card ID (leave empty to keep current card)">
+                    <small>If provided, the old card will be cancelled and replaced with this new card.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="transferReason">Reason for Transfer *</label>
+                    <textarea id="transferReason" name="reason" required 
+                              placeholder="Enter reason for transfer (e.g., room change, customer request)"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-info">Request Transfer</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeTransferModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Contract History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">VIP Contract History</h3>
+                <span class="close" onclick="closeHistoryModal()">&times;</span>
+            </div>
+
+            <div id="historyContent">
+                <div class="loading">Loading history...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let contracts = [];
+        let kiosks = [];
+        let availableLockers = {};
+        let transferRequests = [];
+        let csrfToken = '';
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCsrfToken();
+            loadStatistics();
+            loadKiosks();
+            loadContracts();
+            
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').value = today;
+            
+            const nextYear = new Date();
+            nextYear.setFullYear(nextYear.getFullYear() + 1);
+            document.getElementById('endDate').value = nextYear.toISOString().split('T')[0];
+        });
+
+        // Load CSRF token
+        async function loadCsrfToken() {
+            try {
+                const response = await fetch('/panel/auth/csrf-token');
+                const data = await response.json();
+                csrfToken = data.token;
+            } catch (error) {
+                console.error('Failed to load CSRF token:', error);
+            }
+        }
+
+        // Load statistics
+        async function loadStatistics() {
+            try {
+                const response = await fetch('/panel/api/vip');
+                const data = await response.json();
+                
+                const stats = {
+                    total: data.contracts.length,
+                    active: data.contracts.filter(c => c.status === 'active').length,
+                    expired: data.contracts.filter(c => c.status === 'expired').length,
+                    cancelled: data.contracts.filter(c => c.status === 'cancelled').length,
+                    expiring_soon: data.contracts.filter(c => {
+                        if (c.status !== 'active') return false;
+                        const endDate = new Date(c.end_date);
+                        const sevenDaysFromNow = new Date();
+                        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+                        return endDate <= sevenDaysFromNow;
+                    }).length
+                };
+
+                document.getElementById('totalContracts').textContent = stats.total;
+                document.getElementById('activeContracts').textContent = stats.active;
+                document.getElementById('expiredContracts').textContent = stats.expired;
+                document.getElementById('expiringSoonContracts').textContent = stats.expiring_soon;
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+            }
+        }
+
+        // Load kiosks
+        async function loadKiosks() {
+            try {
+                const response = await fetch('/panel/api/lockers/kiosks');
+                const data = await response.json();
+                kiosks = data.kiosks || [];
+                
+                const kioskSelect = document.getElementById('kioskId');
+                const kioskFilter = document.getElementById('kioskFilter');
+                
+                kioskSelect.innerHTML = '<option value="">Select Kiosk</option>';
+                kioskFilter.innerHTML = '<option value="">All Kiosks</option>';
+                
+                kiosks.forEach(kiosk => {
+                    const option1 = new Option(kiosk.zone || kiosk.kiosk_id, kiosk.kiosk_id);
+                    const option2 = new Option(kiosk.zone || kiosk.kiosk_id, kiosk.kiosk_id);
+                    kioskSelect.add(option1);
+                    kioskFilter.add(option2);
+                });
+            } catch (error) {
+                console.error('Failed to load kiosks:', error);
+            }
+        }
+
+        // Load available lockers for selected kiosk
+        async function loadAvailableLockers(kioskId) {
+            if (!kioskId) {
+                document.getElementById('lockerId').innerHTML = '<option value="">Select Locker</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/panel/api/vip/available-lockers/${kioskId}`);
+                const data = await response.json();
+                
+                const lockerSelect = document.getElementById('lockerId');
+                lockerSelect.innerHTML = '<option value="">Select Locker</option>';
+                
+                data.lockers.forEach(locker => {
+                    const option = new Option(`Locker ${locker.id}`, locker.id);
+                    lockerSelect.add(option);
+                });
+            } catch (error) {
+                console.error('Failed to load available lockers:', error);
+            }
+        }
+
+        // Load contracts
+        async function loadContracts() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const kioskFilter = document.getElementById('kioskFilter').value;
+            const expiringSoonFilter = document.getElementById('expiringSoonFilter').value;
+
+            let url = '/panel/api/vip?';
+            const params = new URLSearchParams();
+            
+            if (statusFilter) params.append('status', statusFilter);
+            if (kioskFilter) params.append('kiosk', kioskFilter);
+            if (expiringSoonFilter) params.append('expiringSoon', expiringSoonFilter);
+
+            try {
+                const response = await fetch(url + params.toString());
+                const data = await response.json();
+                contracts = data.contracts || [];
+                
+                renderContracts();
+            } catch (error) {
+                console.error('Failed to load contracts:', error);
+                document.getElementById('contractsContent').innerHTML = 
+                    '<div class="alert alert-error">Failed to load contracts</div>';
+            }
+        }
+
+        // Render contracts table
+        function renderContracts() {
+            const content = document.getElementById('contractsContent');
+            
+            if (contracts.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No VIP contracts found</h3>
+                        <p>Create your first VIP contract to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const table = `
+                <table class="contracts-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Kiosk</th>
+                            <th>Locker</th>
+                            <th>RFID Card</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Created By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${contracts.map(contract => `
+                            <tr>
+                                <td>${contract.id}</td>
+                                <td>${contract.kiosk_id}</td>
+                                <td>${contract.locker_id}</td>
+                                <td>${contract.rfid_card}</td>
+                                <td>${formatDate(contract.start_date)}</td>
+                                <td>${formatDate(contract.end_date)}</td>
+                                <td>${renderStatusBadge(contract)}</td>
+                                <td>${contract.created_by}</td>
+                                <td>
+                                    <div class="actions">
+                                        ${contract.status === 'active' ? `
+                                            <button class="btn btn-warning" onclick="showExtendModal(${contract.id})">Extend</button>
+                                            <button class="btn btn-primary" onclick="showChangeCardModal(${contract.id})">Change Card</button>
+                                            <button class="btn btn-info" onclick="showTransferModal(${contract.id})">Transfer</button>
+                                            <button class="btn btn-danger" onclick="showCancelModal(${contract.id})">Cancel</button>
+                                        ` : ''}
+                                        <button class="btn btn-secondary" onclick="viewHistory(${contract.id})">History</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            content.innerHTML = table;
+        }
+
+        // Render status badge
+        function renderStatusBadge(contract) {
+            let badgeClass = 'status-badge ';
+            let text = contract.status;
+
+            switch (contract.status) {
+                case 'active':
+                    // Check if expiring soon
+                    const endDate = new Date(contract.end_date);
+                    const sevenDaysFromNow = new Date();
+                    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+                    
+                    if (endDate <= sevenDaysFromNow) {
+                        badgeClass += 'status-expiring';
+                        text = 'Expiring Soon';
+                    } else {
+                        badgeClass += 'status-active';
+                        text = 'Active';
+                    }
+                    break;
+                case 'expired':
+                    badgeClass += 'status-expired';
+                    text = 'Expired';
+                    break;
+                case 'cancelled':
+                    badgeClass += 'status-cancelled';
+                    text = 'Cancelled';
+                    break;
+            }
+
+            return `<span class="${badgeClass}">${text}</span>`;
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        }
+
+        // Apply filters
+        function applyFilters() {
+            loadContracts();
+            loadStatistics();
+        }
+
+        // Show create modal
+        function showCreateModal() {
+            document.getElementById('modalTitle').textContent = 'Create VIP Contract';
+            document.getElementById('contractForm').reset();
+            document.getElementById('contractId').value = '';
+            document.getElementById('modalAlert').innerHTML = '';
+            document.getElementById('contractModal').style.display = 'block';
+            
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('startDate').value = today;
+            
+            const nextYear = new Date();
+            nextYear.setFullYear(nextYear.getFullYear() + 1);
+            document.getElementById('endDate').value = nextYear.toISOString().split('T')[0];
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('contractModal').style.display = 'none';
+        }
+
+        // Show extend modal
+        function showExtendModal(contractId) {
+            const contract = contracts.find(c => c.id === contractId);
+            if (!contract) return;
+
+            document.getElementById('extendContractId').value = contractId;
+            document.getElementById('currentEndDate').value = contract.end_date.split('T')[0];
+            document.getElementById('newEndDate').value = '';
+            document.getElementById('extendAlert').innerHTML = '';
+            document.getElementById('extendModal').style.display = 'block';
+        }
+
+        // Close extend modal
+        function closeExtendModal() {
+            document.getElementById('extendModal').style.display = 'none';
+        }
+
+        // Show change card modal
+        function showChangeCardModal(contractId) {
+            const contract = contracts.find(c => c.id === contractId);
+            if (!contract) return;
+
+            document.getElementById('changeCardContractId').value = contractId;
+            document.getElementById('currentCard').value = contract.rfid_card;
+            document.getElementById('newCard').value = '';
+            document.getElementById('changeReason').value = '';
+            document.getElementById('changeCardAlert').innerHTML = '';
+            document.getElementById('changeCardModal').style.display = 'block';
+        }
+
+        // Close change card modal
+        function closeChangeCardModal() {
+            document.getElementById('changeCardModal').style.display = 'none';
+        }
+
+        // Show cancel modal
+        function showCancelModal(contractId) {
+            document.getElementById('cancelContractId').value = contractId;
+            document.getElementById('cancelReason').value = '';
+            document.getElementById('cancelAlert').innerHTML = '';
+            document.getElementById('cancelModal').style.display = 'block';
+        }
+
+        // Close cancel modal
+        function closeCancelModal() {
+            document.getElementById('cancelModal').style.display = 'none';
+        }
+
+        // View contract history
+        function viewHistory(contractId) {
+            window.open(`/panel/vip/${contractId}/history`, '_blank');
+        }
+
+        // Event listeners
+        document.getElementById('kioskId').addEventListener('change', function() {
+            loadAvailableLockers(this.value);
+        });
+
+        // Form submissions
+        document.getElementById('contractForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch('/panel/api/vip', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('modalAlert').innerHTML = 
+                        '<div class="alert alert-success">VIP contract created successfully!</div>';
+                    
+                    setTimeout(() => {
+                        closeModal();
+                        loadContracts();
+                        loadStatistics();
+                    }, 1500);
+                } else {
+                    document.getElementById('modalAlert').innerHTML = 
+                        `<div class="alert alert-error">${result.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('modalAlert').innerHTML = 
+                    '<div class="alert alert-error">Failed to create contract</div>';
+            }
+        });
+
+        document.getElementById('extendForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const contractId = document.getElementById('extendContractId').value;
+            const newEndDate = document.getElementById('newEndDate').value;
+            
+            try {
+                const response = await fetch(`/panel/api/vip/${contractId}/extend`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ newEndDate })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('extendAlert').innerHTML = 
+                        '<div class="alert alert-success">Contract extended successfully!</div>';
+                    
+                    setTimeout(() => {
+                        closeExtendModal();
+                        loadContracts();
+                        loadStatistics();
+                    }, 1500);
+                } else {
+                    document.getElementById('extendAlert').innerHTML = 
+                        `<div class="alert alert-error">${result.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('extendAlert').innerHTML = 
+                    '<div class="alert alert-error">Failed to extend contract</div>';
+            }
+        });
+
+        document.getElementById('changeCardForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const contractId = document.getElementById('changeCardContractId').value;
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch(`/panel/api/vip/${contractId}/change-card`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('changeCardAlert').innerHTML = 
+                        '<div class="alert alert-success">Card changed successfully!</div>';
+                    
+                    setTimeout(() => {
+                        closeChangeCardModal();
+                        loadContracts();
+                    }, 1500);
+                } else {
+                    document.getElementById('changeCardAlert').innerHTML = 
+                        `<div class="alert alert-error">${result.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('changeCardAlert').innerHTML = 
+                    '<div class="alert alert-error">Failed to change card</div>';
+            }
+        });
+
+        document.getElementById('cancelForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const contractId = document.getElementById('cancelContractId').value;
+            const reason = document.getElementById('cancelReason').value;
+            
+            try {
+                const response = await fetch(`/panel/api/vip/${contractId}/cancel`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ reason })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('cancelAlert').innerHTML = 
+                        '<div class="alert alert-success">Contract cancelled successfully!</div>';
+                    
+                    setTimeout(() => {
+                        closeCancelModal();
+                        loadContracts();
+                        loadStatistics();
+                    }, 1500);
+                } else {
+                    document.getElementById('cancelAlert').innerHTML = 
+                        `<div class="alert alert-error">${result.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('cancelAlert').innerHTML = 
+                    '<div class="alert alert-error">Failed to cancel contract</div>';
+            }
+        });
+
+        // Show transfer modal
+        function showTransferModal(contractId) {
+            const contract = contracts.find(c => c.id === contractId);
+            if (!contract) return;
+
+            document.getElementById('transferContractId').value = contractId;
+            document.getElementById('currentLocation').value = `${contract.kiosk_id}:${contract.locker_id}`;
+            document.getElementById('currentTransferCard').value = contract.rfid_card;
+            document.getElementById('newRfidCard').value = '';
+            document.getElementById('transferReason').value = '';
+            document.getElementById('transferAlert').innerHTML = '';
+            
+            // Populate target kiosk dropdown
+            const toKioskSelect = document.getElementById('toKioskId');
+            toKioskSelect.innerHTML = '<option value="">Select Target Kiosk</option>';
+            kiosks.forEach(kiosk => {
+                if (kiosk.kiosk_id !== contract.kiosk_id) { // Exclude current kiosk
+                    const option = new Option(kiosk.zone || kiosk.kiosk_id, kiosk.kiosk_id);
+                    toKioskSelect.add(option);
+                }
+            });
+            
+            document.getElementById('toLockerId').innerHTML = '<option value="">Select Target Locker</option>';
+            document.getElementById('transferModal').style.display = 'block';
+        }
+
+        // Close transfer modal
+        function closeTransferModal() {
+            document.getElementById('transferModal').style.display = 'none';
+        }
+
+        // Load target lockers for transfer
+        async function loadTargetLockers() {
+            const kioskId = document.getElementById('toKioskId').value;
+            if (!kioskId) {
+                document.getElementById('toLockerId').innerHTML = '<option value="">Select Target Locker</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/panel/api/vip/available-lockers/${kioskId}`);
+                const data = await response.json();
+                
+                const lockerSelect = document.getElementById('toLockerId');
+                lockerSelect.innerHTML = '<option value="">Select Target Locker</option>';
+                
+                data.lockers.forEach(locker => {
+                    const option = new Option(`Locker ${locker.id}`, locker.id);
+                    lockerSelect.add(option);
+                });
+            } catch (error) {
+                console.error('Failed to load target lockers:', error);
+            }
+        }
+
+        // Show transfer requests
+        async function showTransferRequests() {
+            document.getElementById('contractsContent').parentElement.style.display = 'none';
+            document.getElementById('transferRequestsSection').style.display = 'block';
+            await loadTransferRequests();
+        }
+
+        // Hide transfer requests
+        function hideTransferRequests() {
+            document.getElementById('transferRequestsSection').style.display = 'none';
+            document.getElementById('contractsContent').parentElement.style.display = 'block';
+        }
+
+        // Load transfer requests
+        async function loadTransferRequests() {
+            try {
+                const response = await fetch('/panel/api/vip/transfers');
+                const data = await response.json();
+                transferRequests = data.transfers || [];
+                
+                renderTransferRequests();
+            } catch (error) {
+                console.error('Failed to load transfer requests:', error);
+                document.getElementById('transferRequestsContent').innerHTML = 
+                    '<div class="alert alert-error">Failed to load transfer requests</div>';
+            }
+        }
+
+        // Render transfer requests table
+        function renderTransferRequests() {
+            const content = document.getElementById('transferRequestsContent');
+            
+            if (transferRequests.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No transfer requests found</h3>
+                        <p>Transfer requests will appear here when created.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const table = `
+                <table class="contracts-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Contract ID</th>
+                            <th>From Location</th>
+                            <th>To Location</th>
+                            <th>New Card</th>
+                            <th>Reason</th>
+                            <th>Requested By</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${transferRequests.map(transfer => `
+                            <tr>
+                                <td>${transfer.id}</td>
+                                <td>${transfer.contract_id}</td>
+                                <td>${transfer.from_kiosk_id}:${transfer.from_locker_id}</td>
+                                <td>${transfer.to_kiosk_id}:${transfer.to_locker_id}</td>
+                                <td>${transfer.new_rfid_card || '-'}</td>
+                                <td>${transfer.reason}</td>
+                                <td>${transfer.requested_by}</td>
+                                <td>${renderTransferStatusBadge(transfer.status)}</td>
+                                <td>${formatDate(transfer.created_at)}</td>
+                                <td>
+                                    <div class="actions">
+                                        ${transfer.status === 'pending' ? `
+                                            <button class="btn btn-success" onclick="approveTransfer(${transfer.id})">Approve</button>
+                                            <button class="btn btn-danger" onclick="rejectTransfer(${transfer.id})">Reject</button>
+                                        ` : ''}
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            content.innerHTML = table;
+        }
+
+        // Render transfer status badge
+        function renderTransferStatusBadge(status) {
+            let badgeClass = 'status-badge ';
+            let text = status;
+
+            switch (status) {
+                case 'pending':
+                    badgeClass += 'status-pending';
+                    text = 'Pending';
+                    break;
+                case 'approved':
+                    badgeClass += 'status-approved';
+                    text = 'Approved';
+                    break;
+                case 'rejected':
+                    badgeClass += 'status-rejected';
+                    text = 'Rejected';
+                    break;
+                case 'completed':
+                    badgeClass += 'status-completed';
+                    text = 'Completed';
+                    break;
+                case 'cancelled':
+                    badgeClass += 'status-cancelled';
+                    text = 'Cancelled';
+                    break;
+            }
+
+            return `<span class="${badgeClass}">${text}</span>`;
+        }
+
+        // Approve transfer
+        async function approveTransfer(transferId) {
+            if (!confirm('Are you sure you want to approve this transfer request?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/panel/api/vip/transfers/${transferId}/approve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('Transfer approved and executed successfully!');
+                    loadTransferRequests();
+                    loadContracts();
+                    loadStatistics();
+                } else {
+                    alert(`Failed to approve transfer: ${result.error}`);
+                }
+            } catch (error) {
+                alert('Failed to approve transfer');
+            }
+        }
+
+        // Reject transfer
+        async function rejectTransfer(transferId) {
+            const reason = prompt('Enter reason for rejection:');
+            if (!reason) return;
+
+            try {
+                const response = await fetch(`/panel/api/vip/transfers/${transferId}/reject`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ reason })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('Transfer rejected successfully!');
+                    loadTransferRequests();
+                } else {
+                    alert(`Failed to reject transfer: ${result.error}`);
+                }
+            } catch (error) {
+                alert('Failed to reject transfer');
+            }
+        }
+
+        // View contract history
+        async function viewHistory(contractId) {
+            try {
+                const response = await fetch(`/panel/api/vip/${contractId}/history`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    renderHistoryModal(data);
+                } else {
+                    alert(`Failed to load history: ${data.error}`);
+                }
+            } catch (error) {
+                alert('Failed to load contract history');
+            }
+        }
+
+        // Render history modal
+        function renderHistoryModal(data) {
+            const { contract, history, events } = data;
+            
+            let historyHtml = `
+                <div class="form-group">
+                    <h4>Contract Information</h4>
+                    <p><strong>Contract ID:</strong> ${contract.id}</p>
+                    <p><strong>Location:</strong> ${contract.kiosk_id}:${contract.locker_id}</p>
+                    <p><strong>Card:</strong> ${contract.rfid_card}</p>
+                    <p><strong>Status:</strong> ${contract.status}</p>
+                </div>
+                
+                <div class="form-group">
+                    <h4>Change History</h4>
+                    <div class="history-timeline">
+            `;
+
+            if (history && history.length > 0) {
+                history.forEach(item => {
+                    historyHtml += `
+                        <div class="history-item">
+                            <div class="history-header">
+                                <span class="history-action">${formatActionType(item.action_type)}</span>
+                                <span class="history-timestamp">${formatDate(item.timestamp)} by ${item.performed_by}</span>
+                            </div>
+                            ${item.reason ? `<p><strong>Reason:</strong> ${item.reason}</p>` : ''}
+                            ${renderHistoryChanges(item.old_values, item.new_values)}
+                            ${item.details ? `<div class="history-details"><pre>${JSON.stringify(item.details, null, 2)}</pre></div>` : ''}
+                        </div>
+                    `;
+                });
+            } else {
+                historyHtml += '<p>No history records found.</p>';
+            }
+
+            historyHtml += `
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <h4>Related Events</h4>
+                    <div class="history-timeline">
+            `;
+
+            if (events && events.length > 0) {
+                events.forEach(event => {
+                    historyHtml += `
+                        <div class="history-item">
+                            <div class="history-header">
+                                <span class="history-action">${event.event_type}</span>
+                                <span class="history-timestamp">${formatDate(event.timestamp)}</span>
+                            </div>
+                            ${event.staff_user ? `<p><strong>Staff:</strong> ${event.staff_user}</p>` : ''}
+                            ${event.details ? `<div class="history-details"><pre>${JSON.stringify(JSON.parse(event.details), null, 2)}</pre></div>` : ''}
+                        </div>
+                    `;
+                });
+            } else {
+                historyHtml += '<p>No related events found.</p>';
+            }
+
+            historyHtml += '</div></div>';
+
+            document.getElementById('historyContent').innerHTML = historyHtml;
+            document.getElementById('historyModal').style.display = 'block';
+        }
+
+        // Format action type for display
+        function formatActionType(actionType) {
+            const types = {
+                'created': 'Contract Created',
+                'extended': 'Contract Extended',
+                'card_changed': 'Card Changed',
+                'transferred': 'Contract Transferred',
+                'cancelled': 'Contract Cancelled'
+            };
+            return types[actionType] || actionType;
+        }
+
+        // Render history changes
+        function renderHistoryChanges(oldValues, newValues) {
+            if (!oldValues && !newValues) return '';
+            
+            let changesHtml = '<div class="history-changes">';
+            
+            if (oldValues) {
+                changesHtml += `
+                    <div class="history-change history-old">
+                        <strong>Before:</strong>
+                        <pre>${JSON.stringify(oldValues, null, 2)}</pre>
+                    </div>
+                `;
+            }
+            
+            if (newValues) {
+                changesHtml += `
+                    <div class="history-change history-new">
+                        <strong>After:</strong>
+                        <pre>${JSON.stringify(newValues, null, 2)}</pre>
+                    </div>
+                `;
+            }
+            
+            changesHtml += '</div>';
+            return changesHtml;
+        }
+
+        // Close history modal
+        function closeHistoryModal() {
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        // Transfer form submission
+        document.getElementById('transferForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const contractId = document.getElementById('transferContractId').value;
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const response = await fetch(`/panel/api/vip/${contractId}/transfer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('transferAlert').innerHTML = 
+                        '<div class="alert alert-success">Transfer request created successfully!</div>';
+                    
+                    setTimeout(() => {
+                        closeTransferModal();
+                        loadContracts();
+                    }, 1500);
+                } else {
+                    document.getElementById('transferAlert').innerHTML = 
+                        `<div class="alert alert-error">${result.error}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('transferAlert').innerHTML = 
+                    '<div class="alert alert-error">Failed to create transfer request</div>';
+            }
+        });
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(event) {
+            const modals = ['contractModal', 'extendModal', 'changeCardModal', 'cancelModal', 'transferModal', 'historyModal'];
+            modals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

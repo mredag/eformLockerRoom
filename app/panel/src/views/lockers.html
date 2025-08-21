@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Locker Management - Eform Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: #f0f0f0;
+        }
+
+        .main-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .filters {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .filter-group select, .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .actions {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .locker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .locker-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .locker-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .locker-card.selected {
+            border-left-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .locker-card.free {
+            border-left-color: #28a745;
+        }
+
+        .locker-card.owned {
+            border-left-color: #ffc107;
+        }
+
+        .locker-card.reserved {
+            border-left-color: #17a2b8;
+        }
+
+        .locker-card.blocked {
+            border-left-color: #dc3545;
+        }
+
+        .locker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .locker-id {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .locker-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-free {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-owned {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-reserved {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-blocked {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .locker-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .locker-details div {
+            margin-bottom: 0.25rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #fcc;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #363;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #cfc;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .kiosk-status {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .kiosk-status h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .kiosk-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .kiosk-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            border-left: 4px solid #ddd;
+        }
+
+        .kiosk-card.online {
+            border-left-color: #28a745;
+        }
+
+        .kiosk-card.offline {
+            border-left-color: #dc3545;
+        }
+
+        .kiosk-card.maintenance {
+            border-left-color: #ffc107;
+        }
+
+        .kiosk-card.error {
+            border-left-color: #fd7e14;
+        }
+
+        .kiosk-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .kiosk-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .kiosk-status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .kiosk-status-badge.online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .kiosk-status-badge.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .kiosk-status-badge.maintenance {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .kiosk-status-badge.error {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+
+        .kiosk-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .kiosk-details div {
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Locker Management</h1>
+        <div class="nav-links">
+            <a href="/dashboard.html">Dashboard</a>
+            <a href="/lockers.html" style="background: #f0f0f0;">Lockers</a>
+            <a href="/vip.html">VIP Contracts</a>
+            <a href="#" onclick="logout()">Logout</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="error-message" class="error-message" style="display: none;"></div>
+        <div id="success-message" class="success-message" style="display: none;"></div>
+
+        <!-- Statistics -->
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-total">-</div>
+                <div class="stat-label">Total Lockers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-free">-</div>
+                <div class="stat-label">Free</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-owned">-</div>
+                <div class="stat-label">Owned</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-reserved">-</div>
+                <div class="stat-label">Reserved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-blocked">-</div>
+                <div class="stat-label">Blocked</div>
+            </div>
+        </div>
+
+        <!-- Kiosk Status -->
+        <div class="kiosk-status" id="kiosk-status" style="display: none;">
+            <h3>Kiosk Status</h3>
+            <div class="kiosk-grid" id="kiosk-grid"></div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filter-group">
+                <label for="zone-filter">Zone</label>
+                <select id="zone-filter">
+                    <option value="">All Zones</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="kiosk-filter">Kiosk</label>
+                <select id="kiosk-filter">
+                    <option value="">All Kiosks</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="status-filter">Status</label>
+                <select id="status-filter">
+                    <option value="">All Statuses</option>
+                    <option value="Free">Free</option>
+                    <option value="Owned">Owned</option>
+                    <option value="Reserved">Reserved</option>
+                    <option value="Blocked">Blocked</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="loadData()">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <button class="btn btn-primary" onclick="openSelectedLockers()" id="open-btn" disabled>
+                Open Selected (<span id="selected-count">0</span>)
+            </button>
+            <button class="btn btn-danger" onclick="blockSelectedLockers()" id="block-btn" disabled>
+                Block Selected
+            </button>
+            <button class="btn btn-success" onclick="unblockSelectedLockers()" id="unblock-btn" disabled>
+                Unblock Selected
+            </button>
+            <button class="btn btn-danger" onclick="showEndOfDayModal()">
+                End of Day Opening
+            </button>
+        </div>
+
+        <!-- Locker Grid -->
+        <div id="loading" class="loading">Loading lockers...</div>
+        <div class="locker-grid" id="locker-grid" style="display: none;"></div>
+    </div>
+
+    <!-- Action Modal -->
+    <div id="action-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Action</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="action-form">
+                <div class="form-group">
+                    <label for="reason">Reason</label>
+                    <textarea id="reason" name="reason" placeholder="Enter reason for this action..."></textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary" id="modal-submit-btn">Submit</button>
+                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- End of Day Modal -->
+    <div id="eod-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>End of Day Opening</h2>
+                <span class="close" onclick="closeEodModal()">&times;</span>
+            </div>
+            <form id="eod-form">
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="exclude-vip" checked> Exclude VIP lockers
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="eod-kiosk">Kiosk (optional)</label>
+                    <select id="eod-kiosk">
+                        <option value="">All Kiosks</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-danger">Generate Report & Open All</button>
+                    <button type="button" class="btn" onclick="closeEodModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let csrfToken = null;
+        let lockers = [];
+        let kiosks = [];
+        let zones = [];
+        let selectedLockers = new Set();
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUserInfo();
+            await loadData();
+        });
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/auth/me');
+                const data = await response.json();
+
+                if (response.ok && data.user) {
+                    currentUser = data.user;
+                    csrfToken = data.csrfToken;
+                } else {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                showError('Failed to load user information');
+            }
+        }
+
+        async function loadData() {
+            try {
+                showLoading(true);
+                
+                // Load kiosks and heartbeat data
+                await loadKiosks();
+                
+                // Load lockers with filters
+                await loadLockers();
+                
+            } catch (error) {
+                showError('Network error loading data');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadKiosks() {
+            try {
+                const response = await fetch('/api/heartbeat/kiosks');
+                const data = await response.json();
+
+                if (response.ok) {
+                    kiosks = data.data.kiosks;
+                    zones = data.data.zones;
+                    renderKiosks();
+                    updateFilters();
+                } else {
+                    console.error('Failed to load kiosks:', data.error);
+                }
+            } catch (error) {
+                console.error('Network error loading kiosks:', error);
+            }
+        }
+
+        async function loadLockers() {
+            const zoneFilter = document.getElementById('zone-filter').value;
+            const kioskFilter = document.getElementById('kiosk-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+
+            try {
+                const params = new URLSearchParams();
+                if (kioskFilter) params.append('kioskId', kioskFilter);
+                if (statusFilter) params.append('status', statusFilter);
+
+                const response = await fetch(`/api/lockers?${params}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    lockers = data.lockers;
+                    
+                    // Filter by zone if selected
+                    if (zoneFilter) {
+                        const kioskIdsInZone = kiosks
+                            .filter(k => k.zone === zoneFilter)
+                            .map(k => k.kiosk_id);
+                        lockers = lockers.filter(l => kioskIdsInZone.includes(l.kiosk_id));
+                    }
+                    
+                    renderLockers();
+                    updateStats();
+                } else {
+                    showError(data.error || 'Failed to load lockers');
+                }
+            } catch (error) {
+                showError('Network error loading lockers');
+            }
+        }
+
+        function renderLockers() {
+            const grid = document.getElementById('locker-grid');
+            
+            if (lockers.length === 0) {
+                grid.innerHTML = '<div class="loading">No lockers found</div>';
+                grid.style.display = 'block';
+                return;
+            }
+
+            grid.innerHTML = lockers.map(locker => `
+                <div class="locker-card ${locker.status.toLowerCase()} ${selectedLockers.has(locker.kiosk_id + '-' + locker.id) ? 'selected' : ''}" 
+                     onclick="toggleLocker('${locker.kiosk_id}', ${locker.id})">
+                    <div class="locker-header">
+                        <div class="locker-id">${locker.kiosk_id}-${locker.id}</div>
+                        <div class="locker-status status-${locker.status.toLowerCase()}">${locker.status}</div>
+                    </div>
+                    <div class="locker-details">
+                        ${locker.is_vip ? '<div><strong>VIP Locker</strong></div>' : ''}
+                        ${locker.owner_type ? `<div>Owner: ${locker.owner_type}</div>` : ''}
+                        ${locker.reserved_at ? `<div>Reserved: ${new Date(locker.reserved_at).toLocaleString()}</div>` : ''}
+                        ${locker.owned_at ? `<div>Owned: ${new Date(locker.owned_at).toLocaleString()}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            grid.style.display = 'grid';
+        }
+
+        function updateStats() {
+            const stats = {
+                total: lockers.length,
+                free: lockers.filter(l => l.status === 'Free').length,
+                owned: lockers.filter(l => l.status === 'Owned').length,
+                reserved: lockers.filter(l => l.status === 'Reserved').length,
+                blocked: lockers.filter(l => l.status === 'Blocked').length
+            };
+
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-free').textContent = stats.free;
+            document.getElementById('stat-owned').textContent = stats.owned;
+            document.getElementById('stat-reserved').textContent = stats.reserved;
+            document.getElementById('stat-blocked').textContent = stats.blocked;
+        }
+
+        function renderKiosks() {
+            const kioskStatusDiv = document.getElementById('kiosk-status');
+            const kioskGrid = document.getElementById('kiosk-grid');
+            
+            if (kiosks.length === 0) {
+                kioskStatusDiv.style.display = 'none';
+                return;
+            }
+
+            kioskGrid.innerHTML = kiosks.map(kiosk => `
+                <div class="kiosk-card ${kiosk.status}">
+                    <div class="kiosk-header">
+                        <div class="kiosk-name">${kiosk.kiosk_id}</div>
+                        <div class="kiosk-status-badge ${kiosk.status}">${kiosk.status.toUpperCase()}</div>
+                    </div>
+                    <div class="kiosk-details">
+                        <div><strong>Zone:</strong> ${kiosk.zone}</div>
+                        <div><strong>Version:</strong> ${kiosk.version}</div>
+                        <div><strong>Last Seen:</strong> ${new Date(kiosk.last_seen).toLocaleString()}</div>
+                        ${kiosk.hardware_id ? `<div><strong>Hardware:</strong> ${kiosk.hardware_id}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            kioskStatusDiv.style.display = 'block';
+        }
+
+        function updateFilters() {
+            const zoneFilter = document.getElementById('zone-filter');
+            const kioskFilter = document.getElementById('kiosk-filter');
+            const eodKiosk = document.getElementById('eod-kiosk');
+            
+            const currentZone = zoneFilter.value;
+            const currentKiosk = kioskFilter.value;
+            
+            // Update zone filter
+            zoneFilter.innerHTML = '<option value="">All Zones</option>' +
+                zones.map(z => `<option value="${z}">${z}</option>`).join('');
+            zoneFilter.value = currentZone;
+            
+            // Update kiosk filter based on selected zone
+            let availableKiosks = kiosks;
+            if (currentZone) {
+                availableKiosks = kiosks.filter(k => k.zone === currentZone);
+            }
+            
+            kioskFilter.innerHTML = '<option value="">All Kiosks</option>' +
+                availableKiosks.map(k => `<option value="${k.kiosk_id}">${k.kiosk_id} (${k.status})</option>`).join('');
+            
+            eodKiosk.innerHTML = '<option value="">All Kiosks</option>' +
+                availableKiosks.map(k => `<option value="${k.kiosk_id}">${k.kiosk_id} (${k.status})</option>`).join('');
+            
+            // Restore kiosk selection if still valid
+            if (currentKiosk && availableKiosks.some(k => k.kiosk_id === currentKiosk)) {
+                kioskFilter.value = currentKiosk;
+            }
+            
+            // Add zone filter change handler
+            zoneFilter.onchange = () => {
+                updateFilters();
+                loadLockers();
+            };
+        }
+
+        function toggleLocker(kioskId, lockerId) {
+            const key = kioskId + '-' + lockerId;
+            
+            if (selectedLockers.has(key)) {
+                selectedLockers.delete(key);
+            } else {
+                selectedLockers.add(key);
+            }
+            
+            updateSelectedCount();
+            renderLockers();
+        }
+
+        function updateSelectedCount() {
+            const count = selectedLockers.size;
+            document.getElementById('selected-count').textContent = count;
+            
+            const openBtn = document.getElementById('open-btn');
+            const blockBtn = document.getElementById('block-btn');
+            const unblockBtn = document.getElementById('unblock-btn');
+            
+            openBtn.disabled = count === 0;
+            blockBtn.disabled = count === 0;
+            unblockBtn.disabled = count === 0;
+        }
+
+        async function openSelectedLockers() {
+            if (selectedLockers.size === 0) return;
+            
+            showActionModal('Open Lockers', 'open');
+        }
+
+        async function blockSelectedLockers() {
+            if (selectedLockers.size === 0) return;
+            
+            showActionModal('Block Lockers', 'block');
+        }
+
+        async function unblockSelectedLockers() {
+            if (selectedLockers.size === 0) return;
+            
+            showActionModal('Unblock Lockers', 'unblock');
+        }
+
+        function showActionModal(title, action) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('action-modal').style.display = 'block';
+            
+            const form = document.getElementById('action-form');
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                await performAction(action);
+            };
+        }
+
+        async function performAction(action) {
+            const reason = document.getElementById('reason').value;
+            const selectedArray = Array.from(selectedLockers).map(key => {
+                const [kioskId, lockerId] = key.split('-');
+                return { kioskId, lockerId: parseInt(lockerId) };
+            });
+
+            try {
+                if (action === 'open') {
+                    await performBulkOpen(selectedArray, reason);
+                } else {
+                    await performIndividualActions(action, selectedArray, reason);
+                }
+                
+                closeModal();
+                selectedLockers.clear();
+                updateSelectedCount();
+                await loadLockers();
+            } catch (error) {
+                showError('Action failed: ' + error.message);
+            }
+        }
+
+        async function performBulkOpen(lockers, reason) {
+            const response = await fetch('/api/lockers/bulk/open', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({
+                    lockers,
+                    reason: reason || 'Bulk open operation'
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                showSuccess(`Bulk open completed: ${data.successCount}/${data.totalCount} successful`);
+            } else {
+                throw new Error(data.error);
+            }
+        }
+
+        async function performIndividualActions(action, lockers, reason) {
+            let successCount = 0;
+            
+            for (const { kioskId, lockerId } of lockers) {
+                try {
+                    const endpoint = action === 'block' ? 'block' : 'unblock';
+                    const body = action === 'block' ? { reason: reason || 'Manual block' } : {};
+                    
+                    const response = await fetch(`/api/lockers/${kioskId}/${lockerId}/${endpoint}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': csrfToken
+                        },
+                        body: JSON.stringify(body)
+                    });
+
+                    if (response.ok) {
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error(`Failed to ${action} locker ${kioskId}-${lockerId}:`, error);
+                }
+            }
+            
+            showSuccess(`${action} completed: ${successCount}/${lockers.length} successful`);
+        }
+
+        function showEndOfDayModal() {
+            document.getElementById('eod-modal').style.display = 'block';
+            
+            const form = document.getElementById('eod-form');
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                await performEndOfDay();
+            };
+        }
+
+        async function performEndOfDay() {
+            const excludeVip = document.getElementById('exclude-vip').checked;
+            const kioskId = document.getElementById('eod-kiosk').value;
+
+            try {
+                const response = await fetch('/api/lockers/end-of-day', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({
+                        excludeVip,
+                        kioskId: kioskId || undefined
+                    })
+                });
+
+                if (response.ok) {
+                    // Download the CSV file
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `end-of-day-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    showSuccess('End of day operation completed and report downloaded');
+                    closeEodModal();
+                    await loadLockers();
+                } else {
+                    const data = await response.json();
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                showError('End of day operation failed: ' + error.message);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('action-modal').style.display = 'none';
+            document.getElementById('reason').value = '';
+        }
+
+        function closeEodModal() {
+            document.getElementById('eod-modal').style.display = 'none';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+            document.getElementById('locker-grid').style.display = show ? 'none' : 'grid';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => successDiv.style.display = 'none', 5000);
+        }
+
+        async function logout() {
+            try {
+                await fetch('/auth/logout', { method: 'POST' });
+                window.location.href = '/login.html';
+            } catch (error) {
+                window.location.href = '/login.html';
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const actionModal = document.getElementById('action-modal');
+            const eodModal = document.getElementById('eod-modal');
+            
+            if (event.target === actionModal) {
+                closeModal();
+            }
+            if (event.target === eodModal) {
+                closeEodModal();
+            }
+        }
+    </script>
+</body>
+</html>

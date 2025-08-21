@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Eform Locker System</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+    <div id="app">
+        <!-- Main Screen -->
+        <div id="main-screen" class="screen active">
+            <div class="header">
+                <h1 class="title">Eform Locker System</h1>
+                <div class="kiosk-info">
+                    <span id="kiosk-id">Kiosk: Loading...</span>
+                    <span id="current-time">--:--</span>
+                </div>
+            </div>
+            
+            <div class="main-content">
+                <div class="rfid-prompt">
+                    <div class="rfid-icon">
+                        <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                    </div>
+                    <h2 class="prompt-text" data-i18n="scan_card">Kart okutunuz</h2>
+                    <p class="prompt-subtitle" data-i18n="scan_card_subtitle">RFID kartınızı okutucuya yaklaştırın</p>
+                </div>
+                
+                <div class="status-message" id="status-message"></div>
+            </div>
+            
+            <div class="footer">
+                <button id="master-btn" class="master-button" data-i18n="master_access">Master Erişim</button>
+                <div class="language-selector">
+                    <button id="lang-tr" class="lang-btn active">TR</button>
+                    <button id="lang-en" class="lang-btn">EN</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Locker Selection Screen -->
+        <div id="locker-selection-screen" class="screen">
+            <div class="header">
+                <button id="back-to-main" class="back-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"/>
+                        <path d="M19 12H5"/>
+                    </svg>
+                    <span data-i18n="back">Geri</span>
+                </button>
+                <h2 class="screen-title" data-i18n="select_locker">Dolap Seçin</h2>
+            </div>
+            
+            <div class="locker-grid" id="locker-grid">
+                <!-- Locker buttons will be generated dynamically -->
+            </div>
+            
+            <div class="selection-info">
+                <p data-i18n="select_locker_info">Kullanmak istediğiniz dolabı seçin</p>
+            </div>
+        </div>
+
+        <!-- Master PIN Screen -->
+        <div id="master-pin-screen" class="screen">
+            <div class="header">
+                <button id="back-to-main-from-master" class="back-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"/>
+                        <path d="M19 12H5"/>
+                    </svg>
+                    <span data-i18n="back">Geri</span>
+                </button>
+                <h2 class="screen-title" data-i18n="master_access">Master Erişim</h2>
+            </div>
+            
+            <div class="pin-entry">
+                <div class="pin-display">
+                    <div id="pin-dots" class="pin-dots">
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                    </div>
+                </div>
+                
+                <div class="pin-keypad">
+                    <button class="pin-btn" data-digit="1">1</button>
+                    <button class="pin-btn" data-digit="2">2</button>
+                    <button class="pin-btn" data-digit="3">3</button>
+                    <button class="pin-btn" data-digit="4">4</button>
+                    <button class="pin-btn" data-digit="5">5</button>
+                    <button class="pin-btn" data-digit="6">6</button>
+                    <button class="pin-btn" data-digit="7">7</button>
+                    <button class="pin-btn" data-digit="8">8</button>
+                    <button class="pin-btn" data-digit="9">9</button>
+                    <button class="pin-btn clear-btn" data-action="clear">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                            <line x1="18" y1="9" x2="12" y2="15"/>
+                            <line x1="12" y1="9" x2="18" y2="15"/>
+                        </svg>
+                    </button>
+                    <button class="pin-btn" data-digit="0">0</button>
+                    <button class="pin-btn enter-btn" data-action="enter">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12l2 2 4-4"/>
+                            <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.12 0 4.07.74 5.61 1.98"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="pin-status" id="pin-status">
+                    <p data-i18n="enter_master_pin">Master PIN'i girin</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Master Locker Grid Screen -->
+        <div id="master-locker-screen" class="screen">
+            <div class="header">
+                <button id="back-to-main-from-lockers" class="back-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"/>
+                        <path d="M19 12H5"/>
+                    </svg>
+                    <span data-i18n="back">Geri</span>
+                </button>
+                <h2 class="screen-title" data-i18n="master_locker_control">Master Dolap Kontrolü</h2>
+            </div>
+            
+            <div class="master-locker-grid" id="master-locker-grid">
+                <!-- Master locker buttons will be generated dynamically -->
+            </div>
+            
+            <div class="master-info">
+                <p data-i18n="master_locker_info">Açmak istediğiniz dolabı seçin</p>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <p id="loading-text" data-i18n="loading">Yükleniyor...</p>
+        </div>
+    </div>
+
+    <script src="/static/i18n.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

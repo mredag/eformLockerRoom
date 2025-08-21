@@ -1,0 +1,52 @@
+[Unit]
+Description=Eform Locker System - Kiosk Service
+Documentation=https://github.com/eform/locker-system
+After=network.target eform-gateway.service
+Wants=network.target
+Requires=eform-gateway.service
+
+[Service]
+Type=simple
+User=eform
+Group=eform
+WorkingDirectory=/opt/eform
+ExecStart=/usr/bin/node app/kiosk/dist/index.js
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=eform-kiosk
+
+# Environment
+Environment=NODE_ENV=production
+Environment=CONFIG_PATH=/opt/eform/config/system.json
+Environment=DATA_PATH=/opt/eform/data
+Environment=LOG_PATH=/var/log/eform
+Environment=GATEWAY_URL=http://localhost:3000
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/eform/data /opt/eform/logs /var/log/eform /dev
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+
+# Hardware access
+SupplementaryGroups=dialout
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Health check
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/bin/bash -c 'curl -f http://localhost:3001/health || exit 1'
+
+[Install]
+WantedBy=multi-user.target

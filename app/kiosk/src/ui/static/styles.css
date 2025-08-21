@@ -1,0 +1,647 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    overflow: hidden;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+    height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Screen management */
+.screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease-in-out;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+.screen.active {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.screen.slide-left {
+    transform: translateX(-100%);
+}
+
+/* Header */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 30px;
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    min-height: 80px;
+}
+
+.title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #2563eb;
+    text-align: center;
+    flex: 1;
+}
+
+.screen-title {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #2563eb;
+    text-align: center;
+    flex: 1;
+}
+
+.kiosk-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.9rem;
+    color: #666;
+    gap: 4px;
+}
+
+.back-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 100px;
+}
+
+.back-button:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
+}
+
+.back-button:active {
+    transform: translateY(0);
+    background: #d1d5db;
+}
+
+/* Main content */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+}
+
+.rfid-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+}
+
+.rfid-icon {
+    color: #2563eb;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.prompt-text {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.prompt-subtitle {
+    font-size: 1.4rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.status-message {
+    margin-top: 40px;
+    padding: 20px 30px;
+    border-radius: 16px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.status-message.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.status-message.success {
+    background: #dcfce7;
+    color: #166534;
+    border: 2px solid #bbf7d0;
+}
+
+.status-message.error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 2px solid #fecaca;
+}
+
+.status-message.info {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 2px solid #bfdbfe;
+}
+
+.status-message.warning {
+    background: #fef3c7;
+    color: #d97706;
+    border: 2px solid #fed7aa;
+}
+
+/* Footer */
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 30px;
+    background: rgba(255, 255, 255, 0.9);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    min-height: 80px;
+}
+
+.master-button {
+    padding: 16px 32px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 160px;
+}
+
+.master-button:hover {
+    background: #b91c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.master-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);
+}
+
+.language-selector {
+    display: flex;
+    gap: 8px;
+}
+
+.lang-btn {
+    padding: 12px 20px;
+    background: #f3f4f6;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 60px;
+}
+
+.lang-btn.active {
+    background: #2563eb;
+    color: white;
+    border-color: #1d4ed8;
+}
+
+.lang-btn:not(.active):hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+}
+
+/* Locker Grid */
+.locker-grid, .master-locker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+    padding: 30px;
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 240px);
+}
+
+.locker-btn {
+    aspect-ratio: 1;
+    border: 3px solid #e5e7eb;
+    border-radius: 16px;
+    background: #ffffff;
+    font-size: 1.4rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+    min-height: 120px;
+}
+
+.locker-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.locker-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.locker-btn.free {
+    border-color: #10b981;
+    color: #065f46;
+    background: #ecfdf5;
+}
+
+.locker-btn.free:hover {
+    background: #d1fae5;
+    border-color: #059669;
+}
+
+.locker-btn.owned {
+    border-color: #dc2626;
+    color: #991b1b;
+    background: #fef2f2;
+    cursor: not-allowed;
+}
+
+.locker-btn.reserved {
+    border-color: #f59e0b;
+    color: #92400e;
+    background: #fffbeb;
+    cursor: not-allowed;
+}
+
+.locker-btn.blocked {
+    border-color: #6b7280;
+    color: #374151;
+    background: #f9fafb;
+    cursor: not-allowed;
+}
+
+.locker-btn.vip {
+    border-color: #7c3aed;
+    color: #5b21b6;
+    background: #f3e8ff;
+    cursor: not-allowed;
+}
+
+.locker-number {
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+
+.locker-status {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.selection-info, .master-info {
+    text-align: center;
+    padding: 20px 30px;
+    background: rgba(255, 255, 255, 0.9);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    font-size: 1.2rem;
+    color: #6b7280;
+}
+
+/* PIN Entry */
+.pin-entry {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 40px;
+}
+
+.pin-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pin-dots {
+    display: flex;
+    gap: 20px;
+}
+
+.pin-dot {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #d1d5db;
+    border-radius: 50%;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+.pin-dot.filled {
+    background: #2563eb;
+    border-color: #1d4ed8;
+}
+
+.pin-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    max-width: 300px;
+    width: 100%;
+}
+
+.pin-btn {
+    aspect-ratio: 1;
+    border: 2px solid #e5e7eb;
+    border-radius: 16px;
+    background: #ffffff;
+    font-size: 1.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+}
+
+.pin-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+}
+
+.pin-btn:active {
+    transform: translateY(0);
+    background: #e5e7eb;
+}
+
+.pin-btn.clear-btn {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+}
+
+.pin-btn.clear-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+.pin-btn.enter-btn {
+    background: #ecfdf5;
+    border-color: #bbf7d0;
+    color: #059669;
+}
+
+.pin-btn.enter-btn:hover {
+    background: #d1fae5;
+    border-color: #86efac;
+}
+
+.pin-status {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #6b7280;
+    min-height: 30px;
+}
+
+.pin-status.error {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.pin-status.success {
+    color: #059669;
+    font-weight: 600;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.loading-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-overlay p {
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .prompt-text {
+        font-size: 2.2rem;
+    }
+    
+    .prompt-subtitle {
+        font-size: 1.1rem;
+    }
+    
+    .locker-grid, .master-locker-grid {
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 12px;
+        padding: 20px;
+    }
+    
+    .locker-btn {
+        min-height: 100px;
+        font-size: 1.2rem;
+    }
+    
+    .locker-number {
+        font-size: 1.4rem;
+    }
+    
+    .pin-keypad {
+        gap: 15px;
+        max-width: 250px;
+    }
+    
+    .pin-btn {
+        min-height: 70px;
+        font-size: 1.6rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 15px 20px;
+        min-height: 70px;
+    }
+    
+    .title, .screen-title {
+        font-size: 1.4rem;
+    }
+    
+    .footer {
+        padding: 15px 20px;
+        min-height: 70px;
+    }
+    
+    .master-button {
+        padding: 12px 24px;
+        font-size: 1rem;
+        min-width: 140px;
+    }
+    
+    .locker-grid, .master-locker-grid {
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+        gap: 10px;
+        padding: 15px;
+    }
+    
+    .locker-btn {
+        min-height: 80px;
+        font-size: 1rem;
+    }
+    
+    .locker-number {
+        font-size: 1.2rem;
+    }
+    
+    .locker-status {
+        font-size: 0.7rem;
+    }
+}
+
+/* Touch-specific optimizations */
+@media (pointer: coarse) {
+    .locker-btn, .pin-btn, .master-button, .back-button, .lang-btn {
+        min-height: 60px;
+        min-width: 60px;
+    }
+    
+    .pin-btn {
+        min-height: 80px;
+    }
+    
+    .locker-btn {
+        min-height: 120px;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .rfid-icon svg {
+        width: 140px;
+        height: 140px;
+    }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .rfid-icon {
+        animation: none;
+    }
+}
+
+/* Focus styles for keyboard navigation */
+button:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+    .screen {
+        position: static;
+        transform: none;
+        opacity: 1;
+    }
+    
+    .loading-overlay {
+        display: none;
+    }
+}

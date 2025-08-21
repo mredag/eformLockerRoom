@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { DatabaseConnection } from '../../../shared/database/connection.js';
 import { provisioningRoutes } from './routes/provisioning.js';
 import { configurationRoutes } from './routes/configuration.js';
+import { heartbeatRoutes } from './routes/heartbeat.js';
 import { mkdirSync } from 'fs';
 
 const fastify = Fastify({
@@ -24,6 +25,7 @@ async function initializeDatabase() {
 // Register routes
 fastify.register(provisioningRoutes, { prefix: '/api/provisioning' });
 fastify.register(configurationRoutes, { prefix: '/api/configuration' });
+fastify.register(heartbeatRoutes, { prefix: '/api/heartbeat' });
 
 // Health check endpoint
 fastify.get('/health', async (request, reply) => {

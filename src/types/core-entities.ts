@@ -61,6 +61,38 @@ export interface VipContractRequest {
   created_by: string;
 }
 
+export type VipTransferStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+
+export interface VipTransferRequest {
+  id: number;
+  contract_id: number;
+  from_kiosk_id: string;
+  from_locker_id: number;
+  to_kiosk_id: string;
+  to_locker_id: number;
+  new_rfid_card?: string; // Optional new card for transfer
+  reason: string;
+  requested_by: string;
+  approved_by?: string;
+  status: VipTransferStatus;
+  created_at: Date;
+  approved_at?: Date;
+  completed_at?: Date;
+  rejection_reason?: string;
+}
+
+export interface VipContractHistory {
+  id: number;
+  contract_id: number;
+  action_type: 'created' | 'extended' | 'card_changed' | 'transferred' | 'cancelled';
+  old_values?: Record<string, any>;
+  new_values?: Record<string, any>;
+  performed_by: string;
+  reason?: string;
+  timestamp: Date;
+  details: Record<string, any>;
+}
+
 // ============================================================================
 // EVENT ENTITIES
 // ============================================================================
@@ -88,6 +120,11 @@ export enum EventType {
   VIP_CONTRACT_CREATED = 'vip_contract_created',
   VIP_CONTRACT_EXTENDED = 'vip_contract_extended',
   VIP_CONTRACT_CANCELLED = 'vip_contract_cancelled',
+  VIP_CARD_CHANGED = 'vip_card_changed',
+  VIP_TRANSFER_REQUESTED = 'vip_transfer_requested',
+  VIP_TRANSFER_APPROVED = 'vip_transfer_approved',
+  VIP_TRANSFER_REJECTED = 'vip_transfer_rejected',
+  VIP_TRANSFER_COMPLETED = 'vip_transfer_completed',
   
   // Configuration events
   CONFIG_PACKAGE_CREATED = 'config_package_created',

@@ -1,0 +1,36 @@
+[Unit]
+Description=Eform Locker System Update Agent
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=eform
+Group=eform
+WorkingDirectory=/opt/eform/app/agent
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=eform-agent
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/eform /tmp/eform-updates
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# Environment
+Environment=NODE_ENV=production
+Environment=LOG_LEVEL=info
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

@@ -89,7 +89,7 @@ export class MigrationRunner {
 
     try {
       // Execute the migration SQL
-      await this.db.run('BEGIN TRANSACTION');
+      await this.db.beginTransaction();
       
       // Execute the entire migration as one statement
       // SQLite can handle multiple statements separated by semicolons
@@ -97,15 +97,7 @@ export class MigrationRunner {
       
       try {
         // Use exec for multiple statements
-        await new Promise<void>((resolve, reject) => {
-          this.db.getDatabase().exec(content, (err) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        });
+        await this.db.exec(content);
       } catch (error) {
         console.error(`Error executing migration: ${error}`);
         throw error;
@@ -117,11 +109,11 @@ export class MigrationRunner {
         [migrationId, filename, checksum]
       );
 
-      await this.db.run('COMMIT');
+      await this.db.commit();
       console.log(`✓ Migration ${filename} applied successfully`);
 
     } catch (error) {
-      await this.db.run('ROLLBACK');
+      await this.db.rollback();
       console.error(`✗ Migration ${filename} failed:`, error);
       throw error;
     }

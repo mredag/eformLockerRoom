@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="panel.system_config">Sistem Yapılandırması</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <style>
+        .config-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .config-section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 15px;
+        }
+        
+        .config-item label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        
+        .config-item input,
+        .config-item select {
+            padding: 8px 12px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .config-item input:focus,
+        .config-item select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .config-item .description {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 3px;
+        }
+        
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+        
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        
+        .validation-errors {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .validation-warnings {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .config-history {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        
+        .history-timestamp {
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        .history-user {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .history-section {
+            color: #007bff;
+            font-family: monospace;
+        }
+        
+        .language-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .language-selector select {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.3s;
+        }
+        
+        .tab.active {
+            border-bottom-color: #3498db;
+            color: #3498db;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="language-selector">
+        <select id="language-selector">
+            <option value="tr">Türkçe</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1 data-i18n="panel.system_config">Sistem Yapılandırması</h1>
+            <nav>
+                <a href="/dashboard" data-i18n="panel.dashboard">Ana Sayfa</a>
+                <a href="/lockers" data-i18n="panel.lockers">Dolaplar</a>
+                <a href="/vip" data-i18n="panel.vip_contracts">VIP Sözleşmeler</a>
+                <a href="/config" class="active" data-i18n="panel.settings">Ayarlar</a>
+                <a href="/auth/logout" data-i18n="panel.logout">Çıkış</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="validation-errors" id="validation-errors"></div>
+            <div class="validation-warnings" id="validation-warnings"></div>
+            <div class="success-message" id="success-message"></div>
+
+            <div class="tabs">
+                <div class="tab active" data-tab="configuration" data-i18n="panel.system_config">Yapılandırma</div>
+                <div class="tab" data-tab="history" data-i18n="panel.events">Geçmiş</div>
+            </div>
+
+            <div class="tab-content active" id="configuration-tab">
+                <form id="config-form">
+                    <!-- System Configuration -->
+                    <div class="config-section">
+                        <h3 data-i18n="panel.system_config">Sistem Yapılandırması</h3>
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label for="system-name" data-i18n="panel.system_name">Sistem Adı</label>
+                                <input type="text" id="system-name" name="system.name">
+                                <div class="description" data-i18n="panel.system_name_desc">Sistem görünen adı</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="system-environment" data-i18n="panel.environment">Ortam</label>
+                                <select id="system-environment" name="system.environment">
+                                    <option value="development">Development</option>
+                                    <option value="production">Production</option>
+                                    <option value="test">Test</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Locker Configuration -->
+                    <div class="config-section">
+                        <h3 data-i18n="panel.locker_config">Dolap Yapılandırması</h3>
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label for="reserve-ttl" data-i18n="panel.reserve_ttl">Rezervasyon Süresi (saniye)</label>
+                                <input type="number" id="reserve-ttl" name="lockers.reserve_ttl_seconds" min="30" max="300">
+                                <div class="description" data-i18n="panel.reserve_ttl_desc">Dolap rezerve edildikten sonra otomatik serbest bırakılma süresi</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="bulk-interval" data-i18n="panel.bulk_interval">Toplu İşlem Aralığı (ms)</label>
+                                <input type="number" id="bulk-interval" name="lockers.bulk_operation_interval_ms" min="100" max="2000">
+                                <div class="description" data-i18n="panel.bulk_interval_desc">Toplu dolap açma işlemlerinde dolaplar arası bekleme süresi</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="master-lockout-fails" data-i18n="panel.master_lockout_fails">Master PIN Hata Limiti</label>
+                                <input type="number" id="master-lockout-fails" name="lockers.master_lockout_fails" min="3" max="10">
+                                <div class="description" data-i18n="panel.master_lockout_fails_desc">Master PIN yanlış girilme limiti</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="master-lockout-minutes" data-i18n="panel.master_lockout_minutes">Master PIN Kilitleme Süresi (dakika)</label>
+                                <input type="number" id="master-lockout-minutes" name="lockers.master_lockout_minutes" min="1" max="60">
+                                <div class="description" data-i18n="panel.master_lockout_minutes_desc">Master PIN kilitlenme süresi</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hardware Configuration -->
+                    <div class="config-section">
+                        <h3 data-i18n="panel.hardware_config">Donanım Yapılandırması</h3>
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label for="pulse-duration" data-i18n="panel.pulse_duration">Darbe Süresi (ms)</label>
+                                <input type="number" id="pulse-duration" name="hardware.modbus.pulse_duration_ms" min="100" max="1000">
+                                <div class="description" data-i18n="panel.pulse_duration_desc">Dolap açma darbe süresi</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="burst-duration" data-i18n="panel.burst_duration">Burst Süresi (saniye)</label>
+                                <input type="number" id="burst-duration" name="hardware.modbus.burst_duration_seconds" min="5" max="30">
+                                <div class="description" data-i18n="panel.burst_duration_desc">Başarısız açma durumunda burst açma süresi</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="rfid-debounce" data-i18n="panel.rfid_debounce">RFID Debounce (ms)</label>
+                                <input type="number" id="rfid-debounce" name="hardware.rfid.debounce_ms" min="100" max="2000">
+                                <div class="description" data-i18n="panel.rfid_debounce_desc">RFID kart okuma debounce süresi</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Configuration -->
+                    <div class="config-section">
+                        <h3 data-i18n="panel.security_config">Güvenlik Yapılandırması</h3>
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label for="pin-rotation-days" data-i18n="panel.pin_rotation_days">PIN Rotasyon Süresi (gün)</label>
+                                <input type="number" id="pin-rotation-days" name="security.pin_rotation_days" min="30" max="365">
+                                <div class="description" data-i18n="panel.pin_rotation_days_desc">Master PIN değiştirme zorunluluğu süresi</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="session-timeout" data-i18n="panel.session_timeout">Oturum Zaman Aşımı (dakika)</label>
+                                <input type="number" id="session-timeout" name="services.panel.session_timeout_minutes" min="15" max="480">
+                                <div class="description" data-i18n="panel.session_timeout_desc">Panel oturum zaman aşımı süresi</div>
+                            </div>
+                            <div class="config-item">
+                                <label for="rate-limit-ip" data-i18n="panel.rate_limit_ip">IP Rate Limit (dakika başına)</label>
+                                <input type="number" id="rate-limit-ip" name="security.rate_limits.ip_per_minute" min="10" max="1000">
+                                <div class="description" data-i18n="panel.rate_limit_ip_desc">IP başına dakika başına istek limiti</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- I18n Configuration -->
+                    <div class="config-section">
+                        <h3 data-i18n="panel.i18n_config">Dil Yapılandırması</h3>
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label for="default-language" data-i18n="panel.default_language">Varsayılan Dil</label>
+                                <select id="default-language" name="i18n.default_language">
+                                    <option value="tr">Türkçe</option>
+                                    <option value="en">English</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-actions">
+                        <button type="submit" class="btn btn-primary" data-i18n="panel.save_settings">Ayarları Kaydet</button>
+                        <button type="button" class="btn btn-secondary" id="validate-btn" data-i18n="panel.validate">Doğrula</button>
+                        <button type="button" class="btn btn-secondary" id="reload-btn" data-i18n="panel.reload">Yeniden Yükle</button>
+                        <button type="button" class="btn btn-danger" id="reset-btn" data-i18n="panel.reset_defaults">Varsayılanlara Sıfırla</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="tab-content" id="history-tab">
+                <div class="config-section">
+                    <h3 data-i18n="panel.config_history">Yapılandırma Geçmişi</h3>
+                    <div class="config-history" id="config-history">
+                        <!-- History items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="static/i18n.js"></script>
+    <script>
+        class ConfigManager {
+            constructor() {
+                this.currentConfig = null;
+                this.init();
+            }
+
+            async init() {
+                await this.loadConfiguration();
+                this.setupEventListeners();
+                this.setupTabs();
+            }
+
+            async loadConfiguration() {
+                try {
+                    const response = await fetch('/api/config');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.currentConfig = data.config;
+                        this.populateForm();
+                    } else {
+                        this.showError('Failed to load configuration: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Failed to load configuration: ' + error.message);
+                }
+            }
+
+            populateForm() {
+                if (!this.currentConfig) return;
+
+                // Populate form fields
+                const form = document.getElementById('config-form');
+                const inputs = form.querySelectorAll('input, select');
+                
+                inputs.forEach(input => {
+                    const path = input.name.split('.');
+                    let value = this.currentConfig;
+                    
+                    for (const key of path) {
+                        if (value && typeof value === 'object' && key in value) {
+                            value = value[key];
+                        } else {
+                            value = null;
+                            break;
+                        }
+                    }
+                    
+                    if (value !== null) {
+                        input.value = value;
+                    }
+                });
+            }
+
+            setupEventListeners() {
+                // Form submission
+                document.getElementById('config-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await this.saveConfiguration();
+                });
+
+                // Validate button
+                document.getElementById('validate-btn').addEventListener('click', async () => {
+                    await this.validateConfiguration();
+                });
+
+                // Reload button
+                document.getElementById('reload-btn').addEventListener('click', async () => {
+                    await this.loadConfiguration();
+                    this.showSuccess('Configuration reloaded successfully');
+                });
+
+                // Reset button
+                document.getElementById('reset-btn').addEventListener('click', async () => {
+                    if (confirm('Are you sure you want to reset all configuration to defaults? This cannot be undone.')) {
+                        await this.resetConfiguration();
+                    }
+                });
+            }
+
+            setupTabs() {
+                const tabs = document.querySelectorAll('.tab');
+                const tabContents = document.querySelectorAll('.tab-content');
+
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        const targetTab = tab.getAttribute('data-tab');
+                        
+                        // Remove active class from all tabs and contents
+                        tabs.forEach(t => t.classList.remove('active'));
+                        tabContents.forEach(tc => tc.classList.remove('active'));
+                        
+                        // Add active class to clicked tab and corresponding content
+                        tab.classList.add('active');
+                        document.getElementById(targetTab + '-tab').classList.add('active');
+                        
+                        // Load history if history tab is selected
+                        if (targetTab === 'history') {
+                            this.loadConfigHistory();
+                        }
+                    });
+                });
+            }
+
+            async saveConfiguration() {
+                try {
+                    const form = document.getElementById('config-form');
+                    const formData = new FormData(form);
+                    const updates = {};
+
+                    // Group updates by section
+                    const sections = {};
+                    for (const [key, value] of formData.entries()) {
+                        const [section, ...pathParts] = key.split('.');
+                        
+                        if (!sections[section]) {
+                            sections[section] = {};
+                        }
+                        
+                        // Set nested value
+                        let current = sections[section];
+                        for (let i = 0; i < pathParts.length - 1; i++) {
+                            if (!current[pathParts[i]]) {
+                                current[pathParts[i]] = {};
+                            }
+                            current = current[pathParts[i]];
+                        }
+                        
+                        // Convert numeric values
+                        const finalValue = isNaN(value) ? value : Number(value);
+                        current[pathParts[pathParts.length - 1]] = finalValue;
+                    }
+
+                    // Save each section
+                    for (const [section, sectionUpdates] of Object.entries(sections)) {
+                        const response = await fetch(`/api/config/${section}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                updates: sectionUpdates,
+                                reason: 'Updated via panel interface'
+                            })
+                        });
+
+                        const data = await response.json();
+                        if (!data.success) {
+                            throw new Error(data.error);
+                        }
+                    }
+
+                    this.showSuccess('Configuration saved successfully');
+                    await this.loadConfiguration(); // Reload to get updated values
+                } catch (error) {
+                    this.showError('Failed to save configuration: ' + error.message);
+                }
+            }
+
+            async validateConfiguration() {
+                try {
+                    const response = await fetch('/api/config/validate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            config: this.currentConfig
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        const validation = data.validation;
+                        
+                        if (validation.valid) {
+                            this.showSuccess('Configuration is valid');
+                        } else {
+                            this.showValidationErrors(validation.errors);
+                        }
+                        
+                        if (validation.warnings.length > 0) {
+                            this.showValidationWarnings(validation.warnings);
+                        }
+                    } else {
+                        this.showError('Validation failed: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Validation failed: ' + error.message);
+                }
+            }
+
+            async resetConfiguration() {
+                try {
+                    const response = await fetch('/api/config/reset', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            reason: 'Reset to defaults via panel interface'
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        this.showSuccess('Configuration reset to defaults successfully');
+                        await this.loadConfiguration();
+                    } else {
+                        this.showError('Failed to reset configuration: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Failed to reset configuration: ' + error.message);
+                }
+            }
+
+            async loadConfigHistory() {
+                try {
+                    const response = await fetch('/api/config/history');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayConfigHistory(data.history);
+                    } else {
+                        this.showError('Failed to load configuration history: ' + data.error);
+                    }
+                } catch (error) {
+                    this.showError('Failed to load configuration history: ' + error.message);
+                }
+            }
+
+            displayConfigHistory(history) {
+                const container = document.getElementById('config-history');
+                container.innerHTML = '';
+
+                if (history.length === 0) {
+                    container.innerHTML = '<p>No configuration changes found.</p>';
+                    return;
+                }
+
+                history.forEach(item => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    historyItem.innerHTML = `
+                        <div class="history-timestamp">${new Date(item.timestamp).toLocaleString()}</div>
+                        <div class="history-user">Changed by: ${item.changed_by}</div>
+                        <div class="history-section">Section: ${item.section}</div>
+                        ${item.reason ? `<div>Reason: ${item.reason}</div>` : ''}
+                    `;
+                    
+                    container.appendChild(historyItem);
+                });
+            }
+
+            showSuccess(message) {
+                this.hideMessages();
+                const element = document.getElementById('success-message');
+                element.textContent = message;
+                element.style.display = 'block';
+                setTimeout(() => element.style.display = 'none', 5000);
+            }
+
+            showError(message) {
+                this.hideMessages();
+                const element = document.getElementById('validation-errors');
+                element.textContent = message;
+                element.style.display = 'block';
+            }
+
+            showValidationErrors(errors) {
+                this.hideMessages();
+                const element = document.getElementById('validation-errors');
+                element.innerHTML = '<strong>Validation Errors:</strong><ul>' + 
+                    errors.map(error => `<li>${error}</li>`).join('') + '</ul>';
+                element.style.display = 'block';
+            }
+
+            showValidationWarnings(warnings) {
+                const element = document.getElementById('validation-warnings');
+                element.innerHTML = '<strong>Validation Warnings:</strong><ul>' + 
+                    warnings.map(warning => `<li>${warning}</li>`).join('') + '</ul>';
+                element.style.display = 'block';
+            }
+
+            hideMessages() {
+                document.getElementById('success-message').style.display = 'none';
+                document.getElementById('validation-errors').style.display = 'none';
+                document.getElementById('validation-warnings').style.display = 'none';
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new ConfigManager();
+        });
+    </script>
+</body>
+</html>
