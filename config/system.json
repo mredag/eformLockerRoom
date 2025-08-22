@@ -57,7 +57,7 @@
       "command_interval_ms": 300,
       "use_multiple_coils": true,
       "verify_writes": true,
-      "max_retries": 3,
+      "max_retries": 4,
       "retry_delay_base_ms": 1000,
       "connection_retry_attempts": 5,
       "test_mode": false
