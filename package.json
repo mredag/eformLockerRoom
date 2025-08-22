@@ -42,7 +42,9 @@
     "config:setup": "node scripts/setup-config.js setup production",
     "config:setup-dev": "node scripts/setup-config.js setup development",
     "config:validate": "node scripts/setup-config.js validate production",
-    "config:show": "node scripts/setup-config.js show production"
+    "config:show": "node scripts/setup-config.js show production",
+    "deploy:pi": "chmod +x scripts/quick-setup.sh && ./scripts/quick-setup.sh",
+    "deploy:check": "npm run config:validate && npm run test:hardware && npm run test:integration"
   },
   "dependencies": {
     "fastify": "^4.24.3",

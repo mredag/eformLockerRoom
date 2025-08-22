@@ -314,7 +314,7 @@ await rfid.initialize();
 # Kapsamlı sistem doğrulaması
 npm run test:hardware
 
-# Entegrasyon testleri  
+# Entegrasyon testleri
 npm run test:integration
 
 # Alternatif olarak doğrudan çalıştırabilirsiniz:
@@ -703,6 +703,41 @@ echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_gover
 ```
 
 Bu rehberi takip ederek Raspberry Pi'nizi eForm Locker Sistemi için optimal şekilde hazırlayabilirsiniz. Herhangi bir sorunla karşılaştığınızda sorun giderme bölümünü kontrol edin.
+
+## 🔐 Git Kimlik Doğrulama Kurulumu
+
+### GitHub Personal Access Token ile Bağlantı
+```bash
+# 1. Git kimlik bilgilerini ayarlayın
+git config user.email "pi@eform-locker.local"
+git config user.name "Raspberry Pi Eform System"
+
+# 2. GitHub token ile remote URL'yi güncelleyin
+git remote set-url origin https://[USERNAME]:[TOKEN]@github.com/mredag/eformLockerRoom.git
+
+# 3. Değişiklikleri push edin
+git add .
+git commit -m "Production configuration setup"
+git push origin main
+```
+
+### SSH Anahtarı ile Bağlantı (Alternatif)
+```bash
+# 1. SSH anahtarı oluşturun
+ssh-keygen -t ed25519 -C "pi@eform-locker.local"
+
+# 2. Public anahtarı görüntüleyin
+cat ~/.ssh/id_ed25519.pub
+
+# 3. Bu anahtarı GitHub hesabınıza ekleyin
+# GitHub.com → Settings → SSH and GPG keys → New SSH key
+
+# 4. SSH bağlantısını test edin
+ssh -T git@github.com
+
+# 5. Remote URL'yi SSH için güncelleyin
+git remote set-url origin git@github.com:mredag/eformLockerRoom.git
+```
 
 ## 🚀 Üretim Ortamı Dağıtımı
 
