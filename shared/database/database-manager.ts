@@ -1,5 +1,5 @@
-import { DatabaseConnection } from './connection.js';
-import { MigrationRunner } from './migration-runner.js';
+import { DatabaseConnection } from './connection';
+import { MigrationRunner } from './migration-runner';
 
 export interface DatabaseConfig {
   path?: string;

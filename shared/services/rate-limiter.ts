@@ -1,5 +1,5 @@
-import { RateLimitBucket, RateLimitViolation, EventType } from '../types/core-entities.js';
-import { EventRepository } from '../database/event-repository.js';
+import { RateLimitBucket, RateLimitViolation, EventType } from '../types/core-entities';
+import { EventRepository } from '../database/event-repository';
 
 export interface RateLimitConfig {
   ip: { maxTokens: number; refillRate: number; blockThreshold: number; blockDuration: number };

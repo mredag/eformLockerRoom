@@ -1,8 +1,8 @@
-import { KioskHeartbeatRepository } from '../database/kiosk-heartbeat-repository.js';
-import { CommandQueueManager } from './command-queue-manager.js';
-import { EventLogger } from './event-logger.js';
-import { DatabaseConnection } from '../database/connection.js';
-import { KioskHeartbeat, KioskStatus, EventType } from '../types/core-entities.js';
+import { KioskHeartbeatRepository } from '../database/kiosk-heartbeat-repository';
+import { CommandQueueManager } from './command-queue-manager';
+import { EventLogger } from './event-logger';
+import { DatabaseConnection } from '../database/connection';
+import { KioskHeartbeat, KioskStatus, EventType } from '../types/core-entities';
 
 export interface HeartbeatConfig {
   heartbeatIntervalMs: number; // Default: 10000 (10 seconds)

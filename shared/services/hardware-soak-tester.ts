@@ -1,6 +1,6 @@
-import { EventLogger } from './event-logger.js';
-import { DatabaseConnection } from '../database/connection.js';
-import { EventType } from '../types/core-entities.js';
+import { EventLogger } from './event-logger';
+import { DatabaseConnection } from '../database/connection';
+import { EventType } from '../types/core-entities';
 
 /**
  * Hardware Soak Testing Automation System

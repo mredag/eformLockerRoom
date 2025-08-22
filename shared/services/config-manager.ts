@@ -10,9 +10,9 @@ import {
   CompleteSystemConfig, 
   ConfigValidationResult,
   ConfigChangeEvent
-} from '../types/system-config.js';
-import { EventRepository } from '../database/event-repository.js';
-import { DatabaseManager } from '../database/database-manager.js';
+} from '../types/system-config';
+import { EventRepository } from '../database/event-repository';
+import { DatabaseManager } from '../database/database-manager';
 
 export class ConfigManager {
   private static instances = new Map<string, ConfigManager>();

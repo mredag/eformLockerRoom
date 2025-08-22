@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseConnection } from '../database/connection.js';
-import { Command, CommandType, CommandStatus, CommandPayload } from '../types/core-entities.js';
+import { DatabaseConnection } from '../database/connection';
+import { Command, CommandType, CommandStatus, CommandPayload } from '../types/core-entities';
 
 export class CommandQueueManager {
   private db: DatabaseConnection;

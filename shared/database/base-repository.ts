@@ -1,4 +1,4 @@
-import { DatabaseConnection } from './connection.js';
+import { DatabaseConnection } from './connection';
 
 export interface OptimisticLockError extends Error {
   name: 'OptimisticLockError';

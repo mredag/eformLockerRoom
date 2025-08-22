@@ -1,9 +1,9 @@
-import { DatabaseConnection } from './connection.js';
-import { LockerRepository } from './locker-repository.js';
-import { VipContractRepository } from './vip-contract-repository.js';
-import { EventRepository } from './event-repository.js';
-import { CommandQueueRepository } from './command-queue-repository.js';
-import { KioskHeartbeatRepository } from './kiosk-heartbeat-repository.js';
+import { DatabaseConnection } from './connection';
+import { LockerRepository } from './locker-repository';
+import { VipContractRepository } from './vip-contract-repository';
+import { EventRepository } from './event-repository';
+import { CommandQueueRepository } from './command-queue-repository';
+import { KioskHeartbeatRepository } from './kiosk-heartbeat-repository';
 
 export class RepositoryFactory {
   private static instance: RepositoryFactory;

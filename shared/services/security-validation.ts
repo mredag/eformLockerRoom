@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { EventLogger } from './event-logger.js';
+import { EventLogger } from './event-logger';
 
 export interface SecurityViolation {
   type: string;

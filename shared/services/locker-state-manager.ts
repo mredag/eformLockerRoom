@@ -1,5 +1,5 @@
-import { DatabaseConnection } from '../database/connection.js';
-import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition } from '../types/core-entities.js';
+import { DatabaseConnection } from '../database/connection';
+import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition } from '../types/core-entities';
 
 export class LockerStateManager {
   private db: DatabaseConnection;

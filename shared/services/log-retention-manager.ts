@@ -1,6 +1,6 @@
-import { DatabaseConnection } from '../database/connection.js';
-import { EventLogger } from './event-logger.js';
-import { EventType } from '../types/core-entities.js';
+import { DatabaseConnection } from '../database/connection';
+import { EventLogger } from './event-logger';
+import { EventType } from '../types/core-entities';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';

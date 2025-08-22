@@ -1,6 +1,6 @@
-import { BaseRepository } from './base-repository.js';
-import { DatabaseConnection } from './connection.js';
-import { KioskHeartbeat, KioskStatus } from '../types/core-entities.js';
+import { BaseRepository } from './base-repository';
+import { DatabaseConnection } from './connection';
+import { KioskHeartbeat, KioskStatus } from '../types/core-entities';
 
 export interface KioskFilter {
   zone?: string;

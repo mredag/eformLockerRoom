@@ -1,5 +1,5 @@
-import { EventRepository } from '../database/event-repository.js';
-import { Event, EventType, EventDetails, ValidationResult, ValidationError } from '../types/core-entities.js';
+import { EventRepository } from '../database/event-repository';
+import { Event, EventType, EventDetails, ValidationResult, ValidationError } from '../types/core-entities';
 
 /**
  * Comprehensive Event Logging System

@@ -1,6 +1,6 @@
-import { BaseRepository } from './base-repository.js';
-import { DatabaseConnection } from './connection.js';
-import { Command, CommandStatus, CommandType } from '../types/core-entities.js';
+import { BaseRepository } from './base-repository';
+import { DatabaseConnection } from './connection';
+import { Command, CommandStatus, CommandType } from '../types/core-entities';
 
 export interface CommandFilter {
   kiosk_id?: string;

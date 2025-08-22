@@ -1,7 +1,7 @@
-import { BaseRepository } from './base-repository.js';
-import { DatabaseConnection } from './connection.js';
-import { VipContract, VipContractStatus } from '../types/core-entities.js';
-import { VipHistoryRepository } from './vip-history-repository.js';
+import { BaseRepository } from './base-repository';
+import { DatabaseConnection } from './connection';
+import { VipContract, VipContractStatus } from '../types/core-entities';
+import { VipHistoryRepository } from './vip-history-repository';
 
 export interface VipContractFilter {
   kiosk_id?: string;

@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { DatabaseConnection } from './connection.js';
+import { DatabaseConnection } from './connection';
 
 export interface Migration {
   id: number;
