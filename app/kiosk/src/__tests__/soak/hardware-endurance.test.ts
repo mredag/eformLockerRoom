@@ -33,12 +33,10 @@ describe('Hardware Endurance Soak Testing', () => {
       getConnectionStatus: vi.fn().mockReturnValue({ connected: true, errors: 0 })
     } as any;
 
-    soakTester = new HardwareSoakTester({
-      dbManager,
-      eventLogger,
-      modbusController,
-      kioskId: 'soak-test-kiosk'
-    });
+    soakTester = new HardwareSoakTester(
+      dbManager.getConnection(),
+      eventLogger
+    );
   });
 
   afterEach(async () => {
