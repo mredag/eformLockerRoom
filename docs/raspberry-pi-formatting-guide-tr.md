@@ -314,8 +314,11 @@ await rfid.initialize();
 # Kapsamlı sistem doğrulaması
 npm run test:hardware
 
-# Entegrasyon testleri
+# Entegrasyon testleri  
 npm run test:integration
+
+# Alternatif olarak doğrudan çalıştırabilirsiniz:
+npx tsx scripts/validate-integration.js
 
 # Tüm servislerin sağlık kontrolü
 curl http://localhost:3000/health
