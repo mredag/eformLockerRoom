@@ -13,7 +13,7 @@ describe('ProvisioningService', () => {
     DatabaseConnection.resetInstance();
     db = DatabaseConnection.getInstance(testDbPath);
     await db.initializeSchema();
-    provisioningService = new ProvisioningService();
+    provisioningService = new ProvisioningService(db);
   });
 
   afterEach(async () => {

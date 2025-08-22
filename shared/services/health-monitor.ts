@@ -1,5 +1,5 @@
 import { DatabaseConnection } from '../database/connection.js';
-import { KioskHealth, HealthCheckResponse } from '../../src/types/core-entities.js';
+import { KioskHealth, HealthCheckResponse } from '../types/core-entities.js';
 import { EventLogger } from './event-logger.js';
 import { CommandQueueManager } from './command-queue-manager.js';
 import fs from 'fs/promises';

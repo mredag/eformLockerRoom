@@ -1,6 +1,6 @@
 import { BaseRepository } from './base-repository.js';
 import { DatabaseConnection } from './connection.js';
-import { VipTransferRequest, VipTransferStatus } from '../../src/types/core-entities.js';
+import { VipTransferRequest, VipTransferStatus } from '../types/core-entities.js';
 
 export interface VipTransferFilter {
   contract_id?: number;

@@ -15,7 +15,7 @@ import { EventRepository } from '../database/event-repository.js';
 import { DatabaseManager } from '../database/database-manager.js';
 
 export class ConfigManager {
-  private static instance: ConfigManager;
+  private static instances = new Map<string, ConfigManager>();
   private config: CompleteSystemConfig | null = null;
   private configPath: string;
   private eventRepository: EventRepository | null = null;
@@ -28,10 +28,26 @@ export class ConfigManager {
    * Get singleton instance
    */
   static getInstance(configPath?: string): ConfigManager {
-    if (!ConfigManager.instance) {
-      ConfigManager.instance = new ConfigManager(configPath);
+    const key = configPath || './config/system.json';
+    if (!ConfigManager.instances.has(key)) {
+      ConfigManager.instances.set(key, new ConfigManager(configPath));
     }
-    return ConfigManager.instance;
+    return ConfigManager.instances.get(key)!;
+  }
+
+  /**
+   * Reset instance for testing
+   */
+  static resetInstance(configPath?: string): void {
+    const key = configPath || './config/system.json';
+    ConfigManager.instances.delete(key);
+  }
+
+  /**
+   * Reset all instances
+   */
+  static resetAllInstances(): void {
+    ConfigManager.instances.clear();
   }
 
   /**

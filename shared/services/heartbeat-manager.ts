@@ -2,7 +2,7 @@ import { KioskHeartbeatRepository } from '../database/kiosk-heartbeat-repository
 import { CommandQueueManager } from './command-queue-manager.js';
 import { EventLogger } from './event-logger.js';
 import { DatabaseConnection } from '../database/connection.js';
-import { KioskHeartbeat, KioskStatus, EventType } from '../../src/types/core-entities.js';
+import { KioskHeartbeat, KioskStatus, EventType } from '../types/core-entities.js';
 
 export interface HeartbeatConfig {
   heartbeatIntervalMs: number; // Default: 10000 (10 seconds)
@@ -14,16 +14,16 @@ export interface HeartbeatConfig {
 export class HeartbeatManager {
   private heartbeatRepo: KioskHeartbeatRepository;
   private commandQueue: CommandQueueManager;
-  private eventLogger: EventLogger;
+  private eventLogger?: EventLogger;
   private config: HeartbeatConfig;
   private cleanupTimer?: NodeJS.Timeout;
   private isRunning = false;
 
-  constructor(config: Partial<HeartbeatConfig> = {}) {
-    const db = DatabaseConnection.getInstance();
-    this.heartbeatRepo = new KioskHeartbeatRepository(db);
-    this.commandQueue = new CommandQueueManager();
-    this.eventLogger = new EventLogger();
+  constructor(config: Partial<HeartbeatConfig> = {}, eventLogger?: EventLogger, db?: DatabaseConnection) {
+    const dbConnection = db || DatabaseConnection.getInstance();
+    this.heartbeatRepo = new KioskHeartbeatRepository(dbConnection);
+    this.commandQueue = new CommandQueueManager(dbConnection);
+    this.eventLogger = eventLogger;
     
     this.config = {
       heartbeatIntervalMs: 10000,
@@ -95,16 +95,18 @@ export class HeartbeatManager {
       );
 
       // Log registration event
-      await this.eventLogger.logEvent({
-        kiosk_id: kioskId,
-        event_type: EventType.KIOSK_ONLINE,
-        details: {
-          zone,
-          version,
-          hardware_id: hardwareId,
-          registration_type: 'new'
-        }
-      });
+      if (this.eventLogger) {
+        await this.eventLogger.logEvent(
+          kioskId,
+          EventType.KIOSK_ONLINE,
+          {
+            zone,
+            version,
+            hardware_id: hardwareId,
+            registration_type: 'new'
+          }
+        );
+      }
 
       console.log(`Kiosk ${kioskId} registered in zone ${zone}`);
       return kiosk;
@@ -129,15 +131,17 @@ export class HeartbeatManager {
       if (kiosk.status === 'online') {
         const wasOffline = await this.wasKioskOffline(kioskId);
         if (wasOffline) {
-          await this.eventLogger.logEvent({
-            kiosk_id: kioskId,
-            event_type: EventType.KIOSK_ONLINE,
-            details: {
-              previous_status: 'offline',
-              version,
-              config_hash: configHash
-            }
-          });
+          if (this.eventLogger) {
+            await this.eventLogger.logEvent({
+              kiosk_id: kioskId,
+              event_type: EventType.KIOSK_ONLINE,
+              details: {
+                previous_status: 'offline',
+                version,
+                config_hash: configHash
+              }
+            });
+          }
           console.log(`Kiosk ${kioskId} came back online`);
         }
       }
@@ -229,14 +233,16 @@ export class HeartbeatManager {
       const kiosk = await this.heartbeatRepo.updateStatus(kioskId, status);
       
       // Log status change event
-      await this.eventLogger.logEvent({
-        kiosk_id: kioskId,
-        event_type: status === 'online' ? EventType.KIOSK_ONLINE : EventType.KIOSK_OFFLINE,
-        details: {
-          new_status: status,
-          manual_update: true
-        }
-      });
+      if (this.eventLogger) {
+        await this.eventLogger.logEvent({
+          kiosk_id: kioskId,
+          event_type: status === 'online' ? EventType.KIOSK_ONLINE : EventType.KIOSK_OFFLINE,
+          details: {
+            new_status: status,
+            manual_update: true
+          }
+        });
+      }
 
       console.log(`Kiosk ${kioskId} status updated to ${status}`);
       return kiosk;
@@ -253,7 +259,7 @@ export class HeartbeatManager {
     try {
       const clearedCount = await this.commandQueue.clearPendingCommands(kioskId);
       
-      if (clearedCount > 0) {
+      if (clearedCount > 0 && this.eventLogger) {
         await this.eventLogger.logEvent({
           kiosk_id: kioskId,
           event_type: EventType.SYSTEM_RESTARTED,
@@ -319,15 +325,17 @@ export class HeartbeatManager {
           
           // Only log if recently went offline (within the last cleanup interval)
           if (timeSinceLastSeen < this.config.cleanupIntervalMs + this.config.offlineThresholdMs) {
-            await this.eventLogger.logEvent({
-              kiosk_id: kiosk.kiosk_id,
-              event_type: EventType.KIOSK_OFFLINE,
-              details: {
-                last_seen: kiosk.last_seen.toISOString(),
-                offline_duration_ms: timeSinceLastSeen,
-                zone: kiosk.zone
-              }
-            });
+            if (this.eventLogger) {
+              await this.eventLogger.logEvent({
+                kiosk_id: kiosk.kiosk_id,
+                event_type: EventType.KIOSK_OFFLINE,
+                details: {
+                  last_seen: kiosk.last_seen.toISOString(),
+                  offline_duration_ms: timeSinceLastSeen,
+                  zone: kiosk.zone
+                }
+              });
+            }
             
             console.log(`Kiosk ${kiosk.kiosk_id} marked as offline (last seen: ${kiosk.last_seen})`);
           }

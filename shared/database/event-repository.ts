@@ -1,6 +1,6 @@
 import { BaseRepository } from './base-repository.js';
 import { DatabaseConnection } from './connection.js';
-import { Event, EventType } from '../../src/types/core-entities.js';
+import { Event, EventType } from '../types/core-entities.js';
 
 export interface EventFilter {
   kiosk_id?: string;

@@ -5,8 +5,8 @@ import { Command, CommandType, CommandStatus, CommandPayload } from '../types/co
 export class CommandQueueManager {
   private db: DatabaseConnection;
 
-  constructor() {
-    this.db = DatabaseConnection.getInstance();
+  constructor(db?: DatabaseConnection) {
+    this.db = db || DatabaseConnection.getInstance();
   }
 
   /**

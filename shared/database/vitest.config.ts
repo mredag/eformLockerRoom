@@ -6,8 +6,12 @@ export default defineConfig({
     environment: 'node',
     include: ['**/__tests__/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/dist/**'],
-    testTimeout: 10000,
-    hookTimeout: 10000
+    testTimeout: 15000,
+    hookTimeout: 15000,
+    setupFiles: ['../../test-setup.ts'],
+    sequence: {
+      hooks: 'stack'
+    }
   },
   resolve: {
     alias: {

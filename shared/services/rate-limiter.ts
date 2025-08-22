@@ -49,7 +49,11 @@ export class RateLimiter {
    */
   async checkIpRateLimit(ip: string, kioskId?: string): Promise<RateLimitResult> {
     const key = `ip:${ip}`;
-    return this.checkRateLimit(key, 'ip', kioskId);
+    const result = await this.checkRateLimit(key, 'ip', kioskId);
+    if (result.allowed) {
+      await this.consumeToken(key, 'ip', kioskId);
+    }
+    return result;
   }
 
   /**
@@ -57,7 +61,11 @@ export class RateLimiter {
    */
   async checkCardRateLimit(cardId: string, kioskId?: string): Promise<RateLimitResult> {
     const key = `card:${cardId}`;
-    return this.checkRateLimit(key, 'card', kioskId);
+    const result = await this.checkRateLimit(key, 'card', kioskId);
+    if (result.allowed) {
+      await this.consumeToken(key, 'card', kioskId);
+    }
+    return result;
   }
 
   /**
@@ -65,7 +73,11 @@ export class RateLimiter {
    */
   async checkLockerRateLimit(lockerId: number, kioskId: string): Promise<RateLimitResult> {
     const key = `locker:${kioskId}:${lockerId}`;
-    return this.checkRateLimit(key, 'locker', kioskId);
+    const result = await this.checkRateLimit(key, 'locker', kioskId);
+    if (result.allowed) {
+      await this.consumeToken(key, 'locker', kioskId);
+    }
+    return result;
   }
 
   /**
@@ -73,7 +85,11 @@ export class RateLimiter {
    */
   async checkDeviceRateLimit(deviceId: string, kioskId?: string): Promise<RateLimitResult> {
     const key = `device:${deviceId}`;
-    return this.checkRateLimit(key, 'device', kioskId);
+    const result = await this.checkRateLimit(key, 'device', kioskId);
+    if (result.allowed) {
+      await this.consumeToken(key, 'device', kioskId);
+    }
+    return result;
   }
 
   /**
@@ -85,22 +101,20 @@ export class RateLimiter {
     deviceId: string,
     kioskId: string
   ): Promise<RateLimitResult> {
-    // Check IP rate limit first
-    const ipResult = await this.checkIpRateLimit(ip, kioskId);
+    // Check all limits first without consuming tokens
+    const ipResult = await this.checkRateLimit(`ip:${ip}`, 'ip', kioskId);
     if (!ipResult.allowed) {
-      return ipResult;
+      return { ...ipResult, reason: 'ip rate limit exceeded' };
     }
 
-    // Check locker rate limit
-    const lockerResult = await this.checkLockerRateLimit(lockerId, kioskId);
+    const lockerResult = await this.checkRateLimit(`locker:${kioskId}:${lockerId}`, 'locker', kioskId);
     if (!lockerResult.allowed) {
-      return lockerResult;
+      return { ...lockerResult, reason: 'locker rate limit exceeded' };
     }
 
-    // Check device rate limit
-    const deviceResult = await this.checkDeviceRateLimit(deviceId, kioskId);
+    const deviceResult = await this.checkRateLimit(`device:${deviceId}`, 'device', kioskId);
     if (!deviceResult.allowed) {
-      return deviceResult;
+      return { ...deviceResult, reason: 'device rate limit exceeded' };
     }
 
     // All checks passed, consume tokens
@@ -115,9 +129,9 @@ export class RateLimiter {
    * Check comprehensive rate limits for RFID access
    */
   async checkRfidRateLimits(cardId: string, kioskId: string): Promise<RateLimitResult> {
-    const cardResult = await this.checkCardRateLimit(cardId, kioskId);
+    const cardResult = await this.checkRateLimit(`card:${cardId}`, 'card', kioskId);
     if (!cardResult.allowed) {
-      return cardResult;
+      return { ...cardResult, reason: 'card rate limit exceeded' };
     }
 
     // Consume token
@@ -172,7 +186,9 @@ export class RateLimiter {
       bucket.last_refill = now;
     }
 
+    // Check if we have enough tokens
     if (bucket.tokens >= 1) {
+      // Don't consume token here, just check availability
       return {
         allowed: true,
         remainingTokens: bucket.tokens - 1,

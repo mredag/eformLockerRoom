@@ -5,6 +5,7 @@
 
 import { vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
+import * as fsExtra from 'fs-extra';
 import path from 'path';
 
 // Global test configuration
@@ -16,19 +17,47 @@ declare global {
 // Initialize global test state
 globalThis.__TEST_CLEANUP_FUNCTIONS__ = [];
 
+// Set test environment early
+process.env.NODE_ENV = 'test';
+process.env.LOG_LEVEL = 'error';
+
 // Mock console methods to reduce noise in tests
 const originalConsole = { ...console };
-beforeAll(() => {
+beforeAll(async () => {
   // Only show errors and warnings in tests
   console.log = vi.fn();
   console.info = vi.fn();
   console.debug = vi.fn();
   // Keep error and warn for debugging
+  
+  // Ensure test directories exist
+  const testDirs = [
+    'data/test',
+    'logs/test',
+    'config/test'
+  ];
+  
+  for (const dir of testDirs) {
+    await fsExtra.ensureDir(path.resolve(process.cwd(), dir));
+  }
 });
 
-afterAll(() => {
+afterAll(async () => {
   // Restore console
   Object.assign(console, originalConsole);
+  
+  // Clean up test directories
+  const testDirs = [
+    'data/test',
+    'logs/test'
+  ];
+  
+  for (const dir of testDirs) {
+    const fullPath = path.resolve(process.cwd(), dir);
+    if (await fsExtra.pathExists(fullPath)) {
+      await fsExtra.remove(fullPath);
+    }
+  }
 });
 
 // Database cleanup

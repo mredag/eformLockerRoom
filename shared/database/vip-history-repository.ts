@@ -1,6 +1,6 @@
 import { BaseRepository } from './base-repository.js';
 import { DatabaseConnection } from './connection.js';
-import { VipContractHistory } from '../../src/types/core-entities.js';
+import { VipContractHistory } from '../types/core-entities.js';
 
 export interface VipHistoryFilter {
   contract_id?: number;

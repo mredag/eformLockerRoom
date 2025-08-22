@@ -1,6 +1,7 @@
 # Implementation Plan
 
-- [ ] 0. Provisioning and configuration distribution
+- [x] 0. Provisioning and configuration distribution
+
 
   - [x] 0.1 Create kiosk provisioning system
 
@@ -141,7 +142,8 @@
     - Implement master PIN operations logging
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [-] 8. Develop staff management panel
+- [x] 8. Develop staff management panel
+
 
   - [x] 8.1 Create staff authentication and session management
 
@@ -314,7 +316,9 @@
     - Build failure scenario tests for power loss, network issues, and hardware failures
     - _Requirements: All requirements need integration testing_
 
-- [-] 15. Final integration and system testing
+- [x] 15. Final integration and system testing
+
+
 
   - [x] 15.1 Integrate all services and test multi-room operation
 
@@ -325,16 +329,68 @@
 
   - [x] 15.2 Perform system validation and performance testing
 
-
     - Test system under realistic load with multiple concurrent users
     - Validate all security measures and access controls
     - Verify hardware integration with actual Modbus relays and RFID readers
     - Complete final system acceptance testing against all requirements
     - _Requirements: All requirements final validation_
 
-  - [ ] 15.3 Execute performance and health validation
+  - [x] 15.3 Execute performance and health validation
+
     - Test panel performance with 500 lockers and 3 kiosks (filtering and status updates under 1 second)
     - Validate power interruption scenarios with restart events and queue cleanup
     - Test end-of-day CSV schema with fixed column set and VIP exclusion defaults
     - Create operational runbook with emergency opening procedures, failure classifications, and spare parts list
     - _Requirements: Performance Optimization, System Events, End-of-Day Operations_
+
+- [-] 16. Critical pre-hardware installation fixes
+
+  - [x] 16.1 Fix Modbus controller timeout issues (CRITICAL)
+
+    - Investigate and fix async/await timing issues in hardware communication layer
+    - Resolve 6 failing Modbus controller tests with 5-second timeouts
+    - Fix test mocking for proper callback handling in writeCommand method
+    - Ensure hardware commands complete within configured timeout periods
+    - Validate serial port communication and error handling mechanisms
+    - _Requirements: 7.1, 7.2, 7.3, 7.4 - Hardware interface must be stable before installation_
+
+  - [x] 16.2 Resolve database schema and migration path issues (HIGH)
+
+    - Fix migration path problems in gateway integration tests (./migrations vs ../../migrations)
+    - Resolve "SQLITE_ERROR: no such table: lockers" errors in locker state manager tests
+    - Ensure proper database initialization in all test environments
+    - Validate locker table creation and schema consistency across all services
+    - Fix locker ID mismatches in assignment tests (using correct IDs 101+ instead of 1)
+    - _Requirements: 1.1, 2.1, 9.4 - Database layer must be stable for core operations_
+
+  - [x] 16.3 Address Node.js version compatibility (HIGH)
+
+    - Upgrade production environment from Node.js v18.15.0 to Node.js >=20.0.0
+    - Test all dependencies for compatibility with Node.js 20 LTS
+    - Validate performance improvements and new features availability
+    - Update deployment scripts and systemd services for new Node.js version
+    - Ensure serialport and hardware dependencies work correctly with Node.js 20
+    - _Requirements: 10.1, 10.4 - Runtime environment must meet minimum requirements_
+
+  - [x] 16.4 Validate hardware integration and dependencies (MEDIUM)
+
+    - Verify serialport dependency installation and integration
+    - Run hardware validation tests with actual RS485 and RFID hardware
+    - Test hardware communication under various failure scenarios
+    - Validate hardware endurance testing automation
+    - Ensure hardware diagnostic tools work correctly
+    - _Requirements: 7.1, 7.2, 7.6, 7.7 - Hardware layer must be validated before installation_
+
+  - [x] 16.5 Fix integration test path and configuration issues (MEDIUM)
+
+
+
+
+
+
+    - Resolve import path issues in gateway integration tests
+    - Fix configuration and provisioning test database connection problems
+    - Ensure all integration tests can run independently and in CI/CD
+    - Validate multi-service communication and coordination
+    - Test failure scenario handling and recovery mechanisms
+    - _Requirements: 6.1, 6.2, 6.3, 6.4 - Integration layer must be stable for multi-room operations_

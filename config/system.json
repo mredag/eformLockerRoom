@@ -39,8 +39,27 @@
       "pulse_duration_ms": 400,
       "burst_duration_seconds": 10,
       "burst_interval_ms": 2000,
-      "command_interval_ms": 300
+      "command_interval_ms": 300,
+      "use_multiple_coils": true,
+      "verify_writes": false,
+      "max_retries": 2,
+      "retry_delay_base_ms": 1000,
+      "connection_retry_attempts": 3
     },
+    "relay_cards": [
+      {
+        "slave_address": 1,
+        "channels": 16,
+        "type": "waveshare_16ch",
+        "dip_switches": "00000001"
+      },
+      {
+        "slave_address": 2,
+        "channels": 16,
+        "type": "waveshare_16ch",
+        "dip_switches": "00000010"
+      }
+    ],
     "rfid": {
       "reader_type": "hid",
       "debounce_ms": 500,

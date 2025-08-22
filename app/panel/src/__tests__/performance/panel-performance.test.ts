@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DatabaseManager } from '../../../../shared/database/database-manager';
-import { LockerRepository } from '../../../../shared/database/locker-repository';
-import { VipContractRepository } from '../../../../shared/database/vip-contract-repository';
-import { EventLogger } from '../../../../shared/services/event-logger';
-import { HeartbeatManager } from '../../../../shared/services/heartbeat-manager';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
-import { CommandQueueManager } from '../../../../shared/services/command-queue-manager';
+import { DatabaseManager } from '../../../../../shared/database/database-manager';
+import { LockerRepository } from '../../../../../shared/database/locker-repository';
+import { VipContractRepository } from '../../../../../shared/database/vip-contract-repository';
+import { EventLogger } from '../../../../../shared/services/event-logger';
+import { HeartbeatManager } from '../../../../../shared/services/heartbeat-manager';
+import { LockerStateManager } from '../../../../../shared/services/locker-state-manager';
+import { CommandQueueManager } from '../../../../../shared/services/command-queue-manager';
 
 describe('Panel Performance Tests', () => {
   let dbManager: DatabaseManager;

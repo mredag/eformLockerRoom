@@ -43,15 +43,27 @@ export class SecurityValidator {
   }
 
   /**
-   * Validate RFID card format (16 character hex string)
+   * Validate RFID card format (supports multiple formats)
    */
   validateRfidCard(card: any): boolean {
-    if (typeof card !== 'string') {
+    if (!card || typeof card !== 'string') {
       return false;
     }
 
-    const hexPattern = /^[0-9A-Fa-f]{16}$/;
-    return hexPattern.test(card);
+    const cleanCard = card.trim().toUpperCase();
+    
+    // Support multiple RFID formats
+    const validFormats = [
+      /^[0-9A-F]{8}$/,        // 8-digit hex (HID)
+      /^[0-9A-F]{10}$/,       // 10-digit hex (Mifare)
+      /^[0-9]{10}$/,          // 10-digit decimal
+      /^[0-9A-F]{14}$/,       // 14-digit hex (ISO14443)
+      /^[0-9A-F]{16}$/        // 16-digit hex (full UID)
+    ];
+    
+
+    
+    return validFormats.some(format => format.test(cleanCard));
   }
 
   /**
@@ -66,15 +78,27 @@ export class SecurityValidator {
   }
 
   /**
-   * Validate device ID format (UUID-like)
+   * Validate device ID format (supports multiple formats)
    */
   validateDeviceId(deviceId: any): boolean {
-    if (typeof deviceId !== 'string') {
+    if (!deviceId || typeof deviceId !== 'string') {
       return false;
     }
 
-    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    return uuidPattern.test(deviceId);
+    const cleanId = deviceId.trim();
+    
+    // Support multiple device ID formats
+    const validFormats = [
+      /^KIOSK-[A-Z0-9]{4,8}$/,           // KIOSK-XXXX format
+      /^[A-Z0-9]{8}-[A-Z0-9]{4}-[A-Z0-9]{4}$/, // UUID-like format
+      /^DEV[0-9]{6}$/,                   // DEV123456 format
+      /^[A-F0-9]{12}$/,                  // MAC address format
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/ // Full UUID
+    ];
+    
+
+    
+    return validFormats.some(format => format.test(cleanId));
   }
 
   /**
@@ -123,11 +147,12 @@ export class SecurityValidator {
       return { isValid: false, reason: 'PIN is required' };
     }
 
-    if (pin.length !== 6) {
-      return { isValid: false, reason: 'PIN must be 6 digits' };
+    // Allow 4-8 digit PINs
+    if (pin.length < 4 || pin.length > 8) {
+      return { isValid: false, reason: 'PIN must be 4-8 digits' };
     }
 
-    if (!/^\d{6}$/.test(pin)) {
+    if (!/^\d+$/.test(pin)) {
       return { isValid: false, reason: 'PIN must contain only digits' };
     }
 
@@ -135,6 +160,12 @@ export class SecurityValidator {
     const pattern = this.detectPinPattern(pin);
     if (pattern) {
       return { isValid: false, reason: `PIN contains weak pattern: ${pattern}` };
+    }
+
+    // Check for common weak PINs
+    const commonPins = ['1234', '0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '123456', '000000', '111111'];
+    if (commonPins.includes(pin)) {
+      return { isValid: false, reason: 'PIN is too common' };
     }
 
     return { isValid: true };
@@ -150,14 +181,19 @@ export class SecurityValidator {
       return 'sequential';
     }
 
-    // Repeated digits (111111, 222222)
-    if (/^(\d)\1{5}$/.test(pin)) {
+    // Repeated digits (111111, 222222, etc.)
+    const repeatLength = pin.length;
+    const repeatPattern = new RegExp(`^(\\d)\\1{${repeatLength - 1}}$`);
+    if (repeatPattern.test(pin)) {
       return 'repeated';
     }
 
-    // Alternating pattern (121212, 343434)
-    if (/^(\d)(\d)\1\2\1\2$/.test(pin)) {
-      return 'alternating';
+    // Alternating pattern (121212, 343434, etc.)
+    if (pin.length >= 4) {
+      const alternatingPattern = new RegExp(`^(\\d)(\\d)(?:\\1\\2)+$`);
+      if (alternatingPattern.test(pin) && pin.length % 2 === 0) {
+        return 'alternating';
+      }
     }
 
     return null;

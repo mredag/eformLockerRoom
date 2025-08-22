@@ -6,16 +6,21 @@ export interface DatabaseConfig {
   enableWAL?: boolean;
   busyTimeout?: number;
   cacheSize?: number;
+  migrationsPath?: string;
 }
 
 export class DatabaseManager {
-  private static instance: DatabaseManager;
+  private static instances = new Map<string, DatabaseManager>();
   private connection: DatabaseConnection;
   private config: DatabaseConfig;
 
   private constructor(config: DatabaseConfig = {}) {
+    const defaultPath = process.env.NODE_ENV === 'test' 
+      ? './data/test/test.db' 
+      : './data/eform.db';
+      
     this.config = {
-      path: './data/eform.db',
+      path: defaultPath,
       enableWAL: true,
       busyTimeout: 30000,
       cacheSize: 1000,
@@ -26,15 +31,31 @@ export class DatabaseManager {
   }
 
   public static getInstance(config?: DatabaseConfig): DatabaseManager {
-    if (!DatabaseManager.instance) {
-      DatabaseManager.instance = new DatabaseManager(config);
+    const key = config?.path || (process.env.NODE_ENV === 'test' ? 'test' : 'default');
+    
+    if (!DatabaseManager.instances.has(key)) {
+      DatabaseManager.instances.set(key, new DatabaseManager(config));
     }
-    return DatabaseManager.instance;
+    return DatabaseManager.instances.get(key)!;
   }
 
-  public static resetInstance(): void {
-    DatabaseConnection.resetInstance();
-    DatabaseManager.instance = null as any;
+  public static resetInstance(config?: DatabaseConfig): void {
+    const key = config?.path || (process.env.NODE_ENV === 'test' ? 'test' : 'default');
+    const instance = DatabaseManager.instances.get(key);
+    if (instance) {
+      instance.close().catch(console.error);
+      DatabaseManager.instances.delete(key);
+    }
+    DatabaseConnection.resetInstance(config?.path);
+  }
+
+  public static async resetAllInstances(): Promise<void> {
+    const promises = Array.from(DatabaseManager.instances.values()).map(instance => 
+      instance.close().catch(console.error)
+    );
+    await Promise.all(promises);
+    DatabaseManager.instances.clear();
+    await DatabaseConnection.resetAllInstances();
   }
 
   public getConnection(): DatabaseConnection {
@@ -51,8 +72,9 @@ export class DatabaseManager {
       // Wait for connection to be ready
       await this.connection.waitForInitialization();
       
-      // Run migrations
-      const migrationRunner = new MigrationRunner();
+      // Run migrations with the configured path
+      const migrationsPath = this.config.migrationsPath || './migrations';
+      const migrationRunner = new MigrationRunner(migrationsPath);
       await migrationRunner.runMigrations();
       
       console.log('Database initialized successfully');
@@ -122,7 +144,7 @@ export class DatabaseManager {
     maxRetries: number = 3,
     delayMs: number = 100
   ): Promise<T> {
-    let lastError: Error;
+    let lastError: Error | undefined;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -145,7 +167,7 @@ export class DatabaseManager {
       }
     }
     
-    throw lastError;
+    throw lastError || new Error('Unknown error occurred');
   }
 
   private isRetryableError(error: Error): boolean {

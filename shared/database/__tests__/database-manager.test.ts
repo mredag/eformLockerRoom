@@ -1,17 +1,34 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DatabaseManager } from '../database-manager.js';
 import { DatabaseConnection } from '../connection.js';
+import * as path from 'path';
 
 describe('DatabaseManager', () => {
   let manager: DatabaseManager;
+  let testDbPath: string;
 
-  beforeEach(() => {
-    DatabaseManager.resetInstance();
-    manager = DatabaseManager.getInstance({ path: ':memory:' });
-  });
+  beforeEach(async () => {
+    // Use in-memory database for faster tests
+    testDbPath = ':memory:';
+    
+    // Reset all instances
+    await DatabaseManager.resetAllInstances();
+    
+    // Create new manager with in-memory database
+    manager = DatabaseManager.getInstance({ path: testDbPath });
+    
+    // Initialize connection with shorter timeout for tests
+    try {
+      await manager.getConnection().waitForInitialization();
+    } catch (error) {
+      console.error('Database initialization failed:', error);
+      throw error;
+    }
+  }, 8000);
 
-  afterEach(() => {
-    DatabaseManager.resetInstance();
+  afterEach(async () => {
+    // Clean up all instances
+    await DatabaseManager.resetAllInstances();
   });
 
   describe('getInstance', () => {

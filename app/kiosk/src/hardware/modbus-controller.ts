@@ -20,6 +20,16 @@ export interface ModbusConfig {
   retry_delay_max_ms?: number;
   connection_retry_attempts?: number;
   health_check_interval_ms?: number;
+  test_mode?: boolean; // Disable queue processor for testing
+  use_multiple_coils?: boolean; // Use 0x0F instead of 0x05 for Waveshare compatibility
+  verify_writes?: boolean; // Read back after write for verification
+}
+
+export interface RelayCard {
+  slave_address: number;
+  channels: number;
+  type: string;
+  dip_switches?: string;
 }
 
 export interface RelayCommand {
@@ -127,9 +137,11 @@ export class ModbusController extends EventEmitter {
       try {
         await this.attemptConnection();
         
-        // Start processing command queue and health monitoring
-        this.startQueueProcessor();
-        this.startHealthMonitoring();
+        // Start processing command queue and health monitoring (unless in test mode)
+        if (!this.config.test_mode) {
+          this.startQueueProcessor();
+          this.startHealthMonitoring();
+        }
         
         this.connectionRetryCount = 0;
         this.health.status = 'ok';
@@ -196,7 +208,7 @@ export class ModbusController extends EventEmitter {
    * Open a locker with the specified ID with retry logic
    * Returns true if successful, false if failed
    */
-  async openLocker(lockerId: number): Promise<boolean> {
+  async openLocker(lockerId: number, slaveAddress?: number): Promise<boolean> {
     const commandId = `open_${lockerId}_${Date.now()}`;
     const maxRetries = this.config.max_retries || 2;
     
@@ -211,7 +223,7 @@ export class ModbusController extends EventEmitter {
           duration_ms: this.config.pulse_duration_ms,
           created_at: new Date(),
           retry_count: attempt
-        });
+        }, slaveAddress);
         
         if (!pulseSuccess && attempt < maxRetries) {
           await this.delay(this.calculateRetryDelay(attempt));
@@ -231,7 +243,7 @@ export class ModbusController extends EventEmitter {
           operation: 'burst',
           created_at: new Date(),
           retry_count: attempt
-        });
+        }, slaveAddress);
         
         if (!burstSuccess && attempt < maxRetries) {
           await this.delay(this.calculateRetryDelay(attempt));
@@ -249,7 +261,7 @@ export class ModbusController extends EventEmitter {
   /**
    * Execute a relay command with mutex protection
    */
-  private async executeCommand(command: RelayCommand): Promise<boolean> {
+  private async executeCommand(command: RelayCommand, slaveAddress?: number): Promise<boolean> {
     await this.mutex.acquire();
     
     try {
@@ -264,9 +276,9 @@ export class ModbusController extends EventEmitter {
       
       try {
         if (command.operation === 'pulse') {
-          success = await this.sendPulse(command.channel, command.duration_ms);
+          success = await this.sendPulse(command.channel, command.duration_ms, slaveAddress);
         } else if (command.operation === 'burst') {
-          success = await this.performBurstOpening(command.channel);
+          success = await this.performBurstOpening(command.channel, slaveAddress);
         }
       } catch (error) {
         // Handle errors from sendPulse/performBurstOpening
@@ -285,24 +297,42 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
-   * Send a pulse to the specified relay channel
+   * Send a pulse to the specified relay channel (Waveshare compatible)
    */
-  private async sendPulse(channel: number, duration: number = 400): Promise<boolean> {
+  private async sendPulse(channel: number, duration: number = 400, slaveAddress: number = 1): Promise<boolean> {
     if (!this.serialPort || !this.serialPort.isOpen) {
       throw new Error('Modbus port not connected');
     }
 
     try {
-      // Modbus RTU command to turn on relay
-      // Format: [Slave Address][Function Code][Starting Address][Data][CRC]
-      const turnOnCommand = this.buildModbusCommand(1, 0x05, channel - 1, 0xFF00);
+      const useMultipleCoils = this.config.use_multiple_coils ?? true;
       
-      await this.writeCommand(turnOnCommand);
-      await this.delay(duration);
+      if (useMultipleCoils) {
+        // Use Write Multiple Coils (0x0F) - Waveshare preferred method
+        const turnOnCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [true]);
+        await this.writeCommand(turnOnCommand);
+        await this.delay(duration);
+        
+        const turnOffCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [false]);
+        await this.writeCommand(turnOffCommand);
+      } else {
+        // Use Write Single Coil (0x05) - fallback method
+        const turnOnCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0xFF00);
+        await this.writeCommand(turnOnCommand);
+        await this.delay(duration);
+        
+        const turnOffCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0x0000);
+        await this.writeCommand(turnOffCommand);
+      }
       
-      // Turn off relay
-      const turnOffCommand = this.buildModbusCommand(1, 0x05, channel - 1, 0x0000);
-      await this.writeCommand(turnOffCommand);
+      // Verify write if enabled
+      if (this.config.verify_writes) {
+        const status = await this.readRelayStatus(slaveAddress, channel - 1, 1);
+        if (status.length > 0 && status[0]) {
+          // Relay is still on, which might indicate a problem
+          this.emit('warning', { channel, message: 'Relay verification shows unexpected state' });
+        }
+      }
       
       return true;
 
@@ -316,16 +346,20 @@ export class ModbusController extends EventEmitter {
   /**
    * Perform burst opening (10 seconds with 2-second intervals)
    */
-  private async performBurstOpening(channel: number): Promise<boolean> {
+  private async performBurstOpening(channel: number, slaveAddress: number = 1): Promise<boolean> {
     const startTime = Date.now();
     const endTime = startTime + (this.config.burst_duration_seconds * 1000);
     let success = false;
 
     try {
       while (Date.now() < endTime) {
-        const pulseSuccess = await this.sendPulse(channel, this.config.pulse_duration_ms);
-        if (pulseSuccess) {
-          success = true;
+        try {
+          const pulseSuccess = await this.sendPulse(channel, this.config.pulse_duration_ms, slaveAddress);
+          if (pulseSuccess) {
+            success = true;
+          }
+        } catch (pulseError) {
+          // Continue with burst even if individual pulses fail
         }
         
         // Check if we have enough time for another cycle
@@ -347,7 +381,121 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
-   * Build Modbus RTU command with CRC
+   * Read relay status using Modbus function 0x01 (Read Coils)
+   */
+  async readRelayStatus(slaveId: number, startChannel: number, count: number): Promise<boolean[]> {
+    if (!this.serialPort || !this.serialPort.isOpen) {
+      throw new Error('Modbus port not connected');
+    }
+
+    try {
+      const command = this.buildReadCoilsCommand(slaveId, startChannel, count);
+      await this.writeCommand(command);
+      
+      // Read response (implementation would need response parsing)
+      // For now, return empty array as placeholder
+      return new Array(count).fill(false);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.emit('error', { slaveId, startChannel, count, operation: 'read_status', error: errorMessage });
+      return [];
+    }
+  }
+
+  /**
+   * Write multiple relays using Modbus function 0x0F (Write Multiple Coils)
+   */
+  async writeMultipleRelays(slaveId: number, startChannel: number, values: boolean[]): Promise<boolean> {
+    if (!this.serialPort || !this.serialPort.isOpen) {
+      throw new Error('Modbus port not connected');
+    }
+
+    try {
+      const command = this.buildWriteMultipleCoilsCommand(slaveId, startChannel, values.length, values);
+      await this.writeCommand(command);
+      return true;
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.emit('error', { slaveId, startChannel, values, operation: 'write_multiple', error: errorMessage });
+      return false;
+    }
+  }
+
+  /**
+   * Scan Modbus bus for active slave devices (Waveshare relay cards)
+   */
+  async scanBus(startAddress: number = 1, endAddress: number = 10): Promise<number[]> {
+    const activeSlaves: number[] = [];
+    
+    for (let address = startAddress; address <= endAddress; address++) {
+      try {
+        // Try to read coil status from each potential slave
+        const command = this.buildReadCoilsCommand(address, 0, 1);
+        await this.writeCommand(command);
+        
+        // If no exception, slave is present
+        activeSlaves.push(address);
+        
+      } catch (error) {
+        // Slave not responding or error - continue scanning
+      }
+      
+      // Small delay between scan attempts
+      await this.delay(100);
+    }
+    
+    return activeSlaves;
+  }
+
+  /**
+   * Build Read Coils command (Function 0x01)
+   */
+  private buildReadCoilsCommand(slaveId: number, startAddress: number, count: number): Buffer {
+    const buffer = Buffer.alloc(8);
+    buffer.writeUInt8(slaveId, 0);
+    buffer.writeUInt8(0x01, 1); // Function code: Read Coils
+    buffer.writeUInt16BE(startAddress, 2);
+    buffer.writeUInt16BE(count, 4);
+    
+    const crc = this.calculateCRC16(buffer.subarray(0, 6));
+    buffer.writeUInt16LE(crc, 6);
+    
+    return buffer;
+  }
+
+  /**
+   * Build Write Multiple Coils command (Function 0x0F) - Waveshare preferred
+   */
+  private buildWriteMultipleCoilsCommand(slaveId: number, startAddress: number, count: number, values: boolean[]): Buffer {
+    const byteCount = Math.ceil(count / 8);
+    const buffer = Buffer.alloc(9 + byteCount);
+    
+    buffer.writeUInt8(slaveId, 0);
+    buffer.writeUInt8(0x0F, 1); // Function code: Write Multiple Coils
+    buffer.writeUInt16BE(startAddress, 2);
+    buffer.writeUInt16BE(count, 4);
+    buffer.writeUInt8(byteCount, 6);
+    
+    // Pack boolean values into bytes
+    for (let i = 0; i < count; i++) {
+      const byteIndex = Math.floor(i / 8);
+      const bitIndex = i % 8;
+      
+      if (values[i]) {
+        buffer[7 + byteIndex] |= (1 << bitIndex);
+      }
+    }
+    
+    const crc = this.calculateCRC16(buffer.subarray(0, buffer.length - 2));
+    buffer.writeUInt16LE(crc, buffer.length - 2);
+    
+    return buffer;
+  }
+
+  /**
+   * Build Modbus RTU command with CRC (legacy single coil method)
    */
   private buildModbusCommand(slaveId: number, functionCode: number, address: number, data: number): Buffer {
     const buffer = Buffer.alloc(8);
@@ -387,19 +535,28 @@ export class ModbusController extends EventEmitter {
    * Write command to serial port with timeout
    */
   private async writeCommand(command: Buffer): Promise<void> {
+    if (!this.serialPort || !this.serialPort.isOpen) {
+      throw new Error('Modbus port not connected');
+    }
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Modbus command timeout'));
       }, this.config.timeout_ms);
 
-      this.serialPort!.write(command, (err) => {
+      try {
+        this.serialPort!.write(command, (err) => {
+          clearTimeout(timeout);
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      } catch (syncError) {
         clearTimeout(timeout);
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
+        reject(syncError);
+      }
     });
   }
 
@@ -410,7 +567,9 @@ export class ModbusController extends EventEmitter {
     if (this.isProcessingQueue) return;
     
     this.isProcessingQueue = true;
-    this.processQueue();
+    this.processQueue().catch(error => {
+      this.emit('error', { source: 'queue_processor', error: error.message });
+    });
   }
 
   /**
@@ -418,12 +577,17 @@ export class ModbusController extends EventEmitter {
    */
   private async processQueue(): Promise<void> {
     while (this.isProcessingQueue) {
-      if (this.commandQueue.length > 0) {
-        const command = this.commandQueue.shift()!;
-        await this.executeCommand(command);
-      } else {
-        // Wait before checking queue again
-        await this.delay(100);
+      try {
+        if (this.commandQueue.length > 0) {
+          const command = this.commandQueue.shift()!;
+          await this.executeCommand(command);
+        } else {
+          // Wait before checking queue again
+          await this.delay(100);
+        }
+      } catch (error) {
+        this.emit('error', { source: 'queue_processor', error: error instanceof Error ? error.message : String(error) });
+        // Continue processing other commands
       }
     }
   }

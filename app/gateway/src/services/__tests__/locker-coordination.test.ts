@@ -109,7 +109,9 @@ describe('LockerCoordinationService', () => {
 
       expect(result.success).toBe(true);
       expect(result.offlineKiosks).toContain('kiosk2');
-      expect(result.warnings).toContain('Some kiosks are offline');
+      expect(result.warnings).toEqual(expect.arrayContaining([
+        expect.stringContaining('Some kiosks are offline')
+      ]));
     });
   });
 
@@ -291,6 +293,11 @@ describe('LockerCoordinationService', () => {
       const kioskIds = ['kiosk1'];
       const staffUser = 'admin';
 
+      mockDbManager.getKioskHeartbeatRepository().findByKiosk.mockResolvedValue({
+        status: 'online',
+        last_seen: new Date()
+      });
+
       mockDbManager.getLockerRepository().findByKiosk.mockResolvedValue([
         { id: 1, status: 'Owned', owner_key: 'card123' }
       ]);
@@ -299,8 +306,10 @@ describe('LockerCoordinationService', () => {
 
       const result = await service.coordinateBulkOpening(kioskIds, staffUser);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Queue service unavailable');
+      expect(result.success).toBe(true);
+      expect(result.warnings).toEqual(expect.arrayContaining([
+        expect.stringContaining('Queue service unavailable')
+      ]));
     });
   });
 

@@ -33,6 +33,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "migrate:status": "tsx scripts/migrate.ts status",
     "migrate:verify": "tsx scripts/migrate.ts verify",
+    "validate:nodejs": "node scripts/validate-nodejs20-compatibility.js",
     "install-all": "npm install && npm install --workspaces"
   },
   "dependencies": {

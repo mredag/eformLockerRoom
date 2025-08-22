@@ -329,13 +329,17 @@ describe('RateLimiter', () => {
       const ip1 = '192.168.1.31';
       const ip2 = '192.168.1.32';
       
-      // Create violations
-      for (let i = 0; i < 35; i++) {
+      // Create enough violations to trigger blocking (need 10+ violations per IP)
+      // IP has 30 tokens, so first 30 calls succeed, then next calls create violations
+      for (let i = 0; i < 45; i++) {  // 45 calls = 30 success + 15 violations
         await rateLimiter.checkIpRateLimit(ip1, 'kiosk1');
       }
-      for (let i = 0; i < 35; i++) {
+      for (let i = 0; i < 45; i++) {  // 45 calls = 30 success + 15 violations
         await rateLimiter.checkIpRateLimit(ip2, 'kiosk1');
       }
+      
+      // Give a small delay to ensure all violations are processed
+      await new Promise(resolve => setTimeout(resolve, 10));
       
       const violations = rateLimiter.getAllViolations();
       expect(violations.length).toBeGreaterThan(0);

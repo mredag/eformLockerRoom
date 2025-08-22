@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { HealthMonitor } from '../services/health-monitor.js';
-import { HealthCheckResponse } from '../../src/types/core-entities.js';
+import { HealthCheckResponse } from '../types/core-entities.js';
 
 /**
  * Health Check Controller

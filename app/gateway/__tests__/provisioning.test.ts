@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
-import { provisioningRoutes } from '../../routes/provisioning.js';
-import { DatabaseConnection } from '../../database/connection.js';
+import { provisioningRoutes } from '../src/routes/provisioning.js';
+import { DatabaseConnection } from '../../../shared/database/connection.js';
 import { unlinkSync } from 'fs';
 
 describe('ProvisioningController', () => {

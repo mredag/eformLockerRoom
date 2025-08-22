@@ -1,11 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DatabaseManager } from '@eform/shared/database/database-manager';
-import { LockerStateManager } from '@eform/shared/services/locker-state-manager';
-import { CommandQueueManager } from '@eform/shared/services/command-queue-manager';
-import { HeartbeatManager } from '@eform/shared/services/heartbeat-manager';
-import { EventLogger } from '@eform/shared/services/event-logger';
-import { VipContractRepository } from '@eform/shared/database/vip-contract-repository';
-import { LockerRepository } from '@eform/shared/database/locker-repository';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { DatabaseManager } from '../../../../../shared/database/database-manager.js';
+import { LockerStateManager } from '../../../../../shared/services/locker-state-manager.js';
+import { CommandQueueManager } from '../../../../../shared/services/command-queue-manager.js';
+import { HeartbeatManager } from '../../../../../shared/services/heartbeat-manager.js';
+import { EventLogger } from '../../../../../shared/services/event-logger.js';
+import { VipContractRepository } from '../../../../../shared/database/vip-contract-repository.js';
+import { LockerRepository } from '../../../../../shared/database/locker-repository.js';
+import { EventRepository } from '../../../../../shared/database/event-repository.js';
+import { EventType } from '../../../../../shared/types/core-entities.js';
 
 describe('Full System Integration Tests', () => {
   let dbManager: DatabaseManager;
@@ -17,17 +19,24 @@ describe('Full System Integration Tests', () => {
   let lockerRepository: LockerRepository;
 
   beforeEach(async () => {
-    // Initialize test database
-    dbManager = new DatabaseManager(':memory:');
+    // Initialize database manager with in-memory database and correct migrations path
+    dbManager = DatabaseManager.getInstance({ 
+      path: ':memory:',
+      migrationsPath: '../../migrations'
+    });
     await dbManager.initialize();
     
+    const dbConnection = dbManager.getConnection();
+    
     // Initialize services
-    lockerRepository = new LockerRepository(dbManager);
-    vipRepository = new VipContractRepository(dbManager);
+    lockerRepository = new LockerRepository(dbConnection);
+    vipRepository = new VipContractRepository(dbConnection);
+    const eventRepository = new EventRepository(dbConnection);
+    
     lockerStateManager = new LockerStateManager(lockerRepository, vipRepository);
-    commandQueue = new CommandQueueManager(dbManager);
-    heartbeatManager = new HeartbeatManager(dbManager);
-    eventLogger = new EventLogger(dbManager);
+    commandQueue = new CommandQueueManager(dbConnection);
+    heartbeatManager = new HeartbeatManager({}, undefined, dbConnection);
+    eventLogger = new EventLogger(eventRepository);
 
     // Setup test data - multiple rooms
     await setupMultiRoomTestData();
@@ -35,6 +44,7 @@ describe('Full System Integration Tests', () => {
 
   afterEach(async () => {
     await dbManager.close();
+    DatabaseManager.resetAllInstances();
   });
 
   async function setupMultiRoomTestData() {
@@ -44,7 +54,6 @@ describe('Full System Integration Tests', () => {
         kiosk_id: 'room-a',
         id: i,
         status: 'Free',
-        version: 1,
         is_vip: false
       });
     }
@@ -55,7 +64,6 @@ describe('Full System Integration Tests', () => {
         kiosk_id: 'room-b',
         id: i,
         status: 'Free',
-        version: 1,
         is_vip: false
       });
     }
@@ -66,15 +74,14 @@ describe('Full System Integration Tests', () => {
         kiosk_id: 'room-c',
         id: i,
         status: 'Free',
-        version: 1,
         is_vip: false
       });
     }
 
     // Register kiosks
-    await heartbeatManager.updateHeartbeat('room-a', 'Zone A');
-    await heartbeatManager.updateHeartbeat('room-b', 'Zone B');
-    await heartbeatManager.updateHeartbeat('room-c', 'Zone C');
+    await heartbeatManager.registerKiosk('room-a', 'Zone A', '1.0.0');
+    await heartbeatManager.registerKiosk('room-b', 'Zone B', '1.0.0');
+    await heartbeatManager.registerKiosk('room-c', 'Zone C', '1.0.0');
   }
 
   describe('Multi-Room Locker Operations', () => {
@@ -126,12 +133,13 @@ describe('Full System Integration Tests', () => {
       expect(contract.id).toBeDefined();
 
       // Mark locker as VIP
+      const vipLocker = await lockerRepository.findByKioskAndId('room-b', 5);
       await lockerRepository.update('room-b', 5, {
         is_vip: true,
         status: 'Owned',
         owner_type: 'vip',
         owner_key: vipCard
-      });
+      }, vipLocker!.version);
 
       // VIP locker should not appear in available list
       const available = await lockerStateManager.getAvailableLockers('room-b');
@@ -149,30 +157,35 @@ describe('Full System Integration Tests', () => {
   describe('Command Queue Cross-Room Coordination', () => {
     it('should queue and execute commands for multiple rooms', async () => {
       // Queue commands for different rooms
-      const commandA = await commandQueue.enqueueCommand('room-a', {
-        type: 'open_locker',
-        locker_id: 1,
-        staff_user: 'admin',
-        reason: 'test'
+      const commandA = await commandQueue.enqueueCommand('room-a', 'open_locker', {
+        open_locker: {
+          locker_id: 1,
+          staff_user: 'admin',
+          reason: 'test'
+        }
       });
 
-      const commandB = await commandQueue.enqueueCommand('room-b', {
-        type: 'open_locker',
-        locker_id: 2,
-        staff_user: 'admin',
-        reason: 'test'
+      const commandB = await commandQueue.enqueueCommand('room-b', 'open_locker', {
+        open_locker: {
+          locker_id: 2,
+          staff_user: 'admin',
+          reason: 'test'
+        }
       });
 
-      const commandC = await commandQueue.enqueueCommand('room-c', {
-        type: 'bulk_open',
-        locker_ids: [1, 2, 3],
-        staff_user: 'admin'
+      const commandC = await commandQueue.enqueueCommand('room-c', 'bulk_open', {
+        bulk_open: {
+          locker_ids: [1, 2, 3],
+          staff_user: 'admin',
+          exclude_vip: true,
+          interval_ms: 300
+        }
       });
 
       // Each room should have its own commands
-      const commandsA = await commandQueue.getCommands('room-a');
-      const commandsB = await commandQueue.getCommands('room-b');
-      const commandsC = await commandQueue.getCommands('room-c');
+      const commandsA = await commandQueue.getPendingCommands('room-a');
+      const commandsB = await commandQueue.getPendingCommands('room-b');
+      const commandsC = await commandQueue.getPendingCommands('room-c');
 
       expect(commandsA).toHaveLength(1);
       expect(commandsB).toHaveLength(1);
@@ -183,14 +196,14 @@ describe('Full System Integration Tests', () => {
       expect(commandsC[0].command_id).toBe(commandC);
 
       // Mark commands as complete
-      await commandQueue.markCommandComplete(commandA);
-      await commandQueue.markCommandComplete(commandB);
-      await commandQueue.markCommandComplete(commandC);
+      await commandQueue.markCommandCompleted(commandA);
+      await commandQueue.markCommandCompleted(commandB);
+      await commandQueue.markCommandCompleted(commandC);
 
       // Queues should be empty
-      const emptyA = await commandQueue.getCommands('room-a');
-      const emptyB = await commandQueue.getCommands('room-b');
-      const emptyC = await commandQueue.getCommands('room-c');
+      const emptyA = await commandQueue.getPendingCommands('room-a');
+      const emptyB = await commandQueue.getPendingCommands('room-b');
+      const emptyC = await commandQueue.getPendingCommands('room-c');
 
       expect(emptyA).toHaveLength(0);
       expect(emptyB).toHaveLength(0);
@@ -198,25 +211,26 @@ describe('Full System Integration Tests', () => {
     });
 
     it('should handle command failures and retries per room', async () => {
-      const commandId = await commandQueue.enqueueCommand('room-a', {
-        type: 'open_locker',
-        locker_id: 1,
-        staff_user: 'admin'
+      const commandId = await commandQueue.enqueueCommand('room-a', 'open_locker', {
+        open_locker: {
+          locker_id: 1,
+          staff_user: 'admin'
+        }
       });
 
       // Simulate command failure
       await commandQueue.markCommandFailed(commandId, 'Hardware error');
 
       // Command should be available for retry
-      const commands = await commandQueue.getCommands('room-a');
+      const commands = await commandQueue.getPendingCommands('room-a');
       expect(commands).toHaveLength(1);
       expect(commands[0].status).toBe('failed');
       expect(commands[0].retry_count).toBe(1);
       expect(commands[0].last_error).toBe('Hardware error');
 
       // Other rooms should not be affected
-      const commandsB = await commandQueue.getCommands('room-b');
-      const commandsC = await commandQueue.getCommands('room-c');
+      const commandsB = await commandQueue.getPendingCommands('room-b');
+      const commandsC = await commandQueue.getPendingCommands('room-c');
       expect(commandsB).toHaveLength(0);
       expect(commandsC).toHaveLength(0);
     });
@@ -270,41 +284,46 @@ describe('Full System Integration Tests', () => {
   describe('Event Logging Across Rooms', () => {
     it('should log events with proper room identification', async () => {
       // Log events in different rooms
-      await eventLogger.logEvent({
-        kiosk_id: 'room-a',
-        locker_id: 1,
-        event_type: 'rfid_assign',
-        rfid_card: 'card-001',
-        details: { previous_status: 'Free' }
-      });
+      await eventLogger.logEvent(
+        'room-a',
+        EventType.RFID_ASSIGN,
+        { previous_status: 'Free' },
+        1,
+        'card-001'
+      );
 
-      await eventLogger.logEvent({
-        kiosk_id: 'room-b',
-        locker_id: 5,
-        event_type: 'staff_open',
-        staff_user: 'admin',
-        details: { reason: 'user assistance' }
-      });
+      await eventLogger.logEvent(
+        'room-b',
+        EventType.STAFF_OPEN,
+        { reason: 'user assistance' },
+        5,
+        undefined,
+        undefined,
+        'admin'
+      );
 
-      await eventLogger.logEvent({
-        kiosk_id: 'room-c',
-        event_type: 'bulk_open',
-        staff_user: 'admin',
-        details: { total_count: 5, success_count: 5 }
-      });
+      await eventLogger.logEvent(
+        'room-c',
+        EventType.BULK_OPEN,
+        { total_count: 5, success_count: 5 },
+        undefined,
+        undefined,
+        undefined,
+        'admin'
+      );
 
       // Query events by room
-      const eventsA = await eventLogger.getEventsByKiosk('room-a');
-      const eventsB = await eventLogger.getEventsByKiosk('room-b');
-      const eventsC = await eventLogger.getEventsByKiosk('room-c');
+      const eventsA = await eventLogger.queryEvents({ kiosk_id: 'room-a' });
+      const eventsB = await eventLogger.queryEvents({ kiosk_id: 'room-b' });
+      const eventsC = await eventLogger.queryEvents({ kiosk_id: 'room-c' });
 
       expect(eventsA).toHaveLength(1);
       expect(eventsB).toHaveLength(1);
       expect(eventsC).toHaveLength(1);
 
-      expect(eventsA[0].event_type).toBe('rfid_assign');
-      expect(eventsB[0].event_type).toBe('staff_open');
-      expect(eventsC[0].event_type).toBe('bulk_open');
+      expect(eventsA[0].event_type).toBe(EventType.RFID_ASSIGN);
+      expect(eventsB[0].event_type).toBe(EventType.STAFF_OPEN);
+      expect(eventsC[0].event_type).toBe(EventType.BULK_OPEN);
     });
   });
 
@@ -317,62 +336,80 @@ describe('Full System Integration Tests', () => {
       await lockerStateManager.assignLocker('room-c', 1, 'rfid', 'card-004');
 
       // Queue bulk open commands for each room
-      const bulkCommandA = await commandQueue.enqueueCommand('room-a', {
-        type: 'bulk_open',
-        locker_ids: [1, 2],
-        staff_user: 'admin'
+      const bulkCommandA = await commandQueue.enqueueCommand('room-a', 'bulk_open', {
+        bulk_open: {
+          locker_ids: [1, 2],
+          staff_user: 'admin',
+          exclude_vip: true,
+          interval_ms: 300
+        }
       });
 
-      const bulkCommandB = await commandQueue.enqueueCommand('room-b', {
-        type: 'bulk_open',
-        locker_ids: [1],
-        staff_user: 'admin'
+      const bulkCommandB = await commandQueue.enqueueCommand('room-b', 'bulk_open', {
+        bulk_open: {
+          locker_ids: [1],
+          staff_user: 'admin',
+          exclude_vip: true,
+          interval_ms: 300
+        }
       });
 
-      const bulkCommandC = await commandQueue.enqueueCommand('room-c', {
-        type: 'bulk_open',
-        locker_ids: [1],
-        staff_user: 'admin'
+      const bulkCommandC = await commandQueue.enqueueCommand('room-c', 'bulk_open', {
+        bulk_open: {
+          locker_ids: [1],
+          staff_user: 'admin',
+          exclude_vip: true,
+          interval_ms: 300
+        }
       });
 
       // Verify commands are queued properly
-      const commandsA = await commandQueue.getCommands('room-a');
-      const commandsB = await commandQueue.getCommands('room-b');
-      const commandsC = await commandQueue.getCommands('room-c');
+      const commandsA = await commandQueue.getPendingCommands('room-a');
+      const commandsB = await commandQueue.getPendingCommands('room-b');
+      const commandsC = await commandQueue.getPendingCommands('room-c');
 
       expect(commandsA[0].payload).toContain('locker_ids');
       expect(commandsB[0].payload).toContain('locker_ids');
       expect(commandsC[0].payload).toContain('locker_ids');
 
       // Simulate execution
-      await commandQueue.markCommandComplete(bulkCommandA);
-      await commandQueue.markCommandComplete(bulkCommandB);
-      await commandQueue.markCommandComplete(bulkCommandC);
+      await commandQueue.markCommandCompleted(bulkCommandA);
+      await commandQueue.markCommandCompleted(bulkCommandB);
+      await commandQueue.markCommandCompleted(bulkCommandC);
 
       // Log bulk operations
-      await eventLogger.logEvent({
-        kiosk_id: 'room-a',
-        event_type: 'bulk_open',
-        staff_user: 'admin',
-        details: { total_count: 2, success_count: 2, failed_lockers: [] }
-      });
+      await eventLogger.logEvent(
+        'room-a',
+        EventType.BULK_OPEN,
+        { total_count: 2, success_count: 2, failed_lockers: [] },
+        undefined,
+        undefined,
+        undefined,
+        'admin'
+      );
 
-      await eventLogger.logEvent({
-        kiosk_id: 'room-b',
-        event_type: 'bulk_open',
-        staff_user: 'admin',
-        details: { total_count: 1, success_count: 1, failed_lockers: [] }
-      });
+      await eventLogger.logEvent(
+        'room-b',
+        EventType.BULK_OPEN,
+        { total_count: 1, success_count: 1, failed_lockers: [] },
+        undefined,
+        undefined,
+        undefined,
+        'admin'
+      );
 
-      await eventLogger.logEvent({
-        kiosk_id: 'room-c',
-        event_type: 'bulk_open',
-        staff_user: 'admin',
-        details: { total_count: 1, success_count: 1, failed_lockers: [] }
-      });
+      await eventLogger.logEvent(
+        'room-c',
+        EventType.BULK_OPEN,
+        { total_count: 1, success_count: 1, failed_lockers: [] },
+        undefined,
+        undefined,
+        undefined,
+        'admin'
+      );
 
       // Verify events were logged
-      const bulkEvents = await eventLogger.getEventsByType('bulk_open');
+      const bulkEvents = await eventLogger.queryEvents({ event_type: EventType.BULK_OPEN });
       expect(bulkEvents).toHaveLength(3);
       
       const roomEvents = bulkEvents.reduce((acc, event) => {
@@ -408,19 +445,21 @@ describe('Full System Integration Tests', () => {
       });
 
       // Update lockers to VIP status
+      const vipLockerA = await lockerRepository.findByKioskAndId('room-a', 10);
       await lockerRepository.update('room-a', 10, {
         is_vip: true,
         status: 'Owned',
         owner_type: 'vip',
         owner_key: 'vip-001'
-      });
+      }, vipLockerA!.version);
 
+      const vipLockerB = await lockerRepository.findByKioskAndId('room-b', 5);
       await lockerRepository.update('room-b', 5, {
         is_vip: true,
         status: 'Owned',
         owner_type: 'vip',
         owner_key: 'vip-002'
-      });
+      }, vipLockerB!.version);
 
       // Verify VIP contracts are active
       const activeContracts = await vipRepository.findActiveContracts();
@@ -452,33 +491,34 @@ describe('Full System Integration Tests', () => {
       await lockerStateManager.reserveLocker('room-b', 2, 'card-002');
       
       // Queue some commands
-      const commandId = await commandQueue.enqueueCommand('room-c', {
-        type: 'open_locker',
-        locker_id: 3,
-        staff_user: 'admin'
+      const commandId = await commandQueue.enqueueCommand('room-c', 'open_locker', {
+        open_locker: {
+          locker_id: 3,
+          staff_user: 'admin'
+        }
       });
 
       // Log restart event
-      await eventLogger.logEvent({
-        kiosk_id: 'room-a',
-        event_type: 'restarted',
-        details: { reason: 'system_restart', previous_uptime: 3600 }
-      });
+      await eventLogger.logEvent(
+        'room-a',
+        EventType.SYSTEM_RESTARTED,
+        { reason: 'system_restart', previous_uptime: 3600 }
+      );
 
-      await eventLogger.logEvent({
-        kiosk_id: 'room-b',
-        event_type: 'restarted',
-        details: { reason: 'system_restart', previous_uptime: 3600 }
-      });
+      await eventLogger.logEvent(
+        'room-b',
+        EventType.SYSTEM_RESTARTED,
+        { reason: 'system_restart', previous_uptime: 3600 }
+      );
 
-      await eventLogger.logEvent({
-        kiosk_id: 'room-c',
-        event_type: 'restarted',
-        details: { reason: 'system_restart', previous_uptime: 3600 }
-      });
+      await eventLogger.logEvent(
+        'room-c',
+        EventType.SYSTEM_RESTARTED,
+        { reason: 'system_restart', previous_uptime: 3600 }
+      );
 
       // Verify restart events were logged
-      const restartEvents = await eventLogger.getEventsByType('restarted');
+      const restartEvents = await eventLogger.queryEvents({ event_type: EventType.SYSTEM_RESTARTED });
       expect(restartEvents).toHaveLength(3);
 
       // Verify system state is maintained
@@ -489,7 +529,7 @@ describe('Full System Integration Tests', () => {
       expect(locker2?.status).toBe('Reserved');
 
       // Verify command queue is maintained
-      const commands = await commandQueue.getCommands('room-c');
+      const commands = await commandQueue.getPendingCommands('room-c');
       expect(commands).toHaveLength(1);
       expect(commands[0].command_id).toBe(commandId);
     });

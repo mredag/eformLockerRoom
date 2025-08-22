@@ -117,8 +117,8 @@ describe('ConfigManager', () => {
 
       const config = await configManager.loadConfiguration();
       
-      expect(mockAccess).toHaveBeenCalledWith('./test-config.json');
-      expect(mockReadFile).toHaveBeenCalledWith('./test-config.json', 'utf-8');
+      expect(mockAccess).toHaveBeenCalledWith('./config/system.json');
+      expect(mockReadFile).toHaveBeenCalledWith('./config/system.json', 'utf-8');
       expect(config).toEqual(mockConfig);
     });
 
@@ -456,6 +456,8 @@ describe('ConfigManager', () => {
     });
 
     it('should handle configuration not loaded error', () => {
+      // Reset and create a fresh instance that hasn't loaded config
+      ConfigManager.resetInstance('./fresh-config.json');
       const freshConfigManager = ConfigManager.getInstance('./fresh-config.json');
       
       expect(() => freshConfigManager.getConfiguration()).toThrow('Configuration not loaded');

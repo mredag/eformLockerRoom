@@ -72,10 +72,10 @@ describe('SecurityValidator', () => {
   describe('RFID Card Validation', () => {
     it('should validate legitimate RFID card formats', () => {
       const validCards = [
-        '1234567890ABCDEF',
-        'ABCD1234EFGH5678',
-        '0123456789ABCDEF',
-        'FEDCBA9876543210'
+        '1234567890ABCDEF',  // 16-digit hex
+        'ABCD1234EFAB5678',  // 16-digit hex (fixed: removed G,H)
+        '0123456789ABCDEF',  // 16-digit hex
+        'FEDCBA9876543210'   // 16-digit hex
       ];
 
       validCards.forEach(card => {
@@ -118,9 +118,9 @@ describe('SecurityValidator', () => {
   describe('Device ID Validation', () => {
     it('should validate legitimate device IDs', () => {
       const validDeviceIds = [
-        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-        '12345678-1234-1234-1234-123456789012',
-        'ABCDEFGH-IJKL-MNOP-QRST-UVWXYZ123456'
+        'a1b2c3d4-e5f6-7890-abcd-ef1234567890',  // Valid UUID
+        '12345678-1234-1234-1234-123456789012',  // Valid UUID
+        'ABCDEF12-3456-789A-BCDE-F12345678901'   // Valid UUID (fixed: only hex chars)
       ];
 
       validDeviceIds.forEach(deviceId => {
@@ -199,10 +199,10 @@ describe('SecurityValidator', () => {
   describe('PIN Security Validation', () => {
     it('should validate strong PINs', () => {
       const strongPins = [
-        '123456',
-        '987654',
-        '456789',
-        '135792'
+        '135792',  // Non-sequential, non-repeating
+        '248135',  // Non-sequential, non-repeating
+        '975314',  // Non-sequential, non-repeating
+        '468257'   // Non-sequential, non-repeating
       ];
 
       strongPins.forEach(pin => {

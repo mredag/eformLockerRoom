@@ -1,61 +1,149 @@
 import sqlite3 from 'sqlite3';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import * as fs from 'fs-extra';
 
 export class DatabaseConnection {
-  private db: sqlite3.Database;
-  private static instance: DatabaseConnection;
+  private db: sqlite3.Database | null = null;
+  private static instances = new Map<string, DatabaseConnection>();
   private isInitialized: boolean = false;
+  private dbPath: string;
 
   private constructor(dbPath: string = './data/eform.db') {
-    this.db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-      if (err) {
-        console.error('Error opening database:', err);
-        throw err;
-      }
-      console.log('Connected to SQLite database');
-      // Initialize pragmas after connection is established
-      this.initializePragmas().catch(error => {
-        console.error('Failed to initialize database pragmas:', error);
+    this.dbPath = this.resolveDatabasePath(dbPath);
+  }
+
+  private resolveDatabasePath(dbPath: string): string {
+    if (process.env.NODE_ENV === 'test') {
+      // Use in-memory database for tests for speed and reliability
+      return ':memory:';
+    }
+    return dbPath;
+  }
+
+  private async ensureDirectoryExists(): Promise<void> {
+    const dir = dirname(this.dbPath);
+    await fs.ensureDir(dir);
+  }
+
+  private async initializeConnection(): Promise<void> {
+    if (this.db) return;
+
+    // Only ensure directory exists for file-based databases
+    if (this.dbPath !== ':memory:') {
+      await this.ensureDirectoryExists();
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Database connection timeout'));
+      }, 3000); // 3 second timeout
+
+      this.db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, async (err) => {
+        clearTimeout(timeout);
+        
+        if (err) {
+          console.error('Error opening database:', err);
+          reject(err);
+          return;
+        }
+        console.log('Connected to SQLite database');
+        
+        try {
+          await this.initializePragmas();
+          resolve();
+        } catch (error) {
+          console.error('Failed to initialize database pragmas:', error);
+          reject(error);
+        }
       });
     });
   }
 
   private async initializePragmas(): Promise<void> {
+    if (!this.db) {
+      throw new Error('Database not connected');
+    }
+
     try {
-      // Enable WAL mode for better concurrent access
-      await this.run('PRAGMA journal_mode = WAL');
-      await this.run('PRAGMA synchronous = NORMAL');
-      await this.run('PRAGMA cache_size = 1000');
-      await this.run('PRAGMA temp_store = memory');
-      await this.run('PRAGMA foreign_keys = ON');
-      await this.run('PRAGMA busy_timeout = 30000'); // 30 second timeout
+      // For in-memory databases (tests), use minimal pragmas
+      if (this.dbPath === ':memory:') {
+        await this.execPragma('PRAGMA foreign_keys = ON');
+        await this.execPragma('PRAGMA synchronous = NORMAL');
+      } else {
+        // For file databases, use full pragma set
+        await this.execPragma('PRAGMA journal_mode = WAL');
+        await this.execPragma('PRAGMA synchronous = NORMAL');
+        await this.execPragma('PRAGMA cache_size = 1000');
+        await this.execPragma('PRAGMA temp_store = memory');
+        await this.execPragma('PRAGMA foreign_keys = ON');
+        await this.execPragma('PRAGMA busy_timeout = 30000');
+      }
       
       this.isInitialized = true;
-      console.log('Database WAL mode and pragmas initialized');
+      console.log('Database pragmas initialized');
     } catch (error) {
       console.error('Error initializing database pragmas:', error);
       throw error;
     }
   }
 
-  public static getInstance(dbPath?: string): DatabaseConnection {
-    if (!DatabaseConnection.instance || (dbPath && DatabaseConnection.instance.db === null)) {
-      DatabaseConnection.instance = new DatabaseConnection(dbPath);
-    }
-    return DatabaseConnection.instance;
+  private async execPragma(sql: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error('Database not connected'));
+        return;
+      }
+
+      this.db.exec(sql, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
-  public static resetInstance(): void {
-    DatabaseConnection.instance = null as any;
+  public static getInstance(dbPath?: string): DatabaseConnection {
+    const key = dbPath || (process.env.NODE_ENV === 'test' ? 'test' : 'default');
+    
+    if (!DatabaseConnection.instances.has(key)) {
+      DatabaseConnection.instances.set(key, new DatabaseConnection(dbPath));
+    }
+    return DatabaseConnection.instances.get(key)!;
+  }
+
+  public static resetInstance(dbPath?: string): void {
+    const key = dbPath || (process.env.NODE_ENV === 'test' ? 'test' : 'default');
+    const instance = DatabaseConnection.instances.get(key);
+    if (instance) {
+      instance.close().catch(console.error);
+      DatabaseConnection.instances.delete(key);
+    }
+  }
+
+  public static async resetAllInstances(): Promise<void> {
+    const promises = Array.from(DatabaseConnection.instances.values()).map(instance => 
+      instance.close().catch(console.error)
+    );
+    await Promise.all(promises);
+    DatabaseConnection.instances.clear();
   }
 
   public async waitForInitialization(): Promise<void> {
+    if (!this.db) {
+      await this.initializeConnection();
+    }
+    
     while (!this.isInitialized) {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
   }
 
   public getDatabase(): sqlite3.Database {
+    if (!this.db) {
+      throw new Error('Database not initialized. Call waitForInitialization() first.');
+    }
     return this.db;
   }
 
@@ -130,6 +218,8 @@ export class DatabaseConnection {
           if (err) {
             reject(err);
           } else {
+            this.db = null;
+            this.isInitialized = false;
             resolve();
           }
         });

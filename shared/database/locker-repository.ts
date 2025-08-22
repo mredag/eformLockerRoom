@@ -1,6 +1,6 @@
 import { BaseRepository } from './base-repository.js';
 import { DatabaseConnection } from './connection.js';
-import { Locker, LockerStatus, OwnerType } from '../../src/types/core-entities.js';
+import { Locker, LockerStatus, OwnerType } from '../types/core-entities.js';
 
 export interface LockerFilter {
   kiosk_id?: string;

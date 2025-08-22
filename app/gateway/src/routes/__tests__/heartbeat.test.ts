@@ -16,24 +16,26 @@ vi.mock('../../../../../shared/database/connection.js', () => ({
 }));
 
 // Mock the HeartbeatManager
+const mockHeartbeatManager = {
+  start: vi.fn(),
+  stop: vi.fn(),
+  registerKiosk: vi.fn(),
+  updateHeartbeat: vi.fn(),
+  getAllKiosks: vi.fn(),
+  getKiosksByZone: vi.fn(),
+  getAllZones: vi.fn(),
+  getStatistics: vi.fn(),
+  getPendingCommands: vi.fn(),
+  markCommandCompleted: vi.fn(),
+  markCommandFailed: vi.fn(),
+  updateKioskStatus: vi.fn(),
+  clearPendingCommands: vi.fn(),
+  getKioskHealth: vi.fn(),
+  getPollingConfig: vi.fn()
+};
+
 vi.mock('../../../../../shared/services/heartbeat-manager.js', () => ({
-  HeartbeatManager: vi.fn(() => ({
-    start: vi.fn(),
-    stop: vi.fn(),
-    registerKiosk: vi.fn(),
-    updateHeartbeat: vi.fn(),
-    getAllKiosks: vi.fn(),
-    getKiosksByZone: vi.fn(),
-    getAllZones: vi.fn(),
-    getStatistics: vi.fn(),
-    getPendingCommands: vi.fn(),
-    markCommandCompleted: vi.fn(),
-    markCommandFailed: vi.fn(),
-    updateKioskStatus: vi.fn(),
-    clearPendingCommands: vi.fn(),
-    getKioskHealth: vi.fn(),
-    getPollingConfig: vi.fn()
-  }))
+  HeartbeatManager: vi.fn(() => mockHeartbeatManager)
 }));
 
 describe('Heartbeat Routes', () => {
@@ -42,6 +44,23 @@ describe('Heartbeat Routes', () => {
   beforeEach(async () => {
     app = Fastify();
     await app.register(heartbeatRoutes);
+    
+    // Reset all mocks
+    vi.clearAllMocks();
+    
+    // Set up default mock return values
+    mockHeartbeatManager.getPendingCommands.mockResolvedValue([]);
+    mockHeartbeatManager.markCommandCompleted.mockResolvedValue(true);
+    mockHeartbeatManager.markCommandFailed.mockResolvedValue(true);
+    mockHeartbeatManager.getAllKiosks.mockResolvedValue([]);
+    mockHeartbeatManager.getAllZones.mockResolvedValue([]);
+    mockHeartbeatManager.getStatistics.mockResolvedValue({});
+    mockHeartbeatManager.getKioskHealth.mockResolvedValue({});
+    mockHeartbeatManager.clearPendingCommands.mockResolvedValue(0);
+    mockHeartbeatManager.getPollingConfig.mockReturnValue({
+      heartbeatIntervalMs: 10000,
+      pollIntervalMs: 2000
+    });
   });
 
   afterEach(async () => {
@@ -60,10 +79,7 @@ describe('Heartbeat Routes', () => {
         updated_at: new Date()
       };
 
-      // Mock the HeartbeatManager instance
-      const mockManager = (app as any).heartbeatManager || {
-        registerKiosk: vi.fn().mockResolvedValue(mockKiosk)
-      };
+      mockHeartbeatManager.registerKiosk.mockResolvedValue(mockKiosk);
 
       const response = await app.inject({
         method: 'POST',
@@ -148,6 +164,8 @@ describe('Heartbeat Routes', () => {
         }
       ];
 
+      mockHeartbeatManager.getPendingCommands.mockResolvedValue(mockCommands);
+
       const response = await app.inject({
         method: 'POST',
         url: '/commands/poll',
@@ -230,6 +248,14 @@ describe('Heartbeat Routes', () => {
 
   describe('GET /kiosks', () => {
     it('should return all kiosks with statistics', async () => {
+      const mockKiosks = [{ kiosk_id: 'test-kiosk', zone: 'test-zone' }];
+      const mockZones = ['test-zone'];
+      const mockStats = { total: 1, online: 1, offline: 0 };
+
+      mockHeartbeatManager.getAllKiosks.mockResolvedValue(mockKiosks);
+      mockHeartbeatManager.getAllZones.mockResolvedValue(mockZones);
+      mockHeartbeatManager.getStatistics.mockResolvedValue(mockStats);
+
       const response = await app.inject({
         method: 'GET',
         url: '/kiosks'
@@ -260,6 +286,13 @@ describe('Heartbeat Routes', () => {
 
   describe('GET /kiosks/:kioskId/health', () => {
     it('should return kiosk health information', async () => {
+      const mockHealth = {
+        kiosk: { kiosk_id: 'test-kiosk', status: 'online' },
+        commands: []
+      };
+
+      mockHeartbeatManager.getKioskHealth.mockResolvedValue(mockHealth);
+
       const response = await app.inject({
         method: 'GET',
         url: '/kiosks/test-kiosk/health'
@@ -306,6 +339,8 @@ describe('Heartbeat Routes', () => {
 
   describe('POST /kiosks/:kioskId/clear-commands', () => {
     it('should clear pending commands for kiosk', async () => {
+      mockHeartbeatManager.clearPendingCommands.mockResolvedValue(3);
+
       const response = await app.inject({
         method: 'POST',
         url: '/kiosks/test-kiosk/clear-commands'

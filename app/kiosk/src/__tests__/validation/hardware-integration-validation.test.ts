@@ -18,11 +18,14 @@ describe('Hardware Integration Validation', () => {
     });
 
     rfidHandler = new RfidHandler({
+      mode: 'hid',
       mock: true // Enable mock mode for testing
     });
 
     rs485Diagnostics = new RS485Diagnostics({
       port: '/dev/ttyUSB0',
+      baudrate: 9600,
+      timeout_ms: 1000,
       mock: true
     });
 
@@ -31,8 +34,12 @@ describe('Hardware Integration Validation', () => {
   });
 
   afterEach(async () => {
-    await modbusController.close();
-    await rfidHandler.close();
+    if (modbusController && typeof modbusController.close === 'function') {
+      await modbusController.close();
+    }
+    if (rfidHandler && typeof rfidHandler.close === 'function') {
+      await rfidHandler.close();
+    }
   });
 
   describe('Modbus Hardware Integration (Requirement 7)', () => {
