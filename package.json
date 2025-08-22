@@ -38,7 +38,11 @@
     "test:hardware": "tsx scripts/validate-waveshare-hardware.js",
     "test:integration": "tsx scripts/validate-integration.js",
     "test:soak": "vitest run --config vitest.config.comprehensive.ts app/kiosk/src/__tests__/soak/",
-    "test:comprehensive": "npm run scripts/run-comprehensive-tests.sh"
+    "test:comprehensive": "npm run scripts/run-comprehensive-tests.sh",
+    "config:setup": "node scripts/setup-config.js setup production",
+    "config:setup-dev": "node scripts/setup-config.js setup development",
+    "config:validate": "node scripts/setup-config.js validate production",
+    "config:show": "node scripts/setup-config.js show production"
   },
   "dependencies": {
     "fastify": "^4.24.3",

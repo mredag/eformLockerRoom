@@ -1,0 +1,55 @@
+{
+  "system": {
+    "name": "Eform Locker Room System - Development",
+    "environment": "development",
+    "debug": true,
+    "verbose_logging": true
+  },
+  "security": {
+    "provisioning_secret": "dev-secret-not-for-production",
+    "session_secret": "dev-session-secret-not-for-production",
+    "qr_hmac_secret": "dev-qr-secret-not-for-production",
+    "rate_limiting_strict": false,
+    "lockout_duration_minutes": 1
+  },
+  "database": {
+    "backup_interval_hours": 24,
+    "retention_days": 7,
+    "performance_mode": false
+  },
+  "hardware": {
+    "modbus": {
+      "timeout_ms": 3000,
+      "max_retries": 2,
+      "verify_writes": false,
+      "test_mode": true,
+      "connection_retry_attempts": 3
+    },
+    "rfid": {
+      "debounce_ms": 500,
+      "scan_timeout_ms": 15000,
+      "auto_detect": true
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "detailed_metrics": false,
+    "alert_thresholds": {
+      "cpu_percent": 95,
+      "memory_percent": 95,
+      "disk_percent": 95,
+      "temperature_celsius": 80
+    }
+  },
+  "logging": {
+    "level": "debug",
+    "audit_all": false,
+    "performance_logs": false,
+    "error_notifications": false
+  },
+  "lockers": {
+    "reserve_ttl_seconds": 300,
+    "auto_release_hours": 1,
+    "master_lockout_fails": 10
+  }
+}

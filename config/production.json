@@ -1,0 +1,53 @@
+{
+  "system": {
+    "name": "Eform Locker Room System - Production",
+    "environment": "production",
+    "debug": false,
+    "verbose_logging": false
+  },
+  "security": {
+    "provisioning_secret": "CHANGE-THIS-STRONG-SECRET-IN-PRODUCTION-2025",
+    "session_secret": "CHANGE-THIS-SESSION-SECRET-IN-PRODUCTION-2025", 
+    "qr_hmac_secret": "CHANGE-THIS-QR-HMAC-SECRET-IN-PRODUCTION-2025",
+    "force_https": false,
+    "secure_cookies": false,
+    "cors_enabled": false,
+    "rate_limiting_strict": true
+  },
+  "database": {
+    "backup_interval_hours": 4,
+    "retention_days": 180,
+    "performance_mode": true,
+    "connection_pool_size": 10
+  },
+  "hardware": {
+    "modbus": {
+      "timeout_ms": 1500,
+      "max_retries": 5,
+      "verify_writes": true,
+      "test_mode": false,
+      "connection_retry_attempts": 10
+    },
+    "rfid": {
+      "debounce_ms": 800,
+      "scan_timeout_ms": 8000,
+      "auto_detect": true
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "detailed_metrics": true,
+    "alert_thresholds": {
+      "cpu_percent": 85,
+      "memory_percent": 90,
+      "disk_percent": 85,
+      "temperature_celsius": 65
+    }
+  },
+  "logging": {
+    "level": "warn",
+    "audit_all": true,
+    "performance_logs": true,
+    "error_notifications": true
+  }
+}
