@@ -1,0 +1,218 @@
+{
+  "system": {
+    "name": "Eform Locker Room System - Production",
+    "version": "1.0.0",
+    "environment": "production",
+    "location": "Locker Room - Raspberry Pi",
+    "installation_date": "2025-08-22",
+    "hardware_platform": "raspberry_pi_4",
+    "debug": false,
+    "verbose_logging": false,
+    "system_id": "a989f2a872c366b2",
+    "setup_date": "2025-08-22T19:54:30.829Z"
+  },
+  "database": {
+    "path": "./data/eform.db",
+    "wal_mode": true,
+    "backup_interval_hours": 4,
+    "retention_days": 180,
+    "vacuum_interval_hours": 168,
+    "checkpoint_interval_seconds": 300,
+    "performance_mode": true,
+    "connection_pool_size": 10
+  },
+  "services": {
+    "gateway": {
+      "port": 3000,
+      "host": "0.0.0.0",
+      "max_connections": 50,
+      "request_timeout_ms": 30000,
+      "keep_alive_timeout_ms": 5000
+    },
+    "kiosk": {
+      "port": 3001,
+      "host": "0.0.0.0",
+      "heartbeat_interval_seconds": 5,
+      "command_poll_interval_seconds": 1,
+      "hardware_check_interval_seconds": 30,
+      "ui_timeout_seconds": 60
+    },
+    "panel": {
+      "port": 3003,
+      "host": "0.0.0.0",
+      "session_timeout_minutes": 120,
+      "max_login_attempts": 3,
+      "lockout_duration_minutes": 15,
+      "csrf_protection": true
+    },
+    "agent": {
+      "update_check_interval_minutes": 60,
+      "update_server_url": "https://github.com/mredag/eformLockerRoom/releases",
+      "auto_update": false,
+      "backup_before_update": true
+    }
+  },
+  "hardware": {
+    "modbus": {
+      "port": "/dev/ttyUSB0",
+      "baudrate": 9600,
+      "timeout_ms": 1500,
+      "pulse_duration_ms": 400,
+      "burst_duration_seconds": 10,
+      "burst_interval_ms": 2000,
+      "command_interval_ms": 300,
+      "use_multiple_coils": true,
+      "verify_writes": true,
+      "max_retries": 5,
+      "retry_delay_base_ms": 1000,
+      "connection_retry_attempts": 10,
+      "test_mode": false
+    },
+    "relay_cards": [
+      {
+        "slave_address": 1,
+        "channels": 16,
+        "type": "waveshare_16ch",
+        "dip_switches": "00000001",
+        "description": "Main Locker Bank 1-16",
+        "enabled": true
+      },
+      {
+        "slave_address": 2,
+        "channels": 16,
+        "type": "waveshare_16ch",
+        "dip_switches": "00000010",
+        "description": "Main Locker Bank 17-32",
+        "enabled": true
+      }
+    ],
+    "rfid": {
+      "reader_type": "hid",
+      "debounce_ms": 800,
+      "scan_timeout_ms": 8000,
+      "auto_detect": true,
+      "fallback_to_keyboard": true,
+      "vendor_id": null,
+      "product_id": null
+    },
+    "display": {
+      "type": "touchscreen",
+      "resolution": "1024x600",
+      "brightness": 80,
+      "screensaver_timeout_minutes": 5
+    }
+  },
+  "security": {
+    "provisioning_secret": "39cb4ff8f4ec5ee6bd7dda1350effe19278a96156bae51f3eb1f1399035a179b",
+    "session_secret": "0477d6623a3d4735c81dae8aed87361562a51e1f962ee81dbe236776fd1ed738",
+    "pin_rotation_days": 30,
+    "lockout_duration_minutes": 10,
+    "rate_limits": {
+      "ip_per_minute": 20,
+      "card_per_minute": 30,
+      "locker_per_minute": 3,
+      "device_per_20_seconds": 1,
+      "api_per_minute": 100
+    },
+    "encryption": {
+      "algorithm": "aes-256-gcm",
+      "key_rotation_days": 90
+    },
+    "audit": {
+      "log_all_actions": true,
+      "retention_days": 365,
+      "alert_on_suspicious": true
+    },
+    "qr_hmac_secret": "CHANGE-THIS-QR-HMAC-SECRET-IN-PRODUCTION-2025",
+    "force_https": false,
+    "secure_cookies": false,
+    "cors_enabled": false,
+    "rate_limiting_strict": true
+  },
+  "lockers": {
+    "total_count": 32,
+    "reserve_ttl_seconds": 120,
+    "offline_threshold_seconds": 60,
+    "bulk_operation_interval_ms": 500,
+    "master_lockout_fails": 3,
+    "master_lockout_minutes": 30,
+    "auto_release_hours": 24,
+    "maintenance_mode": false,
+    "layout": {
+      "rows": 4,
+      "columns": 8,
+      "numbering_scheme": "sequential"
+    }
+  },
+  "qr": {
+    "token_ttl_seconds": 10,
+    "hmac_secret": "c13f1f0e991842f78645b76529633d1a2cacaa4e4adec754694239458ba1641d",
+    "max_scans_per_token": 1,
+    "rate_limit_per_minute": 10
+  },
+  "logging": {
+    "level": "warn",
+    "retention_days": 90,
+    "max_file_size_mb": 50,
+    "rotate_daily": true,
+    "compress_old_logs": true,
+    "syslog_enabled": false,
+    "remote_logging": false,
+    "audit_all": true,
+    "performance_logs": true,
+    "error_notifications": true
+  },
+  "i18n": {
+    "default_language": "tr",
+    "supported_languages": [
+      "tr",
+      "en"
+    ],
+    "fallback_language": "en",
+    "auto_detect_browser": true
+  },
+  "monitoring": {
+    "health_check_interval_seconds": 30,
+    "performance_metrics": true,
+    "hardware_monitoring": true,
+    "disk_space_alert_threshold_percent": 85,
+    "memory_alert_threshold_percent": 90,
+    "temperature_alert_celsius": 70,
+    "enabled": true,
+    "detailed_metrics": true,
+    "alert_thresholds": {
+      "cpu_percent": 85,
+      "memory_percent": 90,
+      "disk_percent": 85,
+      "temperature_celsius": 65
+    }
+  },
+  "backup": {
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retention_count": 7,
+    "compress": true,
+    "remote_backup": false,
+    "backup_path": "./backups"
+  },
+  "network": {
+    "hostname": "pi-eform-locker",
+    "wifi_fallback": true,
+    "ethernet_priority": true,
+    "ntp_servers": [
+      "pool.ntp.org",
+      "time.google.com"
+    ],
+    "dns_servers": [
+      "8.8.8.8",
+      "1.1.1.1"
+    ]
+  },
+  "maintenance": {
+    "auto_restart_on_error": true,
+    "max_restart_attempts": 3,
+    "restart_cooldown_minutes": 5,
+    "scheduled_maintenance_hour": 3,
+    "update_notifications": true
+  }
+}
