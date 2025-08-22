@@ -8,6 +8,7 @@ import { ModbusController } from '../../hardware/modbus-controller';
 import { HardwareSoakTester } from '@shared/services/hardware-soak-tester';
 import { DatabaseManager } from '@shared/database/database-manager';
 import { EventLogger } from '@shared/services/event-logger';
+import { EventRepository } from '@shared/database/event-repository';
 
 describe('Hardware Endurance Soak Testing', () => {
   let dbManager: DatabaseManager;
@@ -20,7 +21,8 @@ describe('Hardware Endurance Soak Testing', () => {
     dbManager = new DatabaseManager(':memory:');
     await dbManager.initialize();
 
-    eventLogger = new EventLogger(dbManager.getEventRepository());
+    const eventRepository = new EventRepository(dbManager.getConnection());
+    eventLogger = new EventLogger(eventRepository);
 
     // Mock ModbusController for testing
     modbusController = {
