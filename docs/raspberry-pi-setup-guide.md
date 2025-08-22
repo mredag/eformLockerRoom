@@ -346,10 +346,7 @@ npm run test:hardware
 # Run integration tests
 npm run test:integration
 
-# Check all services health
-curl http://localhost:3000/health
-curl http://localhost:3001/health
-curl http://localhost:3003/health
+# Note: Service health checks will be done after starting services in Step 5
 ```
 
 ### Test 4: Performance & Load Testing
@@ -367,17 +364,59 @@ npm run test:soak
 ### Start All Services
 
 ```bash
-# Start the gateway (main controller)
+# Start the gateway (main controller) first
 npm run start:gateway &
+echo "Starting gateway service..."
+sleep 5
 
 # Start the kiosk interface
 npm run start:kiosk &
+echo "Starting kiosk service..."
+sleep 3
 
 # Start the admin panel
 npm run start:panel &
+echo "Starting admin panel..."
+sleep 3
+
+echo "All services starting up..."
 ```
 
+### Verify Services Are Running
+
+Wait about 10-15 seconds for all services to fully start, then check their health:
+
+```bash
+# Check all services health (wait for services to start first!)
+echo "Checking service health..."
+
+# Gateway service (backend API)
+curl -f http://localhost:3000/health && echo "✅ Gateway: OK" || echo "❌ Gateway: Failed"
+
+# Kiosk interface (touchscreen)
+curl -f http://localhost:3001/health && echo "✅ Kiosk: OK" || echo "❌ Kiosk: Failed"
+
+# Admin panel (management)
+curl -f http://localhost:3003/health && echo "✅ Panel: OK" || echo "❌ Panel: Failed"
+```
+
+**Expected Output:**
+
+```
+✅ Gateway: OK
+✅ Kiosk: OK
+✅ Panel: OK
+```
+
+**If you get connection errors:**
+
+1. Wait another 10 seconds and try again
+2. Check if services are still starting: `ps aux | grep node`
+3. Check for port conflicts: `sudo netstat -tulpn | grep -E "3000|3001|3003"`
+
 ### Access the Interfaces
+
+Once all health checks pass:
 
 - **Kiosk Interface:** http://localhost:3001 (touchscreen)
 - **Admin Panel:** http://localhost:3003 (management)
@@ -584,33 +623,75 @@ npm run build:gateway
 npm run build:panel
 ```
 
-#### Problem: "Services won't start"
+#### Problem: "Services won't start" or "Connection refused"
+
+**This is the most common issue - here's how to fix it:**
 
 **Diagnosis:**
 
 ```bash
-# Check service status
-sudo systemctl status eform-gateway
-sudo systemctl status eform-kiosk
-sudo systemctl status eform-panel
+# Check if services are running
+ps aux | grep node
 
-# Check logs
-sudo journalctl -u eform-gateway -n 50
-sudo journalctl -u eform-kiosk -n 50
-sudo journalctl -u eform-panel -n 50
+# Check what's listening on our ports
+sudo netstat -tulpn | grep -E "3000|3001|3003"
+
+# Check for errors in service logs
+npm run start:gateway 2>&1 | head -20
+npm run start:kiosk 2>&1 | head -20
+npm run start:panel 2>&1 | head -20
 ```
 
 **Solutions:**
 
 ```bash
-# Restart services in order
-sudo systemctl restart eform-gateway
-sleep 5
-sudo systemctl restart eform-kiosk
-sudo systemctl restart eform-panel
+# Method 1: Kill any existing processes and restart
+pkill -f "node.*gateway"
+pkill -f "node.*kiosk"
+pkill -f "node.*panel"
 
-# Check port conflicts
-sudo netstat -tulpn | grep :300
+# Wait a moment, then restart properly
+sleep 2
+npm run start:gateway &
+sleep 5
+npm run start:kiosk &
+sleep 3
+npm run start:panel &
+
+# Method 2: Check for port conflicts
+sudo lsof -i :3000
+sudo lsof -i :3001
+sudo lsof -i :3003
+
+# Method 3: Start services one by one with logging
+npm run start:gateway 2>&1 | tee gateway.log &
+sleep 10
+curl http://localhost:3000/health  # Should work before continuing
+
+npm run start:kiosk 2>&1 | tee kiosk.log &
+sleep 10
+curl http://localhost:3001/health  # Should work before continuing
+
+npm run start:panel 2>&1 | tee panel.log &
+sleep 10
+curl http://localhost:3003/health  # Should work now
+```
+
+**If services still fail to start:**
+
+```bash
+# Check Node.js version (must be 20.x)
+node --version
+
+# Reinstall dependencies
+rm -rf node_modules
+npm install
+
+# Check database exists
+ls -la data/system.db || npm run migrate
+
+# Check configuration file
+cat config/system.json | jq .  # Should be valid JSON
 ```
 
 ### Network Issues
