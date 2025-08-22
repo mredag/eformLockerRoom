@@ -6,7 +6,7 @@
  */
 
 import { SerialPort } from 'serialport';
-import { ModbusController } from '../app/kiosk/src/hardware/modbus-controller.js';
+import { ModbusController } from '../app/kiosk/src/hardware/modbus-controller.ts';
 
 class WaveshareValidator {
   constructor() {
@@ -428,12 +428,10 @@ class WaveshareValidator {
 }
 
 // Run validation if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const validator = new WaveshareValidator();
-  validator.validate().catch(error => {
-    console.error('Validation Error:', error);
-    process.exit(1);
-  });
-}
+const validator = new WaveshareValidator();
+validator.validate().catch(error => {
+  console.error('Validation Error:', error);
+  process.exit(1);
+});
 
 export { WaveshareValidator };
