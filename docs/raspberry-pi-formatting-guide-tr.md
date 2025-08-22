@@ -239,24 +239,24 @@ npx tsx scripts/validate-waveshare-hardware.js
 # 1️⃣  USB-RS485 Port Tespiti...
 # ✅ 1 adet RS485 portu bulundu:
 #    - /dev/ttyUSB0 (1a86)
-# 
+#
 # 2️⃣  Temel Modbus İletişimi...
 # ✅ Temel iletişim: BAŞARILI
-# 
+#
 # 3️⃣  Waveshare Röle Kartları Tarama...
 # ✅ X adet aktif röle kartı bulundu: [adresler 1-X]
-# 
+#
 # 4️⃣  Modbus Fonksiyon Kodları Testi...
 # ✅ Çoklu Bobin Yazma: BAŞARILI
 # ✅ Tekli Bobin Yazma: BAŞARILI
 # ✅ Bobin Okuma: BAŞARILI
-# 
+#
 # 5️⃣  Darbe Zamanlama Doğruluğu...
 # ✅ Tüm zamanlama testleri: BAŞARILI (±2ms tolerans)
-# 
+#
 # 6️⃣  Çoklu Kart İşlemi...
 # ✅ Çoklu kart sonucu: BAŞARILI
-# 
+#
 # 📊 Genel Sonuç: 6/6 test başarılı
 # 🎉 Tüm Waveshare uyumluluk testleri başarılı!
 ```
@@ -289,12 +289,22 @@ await controller.openLocker(1, 1); // Röle 1, Slave adresi 1
 await controller.close();
 "
 
-# RFID okuyucu testi
+# RFID okuyucu testi (düzeltilmiş)
+# Önce cihazları kontrol edin
+npx tsx scripts/check-rfid-devices.js
+
+# Sonra RFID testini çalıştırın
+npx tsx scripts/test-rfid-simple.js
+
+# Manuel test (doğru export adı ile)
 npx tsx -e "
-import { RFIDHandler } from './app/kiosk/src/hardware/rfid-handler.ts';
-const rfid = new RFIDHandler();
-rfid.on('cardRead', (cardId) => console.log('✅ Kart tespit edildi:', cardId));
-console.log('🔍 Şimdi bir RFID kart okutun...');
+import { RfidHandler } from './app/kiosk/src/hardware/rfid-handler.ts';
+const config = { reader_type: 'hid', debounce_ms: 1000 };
+const rfid = new RfidHandler(config);
+rfid.on('card_scanned', (event) => console.log('✅ Kart tespit edildi:', event.card_id));
+rfid.on('connected', () => console.log('🔍 RFID okuyucu hazır, kart okutun...'));
+rfid.on('error', (err) => console.log('❌ Hata:', err.message));
+await rfid.initialize();
 "
 ```
 
@@ -309,7 +319,7 @@ npm run test:integration
 
 # Tüm servislerin sağlık kontrolü
 curl http://localhost:3000/health
-curl http://localhost:3001/health  
+curl http://localhost:3001/health
 curl http://localhost:3003/health
 ```
 
@@ -390,7 +400,9 @@ echo "0 3 * * 0 sudo dd if=/dev/mmcblk0 of=/media/backup/pi-backup-$(date +%Y%m%
 ### Donanım Sorunları
 
 #### Problem: "RS485 cihazı bulunamadı"
+
 **Tanı:**
+
 ```bash
 # USB cihazları kontrol et
 lsusb | grep -i "1a86\|0403\|067b"  # Yaygın RS485 çip ID'leri
@@ -404,6 +416,7 @@ dmesg | tail -20
 ```
 
 **Çözümler:**
+
 ```bash
 # CH340 sürücüsü kur (gerekirse)
 sudo apt install -y ch341-uart-source
@@ -418,7 +431,9 @@ sudo minicom -D /dev/ttyUSB0 -b 9600
 ```
 
 #### Problem: "Waveshare doğrulaması başarısız"
+
 **Tanı:**
+
 ```bash
 # Detaylı donanım tanılaması çalıştır
 npx tsx scripts/hardware-diagnostics.js
@@ -433,13 +448,16 @@ port.on('error', (err) => console.log('❌ Port hatası:', err));
 ```
 
 **Çözümler:**
+
 1. **Waveshare kartlarındaki DIP switch ayarlarını** kontrol edin
 2. **Röle kartlarına 12V güç** beslemesini doğrulayın
 3. **RS485 kablolarını** multimetre ile test edin
 4. **Farklı USB port** veya RS485 dönüştürücü deneyin
 
 #### Problem: "RFID okuyucu tespit edilmiyor"
+
 **Tanı:**
+
 ```bash
 # HID cihazları kontrol et
 ls /dev/input/event*
@@ -450,6 +468,7 @@ sudo evtest /dev/input/event0
 ```
 
 **Çözümler:**
+
 ```bash
 # Kullanıcıyı input grubuna ekle
 sudo usermod -a -G input pi
@@ -469,7 +488,9 @@ console.log('Bir kart okutun...');
 ### Yazılım Sorunları
 
 #### Problem: "npm install başarısız"
+
 **Çözümler:**
+
 ```bash
 # npm önbelleğini temizle
 npm cache clean --force
@@ -484,7 +505,9 @@ npm install
 ```
 
 #### Problem: "TypeScript derleme hataları"
+
 **Çözümler:**
+
 ```bash
 # TypeScript'i doğrudan çalıştırmak için tsx kullan
 npx tsx scripts/validate-waveshare-hardware.js
@@ -496,7 +519,9 @@ npm run build:panel
 ```
 
 #### Problem: "Servisler başlamıyor"
+
 **Tanı:**
+
 ```bash
 # Servis durumunu kontrol et
 sudo systemctl status eform-gateway
@@ -510,6 +535,7 @@ sudo journalctl -u eform-panel -n 50
 ```
 
 **Çözümler:**
+
 ```bash
 # Servisleri sırayla yeniden başlat
 sudo systemctl restart eform-gateway
@@ -524,7 +550,9 @@ sudo netstat -tulpn | grep :300
 ### Ağ Sorunları
 
 #### Problem: "Web arayüzlerine erişilemiyor"
+
 **Tanı:**
+
 ```bash
 # Servislerin dinlediği portları kontrol et
 sudo netstat -tulpn | grep -E "3000|3001|3003"
@@ -536,6 +564,7 @@ curl -I http://localhost:3003/health
 ```
 
 **Çözümler:**
+
 ```bash
 # Güvenlik duvarını yapılandır
 sudo ufw allow 3000:3003/tcp
@@ -548,7 +577,9 @@ sudo ss -tulpn | grep -E "3000|3001|3003"
 ### Performans Sorunları
 
 #### Problem: "Sistem yavaş çalışıyor"
+
 **Tanı:**
+
 ```bash
 # Sistem kaynaklarını kontrol et
 htop
@@ -558,6 +589,7 @@ df -h
 ```
 
 **Çözümler:**
+
 ```bash
 # Gerekirse swap'ı artır
 sudo dphys-swapfile swapoff
@@ -575,6 +607,7 @@ echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_gover
 ### Acil Durum Kurtarma
 
 #### Tam Sistem Sıfırlama
+
 ```bash
 # Tüm servisleri durdur
 sudo systemctl stop eform-*
@@ -590,6 +623,7 @@ sudo systemctl start eform-panel
 ```
 
 #### Donanım Sıfırlama Prosedürü
+
 1. **Raspberry Pi'yi tamamen** kapatın
 2. **Tüm USB cihazları** çıkarın (RS485, RFID)
 3. **Tüm kablo bağlantılarını** kontrol edin
@@ -599,6 +633,7 @@ sudo systemctl start eform-panel
 ### Yardım Alma
 
 #### Tanı Bilgilerini Toplama
+
 ```bash
 # Tanı raporu oluştur
 npx tsx scripts/collect-diagnostics.js > tani-raporu.txt
@@ -610,6 +645,7 @@ dmesg | tail -50 >> sistem-bilgisi.txt
 ```
 
 #### Log Analizi
+
 ```bash
 # Tüm logları gerçek zamanlı izle
 sudo journalctl -f
@@ -664,9 +700,11 @@ echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_gover
 ```
 
 Bu rehberi takip ederek Raspberry Pi'nizi eForm Locker Sistemi için optimal şekilde hazırlayabilirsiniz. Herhangi bir sorunla karşılaştığınızda sorun giderme bölümünü kontrol edin.
+
 ## 🚀 Üretim Ortamı Dağıtımı
 
 ### Sistem Güvenliği Sertleştirme
+
 ```bash
 # Gereksiz servisleri devre dışı bırak
 sudo systemctl disable bluetooth
@@ -682,6 +720,7 @@ sudo nano /etc/logrotate.d/eform-locker
 ```
 
 ### İzleme ve Bakım
+
 ```bash
 # Sistem izleme kurulumu
 sudo apt install -y prometheus-node-exporter
@@ -694,6 +733,7 @@ echo "0 2 * * * rsync -av /home/pi/eform-locker/data/ /media/backup/$(date +\%Y\
 ```
 
 ### Güvenlik En İyi Uygulamaları
+
 ```bash
 # Varsayılan şifreleri değiştir
 sudo passwd pi
@@ -712,12 +752,14 @@ sudo apt install -y wireguard
 ## 📊 Sistem İzleme
 
 ### İzlenecek Temel Metrikler
+
 - **Donanım Durumu**: Röle yanıt süreleri, RFID okuma başarı oranı
 - **Sistem Kaynakları**: CPU kullanımı, bellek tüketimi, disk alanı
 - **Ağ**: Bağlantı kararlılığı, API yanıt süreleri
 - **Güvenlik**: Başarısız giriş denemeleri, yetkisiz erişim girişimleri
 
 ### İzleme Komutları
+
 ```bash
 # Gerçek zamanlı sistem durumu
 watch -n 1 'curl -s http://localhost:3000/health | jq .'
@@ -734,18 +776,21 @@ nethogs
 ## 🔄 Bakım Programı
 
 ### Günlük Görevler
+
 - [ ] Sistem sağlık uç noktalarını kontrol et
 - [ ] Donanım doğrulamasının geçtiğini doğrula
 - [ ] Sistem loglarını hata açısından izle
 - [ ] Disk alanı kullanımını kontrol et
 
 ### Haftalık Görevler
+
 - [ ] Kapsamlı sistem testleri çalıştır
 - [ ] Sistem paketlerini güncelle
 - [ ] Güvenlik loglarını gözden geçir
 - [ ] Yedek geri yüklemeyi test et
 
 ### Aylık Görevler
+
 - [ ] Tam sistem yedeklemesi
 - [ ] Donanım derin temizliği
 - [ ] Performans optimizasyonu incelemesi
@@ -754,6 +799,7 @@ nethogs
 ## 📈 Ölçeklendirme Değerlendirmeleri
 
 ### Daha Fazla Dolap Ekleme
+
 ```bash
 # Ek röle kartları yapılandır
 # system.json'u yeni donanımla güncelle
@@ -765,6 +811,7 @@ nano config/system.json
 ```
 
 ### Çok Siteli Dağıtım
+
 - Uzak sitelerle merkezi veritabanı kullan
 - Siteden siteye VPN bağlantısı uygula
 - Yüksek kullanılabilirlik için yük dengeleme yapılandır
@@ -784,6 +831,7 @@ Artık üretime hazır bir eForm Dolap Sisteminiz var! Bu kurumsal düzeydeki ç
 ✅ **Otomatik Bakım** - Kendi kendini iyileştiren ve yedekleme sistemleri
 
 ### Sonraki Adımlar
+
 1. **Üretim ortamına** dağıt
 2. **Personeli** sistem işletimi konusunda eğit
 3. **İzleme** panolarını kur
@@ -794,4 +842,4 @@ Sisteminiz artık kurumsal güvenilirlikle gerçek dünya dolap yönetimini ele 
 
 ---
 
-*Teknik destek veya gelişmiş yapılandırma için sorun giderme bölümüne bakın veya geliştirme ekibiyle iletişime geçin.*
+_Teknik destek veya gelişmiş yapılandırma için sorun giderme bölümüne bakın veya geliştirme ekibiyle iletişime geçin._
