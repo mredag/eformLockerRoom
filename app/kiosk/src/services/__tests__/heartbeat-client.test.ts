@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { HeartbeatClient } from '../heartbeat-client.js';
-import { Command, CommandType } from '../../../../../src/types/core-entities.js';
+import { HeartbeatClient } from '../heartbeat-client';
+import { Command, CommandType } from '../../../../../src/types/core-entities';
 
 // Mock fetch globally
 global.fetch = vi.fn();

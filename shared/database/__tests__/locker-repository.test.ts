@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DatabaseConnection } from '../connection.js';
-import { LockerRepository } from '../locker-repository.js';
-import { OptimisticLockError } from '../base-repository.js';
-import { Locker, LockerStatus } from '../../../src/types/core-entities.js';
+import { DatabaseConnection } from '../connection';
+import { LockerRepository } from '../locker-repository';
+import { OptimisticLockError } from '../base-repository';
+import { Locker, LockerStatus } from '../../../src/types/core-entities';
 
 describe('LockerRepository', () => {
   let db: DatabaseConnection;

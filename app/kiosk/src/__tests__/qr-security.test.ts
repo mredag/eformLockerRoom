@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { QrHandler } from '../controllers/qr-handler.js';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { ModbusController } from '../hardware/modbus-controller.js';
+import { QrHandler } from '../controllers/qr-handler';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { ModbusController } from '../hardware/modbus-controller';
 import { FastifyRequest, FastifyReply } from 'fastify';
 
 // Mock dependencies

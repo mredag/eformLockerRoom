@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { HardwareSoakTester, SoakTest } from '../hardware-soak-tester.js';
-import { DatabaseConnection } from '../../database/connection.js';
-import { EventLogger } from '../event-logger.js';
+import { HardwareSoakTester, SoakTest } from '../hardware-soak-tester';
+import { DatabaseConnection } from '../../database/connection';
+import { EventLogger } from '../event-logger';
 
 // Mock dependencies
 const mockDb = {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { securityMiddleware } from '../security-middleware.js';
+import { securityMiddleware } from '../security-middleware';
 import { FastifyRequest, FastifyReply } from 'fastify';
 
 describe('Security Middleware', () => {

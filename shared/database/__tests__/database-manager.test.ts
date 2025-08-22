@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DatabaseManager } from '../database-manager.js';
-import { DatabaseConnection } from '../connection.js';
+import { DatabaseManager } from '../database-manager';
+import { DatabaseConnection } from '../connection';
 import * as path from 'path';
 
 describe('DatabaseManager', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { EventLogger } from '../event-logger.js';
-import { EventRepository } from '../../database/event-repository.js';
-import { EventType } from '../../../src/types/core-entities.js';
+import { EventLogger } from '../event-logger';
+import { EventRepository } from '../../database/event-repository';
+import { EventType } from '../../../src/types/core-entities';
 
 // Mock EventRepository
 const mockEventRepository = {

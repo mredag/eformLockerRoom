@@ -4,15 +4,15 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { EventLogger } from '../../../../shared/services/event-logger.js';
-import { RfidUserFlow } from '../../services/rfid-user-flow.js';
-import { QrHandler } from '../../controllers/qr-handler.js';
-import { ModbusController } from '../../hardware/modbus-controller.js';
-import { RfidHandler } from '../../hardware/rfid-handler.js';
-import { UiController } from '../../controllers/ui-controller.js';
-import { Locker, Event } from '../../../../shared/types/core-entities.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { EventLogger } from '../../../../shared/services/event-logger';
+import { RfidUserFlow } from '../../services/rfid-user-flow';
+import { QrHandler } from '../../controllers/qr-handler';
+import { ModbusController } from '../../hardware/modbus-controller';
+import { RfidHandler } from '../../hardware/rfid-handler';
+import { UiController } from '../../controllers/ui-controller';
+import { Locker, Event } from '../../../../shared/types/core-entities';
 
 describe('Complete User Flows - End-to-End Tests', () => {
   let dbManager: DatabaseManager;

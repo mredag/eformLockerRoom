@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { UiController } from '../controllers/ui-controller.js';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { RfidUserFlow } from '../services/rfid-user-flow.js';
-import { ModbusController } from '../hardware/modbus-controller.js';
+import { UiController } from '../controllers/ui-controller';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { RfidUserFlow } from '../services/rfid-user-flow';
+import { ModbusController } from '../hardware/modbus-controller';
 
 // Mock dependencies
 vi.mock('../../../../shared/services/locker-state-manager.js');

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { EventLogger } from '../../../../shared/services/event-logger.js';
-import { RfidUserFlow } from '../../services/rfid-user-flow.js';
-import { QrHandler } from '../../controllers/qr-handler.js';
-import { RateLimiter } from '../../services/rate-limiter.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { EventLogger } from '../../../../shared/services/event-logger';
+import { RfidUserFlow } from '../../services/rfid-user-flow';
+import { QrHandler } from '../../controllers/qr-handler';
+import { RateLimiter } from '../../services/rate-limiter';
 
 describe('RFID and QR Integration Tests', () => {
   let dbManager: DatabaseManager;
