@@ -281,16 +281,27 @@ export class QrHandler {
     // Open locker and release immediately
     const opened = await this.modbusController.openLocker(lockerId);
     if (opened) {
-      // Release ownership immediately upon command execution
-      await this.lockerStateManager.releaseLocker(kioskId, lockerId, deviceId);
-      
-      return {
-        success: true,
-        action: 'release',
-        message: `Dolap ${lockerId} açıldı ve bırakıldı`,
-        locker_id: lockerId,
-        device_id: deviceId
-      };
+      // Skip release for VIP lockers
+      if (locker.is_vip) {
+        return {
+          success: true,
+          action: 'release',
+          message: `VIP Dolap ${lockerId} açıldı`,
+          locker_id: lockerId,
+          device_id: deviceId
+        };
+      } else {
+        // Release ownership immediately upon command execution for non-VIP
+        await this.lockerStateManager.releaseLocker(kioskId, lockerId, deviceId);
+        
+        return {
+          success: true,
+          action: 'release',
+          message: `Dolap ${lockerId} açıldı ve bırakıldı`,
+          locker_id: lockerId,
+          device_id: deviceId
+        };
+      }
     } else {
       return {
         success: false,

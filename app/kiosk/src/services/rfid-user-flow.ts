@@ -162,36 +162,53 @@ export class RfidUserFlow extends EventEmitter {
       const openResult = await this.modbusController.openLocker(lockerId);
       
       if (openResult) {
-        // Opening successful - immediately release ownership
-        const releaseResult = await this.lockerStateManager.releaseLocker(
-          this.config.kiosk_id,
-          lockerId,
-          cardId
-        );
-
-        if (releaseResult) {
-          this.emit('locker_opened_and_released', {
+        // Check if this is a VIP locker
+        if (locker.is_vip) {
+          // For VIP lockers, emit success without releasing ownership
+          this.emit('locker_opened_vip', {
             card_id: cardId,
             locker_id: lockerId,
-            message: `Dolap ${lockerId} açıldı ve bırakıldı`
+            message: `VIP Dolap ${lockerId} açıldı`
           });
 
           return {
             success: true,
             action: 'open_locker',
-            message: `Dolap ${lockerId} açıldı ve bırakıldı`,
+            message: `VIP Dolap ${lockerId} açıldı`,
             opened_locker: lockerId
           };
         } else {
-          // Opening succeeded but release failed - log error but don't fail user
-          console.error(`Failed to release locker ${lockerId} after successful opening`);
-          
-          return {
-            success: true,
-            action: 'open_locker',
-            message: `Dolap ${lockerId} açıldı`,
-            opened_locker: lockerId
-          };
+          // Opening successful - immediately release ownership for non-VIP
+          const releaseResult = await this.lockerStateManager.releaseLocker(
+            this.config.kiosk_id,
+            lockerId,
+            cardId
+          );
+
+          if (releaseResult) {
+            this.emit('locker_opened_and_released', {
+              card_id: cardId,
+              locker_id: lockerId,
+              message: `Dolap ${lockerId} açıldı ve bırakıldı`
+            });
+
+            return {
+              success: true,
+              action: 'open_locker',
+              message: `Dolap ${lockerId} açıldı ve bırakıldı`,
+              opened_locker: lockerId
+            };
+          } else {
+            // Opening succeeded but release failed - log error but don't fail user
+            console.error(`Failed to release locker ${lockerId} after successful opening`);
+            
+            return {
+              success: true,
+              action: 'open_locker',
+              message: `Dolap ${lockerId} açıldı`,
+              opened_locker: lockerId
+            };
+          }
         }
       } else {
         // Opening failed - keep ownership intact

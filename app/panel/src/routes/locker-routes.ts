@@ -92,6 +92,12 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         return;
       }
 
+      // Skip release for VIP lockers unless override is true
+      if (locker.is_vip && !override) {
+        reply.code(423).send({ error: 'VIP locker cannot be opened without override' });
+        return;
+      }
+
       // Release the locker (this will open it and set to Free)
       const success = await lockerStateManager.releaseLocker(kioskId, lockerId_num);
       
@@ -105,7 +111,8 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           details: {
             reason: reason || 'Manual staff open',
             override: override || false,
-            previous_status: locker.status
+            previous_status: locker.status,
+            is_vip: locker.is_vip
           }
         });
 
@@ -219,15 +226,17 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
             }
           },
           intervalMs: { type: 'number', default: 300 },
-          reason: { type: 'string', default: 'Bulk open operation' }
+          reason: { type: 'string', default: 'Bulk open operation' },
+          excludeVip: { type: 'boolean', default: true }
         }
       }
     }
   }, async (request, reply) => {
-    const { lockers, intervalMs = 300, reason } = request.body as {
+    const { lockers, intervalMs = 300, reason, excludeVip = true } = request.body as {
       lockers: Array<{ kioskId: string; lockerId: number }>;
       intervalMs?: number;
       reason?: string;
+      excludeVip?: boolean;
     };
     const user = (request as any).user as User;
 
@@ -238,6 +247,21 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
 
       for (const { kioskId, lockerId } of lockers) {
         try {
+          // Fetch locker to check VIP status
+          const locker = await lockerStateManager.getLocker(kioskId, lockerId);
+          if (!locker) {
+            failedLockers.push({ kioskId, lockerId, reason: 'not_found' });
+            results.push({ kioskId, lockerId, success: false, error: 'Locker not found' });
+            continue;
+          }
+
+          // Skip VIP lockers if excludeVip is true
+          if (locker.is_vip && excludeVip) {
+            failedLockers.push({ kioskId, lockerId, reason: 'vip' });
+            results.push({ kioskId, lockerId, success: false, error: 'VIP locker excluded' });
+            continue;
+          }
+
           const success = await lockerStateManager.releaseLocker(kioskId, lockerId);
           
           if (success) {
@@ -247,10 +271,10 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
               locker_id: lockerId,
               event_type: 'staff_open',
               staff_user: user.username,
-              details: { reason, bulk_operation: true }
+              details: { reason, bulk_operation: true, is_vip: locker.is_vip }
             });
           } else {
-            failedLockers.push({ kioskId, lockerId });
+            failedLockers.push({ kioskId, lockerId, reason: 'release_failed' });
           }
 
           results.push({ kioskId, lockerId, success });
@@ -260,7 +284,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
             await new Promise(resolve => setTimeout(resolve, intervalMs));
           }
         } catch (error) {
-          failedLockers.push({ kioskId, lockerId });
+          failedLockers.push({ kioskId, lockerId, reason: 'error' });
           results.push({ kioskId, lockerId, success: false, error: error.message });
         }
       }
@@ -274,7 +298,8 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           total_count: lockers.length,
           success_count: successCount,
           failed_lockers: failedLockers,
-          reason
+          reason,
+          exclude_vip: excludeVip
         }
       });
 

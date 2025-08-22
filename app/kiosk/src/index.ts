@@ -90,13 +90,24 @@ heartbeatClient.registerCommandHandler('open_locker', async (command) => {
       return { success: false, error: 'Missing locker_id in command payload' };
     }
 
+    // Fetch locker to check VIP status
+    const locker = await lockerStateManager.getLocker(KIOSK_ID, locker_id);
+    if (!locker) {
+      return { success: false, error: 'Locker not found' };
+    }
+
     // Execute locker opening
     const success = await modbusController.openLocker(locker_id);
     
     if (success) {
-      // Release locker ownership
-      await lockerStateManager.releaseLocker(KIOSK_ID, locker_id);
-      return { success: true };
+      // Skip release for VIP lockers unless force is true
+      if (locker.is_vip && !force) {
+        return { success: true, message: 'VIP locker opened without release' };
+      } else {
+        // Release locker ownership for non-VIP or forced operations
+        await lockerStateManager.releaseLocker(KIOSK_ID, locker_id);
+        return { success: true };
+      }
     } else {
       return { success: false, error: 'Failed to open locker hardware' };
     }
@@ -118,6 +129,7 @@ heartbeatClient.registerCommandHandler('bulk_open', async (command) => {
 
     let successCount = 0;
     const failedLockers: number[] = [];
+    const vipSkipped: number[] = [];
 
     for (const lockerId of locker_ids) {
       try {
@@ -126,10 +138,26 @@ heartbeatClient.registerCommandHandler('bulk_open', async (command) => {
           await new Promise(resolve => setTimeout(resolve, interval_ms));
         }
 
+        // Fetch locker to check VIP status
+        const locker = await lockerStateManager.getLocker(KIOSK_ID, lockerId);
+        if (!locker) {
+          failedLockers.push(lockerId);
+          continue;
+        }
+
+        // Skip VIP lockers if exclude_vip is true
+        if (locker.is_vip && exclude_vip) {
+          vipSkipped.push(lockerId);
+          continue;
+        }
+
         const success = await modbusController.openLocker(lockerId);
         
         if (success) {
-          await lockerStateManager.releaseLocker(KIOSK_ID, lockerId);
+          // Skip release for VIP lockers
+          if (!locker.is_vip) {
+            await lockerStateManager.releaseLocker(KIOSK_ID, lockerId);
+          }
           successCount++;
         } else {
           failedLockers.push(lockerId);
@@ -139,9 +167,17 @@ heartbeatClient.registerCommandHandler('bulk_open', async (command) => {
       }
     }
 
+    const errorMessages = [];
+    if (failedLockers.length > 0) {
+      errorMessages.push(`Failed lockers: ${failedLockers.join(', ')}`);
+    }
+    if (vipSkipped.length > 0) {
+      errorMessages.push(`VIP lockers skipped: ${vipSkipped.join(', ')}`);
+    }
+
     return { 
       success: true, 
-      error: failedLockers.length > 0 ? `Failed lockers: ${failedLockers.join(', ')}` : undefined
+      error: errorMessages.length > 0 ? errorMessages.join('; ') : undefined
     };
   } catch (error) {
     return { 
