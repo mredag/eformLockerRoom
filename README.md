@@ -1,6 +1,36 @@
-# Eform Locker System
+# 🔐 Eform Locker System
 
-A comprehensive RFID-based locker management system with centralized provisioning and configuration management. This system provides secure kiosk registration, real-time configuration distribution, and robust monitoring capabilities for enterprise locker deployments.
+**Production-Ready RFID Locker Management System**
+
+A comprehensive locker management solution designed for Raspberry Pi with Waveshare relay cards, featuring RFID/QR access, multi-language support, VIP user management, and enterprise-grade security.
+
+## 🚀 Quick Start
+
+### For Raspberry Pi Production Deployment
+```bash
+# One-command setup for Raspberry Pi
+git clone https://github.com/mredag/eformLockerRoom.git eform-locker
+cd eform-locker
+chmod +x scripts/quick-setup.sh
+./scripts/quick-setup.sh
+```
+
+### For Development
+```bash
+git clone https://github.com/mredag/eformLockerRoom.git
+cd eformLockerRoom
+npm install
+npm run config:setup-dev
+npm run migrate
+npm run dev:gateway & npm run dev:kiosk & npm run dev:panel &
+```
+
+## 📚 Documentation
+
+- **[🍓 Raspberry Pi Deployment Guide](docs/raspberry-pi-deployment-guide.md)** - Complete production setup
+- **[🇹🇷 Turkish Setup Guide](docs/raspberry-pi-formatting-guide-tr.md)** - Türkçe kurulum rehberi
+- **[⚙️ Configuration Guide](config/README.md)** - System configuration reference
+- **[🔧 Hardware Integration](docs/waveshare-modbus-compatibility-analysis.md)** - Waveshare hardware setup
 
 ## 🚀 Features
 
