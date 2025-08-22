@@ -5,9 +5,9 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ModbusController } from '../../hardware/modbus-controller';
-import { HardwareSoakTester } from '../../../../shared/services/hardware-soak-tester';
-import { DatabaseManager } from '../../../../shared/database/database-manager';
-import { EventLogger } from '../../../../shared/services/event-logger';
+import { HardwareSoakTester } from '@shared/services/hardware-soak-tester';
+import { DatabaseManager } from '@shared/database/database-manager';
+import { EventLogger } from '@shared/services/event-logger';
 
 describe('Hardware Endurance Soak Testing', () => {
   let dbManager: DatabaseManager;
