@@ -433,7 +433,8 @@ export class LockerStateManager {
         [expiredThreshold.toISOString()]
       );
 
-      if (expiredLockers.length === 0) {
+      // Ensure expiredLockers is an array
+      if (!Array.isArray(expiredLockers) || expiredLockers.length === 0) {
         return 0;
       }
 
