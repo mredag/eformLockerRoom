@@ -307,8 +307,21 @@ const start = async () => {
     // Register i18n routes
     await i18nController.registerRoutes();
 
-    // Initialize kiosk lockers if needed
-    await lockerStateManager.initializeKioskLockers(KIOSK_ID, 30);
+    // Initialize kiosk lockers if needed (with error handling)
+    try {
+      await lockerStateManager.initializeKioskLockers(KIOSK_ID, 30);
+    } catch (dbError) {
+      if (dbError instanceof Error && dbError.message.includes('no such table')) {
+        console.error('❌ Database tables not found!');
+        console.error('Please run database migrations first:');
+        console.error('  npm run migrate');
+        console.error('Or use the quick fix:');
+        console.error('  node scripts/quick-database-fix.js');
+        process.exit(1);
+      } else {
+        throw dbError;
+      }
+    }
 
     // Start heartbeat client (disabled for now)
     // await heartbeatClient.start();
