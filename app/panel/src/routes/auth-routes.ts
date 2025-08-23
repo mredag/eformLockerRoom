@@ -98,6 +98,11 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
         return;
       }
 
+      // Clear any existing session cookies to prevent conflicts
+      reply.clearCookie('session', { path: '/' });
+      reply.clearCookie('session', { path: '/auth' });
+      reply.clearCookie('session'); // Default path
+
       // Create session with flexible IP extraction
       const ipAddress = extractClientIp(request);
       const userAgent = request.headers['user-agent'] || 'unknown';
@@ -135,7 +140,11 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
       sessionManager.destroySession(sessionToken);
     }
 
-    reply.clearCookie('session');
+    // Clear session cookies with all possible paths
+    reply.clearCookie('session', { path: '/' });
+    reply.clearCookie('session', { path: '/auth' });
+    reply.clearCookie('session'); // Default path
+    
     reply.send({ success: true });
   });
 
