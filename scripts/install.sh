@@ -57,10 +57,13 @@ check_requirements() {
     fi
     
     # Check architecture
-    if [[ $(uname -m) != "x86_64" ]]; then
-        log_error "This installer supports x86_64 architecture only"
+    local arch=$(uname -m)
+    if [[ "$arch" != "x86_64" ]] && [[ "$arch" != "aarch64" ]] && [[ "$arch" != "armv7l" ]] && [[ "$arch" != "armv6l" ]]; then
+        log_error "This installer supports x86_64, aarch64, armv7l, and armv6l architectures only. Current: $arch"
         exit 1
     fi
+    
+    log_info "Architecture: $arch (supported)"
     
     log_success "System requirements met"
 }

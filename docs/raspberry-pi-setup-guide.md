@@ -164,35 +164,60 @@ USB HID RFID Reader → Raspberry Pi USB port
 
 ## 💻 Step 3: Install the eForm Locker Software
 
-### Clone the Repository
+### Option A: Automated Installation (Recommended)
 
 ```bash
 cd /home/pi
 git clone <your-repository-url> eform-locker
 cd eform-locker
+
+# Run the automated quick setup script
+chmod +x scripts/quick-setup.sh
+./scripts/quick-setup.sh
+
+# This script automatically handles:
+# ✅ System updates and Node.js 20 installation
+# ✅ User permissions and firewall configuration
+# ✅ Project dependencies installation
+# ✅ Configuration generation and validation
+# ✅ Database migration
+# ✅ Hardware testing (if available)
+# ✅ Service installation and startup
+# ✅ Health monitoring setup
 ```
 
-### Install Dependencies
+### Option B: Manual Installation (Alternative)
 
 ```bash
+cd /home/pi
+git clone <your-repository-url> eform-locker
+cd eform-locker
+
+# Install dependencies
 npm install
-```
 
-### Set Up the Database
-
-```bash
-# Run database migrations
+# Set up the database
 npm run migrate
+
+# Configure the system
+cp config/system.json.example config/system.json
+nano config/system.json
 ```
 
-### Configure the System
+### Configuration Setup Script
 
 ```bash
-# Copy example configuration
-cp config/system.json.example config/system.json
+# Generate production configuration automatically
+npm run config:setup
 
-# Edit configuration for your hardware
-nano config/system.json
+# Or use the configuration script directly
+node scripts/setup-config.js setup production
+
+# Validate configuration
+npm run config:validate
+
+# Show configuration summary
+npm run config:show
 ```
 
 ### Production Configuration (Validated Settings)
@@ -361,25 +386,53 @@ npm run test:soak
 
 ## 🚀 Step 5: Start the System
 
-### Start All Services
+### Option A: Production Installation (Recommended)
 
 ```bash
-# Start the gateway (main controller) first
+# Use the comprehensive installation script
+sudo chmod +x scripts/install.sh
+sudo ./scripts/install.sh
+
+# This creates a production-ready installation with:
+# ✅ System user and secure directories
+# ✅ Systemd services for automatic startup
+# ✅ Hardware access configuration
+# ✅ Log rotation and backup automation
+# ✅ Security hardening
+```
+
+### Option B: Development Mode (Alternative)
+
+```bash
+# Start services manually for development/testing
 npm run start:gateway &
 echo "Starting gateway service..."
 sleep 5
 
-# Start the kiosk interface
 npm run start:kiosk &
 echo "Starting kiosk service..."
 sleep 3
 
-# Start the admin panel
 npm run start:panel &
 echo "Starting admin panel..."
 sleep 3
 
 echo "All services starting up..."
+```
+
+### Service Management (Production)
+
+```bash
+# Control services with systemctl
+sudo systemctl start eform-gateway
+sudo systemctl start eform-kiosk
+sudo systemctl start eform-panel
+
+# Check service status
+sudo systemctl status eform-*
+
+# View service logs
+sudo journalctl -u eform-gateway -f
 ```
 
 ### Verify Services Are Running
@@ -802,6 +855,56 @@ sudo journalctl | grep -i "error\|fail\|timeout"
 
 # Export logs for analysis
 sudo journalctl --since "1 hour ago" > recent-logs.txt
+```
+
+## 🤖 Automation Scripts Overview
+
+The eForm Locker System includes comprehensive automation scripts that make installation, deployment, and maintenance much easier:
+
+### Installation & Setup Scripts
+
+- **`quick-setup.sh`** - One-command Raspberry Pi setup (recommended for new installations)
+- **`install.sh`** - Production-grade system installation with security hardening
+- **`setup-config.js`** - Automated configuration generation with secure secrets
+
+### Deployment & Package Management
+
+- **`package.sh`** - Create deployment packages with checksums and metadata
+- **`sign-package.sh`** - Digital signing for secure package distribution
+- **`deploy.sh`** - Zero-downtime deployment with automatic rollback
+- **`canary-deploy.sh`** - Gradual rollout to minimize risk
+- **`deployment-monitor.sh`** - Real-time deployment health monitoring
+
+### Backup & Recovery
+
+- **`backup.sh`** - Automated backup system with retention policies
+- **`restore.sh`** - Interactive and automated restore capabilities
+- **`uninstall.sh`** - Clean system removal with data preservation
+
+### Monitoring & Maintenance
+
+- **`health-check.sh`** - Comprehensive system health validation
+- **`hardware-diagnostics.js`** - Hardware connectivity and performance testing
+- **`validate-waveshare-hardware.js`** - Specific Waveshare relay card validation
+
+### Usage Examples
+
+```bash
+# Complete Raspberry Pi setup in one command
+./scripts/quick-setup.sh
+
+# Create and deploy a signed package
+./scripts/package.sh create deployment
+./scripts/sign-package.sh sign package.tar.gz
+sudo ./scripts/deploy.sh deploy package.tar.gz
+
+# Monitor system health and get rollback recommendations
+./scripts/health-check.sh
+./scripts/deployment-monitor.sh recommend
+
+# Automated backup and restore
+./scripts/backup.sh backup weekly
+./scripts/restore.sh interactive
 ```
 
 ## 📚 Understanding the Modbus Protocol

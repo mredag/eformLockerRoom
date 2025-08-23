@@ -8,11 +8,14 @@ A comprehensive locker management solution designed for Raspberry Pi with Wavesh
 
 ### For Raspberry Pi Production Deployment
 ```bash
-# One-command setup for Raspberry Pi
+# One-command setup for Raspberry Pi (fully automated)
 git clone https://github.com/mredag/eformLockerRoom.git eform-locker
 cd eform-locker
 chmod +x scripts/quick-setup.sh
 ./scripts/quick-setup.sh
+
+# Or use the comprehensive installation script
+sudo ./scripts/install.sh
 ```
 
 ### For Development
@@ -23,6 +26,38 @@ npm install
 npm run config:setup-dev
 npm run migrate
 npm run dev:gateway & npm run dev:kiosk & npm run dev:panel &
+```
+
+## 🤖 Automation Scripts
+
+The system includes comprehensive automation for production deployment:
+
+### 🔧 Installation & Setup
+- **`quick-setup.sh`** - Complete Raspberry Pi setup in one command
+- **`install.sh`** - Production installation with security hardening
+- **`setup-config.js`** - Automated configuration generation
+
+### 📦 Package Management
+- **`package.sh`** - Create deployment packages with checksums
+- **`sign-package.sh`** - Digital signing for secure distribution
+- **`deploy.sh`** - Zero-downtime deployment with rollback
+- **`canary-deploy.sh`** - Gradual rollout deployment
+
+### 🔍 Monitoring & Maintenance
+- **`health-check.sh`** - Comprehensive system health validation
+- **`backup.sh`** - Automated backup with retention policies
+- **`deployment-monitor.sh`** - Real-time deployment monitoring
+
+### 🛠️ Hardware Validation
+- **`validate-waveshare-hardware.js`** - Waveshare relay card testing
+- **`hardware-diagnostics.js`** - Complete hardware diagnostics
+
+```bash
+# Example automation workflow
+./scripts/package.sh create deployment        # Create package
+./scripts/sign-package.sh sign package.tar.gz # Sign package
+sudo ./scripts/deploy.sh deploy package.tar.gz # Deploy with rollback
+./scripts/health-check.sh                     # Validate deployment
 ```
 
 ## 📚 Documentation

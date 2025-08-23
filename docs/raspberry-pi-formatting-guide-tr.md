@@ -176,17 +176,35 @@ xinput_calibrator
 
 ## 📱 eForm Locker Sistemi Kurulumu
 
-### 1. **Proje Klonlama**
+### Seçenek A: Otomatik Kurulum (Önerilen)
 
 ```bash
 cd /home/pi
 git clone https://github.com/mredag/eformLockerRoom.git eform-locker
 cd eform-locker
+
+# Otomatik hızlı kurulum scriptini çalıştır
+chmod +x scripts/quick-setup.sh
+./scripts/quick-setup.sh
+
+# Bu script otomatik olarak şunları yapar:
+# ✅ Sistem güncellemeleri ve Node.js 20 kurulumu
+# ✅ Kullanıcı izinleri ve güvenlik duvarı yapılandırması
+# ✅ Proje bağımlılıklarının kurulumu
+# ✅ Konfigürasyon oluşturma ve doğrulama
+# ✅ Veritabanı migrasyonu
+# ✅ Donanım testi (varsa)
+# ✅ Servis kurulumu ve başlatma
+# ✅ Sağlık izleme kurulumu
 ```
 
-### 2. **Bağımlılıkları Kurma**
+### Seçenek B: Manuel Kurulum (Alternatif)
 
 ```bash
+cd /home/pi
+git clone https://github.com/mredag/eformLockerRoom.git eform-locker
+cd eform-locker
+
 # Ana bağımlılıkları kur
 npm install
 
@@ -200,26 +218,33 @@ npm install -g tsx
 npm run validate:nodejs
 ```
 
-### 3. **Konfigürasyon**
+### Konfigürasyon Kurulum Scripti
 
 ```bash
-# Sistem konfigürasyonunu kopyala
-cp config/system.json.example config/system.json
+# Üretim konfigürasyonunu otomatik oluştur
+npm run config:setup
 
-# Raspberry Pi için özel ayarlar
-nano config/system.json
+# Veya konfigürasyon scriptini doğrudan kullan
+node scripts/setup-config.js setup production
+
+# Konfigürasyonu doğrula
+npm run config:validate
+
+# Konfigürasyon özetini göster
+npm run config:show
 ```
 
-### 4. **Veritabanı Kurulumu**
+### Veritabanı ve Servis Kurulumu
 
 ```bash
+# Veritabanı migrasyonu
 npm run migrate
-```
 
-### 5. **Servisleri Kurma**
+# Üretim kurulumu için (önerilen)
+sudo chmod +x scripts/install.sh
+sudo ./scripts/install.sh
 
-```bash
-# Systemd servisleri kur
+# Manuel servis kurulumu (alternatif)
 sudo cp scripts/systemd/*.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable eform-gateway eform-kiosk eform-panel
@@ -811,11 +836,77 @@ iotop -o
 nethogs
 ```
 
+## 📦 Otomatik Paket Yönetimi ve Dağıtım
+
+### Dağıtım Paketleri Oluşturma
+```bash
+# Dağıtım paketi oluştur
+chmod +x scripts/package.sh
+./scripts/package.sh create deployment
+
+# Kurulum paketi oluştur (scriptler dahil)
+./scripts/package.sh create installation
+
+# Her iki türü de oluştur
+./scripts/package.sh create both
+
+# Mevcut paketleri listele
+./scripts/package.sh list
+
+# Paket bütünlüğünü doğrula
+./scripts/package.sh verify /path/to/package.tar.gz
+```
+
+### Paket İmzalama (Güvenlik)
+```bash
+# İmzalama anahtarları oluştur (bir kez çalıştır)
+sudo ./scripts/sign-package.sh generate-keys
+
+# Paketi imzala
+./scripts/sign-package.sh sign package.tar.gz
+
+# İmzalı paketi doğrula
+./scripts/sign-package.sh verify package.tar.gz
+
+# Dağıtım için public key'i dışa aktar
+./scripts/sign-package.sh export-key public-key.pem
+```
+
+### Dağıtım Yönetimi
+```bash
+# Otomatik geri alma ile yeni sürüm dağıt
+sudo ./scripts/deploy.sh deploy /path/to/package.tar.gz
+
+# Dağıtım durumunu kontrol et
+./scripts/deploy.sh status
+
+# Gerekirse önceki sürüme geri dön
+sudo ./scripts/deploy.sh rollback /path/to/backup.tar.gz
+
+# Dağıtım sağlığını izle
+./scripts/deployment-monitor.sh monitor 600 60  # 10 dk, 60s aralık
+
+# Geri alma önerisi al
+./scripts/deployment-monitor.sh recommend
+```
+
+### Canary Dağıtım (Gelişmiş)
+```bash
+# Canary dağıtım gerçekleştir (önce kiosklerin %20'si)
+sudo ./scripts/canary-deploy.sh deploy /path/to/package.tar.gz
+
+# Canary durumunu kontrol et
+./scripts/canary-deploy.sh status
+
+# Canary sürecini test et (deneme çalışması)
+./scripts/canary-deploy.sh test
+```
+
 ## 🔄 Bakım Programı
 
 ### Günlük Görevler
 
-- [ ] Sistem sağlık uç noktalarını kontrol et
+- [ ] Sistem sağlık uç noktalarını kontrol et (`./scripts/health-check.sh`)
 - [ ] Donanım doğrulamasının geçtiğini doğrula
 - [ ] Sistem loglarını hata açısından izle
 - [ ] Disk alanı kullanımını kontrol et
@@ -825,11 +916,11 @@ nethogs
 - [ ] Kapsamlı sistem testleri çalıştır
 - [ ] Sistem paketlerini güncelle
 - [ ] Güvenlik loglarını gözden geçir
-- [ ] Yedek geri yüklemeyi test et
+- [ ] Yedek geri yüklemeyi test et (`./scripts/restore.sh list`)
 
 ### Aylık Görevler
 
-- [ ] Tam sistem yedeklemesi
+- [ ] Tam sistem yedeklemesi (`./scripts/backup.sh backup monthly`)
 - [ ] Donanım derin temizliği
 - [ ] Performans optimizasyonu incelemesi
 - [ ] Güvenlik denetimi

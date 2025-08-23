@@ -127,9 +127,29 @@ git config user.email "pi@eform-locker.local"
 git config user.name "Raspberry Pi Eform System"
 ```
 
-### 4.2 Install Dependencies
+### 4.2 Automated Quick Setup (Recommended)
 ```bash
-# Install all project dependencies
+# Use the automated quick setup script for Raspberry Pi
+chmod +x scripts/quick-setup.sh
+./scripts/quick-setup.sh
+
+# This script automatically:
+# - Updates system packages
+# - Installs Node.js 20
+# - Configures user permissions
+# - Sets up firewall
+# - Installs project dependencies
+# - Validates Node.js compatibility
+# - Generates configuration
+# - Runs database migrations
+# - Tests hardware (if available)
+# - Installs and starts systemd services
+# - Sets up monitoring
+```
+
+### 4.3 Manual Installation (Alternative)
+```bash
+# If you prefer manual installation:
 npm install
 npm run install-all
 
@@ -194,9 +214,25 @@ npm run test:integration
 
 ## 🚀 Step 7: Service Deployment
 
-### 7.1 Install Systemd Services
+### 7.1 Automated Installation (Recommended)
 ```bash
-# Copy service files
+# Use the comprehensive installation script
+sudo chmod +x scripts/install.sh
+sudo ./scripts/install.sh
+
+# This script automatically:
+# - Creates system user and directories
+# - Installs and builds the application
+# - Sets up systemd services
+# - Configures hardware access (udev rules)
+# - Sets up log rotation and automated backups
+# - Generates secure secrets
+# - Performs installation verification
+```
+
+### 7.2 Manual Service Installation (Alternative)
+```bash
+# If you prefer manual installation:
 sudo cp scripts/systemd/*.service /etc/systemd/system/
 
 # Reload systemd and enable services
@@ -209,7 +245,7 @@ sudo systemctl start eform-kiosk
 sudo systemctl start eform-panel
 ```
 
-### 7.2 Verify Service Status
+### 7.3 Verify Service Status
 ```bash
 # Check service status
 sudo systemctl status eform-*
@@ -218,6 +254,9 @@ sudo systemctl status eform-*
 sudo journalctl -u eform-gateway -f
 sudo journalctl -u eform-kiosk -f
 sudo journalctl -u eform-panel -f
+
+# Use automated health check
+./scripts/health-check.sh
 ```
 
 ## 🌐 Step 8: System Validation
@@ -277,7 +316,29 @@ echo "*/5 * * * * curl -f http://localhost:3003/health || systemctl restart efor
 
 ## 💾 Step 10: Backup Configuration
 
-### 10.1 Automated Backups
+### 10.1 Automated Backup System
+```bash
+# Use the comprehensive backup script
+chmod +x scripts/backup.sh
+
+# Create daily backup (database only)
+./scripts/backup.sh backup daily
+
+# Create full system backup
+./scripts/backup.sh backup weekly
+
+# Show backup status
+./scripts/backup.sh status
+
+# The backup script provides:
+# - Daily, weekly, and monthly backup types
+# - Database integrity verification
+# - Configuration and log backup
+# - Automatic cleanup of old backups
+# - Email notifications (if configured)
+```
+
+### 10.2 Manual Backup Setup (Alternative)
 ```bash
 # Create backup directory
 sudo mkdir -p /media/backup
@@ -289,13 +350,16 @@ echo "0 2 * * * rsync -av /home/pi/eform-locker/data/ /media/backup/\$(date +\%Y
 echo "0 3 * * 0 sudo dd if=/dev/mmcblk0 of=/media/backup/pi-backup-\$(date +\%Y\%m\%d).img bs=4M" | crontab -
 ```
 
-### 10.2 Configuration Backup
+### 10.3 Restore from Backup
 ```bash
-# Backup system configuration
-sudo cp /boot/config.txt /media/backup/
-sudo cp /boot/cmdline.txt /media/backup/
-sudo cp /etc/dhcpcd.conf /media/backup/
-cp -r /home/pi/eform-locker/config/ /media/backup/
+# Interactive restore
+sudo ./scripts/restore.sh interactive
+
+# Direct restore from specific backup
+sudo ./scripts/restore.sh restore /path/to/backup.tar.gz
+
+# List available backups
+./scripts/restore.sh list
 ```
 
 ## 🔧 Troubleshooting
@@ -357,6 +421,72 @@ vcgencmd measure_temp
 echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 ```
 
+## 📦 Step 11: Package Management & Deployment
+
+### 11.1 Creating Deployment Packages
+```bash
+# Create deployment package
+chmod +x scripts/package.sh
+./scripts/package.sh create deployment
+
+# Create installation package (includes scripts)
+./scripts/package.sh create installation
+
+# Create both types
+./scripts/package.sh create both
+
+# List existing packages
+./scripts/package.sh list
+
+# Verify package integrity
+./scripts/package.sh verify /path/to/package.tar.gz
+```
+
+### 11.2 Package Signing (Security)
+```bash
+# Generate signing keys (run once)
+sudo ./scripts/sign-package.sh generate-keys
+
+# Sign a package
+./scripts/sign-package.sh sign package.tar.gz
+
+# Verify signed package
+./scripts/sign-package.sh verify package.tar.gz
+
+# Export public key for distribution
+./scripts/sign-package.sh export-key public-key.pem
+```
+
+### 11.3 Deployment Management
+```bash
+# Deploy new version with automatic rollback
+sudo ./scripts/deploy.sh deploy /path/to/package.tar.gz
+
+# Check deployment status
+./scripts/deploy.sh status
+
+# Rollback to previous version if needed
+sudo ./scripts/deploy.sh rollback /path/to/backup.tar.gz
+
+# Monitor deployment health
+./scripts/deployment-monitor.sh monitor 600 60  # 10 min, 60s intervals
+
+# Get rollback recommendation
+./scripts/deployment-monitor.sh recommend
+```
+
+### 11.4 Canary Deployment (Advanced)
+```bash
+# Perform canary deployment (20% of kiosks first)
+sudo ./scripts/canary-deploy.sh deploy /path/to/package.tar.gz
+
+# Check canary status
+./scripts/canary-deploy.sh status
+
+# Test canary process (dry run)
+./scripts/canary-deploy.sh test
+```
+
 ## ✅ Deployment Checklist
 
 ### Pre-Deployment
@@ -373,7 +503,7 @@ echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_gover
 
 ### Project Setup
 - [ ] Repository cloned successfully
-- [ ] Dependencies installed
+- [ ] Dependencies installed (or quick-setup.sh completed)
 - [ ] Configuration generated
 - [ ] Database migrated
 
@@ -384,15 +514,17 @@ echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_gover
 - [ ] All hardware tests passing
 
 ### Service Deployment
-- [ ] Systemd services installed
+- [ ] Systemd services installed (or install.sh completed)
 - [ ] Services enabled and started
 - [ ] Health endpoints responding
 - [ ] Web interfaces accessible
 
 ### Production Readiness
 - [ ] Monitoring configured
-- [ ] Backups scheduled
+- [ ] Backups scheduled (backup.sh configured)
 - [ ] Security hardened
+- [ ] Package signing keys generated
+- [ ] Deployment scripts tested
 - [ ] Documentation updated
 
 ## 📞 Support
