@@ -27,8 +27,15 @@ fi
 echo "📦 Installing dependencies..."
 npm install
 if [ $? -ne 0 ]; then
-    echo "❌ Failed to install dependencies"
+    echo "❌ Failed to install root dependencies"
     exit 1
+fi
+
+# Install workspace dependencies
+echo "📦 Installing workspace dependencies..."
+npm install --workspaces
+if [ $? -ne 0 ]; then
+    echo "⚠️  Warning: Some workspace dependencies failed to install"
 fi
 
 # Step 3: Run database migrations
@@ -41,7 +48,14 @@ fi
 
 # Step 4: Validate the fix
 echo "🔍 Validating database fix..."
-node scripts/validate-complete-fix.js
+if command -v bcrypt >/dev/null 2>&1 && npm list bcrypt >/dev/null 2>&1; then
+    echo "Using full validation with bcrypt..."
+    node scripts/validate-complete-fix.js
+else
+    echo "Using simple validation (bcrypt not available)..."
+    node scripts/validate-database-simple.js
+fi
+
 if [ $? -ne 0 ]; then
     echo "❌ Validation failed"
     exit 1

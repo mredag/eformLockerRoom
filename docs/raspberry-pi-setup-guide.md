@@ -179,6 +179,7 @@ chmod +x scripts/deploy-to-pi.sh scripts/validate-complete-fix.js scripts/check-
 ```
 
 This deployment script will:
+
 - ✅ Pull latest changes from git
 - ✅ Install all dependencies
 - ✅ Run database migrations
@@ -701,6 +702,7 @@ node scripts/check-system-status.js
 ```
 
 **Expected Output:**
+
 ```
 🔍 eForm Locker System Status Check
 ===================================
