@@ -20,6 +20,8 @@ export class AuthService {
   constructor(private dbManager: DatabaseManager) {}
 
   async createUser(request: CreateUserRequest): Promise<User> {
+    console.log('Creating user:', { username: request.username, role: request.role });
+    
     const hashedPassword = await argon2.hash(request.password, {
       type: argon2.argon2id,
       memoryCost: 2 ** 16, // 64 MB
@@ -30,22 +32,40 @@ export class AuthService {
     const db = this.dbManager.getConnection().getDatabase();
     
     try {
+      // First check if table exists and has the right structure
+      const tableInfo = db.prepare(`PRAGMA table_info(staff_users)`).all();
+      console.log('Table structure:', tableInfo);
+      
       const result = db.prepare(`
-        INSERT INTO staff_users (username, password_hash, role, created_at, pin_expires_at)
-        VALUES (?, ?, ?, datetime('now'), datetime('now', '+90 days'))
+        INSERT INTO staff_users (username, password_hash, role, created_at, pin_expires_at, active)
+        VALUES (?, ?, ?, datetime('now'), datetime('now', '+90 days'), 1)
       `).run(request.username, hashedPassword, request.role);
 
-      if (!result.lastInsertRowid) {
-        throw new Error('Failed to create user - no ID returned');
+      console.log('Insert result:', result);
+
+      if (!result.lastInsertRowid || result.lastInsertRowid === 0) {
+        throw new Error(`Failed to create user - no ID returned. Result: ${JSON.stringify(result)}`);
       }
 
-      return this.getUserById(result.lastInsertRowid as number);
+      const userId = result.lastInsertRowid as number;
+      console.log('Created user with ID:', userId);
+      
+      return this.getUserById(userId);
     } catch (error) {
       console.error('Error creating user:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        errno: error.errno
+      });
+      
       if (error.message && error.message.includes('UNIQUE constraint failed')) {
         throw new Error('Username already exists');
       }
-      throw new Error('Failed to create user');
+      if (error.message && error.message.includes('no such table')) {
+        throw new Error('Database not properly initialized - staff_users table missing');
+      }
+      throw new Error(`Failed to create user: ${error.message}`);
     }
   }
 
