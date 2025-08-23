@@ -155,7 +155,7 @@ export async function vipRoutes(fastify: FastifyInstance, options: VipRouteOptio
       });
 
       // Mark locker as VIP
-      const db = dbManager.getDatabase();
+      const db = dbManager.getConnection().getDatabase();
       db.prepare(
         'UPDATE lockers SET is_vip = 1, updated_at = ? WHERE kiosk_id = ? AND id = ?'
       ).run(new Date().toISOString(), kioskId, lockerId);
@@ -359,7 +359,7 @@ export async function vipRoutes(fastify: FastifyInstance, options: VipRouteOptio
       await vipRepository.cancelContract(parseInt(id), user.username, reason);
 
       // Remove VIP status from locker
-      const db = dbManager.getDatabase();
+      const db = dbManager.getConnection().getDatabase();
       db.prepare(
         'UPDATE lockers SET is_vip = 0, updated_at = ? WHERE kiosk_id = ? AND id = ?'
       ).run(new Date().toISOString(), contract.kiosk_id, contract.locker_id);
@@ -429,7 +429,7 @@ export async function vipRoutes(fastify: FastifyInstance, options: VipRouteOptio
       const history = await vipHistoryRepository.getContractHistory(parseInt(id));
 
       // Get related events from the events table
-      const db = dbManager.getDatabase();
+      const db = dbManager.getConnection().getDatabase();
       const events = db.prepare(`
         SELECT * FROM events 
         WHERE kiosk_id = ? AND locker_id = ? 
@@ -696,7 +696,7 @@ export async function vipRoutes(fastify: FastifyInstance, options: VipRouteOptio
 
   // Helper function to execute VIP transfer
   async function executeVipTransfer(transfer: any, approvedBy: string) {
-    const db = dbManager.getDatabase();
+    const db = dbManager.getConnection().getDatabase();
     
     try {
       // Start transaction

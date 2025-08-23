@@ -51,7 +51,7 @@ export class PinRotationService {
    * Check PIN rotation status for a user
    */
   async checkPinRotationStatus(userId: number): Promise<PinRotationStatus> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     
     const user = await db.get(`
       SELECT id, username, pin_expires_at 
@@ -92,7 +92,7 @@ export class PinRotationService {
    * Get all users requiring PIN rotation
    */
   async getUsersRequiringRotation(): Promise<PinRotationStatus[]> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     
     const users = await db.all(`
       SELECT id, username, pin_expires_at 
@@ -132,7 +132,7 @@ export class PinRotationService {
       return { success: false, error: validation.error };
     }
 
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     
     // Get current user data
     const user = await db.get(`
@@ -212,7 +212,7 @@ export class PinRotationService {
    * Force PIN change for user (admin function)
    */
   async forcePinChange(userId: number, adminUserId: number): Promise<{ success: boolean; error?: string }> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     
     try {
       // Set PIN as expired immediately
@@ -290,7 +290,7 @@ export class PinRotationService {
     expiringInMonth: number;
     averageDaysUntilExpiry: number;
   }> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     
     const users = await db.all(`
       SELECT pin_expires_at 
@@ -348,7 +348,7 @@ export class PinRotationService {
    * Private helper methods
    */
   private async isPinReused(userId: number, newPin: string): Promise<boolean> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     
     const history = await db.all(`
       SELECT pin_hash 
@@ -369,7 +369,7 @@ export class PinRotationService {
   }
 
   private async storePinHistory(userId: number, hashedPin: string): Promise<void> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     
     // Store new PIN in history
     await db.run(`
@@ -451,7 +451,7 @@ export class PinRotationService {
 
   private async logEvent(eventType: string, details: any): Promise<void> {
     try {
-      const db = this.dbManager.getDatabase();
+      const db = this.dbManager.getConnection().getDatabase();
       await db.run(`
         INSERT INTO events (kiosk_id, event_type, details, timestamp)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)

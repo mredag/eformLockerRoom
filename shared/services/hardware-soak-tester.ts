@@ -160,14 +160,14 @@ export class HardwareSoakTester {
     const rows = await this.db.all(sql, [kioskId]);
     
     const lockerReports: LockerEnduranceReport[] = rows.map((row: any) => ({
-      locker_id: row.locker_id,
-      test_count: row.test_count,
-      total_cycles: row.total_cycles,
-      total_successes: row.total_successes,
-      total_failures: row.total_failures,
-      success_rate: (row.total_successes / row.total_cycles) * 100,
-      avg_response_time_ms: row.avg_response_time,
-      last_test_date: new Date(row.last_test_date),
+      locker_id: (row as any).locker_id,
+      test_count: (row as any).test_count,
+      total_cycles: (row as any).total_cycles,
+      total_successes: (row as any).total_successes,
+      total_failures: (row as any).total_failures,
+      success_rate: ((row as any).total_successes / (row as any).total_cycles) * 100,
+      avg_response_time_ms: (row as any).avg_response_time,
+      last_test_date: new Date((row as any).last_test_date),
       maintenance_recommended: this.shouldRecommendMaintenance(row)
     }));
 
@@ -469,7 +469,7 @@ export class HardwareSoakTester {
     return {
       id: row.id,
       kiosk_id: row.kiosk_id,
-      locker_id: row.locker_id,
+      locker_id: (row as any).locker_id,
       target_cycles: row.target_cycles,
       current_cycle: row.current_cycle,
       success_count: row.success_count,

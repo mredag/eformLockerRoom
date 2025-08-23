@@ -23,7 +23,7 @@ export class LockerStateManager {
   constructor(dbManager?: any) {
     if (dbManager) {
       this.dbManager = dbManager;
-      this.db = dbManager.getDatabase();
+      this.db = dbManager.getConnection().getDatabase();
     } else {
       this.db = DatabaseConnection.getInstance();
     }
@@ -68,7 +68,7 @@ export class LockerStateManager {
    */
   async getLocker(kioskId: string, lockerId: number): Promise<Locker | null> {
     if (this.dbManager) {
-      const db = this.dbManager.getDatabase();
+      const db = this.dbManager.getConnection().getDatabase();
       return db.prepare('SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?').get(kioskId, lockerId) || null;
     } else {
       const result = await this.db.get<Locker>(
@@ -113,7 +113,7 @@ export class LockerStateManager {
     query += ' ORDER BY kiosk_id, id';
 
     if (this.dbManager) {
-      const db = this.dbManager.getDatabase();
+      const db = this.dbManager.getConnection().getDatabase();
       return db.prepare(query).all(...params);
     } else {
       return await this.db.all<Locker>(query, params);
@@ -266,7 +266,7 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       
       if (this.dbManager) {
-        const db = this.dbManager.getDatabase();
+        const db = this.dbManager.getConnection().getDatabase();
         const result = db.prepare(
           `UPDATE lockers 
            SET status = 'Free', owner_type = NULL, owner_key = NULL, 
@@ -325,7 +325,7 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       
       if (this.dbManager) {
-        const db = this.dbManager.getDatabase();
+        const db = this.dbManager.getConnection().getDatabase();
         const result = db.prepare(
           `UPDATE lockers 
            SET status = 'Blocked', version = version + 1, updated_at = ?
@@ -378,7 +378,7 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       
       if (this.dbManager) {
-        const db = this.dbManager.getDatabase();
+        const db = this.dbManager.getConnection().getDatabase();
         const result = db.prepare(
           `UPDATE lockers 
            SET status = 'Free', owner_type = NULL, owner_key = NULL, 
@@ -631,7 +631,7 @@ export class LockerStateManager {
     staffUser?: string
   ): Promise<void> {
     if (this.dbManager) {
-      const db = this.dbManager.getDatabase();
+      const db = this.dbManager.getConnection().getDatabase();
       db.prepare(
         `INSERT INTO events (kiosk_id, locker_id, event_type, details, staff_user) 
          VALUES (?, ?, ?, ?, ?)`

@@ -539,7 +539,7 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     const history = await this.historyRepository.getContractHistory(contractId);
 
     // Get related events from events table
-    const db = this.dbManager ? this.dbManager.getDatabase() : this.db;
+    const db = this.dbManager ? this.dbManager.getConnection().getDatabase() : this.db;
     const events = db.prepare(`
       SELECT * FROM events 
       WHERE (kiosk_id = ? AND locker_id = ?) 

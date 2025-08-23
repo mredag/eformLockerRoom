@@ -488,14 +488,14 @@ export class LogRetentionManager {
     const records = await this.db.all(sql, params);
 
     exportData.data = records.map((record: any) => ({
-      timestamp: record.timestamp,
-      kiosk_id: record.kiosk_id,
-      locker_id: record.locker_id,
-      event_type: record.event_type,
-      rfid_card: record.rfid_card,
-      device_id: record.device_id,
-      staff_user: record.staff_user,
-      details: this.anonymizeDetailsForExport(record.details)
+      timestamp: (record as any).timestamp,
+      kiosk_id: (record as any).kiosk_id,
+      locker_id: (record as any).locker_id,
+      event_type: (record as any).event_type,
+      rfid_card: (record as any).rfid_card,
+      device_id: (record as any).device_id,
+      staff_user: (record as any).staff_user,
+      details: this.anonymizeDetailsForExport((record as any).details)
     }));
 
     exportData.record_count = exportData.data.length;

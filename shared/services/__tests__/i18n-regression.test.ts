@@ -325,8 +325,8 @@ describe('I18n Regression Tests', () => {
       ];
 
       for (const { key, params } of edgeCases) {
-        expect(() => i18nService.get(key, params)).not.toThrow();
-        const result = i18nService.get(key, params);
+        expect(() => i18nService.get(key, params as any)).not.toThrow();
+        const result = i18nService.get(key, params as any);
         expect(typeof result).toBe('string');
         expect(result.length).toBeGreaterThan(0);
       }

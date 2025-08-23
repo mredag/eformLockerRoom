@@ -27,7 +27,7 @@ export class AuthService {
       parallelism: 1,
     });
 
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     const result = db.prepare(`
       INSERT INTO staff_users (username, password_hash, role, created_at, pin_expires_at)
       VALUES (?, ?, ?, datetime('now'), datetime('now', '+90 days'))
@@ -37,7 +37,7 @@ export class AuthService {
   }
 
   async authenticateUser(username: string, password: string): Promise<User | null> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     const userRow = db.prepare(`
       SELECT id, username, password_hash, role, created_at, last_login, pin_expires_at
       FROM staff_users 
@@ -83,7 +83,7 @@ export class AuthService {
       parallelism: 1,
     });
 
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     db.prepare(`
       UPDATE staff_users 
       SET password_hash = ?, pin_expires_at = datetime('now', '+90 days')
@@ -92,7 +92,7 @@ export class AuthService {
   }
 
   async getUserById(id: number): Promise<User> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     const userRow = db.prepare(`
       SELECT id, username, role, created_at, last_login, pin_expires_at
       FROM staff_users 
@@ -114,7 +114,7 @@ export class AuthService {
   }
 
   async isPasswordExpired(userId: number): Promise<boolean> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     const result = db.prepare(`
       SELECT pin_expires_at FROM staff_users WHERE id = ?
     `).get(userId) as any;
@@ -127,7 +127,7 @@ export class AuthService {
   }
 
   async listUsers(): Promise<User[]> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     const rows = db.prepare(`
       SELECT id, username, role, created_at, last_login, pin_expires_at
       FROM staff_users 
@@ -146,7 +146,7 @@ export class AuthService {
   }
 
   async deactivateUser(userId: number): Promise<void> {
-    const db = this.dbManager.getDatabase();
+    const db = this.dbManager.getConnection().getDatabase();
     db.prepare(`
       UPDATE staff_users 
       SET active = 0 

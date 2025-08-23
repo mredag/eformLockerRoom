@@ -51,7 +51,7 @@ console.log(`  Build target: ${packageJson.scripts.build.includes('--target=') ?
 
 // Fix the build script to ensure proper CommonJS output
 const originalBuildScript = packageJson.scripts.build;
-const fixedBuildScript = 'esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --external:sqlite3 --external:@mapbox/node-pre-gyp --external:mock-aws-s3 --external:aws-sdk --external:nock --format=cjs --minify=false --sourcemap=false';
+const fixedBuildScript = 'esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:sqlite3 --external:@mapbox/node-pre-gyp --external:mock-aws-s3 --external:aws-sdk --external:nock --external:argon2 --format=cjs --minify=false';
 
 if (originalBuildScript !== fixedBuildScript) {
   console.log('\n🔧 Updating build configuration...');
@@ -73,7 +73,7 @@ try {
   // Try alternative build approach
   console.log('\n🔄 Trying alternative build approach...');
   try {
-    execSync('npx esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --external:sqlite3 --format=cjs', { stdio: 'inherit' });
+    execSync('npx esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:sqlite3 --external:@mapbox/node-pre-gyp --external:mock-aws-s3 --external:aws-sdk --external:nock --external:argon2 --format=cjs --minify=false', { stdio: 'inherit' });
     console.log('✅ Alternative build succeeded');
   } catch (altError) {
     console.error('❌ Alternative build also failed:', altError.message);
