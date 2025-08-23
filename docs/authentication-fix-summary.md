@@ -119,7 +119,18 @@ if (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$'
 
 ## Dependencies Added
 
-- **bcrypt**: Added to support legacy bcrypt hash verification
+- **bcryptjs**: Pure JavaScript bcrypt implementation (bundle-safe, no native bindings)
 - **argon2**: Already present, used for new password hashing
+
+## Bundling Compatibility Fix
+
+**Issue**: The original `bcrypt` package uses native bindings that don't work with esbuild bundles on ARM64.
+
+**Solution**: Switched to `bcryptjs` which is:
+- Pure JavaScript implementation
+- No native bindings required
+- Works correctly in bundled environments
+- 100% compatible with bcrypt hashes
+- Cross-platform (Windows, Linux, ARM64)
 
 The authentication system now provides robust, cross-platform password verification with support for multiple hashing algorithms and proper error handling.

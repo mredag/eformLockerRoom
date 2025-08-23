@@ -238,7 +238,7 @@ describe('AuthService', () => {
 
   describe('Hash Algorithm Compatibility', () => {
     it('should authenticate users with bcrypt hashes', async () => {
-      const bcrypt = require('bcrypt');
+      const bcrypt = require('bcryptjs');
       const sqlite3 = require('sqlite3').verbose();
       
       // Create a user with bcrypt hash directly in database

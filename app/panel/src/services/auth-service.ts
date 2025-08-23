@@ -1,5 +1,5 @@
 import argon2 from 'argon2';
-import bcrypt from 'bcrypt';
+import bcryptjs from 'bcryptjs';
 import { DatabaseManager } from '../../../../shared/database/database-manager';
 
 export interface User {
@@ -148,9 +148,9 @@ export class AuthService {
 
           // Detect hash type and verify accordingly
           if (hash.startsWith('$2a$') || hash.startsWith('$2b$') || hash.startsWith('$2y$')) {
-            // bcrypt hash
+            // bcrypt hash - using bcryptjs for bundle compatibility
             console.log('Verifying bcrypt hash for user:', username);
-            isValid = await bcrypt.compare(password, hash);
+            isValid = await bcryptjs.compare(password, hash);
           } else if (hash.startsWith('$argon2')) {
             // argon2 hash
             console.log('Verifying argon2 hash for user:', username);

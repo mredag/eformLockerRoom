@@ -2,7 +2,7 @@
 
 const sqlite3 = require('sqlite3').verbose();
 const argon2 = require('argon2');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 
 async function testAuthenticationFix() {
