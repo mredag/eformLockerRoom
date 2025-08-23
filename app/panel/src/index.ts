@@ -108,9 +108,9 @@ async function startPanelService() {
       prefix: "/",
     });
 
-    // Default route - redirect to login
+    // TEMPORARY: Default route - redirect to dashboard (bypass login)
     fastify.get("/", async (_request, reply) => {
-      reply.redirect("/login.html");
+      reply.redirect("/dashboard.html");
     });
 
     // VIP management page route
