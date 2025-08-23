@@ -49,6 +49,12 @@ export class AuthService {
     }
 
     try {
+      // Check if password hash is valid
+      if (!userRow.password_hash || typeof userRow.password_hash !== 'string' || userRow.password_hash.trim() === '') {
+        console.error('Invalid password hash for user:', username);
+        return null;
+      }
+
       const isValid = await argon2.verify(userRow.password_hash, password);
       if (!isValid) {
         return null;
