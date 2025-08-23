@@ -143,6 +143,15 @@ async function startPanelService() {
       };
     });
 
+    // Test endpoint to verify service is working
+    fastify.get("/test", async () => {
+      return {
+        message: "Panel service is working!",
+        timestamp: new Date().toISOString(),
+        auth_disabled: true
+      };
+    });
+
     // Start the server
     const port = parseInt(process.env.PANEL_PORT || "3002");
     await fastify.listen({ port, host: "0.0.0.0" });
