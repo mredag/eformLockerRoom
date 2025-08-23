@@ -26,7 +26,7 @@
     "test:watch": "npm run test:watch --workspaces",
     "start:gateway": "npm run start --workspace=app/gateway",
     "start:kiosk": "npm run start --workspace=app/kiosk",
-    "start:panel": "npm run start --workspace=app/panel",
+    "start:panel": "node app/panel/dist/index.js",
     "start:agent": "npm run start --workspace=app/agent",
     "provision": "npm run provision --workspace=app/gateway",
     "config-test": "npm run config-test --workspace=app/gateway",
