@@ -27,6 +27,7 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
     if (skipAuth || 
         request.url.startsWith('/auth/') || 
         request.url === '/health' ||
+        request.url === '/setup' ||
         request.url === '/login.html' ||
         request.url.startsWith('/static/') ||
         request.url.endsWith('.css') ||
