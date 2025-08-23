@@ -2,6 +2,8 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { AuthService, User } from '../services/auth-service';
 import { SessionManager } from '../services/session-manager';
 import { PermissionService, Permission } from '../services/permission-service';
+import { CookieManager } from '../../../../shared/services/cookie-manager';
+import { SessionConflictDetector } from '../../../../shared/services/session-conflict-detector';
 
 interface AuthRouteOptions extends FastifyPluginOptions {
   authService: AuthService;
@@ -98,23 +100,24 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
         return;
       }
 
-      // Clear any existing session cookies to prevent conflicts
-      reply.clearCookie('session', { path: '/' });
-      reply.clearCookie('session', { path: '/auth' });
-      reply.clearCookie('session'); // Default path
-
       // Create session with flexible IP extraction
       const ipAddress = extractClientIp(request);
       const userAgent = request.headers['user-agent'] || 'unknown';
       const session = sessionManager.createSession(user, ipAddress, userAgent);
 
-      // Set session cookie
-      reply.setCookie('session', session.id, {
-        path: '/',          // Make cookie available to all routes
-        httpOnly: true,
-        secure: shouldUseSecureCookies(),
-        sameSite: 'strict',
-        maxAge: 8 * 60 * 60 // 8 hours
+      // Detect and resolve any session conflicts
+      SessionConflictDetector.detectAndResolve(user.id, session.id, sessionManager);
+      
+      // Detect browser cookie conflicts
+      const conflictingSessions = SessionConflictDetector.detectBrowserConflict(request);
+      if (conflictingSessions.length > 0) {
+        console.log('🔧 Resolving browser cookie conflicts...');
+        conflictingSessions.forEach(sessionId => sessionManager.destroySession(sessionId));
+      }
+      
+      // Set session cookie using bulletproof cookie manager
+      CookieManager.setSessionCookie(reply, session.id, {
+        secure: shouldUseSecureCookies()
       });
 
       reply.send({
@@ -140,10 +143,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
       sessionManager.destroySession(sessionToken);
     }
 
-    // Clear session cookies with all possible paths
-    reply.clearCookie('session', { path: '/' });
-    reply.clearCookie('session', { path: '/auth' });
-    reply.clearCookie('session'); // Default path
+    // Clear all session cookies using bulletproof cookie manager
+    CookieManager.clearAllSessionCookies(reply);
     
     reply.send({ success: true });
   });

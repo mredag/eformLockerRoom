@@ -14,6 +14,7 @@ import { EventRepository } from "../../../shared/database/event-repository";
 import { I18nController } from "./controllers/i18n-controller";
 import { ConfigController } from "./controllers/config-controller";
 import { configManager } from "../../../shared/services/config-manager";
+import { CookieCleanupService } from "../../../shared/services/cookie-cleanup-service";
 import path from "path";
 
 // Main application startup function
@@ -100,6 +101,10 @@ async function startPanelService() {
 
     // Register configuration routes
     await configController.registerRoutes();
+
+    // Initialize cookie cleanup service
+    const cookieCleanupService = CookieCleanupService.getInstance();
+    cookieCleanupService.startCleanup(fastify);
 
     // Serve static files
     await fastify.register(import("@fastify/static"), {
