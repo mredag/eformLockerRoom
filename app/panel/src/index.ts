@@ -63,7 +63,7 @@ async function startPanelService() {
         "eform-panel-secret-key-change-in-production",
       parseOptions: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: false, // We'll set this per-cookie instead
         sameSite: "strict",
       },
     });

@@ -69,6 +69,8 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
     if (skipAuth || 
         request.url === '/auth/login' ||
         request.url === '/auth/logout' ||
+        request.url === '/auth/me' ||
+        request.url === '/auth/csrf-token' ||
         request.url.startsWith('/auth/change-password') ||
         request.url === '/health' ||
         request.url === '/setup' ||

@@ -53,6 +53,18 @@ function extractClientIp(request: any): string {
 export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOptions) {
   const { authService, sessionManager } = options;
 
+  // Helper function to determine if we should use secure cookies
+  const shouldUseSecureCookies = () => {
+    // Don't use secure cookies on localhost or when explicitly disabled
+    const serverAddress = fastify.server.address();
+    const isLocalhost = serverAddress && 
+      (typeof serverAddress === 'object' && 
+       (serverAddress.address === '127.0.0.1' || serverAddress.address === '::1'));
+    
+    // Only use secure cookies in production AND when not on localhost AND when HTTPS is available
+    return process.env.NODE_ENV === 'production' && !isLocalhost && process.env.HTTPS_ENABLED === 'true';
+  };
+
   // Login endpoint
   fastify.post('/login', {
     schema: {
@@ -94,7 +106,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
       // Set session cookie
       reply.setCookie('session', session.id, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: shouldUseSecureCookies(),
         sameSite: 'strict',
         maxAge: 8 * 60 * 60 // 8 hours
       });
