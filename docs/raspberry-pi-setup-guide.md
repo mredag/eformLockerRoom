@@ -164,7 +164,30 @@ USB HID RFID Reader → Raspberry Pi USB port
 
 ## 💻 Step 3: Install the eForm Locker Software
 
-### Option A: Automated Installation (Recommended)
+### 🚀 Quick Deployment (If Code Already Exists)
+
+If you already have the eForm code on your Pi and just need to deploy the latest fixes:
+
+```bash
+cd /path/to/your/eform-locker
+
+# Make scripts executable
+chmod +x scripts/deploy-to-pi.sh scripts/validate-complete-fix.js scripts/check-system-status.js
+
+# Run the automated deployment
+./scripts/deploy-to-pi.sh
+```
+
+This deployment script will:
+- ✅ Pull latest changes from git
+- ✅ Install all dependencies
+- ✅ Run database migrations
+- ✅ Validate the SQLite3 fix
+- ✅ Create admin user if needed
+- ✅ Build all applications
+- ✅ Provide next steps for starting services
+
+### Option A: Fresh Installation (New Setup)
 
 ```bash
 cd /home/pi
@@ -644,6 +667,52 @@ console.log('Tap a card...');
 ```
 
 ### Software Issues
+
+#### Problem: "User creation fails" or "Empty database results"
+
+**This was the main issue we just fixed! Here's how to verify and resolve:**
+
+**Diagnosis:**
+
+```bash
+# Test the database fix
+node scripts/validate-complete-fix.js
+
+# Check if admin users exist
+sqlite3 data/eform.db "SELECT * FROM users WHERE role = 'admin';"
+
+# Test user creation directly
+node scripts/create-admin-directly.js
+```
+
+**Root Cause:** The bundled SQLite3 code wasn't properly handling prepared statements, causing all database queries to return empty objects `{}`.
+
+**Solutions:**
+
+```bash
+# ✅ FIXED: Use the direct admin creation script
+node scripts/create-admin-directly.js
+
+# ✅ FIXED: The AuthService now uses raw SQLite3 instead of prepared statements
+# ✅ FIXED: All database operations bypass the bundling issues
+
+# Verify the fix worked
+node scripts/check-system-status.js
+```
+
+**Expected Output:**
+```
+🔍 eForm Locker System Status Check
+===================================
+
+1. Database Status:
+   ✅ Database file exists
+   ✅ Admin users: 1
+
+2. Service Status:
+   ✅ Panel service running (PID: 1234)
+   ...
+```
 
 #### Problem: "npm install fails"
 

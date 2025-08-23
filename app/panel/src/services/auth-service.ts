@@ -29,60 +29,76 @@ export class AuthService {
       parallelism: 1,
     });
 
-    const db = this.dbManager.getConnection().getDatabase();
+    // Use raw SQLite3 instead of prepared statements to avoid bundling issues
+    const sqlite3 = require('sqlite3').verbose();
+    const path = require('path');
     
-    try {
-      // First check if table exists and has the right structure
-      const tableInfoStmt = db.prepare(`PRAGMA table_info(staff_users)`);
-      const tableInfo = tableInfoStmt.all();
-      console.log('Table structure:', JSON.stringify(tableInfo));
+    return new Promise((resolve, reject) => {
+      const dbPath = path.join(process.cwd(), 'data/eform.db');
+      const db = new sqlite3.Database(dbPath);
       
-      // Prepare the insert statement
-      const insertStmt = db.prepare(`
+      console.log('Using direct SQLite3 connection to:', dbPath);
+      
+      db.run(`
         INSERT INTO staff_users (username, password_hash, role, created_at, pin_expires_at, active)
         VALUES (?, ?, ?, datetime('now'), datetime('now', '+90 days'), 1)
-      `);
-      
-      const result = insertStmt.run(request.username, hashedPassword, request.role);
-      console.log('Insert result:', JSON.stringify(result));
-      console.log('lastInsertRowid:', result.lastInsertRowid);
-      console.log('changes:', result.changes);
-
-      if (!result.lastInsertRowid || result.lastInsertRowid === 0) {
-        // Try alternative approach - get the last inserted ID
-        const lastIdStmt = db.prepare(`SELECT last_insert_rowid() as id`);
-        const lastIdResult = lastIdStmt.get();
-        console.log('Alternative ID lookup:', JSON.stringify(lastIdResult));
-        
-        if (lastIdResult && lastIdResult.id && lastIdResult.id > 0) {
-          const userId = lastIdResult.id as number;
-          console.log('Using alternative ID:', userId);
-          return this.getUserById(userId);
+      `, [request.username, hashedPassword, request.role], function(err) {
+        if (err) {
+          console.error('SQLite3 insert error:', err);
+          db.close();
+          
+          if (err.message && err.message.includes('UNIQUE constraint failed')) {
+            reject(new Error('Username already exists'));
+          } else {
+            reject(new Error(`Failed to create user: ${err.message}`));
+          }
+          return;
         }
         
-        throw new Error(`Failed to create user - no ID returned. Result: ${JSON.stringify(result)}`);
-      }
-
-      const userId = result.lastInsertRowid as number;
-      console.log('Created user with ID:', userId);
-      
-      return this.getUserById(userId);
-    } catch (error) {
-      console.error('Error creating user:', error);
-      console.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        errno: error.errno
+        console.log('SQLite3 insert successful, ID:', this.lastID);
+        
+        if (!this.lastID) {
+          db.close();
+          reject(new Error('Failed to create user - no ID returned'));
+          return;
+        }
+        
+        const userId = this.lastID;
+        
+        // Get the created user
+        db.get(`
+          SELECT id, username, role, created_at, last_login, pin_expires_at
+          FROM staff_users 
+          WHERE id = ? AND active = 1
+        `, [userId], (err, row) => {
+          db.close();
+          
+          if (err) {
+            console.error('Error retrieving created user:', err);
+            reject(new Error('User created but failed to retrieve'));
+            return;
+          }
+          
+          if (!row) {
+            reject(new Error('User created but not found'));
+            return;
+          }
+          
+          console.log('User created and retrieved successfully:', row);
+          
+          const user: User = {
+            id: row.id,
+            username: row.username,
+            role: row.role,
+            created_at: new Date(row.created_at),
+            last_login: row.last_login ? new Date(row.last_login) : undefined,
+            pin_expires_at: row.pin_expires_at ? new Date(row.pin_expires_at) : undefined
+          };
+          
+          resolve(user);
+        });
       });
-      
-      if (error.message && error.message.includes('UNIQUE constraint failed')) {
-        throw new Error('Username already exists');
-      }
-      if (error.message && error.message.includes('no such table')) {
-        throw new Error('Database not properly initialized - staff_users table missing');
-      }
-      throw new Error(`Failed to create user: ${error.message}`);
-    }
+    });
   }
 
   async authenticateUser(username: string, password: string): Promise<User | null> {
