@@ -30,7 +30,4 @@ CREATE TRIGGER IF NOT EXISTS update_staff_users_timestamp
     UPDATE staff_users SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
   END;
 
--- Create default admin user (password: admin123 - should be changed immediately)
--- Password hash for 'admin123' using Argon2id
-INSERT OR IGNORE INTO staff_users (username, password_hash, role, pin_expires_at) 
-VALUES ('admin', '$argon2id$v=19$m=65536,t=3,p=1$YWRtaW4xMjM$8rKZZKjTGxGfaCDLKDT8Dw', 'admin', datetime('now', '+1 day'));
+-- No default users - setup process will create the first admin user

@@ -164,6 +164,17 @@ export class AuthService {
     }));
   }
 
+  async hasAdminUsers(): Promise<boolean> {
+    const db = this.dbManager.getConnection().getDatabase();
+    const result = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM staff_users 
+      WHERE active = 1 AND role = 'admin'
+    `).get() as any;
+
+    return result.count > 0;
+  }
+
   async deactivateUser(userId: number): Promise<void> {
     const db = this.dbManager.getConnection().getDatabase();
     db.prepare(`

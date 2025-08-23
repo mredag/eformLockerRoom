@@ -110,9 +110,9 @@ async function startPanelService() {
     // Default route - redirect based on setup status and auth
     fastify.get("/", async (request, reply) => {
       try {
-        // Check if setup is needed (no users exist)
-        const users = await authService.listUsers();
-        if (users.length === 0) {
+        // Check if setup is needed (no admin users exist)
+        const hasAdmins = await authService.hasAdminUsers();
+        if (!hasAdmins) {
           reply.redirect("/setup");
           return;
         }
@@ -160,12 +160,12 @@ async function startPanelService() {
       };
     });
 
-    // Setup route for initial admin user creation (only if no users exist)
+    // Setup route for initial admin user creation (only if no admin users exist)
     fastify.get("/setup", async (request, reply) => {
       try {
-        const users = await authService.listUsers();
-        if (users.length > 0) {
-          // Users already exist, redirect to login
+        const hasAdmins = await authService.hasAdminUsers();
+        if (hasAdmins) {
+          // Admin users already exist, redirect to login
           reply.redirect("/login.html");
           return;
         }
@@ -311,8 +311,8 @@ async function startPanelService() {
       }
     }, async (request, reply) => {
       try {
-        const users = await authService.listUsers();
-        if (users.length > 0) {
+        const hasAdmins = await authService.hasAdminUsers();
+        if (hasAdmins) {
           reply.code(403).send({ error: 'Setup already completed' });
           return;
         }
