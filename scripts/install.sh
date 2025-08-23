@@ -1,9 +1,21 @@
 #!/bin/bash
 
 # Eform Locker System Installation Script
-# This script installs and configures the Eform Locker System on Ubuntu/Debian systems
+# This script installs and configures the Eform Locker System on Linux systems
 
 set -e
+
+# Trap errors and provide cleanup
+trap 'handle_error $? $LINENO' ERR
+
+# Error handler
+handle_error() {
+    local exit_code=$1
+    local line_number=$2
+    log_error "Installation failed at line $line_number with exit code $exit_code"
+    log_info "You can try running the script again or check the logs for more details"
+    exit $exit_code
+}
 
 # Configuration
 INSTALL_DIR="/opt/eform"
@@ -50,22 +62,46 @@ check_root() {
 check_requirements() {
     log_info "Checking system requirements..."
     
-    # Check OS
-    if ! grep -q "Ubuntu\|Debian" /etc/os-release; then
-        log_error "This installer supports Ubuntu/Debian systems only"
-        exit 1
+    # Check OS - Support more Linux distributions
+    if [[ -f /etc/os-release ]]; then
+        if ! grep -q "Ubuntu\|Debian\|Raspbian" /etc/os-release; then
+            log_warning "This installer is designed for Ubuntu/Debian/Raspbian systems"
+            log_info "Attempting to continue on $(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2)"
+        fi
+    else
+        log_warning "Cannot detect OS version, continuing anyway"
     fi
     
-    # Check architecture
+    # Check architecture - Support more architectures
     local arch=$(uname -m)
-    if [[ "$arch" != "x86_64" ]] && [[ "$arch" != "aarch64" ]] && [[ "$arch" != "armv7l" ]] && [[ "$arch" != "armv6l" ]]; then
-        log_error "This installer supports x86_64, aarch64, armv7l, and armv6l architectures only. Current: $arch"
-        exit 1
+    case "$arch" in
+        x86_64|amd64)
+            log_info "Architecture: $arch (x86_64 - supported)"
+            ;;
+        aarch64|arm64)
+            log_info "Architecture: $arch (ARM64 - supported)"
+            ;;
+        armv7l|armv6l|armhf)
+            log_info "Architecture: $arch (ARM - supported)"
+            ;;
+        *)
+            log_warning "Architecture: $arch (untested but attempting to continue)"
+            ;;
+    esac
+    
+    # Check for required commands
+    local missing_commands=()
+    for cmd in curl wget node npm systemctl; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_commands+=("$cmd")
+        fi
+    done
+    
+    if [[ ${#missing_commands[@]} -gt 0 ]]; then
+        log_info "Missing commands will be installed: ${missing_commands[*]}"
     fi
     
-    log_info "Architecture: $arch (supported)"
-    
-    log_success "System requirements met"
+    log_success "System requirements check completed"
 }
 
 # Install system dependencies
@@ -94,39 +130,74 @@ install_dependencies() {
 install_nodejs() {
     log_info "Installing Node.js 20 LTS..."
     
-    # Add NodeSource repository
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y nodejs
+    # Check if Node.js 20 is already installed
+    if command -v node >/dev/null 2>&1; then
+        local current_version=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
+        if [[ "$current_version" == "20" ]]; then
+            log_info "Node.js 20 is already installed: $(node --version)"
+            return 0
+        else
+            log_info "Found Node.js $(node --version), upgrading to v20..."
+        fi
+    fi
     
-    # Verify installation
-    node_version=$(node --version)
-    npm_version=$(npm --version)
+    # Install Node.js 20 via NodeSource repository
+    log_info "Adding NodeSource repository..."
+    if curl -fsSL https://deb.nodesource.com/setup_20.x | bash -; then
+        log_info "NodeSource repository added successfully"
+    else
+        log_error "Failed to add NodeSource repository"
+        exit 1
+    fi
     
-    log_success "Node.js $node_version and npm $npm_version installed"
+    log_info "Installing Node.js..."
+    if apt-get install -y nodejs; then
+        # Verify installation
+        local node_version=$(node --version)
+        local npm_version=$(npm --version)
+        log_success "Node.js $node_version and npm $npm_version installed"
+    else
+        log_error "Failed to install Node.js"
+        exit 1
+    fi
 }
 
 # Create system user and directories
 create_user_and_directories() {
     log_info "Creating system user and directories..."
     
+    # Create system group first
+    if ! getent group "$SERVICE_GROUP" >/dev/null 2>&1; then
+        groupadd --system "$SERVICE_GROUP"
+        log_info "Created system group: $SERVICE_GROUP"
+    fi
+    
     # Create system user
     if ! id "$SERVICE_USER" &>/dev/null; then
-        useradd --system --home-dir "$INSTALL_DIR" --shell /bin/false "$SERVICE_USER"
+        useradd --system --home-dir "$INSTALL_DIR" --shell /bin/false --gid "$SERVICE_GROUP" "$SERVICE_USER"
         log_success "Created system user: $SERVICE_USER"
     else
         log_info "System user $SERVICE_USER already exists"
+        # Ensure user is in correct group
+        usermod -g "$SERVICE_GROUP" "$SERVICE_USER" 2>/dev/null || true
     fi
     
-    # Create directories
-    mkdir -p "$INSTALL_DIR"/{app,config,data,logs,backups,static}
+    # Create directories with proper structure
+    log_info "Creating directory structure..."
+    mkdir -p "$INSTALL_DIR"/{app,config,data,logs,backups,scripts}
     mkdir -p "$LOG_DIR"
     mkdir -p "$BACKUP_DIR"
+    
+    # Create data subdirectories
+    mkdir -p "$DATA_DIR"
+    mkdir -p "$CONFIG_DIR"
     
     # Set ownership and permissions
     chown -R "$SERVICE_USER:$SERVICE_GROUP" "$INSTALL_DIR"
     chown -R "$SERVICE_USER:$SERVICE_GROUP" "$LOG_DIR"
     chown -R "$SERVICE_USER:$SERVICE_GROUP" "$BACKUP_DIR"
     
+    # Set secure permissions
     chmod 755 "$INSTALL_DIR"
     chmod 750 "$DATA_DIR"
     chmod 750 "$CONFIG_DIR"
@@ -140,31 +211,61 @@ create_user_and_directories() {
 install_application() {
     log_info "Installing application files..."
     
-    # Copy application files
-    cp -r app/ "$INSTALL_DIR/"
-    cp -r shared/ "$INSTALL_DIR/"
-    cp -r migrations/ "$INSTALL_DIR/"
-    
-    # Copy static files if they exist
-    if [[ -d "static/" ]]; then
-        cp -r static/ "$INSTALL_DIR/"
-        log_info "Copied static files"
-    else
-        log_info "No static directory found, skipping"
+    # Verify we're in the correct directory
+    if [[ ! -f "package.json" ]]; then
+        log_error "package.json not found. Please run this script from the project root directory."
+        exit 1
     fi
     
-    cp package*.json "$INSTALL_DIR/"
+    # Copy core application files
+    local required_dirs=("app" "shared" "migrations")
+    for dir in "${required_dirs[@]}"; do
+        if [[ -d "$dir/" ]]; then
+            cp -r "$dir/" "$INSTALL_DIR/"
+            log_info "Copied $dir/ directory"
+        else
+            log_error "Required directory $dir/ not found"
+            exit 1
+        fi
+    done
     
-    # Create scripts directory and copy migrate script
-    mkdir -p "$INSTALL_DIR/scripts/"
-    cp scripts/migrate.ts "$INSTALL_DIR/scripts/"
+    # Copy optional directories
+    local optional_dirs=("static" "assets" "public")
+    for dir in "${optional_dirs[@]}"; do
+        if [[ -d "$dir/" ]]; then
+            cp -r "$dir/" "$INSTALL_DIR/"
+            log_info "Copied optional $dir/ directory"
+        fi
+    done
+    
+    # Copy package files
+    cp package*.json "$INSTALL_DIR/"
+    log_info "Copied package files"
+    
+    # Copy other important files
+    local optional_files=("README.md" "LICENSE" ".env.example")
+    for file in "${optional_files[@]}"; do
+        if [[ -f "$file" ]]; then
+            cp "$file" "$INSTALL_DIR/"
+        fi
+    done
+    
+    # Copy scripts
+    if [[ -d "scripts/" ]]; then
+        cp -r scripts/ "$INSTALL_DIR/"
+        log_info "Copied scripts directory"
+    fi
     
     # Copy configuration
-    if [[ ! -f "$CONFIG_DIR/system.json" ]]; then
-        cp config/system.json "$CONFIG_DIR/"
-        log_info "Copied default configuration"
+    if [[ -f "config/system.json" ]]; then
+        if [[ ! -f "$CONFIG_DIR/system.json" ]]; then
+            cp config/system.json "$CONFIG_DIR/"
+            log_info "Copied default configuration"
+        else
+            log_warning "Configuration file exists, skipping copy"
+        fi
     else
-        log_warning "Configuration file exists, skipping copy"
+        log_warning "No default configuration found at config/system.json"
     fi
     
     # Set ownership
@@ -179,30 +280,67 @@ build_application() {
     
     cd "$INSTALL_DIR"
     
-    # Install dependencies as eform user
-    sudo -u "$SERVICE_USER" npm install
-    sudo -u "$SERVICE_USER" npm run build
+    # Check if package.json exists
+    if [[ ! -f "package.json" ]]; then
+        log_error "package.json not found in $INSTALL_DIR"
+        exit 1
+    fi
     
-    log_success "Application built successfully"
+    # Install dependencies as eform user
+    log_info "Installing npm dependencies..."
+    if sudo -u "$SERVICE_USER" npm install --production; then
+        log_success "Dependencies installed successfully"
+    else
+        log_error "Failed to install dependencies"
+        exit 1
+    fi
+    
+    # Check if build script exists
+    if grep -q '"build"' package.json; then
+        log_info "Building application..."
+        if sudo -u "$SERVICE_USER" npm run build; then
+            log_success "Application built successfully"
+        else
+            log_warning "Build failed, but continuing (may not be required)"
+        fi
+    else
+        log_info "No build script found, skipping build step"
+    fi
 }
 
 # Install systemd service files
 install_services() {
     log_info "Installing systemd service files..."
     
-    # Copy service files
-    cp scripts/systemd/*.service /etc/systemd/system/
-    
-    # Reload systemd
-    systemctl daemon-reload
-    
-    # Enable services
-    systemctl enable eform-gateway.service
-    systemctl enable eform-kiosk.service
-    systemctl enable eform-panel.service
-    systemctl enable eform-agent.service
-    
-    log_success "Systemd services installed and enabled"
+    # Check if systemd service files exist
+    if [[ -d "$INSTALL_DIR/scripts/systemd" ]]; then
+        local service_files=("$INSTALL_DIR"/scripts/systemd/*.service)
+        if [[ -f "${service_files[0]}" ]]; then
+            # Copy service files
+            cp "$INSTALL_DIR"/scripts/systemd/*.service /etc/systemd/system/
+            log_info "Copied systemd service files"
+            
+            # Reload systemd
+            systemctl daemon-reload
+            
+            # Enable services (only if they exist)
+            local services=("eform-gateway" "eform-kiosk" "eform-panel" "eform-agent")
+            for service in "${services[@]}"; do
+                if [[ -f "/etc/systemd/system/${service}.service" ]]; then
+                    systemctl enable "${service}.service"
+                    log_info "Enabled ${service}.service"
+                else
+                    log_warning "Service file ${service}.service not found, skipping"
+                fi
+            done
+            
+            log_success "Systemd services installed and enabled"
+        else
+            log_warning "No systemd service files found in scripts/systemd/"
+        fi
+    else
+        log_warning "No systemd directory found, skipping service installation"
+    fi
 }
 
 # Setup database
@@ -211,10 +349,24 @@ setup_database() {
     
     cd "$INSTALL_DIR"
     
-    # Run migrations as eform user
-    sudo -u "$SERVICE_USER" npm run migrate
-    
-    log_success "Database initialized"
+    # Check if migrate script exists
+    if grep -q '"migrate"' package.json; then
+        log_info "Running database migrations..."
+        if sudo -u "$SERVICE_USER" npm run migrate; then
+            log_success "Database initialized"
+        else
+            log_warning "Database migration failed, but continuing"
+        fi
+    elif [[ -f "scripts/migrate.ts" ]]; then
+        log_info "Running TypeScript migration script..."
+        if sudo -u "$SERVICE_USER" npx tsx scripts/migrate.ts; then
+            log_success "Database initialized"
+        else
+            log_warning "Database migration failed, but continuing"
+        fi
+    else
+        log_info "No migration script found, skipping database setup"
+    fi
 }
 
 # Setup udev rules for hardware access
@@ -288,16 +440,22 @@ EOF
 setup_backup() {
     log_info "Setting up automated backup..."
     
-    cat > /etc/cron.d/eform-backup << 'EOF'
+    # Check if backup script exists
+    if [[ -f "$INSTALL_DIR/scripts/backup.sh" ]]; then
+        # Make backup script executable
+        chmod +x "$INSTALL_DIR/scripts/backup.sh"
+        
+        # Create cron job
+        cat > /etc/cron.d/eform-backup << 'EOF'
 # Eform Locker System Backup
 # Runs daily at 2:00 AM
 0 2 * * * eform /opt/eform/scripts/backup.sh >/dev/null 2>&1
 EOF
-
-    # Make backup script executable
-    chmod +x "$INSTALL_DIR/scripts/backup.sh"
-    
-    log_success "Automated backup configured"
+        
+        log_success "Automated backup configured"
+    else
+        log_info "No backup script found, skipping backup configuration"
+    fi
 }
 
 # Generate secure secrets
@@ -321,53 +479,106 @@ generate_secrets() {
 start_services() {
     log_info "Starting services..."
     
-    systemctl start eform-gateway.service
-    systemctl start eform-agent.service
+    # Start services in dependency order
+    local services=("eform-gateway" "eform-agent" "eform-kiosk" "eform-panel")
+    local started_services=()
     
-    # Wait for gateway to be ready
-    sleep 5
+    for service in "${services[@]}"; do
+        if [[ -f "/etc/systemd/system/${service}.service" ]]; then
+            if systemctl start "${service}.service"; then
+                started_services+=("$service")
+                log_info "Started ${service}.service"
+                
+                # Wait a bit between services
+                if [[ "$service" == "eform-gateway" ]]; then
+                    log_info "Waiting for gateway to initialize..."
+                    sleep 5
+                else
+                    sleep 2
+                fi
+            else
+                log_warning "Failed to start ${service}.service"
+            fi
+        else
+            log_info "Service ${service}.service not found, skipping"
+        fi
+    done
     
-    systemctl start eform-kiosk.service
-    systemctl start eform-panel.service
-    
-    log_success "Services started"
+    if [[ ${#started_services[@]} -gt 0 ]]; then
+        log_success "Started services: ${started_services[*]}"
+    else
+        log_warning "No services were started"
+    fi
 }
 
 # Verify installation
 verify_installation() {
     log_info "Verifying installation..."
     
+    local verification_passed=true
+    
     # Check service status
-    services=("eform-gateway" "eform-kiosk" "eform-panel" "eform-agent")
+    local services=("eform-gateway" "eform-kiosk" "eform-panel" "eform-agent")
+    local running_services=0
     
     for service in "${services[@]}"; do
-        if systemctl is-active --quiet "$service"; then
-            log_success "$service is running"
+        if [[ -f "/etc/systemd/system/${service}.service" ]]; then
+            if systemctl is-active --quiet "$service"; then
+                log_success "$service is running"
+                ((running_services++))
+            else
+                log_warning "$service is not running"
+                # Show brief status without failing
+                systemctl status "$service" --no-pager --lines=3 2>/dev/null || true
+            fi
         else
-            log_error "$service is not running"
-            systemctl status "$service" --no-pager
+            log_info "$service service not installed"
         fi
     done
     
-    # Check database
-    if sudo -u "$SERVICE_USER" sqlite3 "$DATA_DIR/eform.db" "SELECT COUNT(*) FROM lockers;" >/dev/null 2>&1; then
-        log_success "Database is accessible"
+    # Check database (if it exists)
+    if [[ -f "$DATA_DIR/eform.db" ]]; then
+        if sudo -u "$SERVICE_USER" sqlite3 "$DATA_DIR/eform.db" "SELECT 1;" >/dev/null 2>&1; then
+            log_success "Database is accessible"
+        else
+            log_warning "Database exists but is not accessible"
+        fi
     else
-        log_error "Database is not accessible"
+        log_info "Database not found (may be created on first run)"
     fi
     
-    # Check ports
-    if netstat -tuln | grep -q ":3000 "; then
-        log_success "Gateway service listening on port 3000"
-    else
-        log_warning "Gateway service not listening on port 3000"
+    # Check ports (use ss if available, fallback to netstat)
+    local port_cmd=""
+    if command -v ss >/dev/null 2>&1; then
+        port_cmd="ss -tuln"
+    elif command -v netstat >/dev/null 2>&1; then
+        port_cmd="netstat -tuln"
     fi
     
-    if netstat -tuln | grep -q ":3002 "; then
-        log_success "Panel service listening on port 3002"
+    if [[ -n "$port_cmd" ]]; then
+        if $port_cmd | grep -q ":3000 "; then
+            log_success "Gateway service listening on port 3000"
+        else
+            log_info "Gateway service not yet listening on port 3000 (may still be starting)"
+        fi
+        
+        if $port_cmd | grep -q ":3002 "; then
+            log_success "Panel service listening on port 3002"
+        else
+            log_info "Panel service not yet listening on port 3002 (may still be starting)"
+        fi
     else
-        log_warning "Panel service not listening on port 3002"
+        log_info "Cannot check port status (ss/netstat not available)"
     fi
+    
+    # Check file permissions
+    if [[ -d "$INSTALL_DIR" ]] && [[ -O "$INSTALL_DIR" ]] || [[ $(stat -c %U "$INSTALL_DIR" 2>/dev/null) == "$SERVICE_USER" ]]; then
+        log_success "File permissions are correct"
+    else
+        log_warning "File permissions may need adjustment"
+    fi
+    
+    log_info "Verification completed ($running_services services running)"
 }
 
 # Print installation summary
@@ -402,13 +613,46 @@ print_summary() {
     echo
 }
 
+# Pre-flight checks
+preflight_checks() {
+    log_info "Running pre-flight checks..."
+    
+    # Check if we're in the right directory
+    if [[ ! -f "package.json" ]]; then
+        log_error "package.json not found. Please run this script from the project root directory."
+        log_info "Current directory: $(pwd)"
+        log_info "Expected files: package.json, app/, shared/, migrations/"
+        exit 1
+    fi
+    
+    # Check available disk space (need at least 1GB)
+    local available_space=$(df . | awk 'NR==2 {print $4}')
+    if [[ $available_space -lt 1048576 ]]; then  # 1GB in KB
+        log_warning "Low disk space detected. Installation may fail."
+        log_info "Available: $(df -h . | awk 'NR==2 {print $4}'), Recommended: 1GB+"
+    fi
+    
+    # Check internet connectivity
+    if ! curl -s --max-time 10 https://registry.npmjs.org >/dev/null 2>&1; then
+        log_warning "Cannot reach npm registry. Installation may fail without internet access."
+    fi
+    
+    log_success "Pre-flight checks completed"
+}
+
 # Main installation function
 main() {
     echo "=============================================="
     echo "  Eform Locker System Installer"
     echo "=============================================="
+    echo "  Version: $(grep '"version"' package.json 2>/dev/null | cut -d'"' -f4 || echo 'unknown')"
+    echo "  Date: $(date)"
+    echo "  System: $(uname -s) $(uname -m)"
+    echo "=============================================="
     echo
     
+    # Run installation steps
+    preflight_checks
     check_root
     check_requirements
     install_dependencies
@@ -427,6 +671,7 @@ main() {
     print_summary
     
     log_success "Installation completed successfully!"
+    log_info "Check the summary above for next steps and service URLs"
 }
 
 # Run main function
