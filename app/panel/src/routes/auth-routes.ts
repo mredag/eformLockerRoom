@@ -45,7 +45,9 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
       }
 
       // Create session
-      const session = sessionManager.createSession(user);
+      const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+      const userAgent = request.headers['user-agent'] || 'unknown';
+      const session = sessionManager.createSession(user, ipAddress, userAgent);
 
       // Set session cookie
       reply.setCookie('session', session.id, {
@@ -149,8 +151,11 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
       return;
     }
 
-    const session = sessionManager.validateSession(sessionToken);
+    const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+    const userAgent = request.headers['user-agent'] || 'unknown';
+    const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
     if (!session) {
+      reply.clearCookie('session');
       reply.code(401).send({ error: 'Invalid session' });
       return;
     }
@@ -177,8 +182,11 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
       return;
     }
 
-    const renewedSession = sessionManager.renewSession(sessionToken);
+    const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+    const userAgent = request.headers['user-agent'] || 'unknown';
+    const renewedSession = sessionManager.renewSession(sessionToken, ipAddress, userAgent);
     if (!renewedSession) {
+      reply.clearCookie('session');
       reply.code(401).send({ error: 'Session expired' });
       return;
     }

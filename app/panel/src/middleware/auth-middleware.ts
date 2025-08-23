@@ -48,7 +48,9 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
       return;
     }
 
-    const session = sessionManager.validateSession(sessionToken);
+    const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+    const userAgent = request.headers['user-agent'] || 'unknown';
+    const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
     if (!session) {
       reply.clearCookie('session');
       // Check if this is a browser request (accepts HTML)
