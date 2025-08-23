@@ -311,12 +311,15 @@ const start = async () => {
     try {
       await lockerStateManager.initializeKioskLockers(KIOSK_ID, 30);
     } catch (dbError) {
-      if (dbError instanceof Error && dbError.message.includes('no such table')) {
-        console.error('❌ Database tables not found!');
-        console.error('Please run database migrations first:');
-        console.error('  npm run migrate');
-        console.error('Or use the quick fix:');
-        console.error('  node scripts/quick-database-fix.js');
+      if (
+        dbError instanceof Error &&
+        dbError.message.includes("no such table")
+      ) {
+        console.error("❌ Database tables not found!");
+        console.error("Please run database migrations first:");
+        console.error("  npm run migrate");
+        console.error("Or use the quick fix:");
+        console.error("  node scripts/quick-database-fix.js");
         process.exit(1);
       } else {
         throw dbError;
