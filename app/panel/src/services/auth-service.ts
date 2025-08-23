@@ -28,12 +28,25 @@ export class AuthService {
     });
 
     const db = this.dbManager.getConnection().getDatabase();
-    const result = db.prepare(`
-      INSERT INTO staff_users (username, password_hash, role, created_at, pin_expires_at)
-      VALUES (?, ?, ?, datetime('now'), datetime('now', '+90 days'))
-    `).run(request.username, hashedPassword, request.role);
+    
+    try {
+      const result = db.prepare(`
+        INSERT INTO staff_users (username, password_hash, role, created_at, pin_expires_at)
+        VALUES (?, ?, ?, datetime('now'), datetime('now', '+90 days'))
+      `).run(request.username, hashedPassword, request.role);
 
-    return this.getUserById(result.lastInsertRowid as number);
+      if (!result.lastInsertRowid) {
+        throw new Error('Failed to create user - no ID returned');
+      }
+
+      return this.getUserById(result.lastInsertRowid as number);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      if (error.message && error.message.includes('UNIQUE constraint failed')) {
+        throw new Error('Username already exists');
+      }
+      throw new Error('Failed to create user');
+    }
   }
 
   async authenticateUser(username: string, password: string): Promise<User | null> {
@@ -106,7 +119,7 @@ export class AuthService {
     `).get(id) as any;
 
     if (!userRow) {
-      throw new Error('User not found');
+      throw new Error(`User not found with ID: ${id}`);
     }
 
     return {
