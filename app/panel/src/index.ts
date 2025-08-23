@@ -119,11 +119,16 @@ async function startPanelService() {
 
         // Setup is complete, check authentication
         const sessionToken = request.cookies.session;
-        if (sessionToken && sessionManager.validateSession(sessionToken)) {
-          reply.redirect("/dashboard.html");
-        } else {
-          reply.redirect("/login.html");
+        if (sessionToken) {
+          const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+          const userAgent = request.headers['user-agent'] || 'unknown';
+          const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
+          if (session) {
+            reply.redirect("/dashboard.html");
+            return;
+          }
         }
+        reply.redirect("/login.html");
       } catch (error) {
         fastify.log.error('Root route error:', error);
         reply.redirect("/login.html");
