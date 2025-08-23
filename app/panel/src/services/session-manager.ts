@@ -57,6 +57,11 @@ export class SessionManager {
     const sessionId = this.generateSecureToken();
     const csrfToken = this.generateSecureToken();
     
+    console.log(`🔧 Creating session for user: ${user.username}`);
+    console.log(`🔧 Session ID: ${sessionId.substring(0, 16)}...`);
+    console.log(`🔧 IP Address: ${ipAddress}`);
+    
+    
     // Check if PIN change is required
     const requiresPinChange = this.isPinChangeRequired(user);
     
@@ -78,6 +83,8 @@ export class SessionManager {
 
     this.sessions.set(sessionId, session);
     
+    console.log(`✅ Session stored in memory. Total sessions: ${this.sessions.size}`);
+    
     // Track user sessions
     if (!this.userSessions.has(user.id)) {
       this.userSessions.set(user.id, new Set());
@@ -88,10 +95,20 @@ export class SessionManager {
   }
 
   validateSession(sessionId: string, ipAddress?: string, userAgent?: string): Session | null {
+    console.log(`🔍 SessionManager.validateSession called with sessionId: ${sessionId?.substring(0, 16)}...`);
+    console.log(`🔍 Total sessions in memory: ${this.sessions.size}`);
+    console.log(`🔍 Session IDs in memory: ${Array.from(this.sessions.keys()).map(id => id.substring(0, 16) + '...').join(', ')}`);
+    
     const session = this.sessions.get(sessionId);
     if (!session) {
+      console.log(`❌ Session not found for ID: ${sessionId?.substring(0, 16)}...`);
       return null;
     }
+    
+    console.log(`✅ Session found for user: ${session.user.username}`);
+    console.log(`🔍 Session created at: ${session.createdAt}`);
+    console.log(`🔍 Session IP: ${session.ipAddress}, Request IP: ${ipAddress}`);
+    
 
     const now = new Date();
     
@@ -116,11 +133,11 @@ export class SessionManager {
       }
     }
 
-    // Validate IP address consistency (optional security check)
+    // Validate IP address consistency (TEMPORARILY DISABLED for testing)
     if (ipAddress && session.ipAddress !== ipAddress) {
-      console.warn(`Session ${sessionId}: IP address changed from ${session.ipAddress} to ${ipAddress}`);
-      // In strict mode, this could invalidate the session
-      // For now, we'll log and continue
+      console.log(`Session ${sessionId}: IP change from ${session.ipAddress} to ${ipAddress} - ALLOWING (IP validation disabled)`);
+      // Update session with new IP for consistency
+      session.ipAddress = ipAddress;
     }
 
     // Update last activity
@@ -356,6 +373,65 @@ export class SessionManager {
       expiringSoon,
       requirePinChange
     };
+  }
+
+  /**
+   * Check if IP address change is acceptable for local networks
+   */
+  private isLocalNetworkVariation(originalIp: string, newIp: string): boolean {
+    // Handle unknown/undefined IPs
+    if (!originalIp || !newIp || originalIp === 'unknown' || newIp === 'unknown') {
+      return true;
+    }
+
+    // Same IP
+    if (originalIp === newIp) {
+      return true;
+    }
+
+    // Common localhost variations
+    const localhostIps = ['127.0.0.1', '::1', 'localhost'];
+    if (localhostIps.includes(originalIp) && localhostIps.includes(newIp)) {
+      return true;
+    }
+
+    // Local network ranges
+    const isLocalNetwork = (ip: string): boolean => {
+      return ip.startsWith('192.168.') || 
+             ip.startsWith('10.') || 
+             ip.startsWith('172.16.') || 
+             ip.startsWith('172.17.') || 
+             ip.startsWith('172.18.') || 
+             ip.startsWith('172.19.') || 
+             ip.startsWith('172.20.') || 
+             ip.startsWith('172.21.') || 
+             ip.startsWith('172.22.') || 
+             ip.startsWith('172.23.') || 
+             ip.startsWith('172.24.') || 
+             ip.startsWith('172.25.') || 
+             ip.startsWith('172.26.') || 
+             ip.startsWith('172.27.') || 
+             ip.startsWith('172.28.') || 
+             ip.startsWith('172.29.') || 
+             ip.startsWith('172.30.') || 
+             ip.startsWith('172.31.');
+    };
+
+    // Allow transitions between localhost and local network
+    if ((localhostIps.includes(originalIp) && isLocalNetwork(newIp)) ||
+        (isLocalNetwork(originalIp) && localhostIps.includes(newIp))) {
+      return true;
+    }
+
+    // Allow within same local network subnet
+    if (isLocalNetwork(originalIp) && isLocalNetwork(newIp)) {
+      // Extract network portion (first 3 octets for /24 networks)
+      const originalNetwork = originalIp.split('.').slice(0, 3).join('.');
+      const newNetwork = newIp.split('.').slice(0, 3).join('.');
+      return originalNetwork === newNetwork;
+    }
+
+    return false;
   }
 
   /**

@@ -1,292 +1,227 @@
-# eForm Locker System - Panel Authentication Issue Analysis
+# Panel Authentication Issue - Help Request for AI Agents
 
-## Problem Summary
+## 🚨 **CRITICAL AUTHENTICATION PROBLEM**
 
-I'm working on an eForm Locker System running on a Raspberry Pi with a Node.js/TypeScript backend. The system has been experiencing persistent authentication issues in the admin panel, specifically with user login functionality. Despite multiple attempts to fix SQLite3 bundling issues and user creation problems, users still cannot log in successfully.
+I have a **Fastify-based Node.js panel application** running on **Raspberry Pi** that's experiencing a **redirect loop authentication issue**. Users get stuck between the login page and dashboard after successful authentication.
 
-## Current Error
+## 📋 **System Overview**
 
+- **Framework**: Fastify (Node.js)
+- **Database**: SQLite3 with migrations
+- **Authentication**: Custom session-based auth with bcrypt/argon2
+- **Environment**: Raspberry Pi (ARM64) + Development (Windows)
+- **Cookie Management**: @fastify/cookie plugin
+- **Session Storage**: In-memory Map-based SessionManager
+
+## 🔍 **Problem Description**
+
+### **Symptoms:**
+1. ✅ Login endpoint works (returns 200, sets session cookie)
+2. ✅ Session is created and stored in SessionManager
+3. ❌ Subsequent requests fail authentication (401 "Not authenticated")
+4. ❌ Users get redirect loop: login → dashboard → login → dashboard
+5. ❌ Session validation always fails despite valid session cookie
+
+### **Expected Behavior:**
+1. User logs in successfully
+2. Session cookie is set
+3. User is redirected to dashboard
+4. Dashboard loads with authenticated session
+5. All protected routes work with session cookie
+
+## 🏗️ **Architecture Details**
+
+### **Key Components:**
+
+1. **AuthService** (`app/panel/src/services/auth-service.ts`)
+   - Handles user authentication with SQLite
+   - Supports both bcrypt and argon2 password hashing
+   - Direct SQLite operations (no ORM)
+
+2. **SessionManager** (`app/panel/src/services/session-manager.ts`)
+   - In-memory session storage using Map
+   - Session validation with IP address checking
+   - CSRF token management
+   - Session timeout and renewal
+
+3. **Auth Middleware** (`app/panel/src/middleware/auth-middleware.ts`)
+   - Protects routes requiring authentication
+   - Validates session cookies
+   - Handles redirects for browser requests
+
+4. **Auth Routes** (`app/panel/src/routes/auth-routes.ts`)
+   - `/auth/login` - User authentication
+   - `/auth/me` - Session validation
+   - `/auth/logout` - Session destruction
+
+### **Database Schema:**
+```sql
+-- Users are stored in 'staff_users' table
+CREATE TABLE staff_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'staff',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_login DATETIME,
+  pin_expires_at DATETIME
+);
 ```
-Invalid password hash for user: emre
-{"level":30,"time":1755981612843,"pid":36947,"hostname":"pi-eform-locker","reqId":"req-c","res":{"statusCode":401},"responseTime":2.5781299993395805,"msg":"request completed"}
+
+## 🐛 **Debugging Evidence**
+
+### **Login Success Logs:**
+```
+Authenticating user with direct SQLite3: admin
+Hash prefix for user admin : $argon2id$
+Verifying argon2 hash for user: admin
+Password verification result for admin : true
+🔧 Creating session for user: admin
+🔧 Session ID: b5259f7e7a9dd3c9...
+🔧 IP Address: 127.0.0.1
+✅ Session stored in memory. Total sessions: 1
 ```
 
-## System Architecture
+### **Session Validation Failure Logs:**
+```
+🔍 Auth middleware: Processing request to /auth/me
+🔍 Auth middleware: Cookies received: {}
+🔍 Auth middleware: Cookie header: undefined
+🔍 Auth middleware: Session token: undefined...
+❌ Auth middleware: No session token found
+```
 
-### Technology Stack
-- **Runtime**: Node.js 20.x on Raspberry Pi OS (64-bit)
-- **Database**: SQLite3 with direct file access
-- **Framework**: Fastify for web server
-- **Bundling**: esbuild for TypeScript compilation
-- **Authentication**: bcrypt for password hashing
-- **Project Structure**: Monorepo with workspaces (gateway, kiosk, panel, shared)
-
-### Key Components
-- **Panel Service**: Admin web interface (port 3002)
-- **Gateway Service**: API backend (port 3001) 
-- **Kiosk Service**: User touchscreen interface (port 3000)
-- **Shared Libraries**: Common database and service code
-
-## Previous Issues and Fixes Attempted
-
-### 1. SQLite3 Bundling Problem (RESOLVED)
-**Issue**: Prepared statements in bundled code returned empty objects `{}`
-**Root Cause**: esbuild bundling wasn't properly handling SQLite3 native module
-**Solution**: Rewrote AuthService to use raw SQLite3 `.run()` and `.get()` methods instead of prepared statements
-
-### 2. User Creation Problem (RESOLVED)
-**Issue**: Admin users couldn't be created via web interface
-**Solution**: Created direct admin creation script bypassing DatabaseManager
-
-### 3. Current Authentication Problem (UNRESOLVED)
-**Issue**: Users can be created but cannot log in - password verification fails
-
-## Current Code Implementation
-
-### AuthService (app/panel/src/services/auth-service.ts)
+### **Cookie Configuration:**
 ```typescript
-import { Database } from 'sqlite3';
-import * as bcrypt from 'bcrypt';
-import path from 'path';
-
-export class AuthService {
-  private db: Database;
-
-  constructor() {
-    const dbPath = path.join(process.cwd(), 'data', 'eform.db');
-    this.db = new Database(dbPath);
-  }
-
-  async validateUser(username: string, password: string): Promise<any> {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        'SELECT * FROM users WHERE username = ?',
-        [username],
-        async (err, user: any) => {
-          if (err) {
-            console.error('Database error:', err);
-            reject(err);
-            return;
-          }
-
-          if (!user) {
-            console.log('User not found:', username);
-            resolve(null);
-            return;
-          }
-
-          try {
-            console.log('User found:', { id: user.id, username: user.username, role: user.role });
-            console.log('Stored hash:', user.password_hash);
-            console.log('Input password:', password);
-            
-            const isValid = await bcrypt.compare(password, user.password_hash);
-            console.log('Password validation result:', isValid);
-            
-            if (isValid) {
-              resolve({ id: user.id, username: user.username, role: user.role });
-            } else {
-              console.log('Invalid password hash for user:', username);
-              resolve(null);
-            }
-          } catch (error) {
-            console.error('Password validation error:', error);
-            reject(error);
-          }
-        }
-      );
-    });
-  }
-
-  async createUser(username: string, password: string, role: string = 'user'): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        console.log('Creating user with hash:', hashedPassword);
-        
-        this.db.run(
-          'INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)',
-          [username, hashedPassword, role, new Date().toISOString()],
-          function(err) {
-            if (err) {
-              console.error('Error creating user:', err);
-              reject(err);
-              return;
-            }
-            
-            console.log('User created successfully with ID:', this.lastID);
-            resolve({ id: this.lastID, username, role });
-          }
-        );
-      } catch (error) {
-        console.error('Error hashing password:', error);
-        reject(error);
-      }
-    });
-  }
-}
-```
-
-### Direct Admin Creation Script (scripts/create-admin-directly.js)
-```javascript
-const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcrypt');
-const path = require('path');
-const readline = require('readline');
-
-const dbPath = path.join(__dirname, '..', 'data', 'eform.db');
-const db = new sqlite3.Database(dbPath);
-
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
+// Cookie plugin registration
+await fastify.register(import("@fastify/cookie"), {
+  secret: process.env.COOKIE_SECRET || "eform-panel-secret-key-change-in-production",
+  parseOptions: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  },
 });
 
-async function createAdminUser() {
-  try {
-    const username = await askQuestion('Enter admin username: ');
-    const password = await askQuestion('Enter admin password: ');
-    
-    console.log('Hashing password...');
-    const hashedPassword = await bcrypt.hash(password, 10);
-    console.log('Password hashed successfully');
-    
-    console.log('Creating admin user...');
-    
-    db.run(
-      'INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)',
-      [username, hashedPassword, 'admin', new Date().toISOString()],
-      function(err) {
-        if (err) {
-          console.error('❌ Error creating admin user:', err.message);
-          process.exit(1);
-        }
-        
-        console.log('✅ Admin user created successfully!');
-        console.log('   ID:', this.lastID);
-        console.log('   Username:', username);
-        console.log('   Role: admin');
-        
-        db.close();
-        rl.close();
-      }
-    );
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-    process.exit(1);
+// Cookie setting in auth routes
+reply.setCookie('session', session.id, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: 8 * 60 * 60 // 8 hours
+});
+```
+
+## 🔧 **Code Snippets**
+
+### **Auth Middleware Route Skipping:**
+```typescript
+// Skip authentication for certain routes
+if (skipAuth || 
+    request.url.startsWith('/auth/') ||  // ⚠️ POTENTIAL ISSUE?
+    request.url === '/health' ||
+    request.url === '/setup' ||
+    request.url === '/login.html' ||
+    request.url.startsWith('/static/') ||
+    request.url.endsWith('.css') ||
+    request.url.endsWith('.js') ||
+    request.url.endsWith('.ico')) {
+  return;
+}
+```
+
+### **Session Validation Logic:**
+```typescript
+validateSession(sessionId: string, ipAddress?: string, userAgent?: string): Session | null {
+  const session = this.sessions.get(sessionId);
+  if (!session) {
+    return null;
   }
+
+  // Check session timeout
+  const timeSinceCreation = now.getTime() - session.createdAt.getTime();
+  if (timeSinceCreation > this.config.sessionTimeout) {
+    this.destroySession(sessionId);
+    return null;
+  }
+
+  // IP address validation
+  if (ipAddress && session.ipAddress !== ipAddress) {
+    // Handle IP variations...
+  }
+
+  return session;
 }
-
-function askQuestion(question) {
-  return new Promise((resolve) => {
-    rl.question(question, resolve);
-  });
-}
-
-createAdminUser();
 ```
 
-### Database Schema (migrations/004_staff_users.sql)
-```sql
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user',
-    created_at TEXT NOT NULL,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    last_login TEXT,
-    is_active BOOLEAN DEFAULT 1
-);
+## 🎯 **What I Need Help With**
 
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+### **Primary Questions:**
+1. **Why are session cookies not being received by the auth middleware?**
+2. **Is there an issue with the auth middleware route skipping logic?**
+3. **Could IP address validation be causing session validation failures?**
+4. **Are there Fastify-specific cookie handling issues I'm missing?**
+
+### **Specific Areas to Investigate:**
+1. **Cookie Parsing**: Why `request.cookies` is empty despite cookie being set
+2. **Route Protection**: Should `/auth/me` be protected or excluded from auth middleware?
+3. **IP Validation**: Local network IP variations causing session invalidation
+4. **Session Storage**: In-memory vs persistent session storage considerations
+5. **Fastify Configuration**: Missing plugins or middleware configuration
+
+## 📁 **File Structure**
+```
+app/panel/src/
+├── services/
+│   ├── auth-service.ts          # User authentication
+│   └── session-manager.ts       # Session management
+├── middleware/
+│   └── auth-middleware.ts       # Route protection
+├── routes/
+│   └── auth-routes.ts          # Authentication endpoints
+└── index.ts                    # Main application setup
 ```
 
-## Debugging Information
+## 🧪 **Testing Scenario**
 
-### Database Validation Results
 ```bash
-# Database validation passes
-✅ Users table exists
-✅ Database SELECT operation works
-✅ Database INSERT operation works
-✅ Found 1 admin user(s): emre (created: 2025-01-23T...)
+# 1. Login (works)
+curl -X POST http://localhost:3002/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+# Returns: 200 OK with Set-Cookie header
+
+# 2. Session validation (fails)
+curl http://localhost:3002/auth/me \
+  -H "Cookie: session=<session-token>"
+# Returns: 401 "Not authenticated"
 ```
 
-### User Creation Success
-```bash
-# Admin user creation succeeds
-✅ Admin user created successfully!
-   ID: 1
-   Username: emre
-   Role: admin
-```
+## 💡 **Suspected Issues**
 
-### Login Failure Logs
-```bash
-# During login attempt
-User found: { id: 1, username: 'emre', role: 'admin' }
-Stored hash: $2b$10$[hash_string]
-Input password: [user_input]
-Password validation result: false
-Invalid password hash for user: emre
-```
+1. **Auth middleware skipping `/auth/me`** - Should this route be protected?
+2. **Cookie parsing configuration** - Missing Fastify cookie plugin setup?
+3. **IP address validation too strict** - Local network variations?
+4. **Session timing issues** - Race conditions in session storage?
+5. **Cross-platform compatibility** - Windows dev vs Raspberry Pi deployment?
 
-## Environment Details
+## 🎯 **Expected Solution**
 
-### System Information
-- **OS**: Raspberry Pi OS (64-bit)
-- **Node.js**: v20.19.4
-- **Architecture**: aarch64 (ARM64)
-- **Database**: SQLite3 v5.1.6
-- **bcrypt**: v5.1.1
+Please provide:
+1. **Root cause analysis** of why session validation fails
+2. **Specific code fixes** for the authentication flow
+3. **Configuration changes** needed for Fastify/cookies
+4. **Testing approach** to verify the fix works
+5. **Best practices** for session management in this architecture
 
-### File Paths
-- **Database**: `/home/pi/eform-locker/data/eform.db`
-- **Panel Service**: `/home/pi/eform-locker/app/panel/`
-- **Bundled Output**: `/home/pi/eform-locker/app/panel/dist/index.js`
+## 📊 **Environment Details**
 
-### Build Process
-```bash
-# esbuild configuration
-esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:sqlite3 --external:bcrypt --format=cjs --minify=false
-```
+- **Node.js**: v20+ (Raspberry Pi), v18+ (Development)
+- **Fastify**: Latest version with @fastify/cookie
+- **SQLite3**: Direct queries, no ORM
+- **Deployment**: Raspberry Pi OS (ARM64)
+- **Development**: Windows 11
 
-## Questions for Analysis
+---
 
-1. **Password Hashing Consistency**: Could there be a mismatch between how passwords are hashed during creation vs. verification?
-
-2. **bcrypt Version Compatibility**: Are there known issues with bcrypt v5.1.1 on ARM64/Raspberry Pi that could cause hash verification failures?
-
-3. **Bundling Impact**: Even though SQLite3 and bcrypt are externalized, could the bundling process still be affecting password verification?
-
-4. **Character Encoding**: Could there be character encoding issues between the web form input and the bcrypt comparison?
-
-5. **Async/Promise Handling**: Are there potential race conditions or promise handling issues in the authentication flow?
-
-6. **Database Corruption**: Could the SQLite3 database have corruption issues affecting the stored password hashes?
-
-## Specific Help Needed
-
-Please analyze this authentication issue and provide:
-
-1. **Root Cause Analysis**: What is most likely causing the password verification to fail?
-
-2. **Debugging Steps**: What specific debugging steps should I take to isolate the problem?
-
-3. **Code Fixes**: What changes to the AuthService or related code would resolve this issue?
-
-4. **Alternative Approaches**: Should I consider a different authentication strategy or library?
-
-5. **Testing Strategy**: How can I create comprehensive tests to validate the authentication system?
-
-## Additional Context
-
-- The system worked in development on Windows but fails in production on Raspberry Pi
-- Multiple users have been created successfully but none can log in
-- The same password that was used during creation fails during login
-- Database queries work correctly for user retrieval
-- Only the password verification step fails
-
-Please provide a comprehensive analysis and solution for this persistent authentication issue.
+**🚨 This is blocking user access to the admin panel. Any help identifying the authentication flow issue would be greatly appreciated!**

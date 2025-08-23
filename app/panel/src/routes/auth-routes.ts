@@ -8,6 +8,48 @@ interface AuthRouteOptions extends FastifyPluginOptions {
   sessionManager: SessionManager;
 }
 
+function extractClientIp(request: any): string {
+  // Try multiple sources for IP address
+  let ip = request.ip;
+  
+  // Check X-Forwarded-For header (proxy/load balancer)
+  if (!ip || ip === '127.0.0.1' || ip === '::1') {
+    const forwardedFor = request.headers['x-forwarded-for'];
+    if (forwardedFor) {
+      // Take the first IP from the comma-separated list
+      ip = forwardedFor.toString().split(',')[0]?.trim();
+    }
+  }
+  
+  // Check X-Real-IP header (nginx proxy)
+  if (!ip || ip === '127.0.0.1' || ip === '::1') {
+    const realIp = request.headers['x-real-ip'];
+    if (realIp) {
+      ip = realIp.toString().trim();
+    }
+  }
+  
+  // Check CF-Connecting-IP (Cloudflare)
+  if (!ip || ip === '127.0.0.1' || ip === '::1') {
+    const cfIp = request.headers['cf-connecting-ip'];
+    if (cfIp) {
+      ip = cfIp.toString().trim();
+    }
+  }
+  
+  // Fallback to socket remote address
+  if (!ip) {
+    ip = request.socket.remoteAddress;
+  }
+  
+  // Clean up IPv6 mapped IPv4 addresses
+  if (ip && ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  }
+  
+  return ip || 'unknown';
+}
+
 export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOptions) {
   const { authService, sessionManager } = options;
 
@@ -44,8 +86,8 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
         return;
       }
 
-      // Create session
-      const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+      // Create session with flexible IP extraction
+      const ipAddress = extractClientIp(request);
       const userAgent = request.headers['user-agent'] || 'unknown';
       const session = sessionManager.createSession(user, ipAddress, userAgent);
 
@@ -151,7 +193,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
       return;
     }
 
-    const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+    const ipAddress = extractClientIp(request);
     const userAgent = request.headers['user-agent'] || 'unknown';
     const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
     if (!session) {

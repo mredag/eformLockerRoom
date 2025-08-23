@@ -19,13 +19,57 @@ export interface AuthMiddlewareOptions {
   skipAuth?: boolean;
 }
 
+function extractClientIp(request: FastifyRequest): string {
+  // Try multiple sources for IP address
+  let ip = request.ip;
+  
+  // Check X-Forwarded-For header (proxy/load balancer)
+  if (!ip || ip === '127.0.0.1' || ip === '::1') {
+    const forwardedFor = request.headers['x-forwarded-for'];
+    if (forwardedFor) {
+      // Take the first IP from the comma-separated list
+      ip = forwardedFor.toString().split(',')[0]?.trim();
+    }
+  }
+  
+  // Check X-Real-IP header (nginx proxy)
+  if (!ip || ip === '127.0.0.1' || ip === '::1') {
+    const realIp = request.headers['x-real-ip'];
+    if (realIp) {
+      ip = realIp.toString().trim();
+    }
+  }
+  
+  // Check CF-Connecting-IP (Cloudflare)
+  if (!ip || ip === '127.0.0.1' || ip === '::1') {
+    const cfIp = request.headers['cf-connecting-ip'];
+    if (cfIp) {
+      ip = cfIp.toString().trim();
+    }
+  }
+  
+  // Fallback to socket remote address
+  if (!ip) {
+    ip = request.socket.remoteAddress;
+  }
+  
+  // Clean up IPv6 mapped IPv4 addresses
+  if (ip && ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  }
+  
+  return ip || 'unknown';
+}
+
 export function createAuthMiddleware(options: AuthMiddlewareOptions) {
   const { sessionManager, requiredPermission, skipAuth = false } = options;
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // Skip authentication for certain routes
     if (skipAuth || 
-        request.url.startsWith('/auth/') || 
+        request.url === '/auth/login' ||
+        request.url === '/auth/logout' ||
+        request.url.startsWith('/auth/change-password') ||
         request.url === '/health' ||
         request.url === '/setup' ||
         request.url === '/login.html' ||
@@ -36,8 +80,15 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
       return;
     }
 
+    console.log(`🔍 Auth middleware: Processing request to ${request.url}`);
+    console.log(`🔍 Auth middleware: Cookies received:`, request.cookies);
+    console.log(`🔍 Auth middleware: Cookie header:`, request.headers.cookie);
+    
     const sessionToken = request.cookies.session;
+    console.log(`🔍 Auth middleware: Session token:`, sessionToken?.substring(0, 16) + '...' || 'NONE');
+    
     if (!sessionToken) {
+      console.log(`❌ Auth middleware: No session token found`);
       // Check if this is a browser request (accepts HTML)
       const acceptsHtml = request.headers.accept?.includes('text/html');
       if (acceptsHtml) {
@@ -48,7 +99,8 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
       return;
     }
 
-    const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
+    // Extract IP address with comprehensive fallbacks for different network configurations
+    const ipAddress = extractClientIp(request);
     const userAgent = request.headers['user-agent'] || 'unknown';
     const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
     if (!session) {
