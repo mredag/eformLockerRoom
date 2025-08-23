@@ -109,6 +109,16 @@ export class ModbusController extends EventEmitter {
 
   constructor(config: ModbusConfig) {
     super();
+    
+    // Validate config parameter
+    if (!config) {
+      throw new Error('ModbusController: config parameter is required');
+    }
+    
+    if (!config.port) {
+      throw new Error('ModbusController: config.port is required');
+    }
+    
     this.config = config;
     this.health = {
       status: 'disconnected',
