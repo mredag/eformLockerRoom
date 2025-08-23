@@ -24,12 +24,25 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
     // Skip authentication for certain routes
-    if (skipAuth || request.url.startsWith('/auth/') || request.url === '/health') {
+    if (skipAuth || 
+        request.url.startsWith('/auth/') || 
+        request.url === '/health' ||
+        request.url === '/login.html' ||
+        request.url.startsWith('/static/') ||
+        request.url.endsWith('.css') ||
+        request.url.endsWith('.js') ||
+        request.url.endsWith('.ico')) {
       return;
     }
 
     const sessionToken = request.cookies.session;
     if (!sessionToken) {
+      // Check if this is a browser request (accepts HTML)
+      const acceptsHtml = request.headers.accept?.includes('text/html');
+      if (acceptsHtml) {
+        reply.redirect('/login.html');
+        return;
+      }
       reply.code(401).send({ error: 'Authentication required' });
       return;
     }
@@ -37,6 +50,12 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
     const session = sessionManager.validateSession(sessionToken);
     if (!session) {
       reply.clearCookie('session');
+      // Check if this is a browser request (accepts HTML)
+      const acceptsHtml = request.headers.accept?.includes('text/html');
+      if (acceptsHtml) {
+        reply.redirect('/login.html');
+        return;
+      }
       reply.code(401).send({ error: 'Invalid or expired session' });
       return;
     }
