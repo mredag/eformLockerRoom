@@ -105,6 +105,7 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
 
       // Set session cookie
       reply.setCookie('session', session.id, {
+        path: '/',          // Make cookie available to all routes
         httpOnly: true,
         secure: shouldUseSecureCookies(),
         sameSite: 'strict',
