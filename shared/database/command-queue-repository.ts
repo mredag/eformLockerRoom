@@ -276,7 +276,13 @@ export class CommandQueueRepository extends BaseRepository<Command> {
 
     sql += ' GROUP BY status, command_type';
 
-    const rows = await this.db.all(sql, params);
+    interface StatsRow {
+      status: string;
+      command_type: string;
+      total: number;
+    }
+
+    const rows = await this.db.all<StatsRow>(sql, params);
 
     const stats = {
       total: 0,
@@ -344,7 +350,8 @@ export class CommandQueueRepository extends BaseRepository<Command> {
       last_error: row.last_error,
       created_at: new Date(row.created_at),
       executed_at: row.executed_at ? new Date(row.executed_at) : undefined,
-      completed_at: row.completed_at ? new Date(row.completed_at) : undefined
+      completed_at: row.completed_at ? new Date(row.completed_at) : undefined,
+      version: row.version || 1
     };
   }
 

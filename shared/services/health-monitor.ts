@@ -1,9 +1,13 @@
 import { DatabaseConnection } from '../database/connection';
-import { KioskHealth, HealthCheckResponse } from '../types/core-entities';
+import { KioskHealth, HealthCheckResponse, EventType } from '../types/core-entities';
 import { EventLogger } from './event-logger';
 import { CommandQueueManager } from './command-queue-manager';
 import fs from 'fs/promises';
 import path from 'path';
+
+interface CountResult {
+  count: number;
+}
 
 /**
  * Health Monitoring and Diagnostics System
@@ -152,7 +156,10 @@ export class HealthMonitor {
       const responseTime = Date.now() - startTime;
 
       // Check WAL mode status
-      const walInfo = await this.db.get('PRAGMA journal_mode');
+      interface WalInfo {
+        journal_mode: string;
+      }
+      const walInfo = await this.db.get<WalInfo>('PRAGMA journal_mode');
       const isWalMode = walInfo?.journal_mode === 'wal';
 
       // Get WAL file size if in WAL mode
@@ -171,7 +178,10 @@ export class HealthMonitor {
       // Get last write time from events table
       let lastWrite = new Date();
       try {
-        const lastEvent = await this.db.get(
+        interface LastEventResult {
+          timestamp: string;
+        }
+        const lastEvent = await this.db.get<LastEventResult>(
           'SELECT timestamp FROM events ORDER BY timestamp DESC LIMIT 1'
         );
         if (lastEvent) {
@@ -207,20 +217,23 @@ export class HealthMonitor {
   }> {
     try {
       // Get pending commands count
-      const pendingResult = await this.db.get(
+      const pendingResult = await this.db.get<CountResult>(
         "SELECT COUNT(*) as count FROM command_queue WHERE status = 'pending'"
       );
       const pendingCount = pendingResult?.count || 0;
 
       // Get failed commands count
-      const failedResult = await this.db.get(
+      const failedResult = await this.db.get<CountResult>(
         "SELECT COUNT(*) as count FROM command_queue WHERE status = 'failed'"
       );
       const failedCount = failedResult?.count || 0;
 
       // Get last processed command
       let lastProcessed = new Date();
-      const lastProcessedResult = await this.db.get(
+      interface ExecutedAtResult {
+        executed_at: string;
+      }
+      const lastProcessedResult = await this.db.get<ExecutedAtResult>(
         "SELECT executed_at FROM command_queue WHERE executed_at IS NOT NULL ORDER BY executed_at DESC LIMIT 1"
       );
       if (lastProcessedResult?.executed_at) {
@@ -229,7 +242,10 @@ export class HealthMonitor {
 
       // Get oldest pending command
       let oldestPending: Date | undefined;
-      const oldestPendingResult = await this.db.get(
+      interface CreatedAtResult {
+        created_at: string;
+      }
+      const oldestPendingResult = await this.db.get<CreatedAtResult>(
         "SELECT created_at FROM command_queue WHERE status = 'pending' ORDER BY created_at ASC LIMIT 1"
       );
       if (oldestPendingResult?.created_at) {
@@ -361,7 +377,7 @@ export class HealthMonitor {
         
         for (const table of tables) {
           try {
-            const countResult = await this.db.get(`SELECT COUNT(*) as count FROM ${table}`);
+            const countResult = await this.db.get<CountResult>(`SELECT COUNT(*) as count FROM ${table}`);
             diagnostics.table_stats[table] = { row_count: countResult?.count || 0 };
           } catch {
             diagnostics.table_stats[table] = { error: 'Table not found or inaccessible' };
@@ -373,7 +389,11 @@ export class HealthMonitor {
 
       // Index usage
       try {
-        const indexes = await this.db.all("SELECT name, tbl_name FROM sqlite_master WHERE type = 'index'");
+        interface IndexResult {
+          name: string;
+          tbl_name: string;
+        }
+        const indexes = await this.db.all<IndexResult>("SELECT name, tbl_name FROM sqlite_master WHERE type = 'index'");
         diagnostics.indexes = indexes.map(idx => ({
           name: idx.name,
           table: idx.tbl_name
@@ -472,7 +492,11 @@ export class HealthMonitor {
 
       // System restart events
       try {
-        const restartEvents = await this.db.all(
+        interface RestartEventResult {
+          timestamp: string;
+          details: string;
+        }
+        const restartEvents = await this.db.all<RestartEventResult>(
           "SELECT timestamp, details FROM events WHERE event_type = 'restarted' ORDER BY timestamp DESC LIMIT 5"
         );
         errorSummary.recent_restarts = restartEvents.map(event => ({
@@ -538,7 +562,7 @@ export class HealthMonitor {
 
       // Log the rotation activity
       if (this.eventLogger) {
-        await this.eventLogger.logEvent('system', 'log_rotation', {
+        await this.eventLogger.logEvent('system', EventType.SYSTEM_RESTARTED, {
           retention_days: retentionDays,
           deleted_count: result.deleted_files.length,
           error_count: result.errors.length

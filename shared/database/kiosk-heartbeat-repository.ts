@@ -164,7 +164,7 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
     };
 
     if (version) {
-      updates.version = version;
+      updates.version = parseInt(version as string) || 1;
     }
 
     if (configHash) {
@@ -195,7 +195,8 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
       last_seen: new Date(),
       zone,
       status: 'online',
-      version,
+      version: parseInt(version as string) || 1,
+      software_version: '1.0.0',
       offline_threshold_seconds: 30,
       hardware_id: hardwareId,
       registration_secret: registrationSecret
@@ -263,7 +264,14 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
       GROUP BY status, zone, version
     `;
 
-    const rows = await this.db.all(sql);
+    interface KioskStatsRow {
+      total: number;
+      status: string;
+      zone: string;
+      version: string;
+    }
+
+    const rows = await this.db.all<KioskStatsRow>(sql);
 
     const stats = {
       total: 0,
@@ -328,6 +336,7 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
       zone: row.zone,
       status: row.status as KioskStatus,
       version: row.version,
+      software_version: row.software_version || '1.0.0',
       last_config_hash: row.last_config_hash,
       offline_threshold_seconds: row.offline_threshold_seconds,
       hardware_id: row.hardware_id,

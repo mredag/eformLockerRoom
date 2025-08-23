@@ -147,10 +147,17 @@ export class DatabaseConnection {
     return this.db;
   }
 
+  public getDatabasePath(): string {
+    return this.dbPath;
+  }
+
   public async run(sql: string, params: any[] = []): Promise<sqlite3.RunResult> {
     await this.waitForInitialization();
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
     return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function(err) {
+      this.db!.run(sql, params, function(err) {
         if (err) {
           reject(err);
         } else {
@@ -162,8 +169,11 @@ export class DatabaseConnection {
 
   public async get<T>(sql: string, params: any[] = []): Promise<T | undefined> {
     await this.waitForInitialization();
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
     return new Promise((resolve, reject) => {
-      this.db.get(sql, params, (err, row) => {
+      this.db!.get(sql, params, (err, row) => {
         if (err) {
           reject(err);
         } else {
@@ -175,8 +185,11 @@ export class DatabaseConnection {
 
   public async all<T>(sql: string, params: any[] = []): Promise<T[]> {
     await this.waitForInitialization();
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
     return new Promise((resolve, reject) => {
-      this.db.all(sql, params, (err, rows) => {
+      this.db!.all(sql, params, (err, rows) => {
         if (err) {
           reject(err);
         } else {
@@ -188,8 +201,11 @@ export class DatabaseConnection {
 
   public async exec(sql: string): Promise<void> {
     await this.waitForInitialization();
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
     return new Promise((resolve, reject) => {
-      this.db.exec(sql, (err) => {
+      this.db!.exec(sql, (err) => {
         if (err) {
           reject(err);
         } else {

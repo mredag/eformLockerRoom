@@ -205,7 +205,12 @@ export class LogRetentionManager {
     `;
 
     // Get records to anonymize
-    const records = await this.db.all(
+    interface DeviceRecord {
+      id: number;
+      device_id: string;
+      details: string;
+    }
+    const records = await this.db.all<DeviceRecord>(
       `SELECT id, device_id, details FROM events 
        WHERE device_id IS NOT NULL 
          AND timestamp < ?

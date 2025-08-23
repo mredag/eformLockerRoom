@@ -96,7 +96,7 @@ export class EventRepository extends BaseRepository<Event> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
-  async create(event: Omit<Event, 'id' | 'timestamp'>): Promise<Event> {
+  async create(event: Omit<Event, 'id' | 'timestamp' | 'version'>): Promise<Event> {
     // Validate staff operations have staff_user
     if (event.event_type.startsWith('staff_') && !event.staff_user) {
       throw new Error('Staff operations require staff_user field');
@@ -314,7 +314,14 @@ export class EventRepository extends BaseRepository<Event> {
 
     sql += ' GROUP BY event_type, kiosk_id, category';
 
-    const rows = await this.db.all(sql, params);
+    interface EventStatsRow {
+      event_type: string;
+      kiosk_id: string;
+      category: string;
+      total: number;
+    }
+
+    const rows = await this.db.all<EventStatsRow>(sql, params);
 
     const stats = {
       total: 0,
@@ -356,7 +363,8 @@ export class EventRepository extends BaseRepository<Event> {
       rfid_card: row.rfid_card,
       device_id: row.device_id,
       staff_user: row.staff_user,
-      details: row.details ? JSON.parse(row.details) : {}
+      details: row.details ? JSON.parse(row.details) : {},
+      version: row.version || 1
     };
   }
 

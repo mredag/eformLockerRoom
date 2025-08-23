@@ -87,7 +87,7 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
-  async create(history: Omit<VipContractHistory, 'id' | 'timestamp'>): Promise<VipContractHistory> {
+  async create(history: Omit<VipContractHistory, 'id' | 'timestamp' | 'version'>): Promise<VipContractHistory> {
     const sql = `
       INSERT INTO ${this.tableName} (
         contract_id, action_type, old_values, new_values,
@@ -242,7 +242,8 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
       performed_by: row.performed_by,
       reason: row.reason,
       timestamp: new Date(row.timestamp),
-      details: row.details ? JSON.parse(row.details) : {}
+      details: row.details ? JSON.parse(row.details) : {},
+      version: row.version || 1
     };
   }
 

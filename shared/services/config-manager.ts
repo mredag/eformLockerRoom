@@ -11,6 +11,7 @@ import {
   ConfigValidationResult,
   ConfigChangeEvent
 } from '../types/system-config';
+import { EventType } from '../types/core-entities';
 import { EventRepository } from '../database/event-repository';
 import { DatabaseManager } from '../database/database-manager';
 
@@ -80,7 +81,7 @@ export class ConfigManager {
         throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
       }
 
-      this.config = parsedConfig;
+      this.config = parsedConfig as CompleteSystemConfig || this.getDefaultConfiguration();
       return this.config;
     } catch (error) {
       if (error instanceof Error && error.message.includes('ENOENT')) {
@@ -101,7 +102,7 @@ export class ConfigManager {
     if (!this.config) {
       throw new Error('Configuration not loaded. Call initialize() first.');
     }
-    return this.config;
+    return this.config as CompleteSystemConfig;
   }
 
   /**
@@ -418,17 +419,20 @@ export class ConfigManager {
     }
 
     try {
-      await this.eventRepository.logEvent({
-        kiosk_id: null,
-        event_type: 'config_changed',
-        staff_user: change.changed_by,
-        details: {
+      await this.eventRepository.logEvent(
+        'system',
+        EventType.CONFIG_APPLIED,
+        {
           section: change.section,
           old_value: change.old_value,
           new_value: change.new_value,
           reason: change.reason
-        }
-      });
+        },
+        undefined, // lockerId
+        undefined, // rfidCard
+        undefined, // deviceId
+        change.changed_by // staffUser
+      );
     } catch (error) {
       console.error('Failed to log config change:', error);
     }
@@ -443,8 +447,8 @@ export class ConfigManager {
     }
 
     try {
-      const events = await this.eventRepository.getEvents({
-        event_type: 'config_changed',
+      const events = await this.eventRepository.findAll({
+        event_type: EventType.CONFIG_APPLIED,
         limit
       });
 

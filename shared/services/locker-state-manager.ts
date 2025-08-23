@@ -71,10 +71,11 @@ export class LockerStateManager {
       const db = this.dbManager.getDatabase();
       return db.prepare('SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?').get(kioskId, lockerId) || null;
     } else {
-      return await this.db.get<Locker>(
+      const result = await this.db.get<Locker>(
         'SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?',
         [kioskId, lockerId]
       );
+      return result || null;
     }
   }
 
@@ -136,10 +137,11 @@ export class LockerStateManager {
    * Find locker by owner key (RFID card or device ID)
    */
   async findLockerByOwner(ownerKey: string, ownerType: OwnerType): Promise<Locker | null> {
-    return await this.db.get<Locker>(
+    const result = await this.db.get<Locker>(
       'SELECT * FROM lockers WHERE owner_key = ? AND owner_type = ? AND status IN (?, ?)',
       [ownerKey, ownerType, 'Reserved', 'Owned']
     );
+    return result || null;
   }
 
   /**

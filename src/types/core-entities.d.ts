@@ -396,6 +396,7 @@ export interface UpdateStatus {
     last_update?: Date;
     rollback_available: boolean;
 }
+import { SystemConfig } from '../../shared/types/system-config';
 export interface ExtendedSystemConfig extends SystemConfig {
     MODBUS_PORT: string;
     MODBUS_BAUDRATE: number;

@@ -291,7 +291,8 @@ export class CommandQueueManager {
       last_error: row.last_error,
       created_at: new Date(row.created_at),
       executed_at: row.executed_at ? new Date(row.executed_at) : undefined,
-      completed_at: row.completed_at ? new Date(row.completed_at) : undefined
+      completed_at: row.completed_at ? new Date(row.completed_at) : undefined,
+      version: row.version || 1
     };
   }
 }

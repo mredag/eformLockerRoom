@@ -132,15 +132,15 @@ export class HeartbeatManager {
         const wasOffline = await this.wasKioskOffline(kioskId);
         if (wasOffline) {
           if (this.eventLogger) {
-            await this.eventLogger.logEvent({
-              kiosk_id: kioskId,
-              event_type: EventType.KIOSK_ONLINE,
-              details: {
+            await this.eventLogger.logEvent(
+              kioskId,
+              EventType.KIOSK_ONLINE,
+              {
                 previous_status: 'offline',
                 version,
                 config_hash: configHash
               }
-            });
+            );
           }
           console.log(`Kiosk ${kioskId} came back online`);
         }
@@ -234,14 +234,14 @@ export class HeartbeatManager {
       
       // Log status change event
       if (this.eventLogger) {
-        await this.eventLogger.logEvent({
-          kiosk_id: kioskId,
-          event_type: status === 'online' ? EventType.KIOSK_ONLINE : EventType.KIOSK_OFFLINE,
-          details: {
+        await this.eventLogger.logEvent(
+          kioskId,
+          status === 'online' ? EventType.KIOSK_ONLINE : EventType.KIOSK_OFFLINE,
+          {
             new_status: status,
             manual_update: true
           }
-        });
+        );
       }
 
       console.log(`Kiosk ${kioskId} status updated to ${status}`);
@@ -260,14 +260,14 @@ export class HeartbeatManager {
       const clearedCount = await this.commandQueue.clearPendingCommands(kioskId);
       
       if (clearedCount > 0 && this.eventLogger) {
-        await this.eventLogger.logEvent({
-          kiosk_id: kioskId,
-          event_type: EventType.SYSTEM_RESTARTED,
-          details: {
+        await this.eventLogger.logEvent(
+          kioskId,
+          EventType.SYSTEM_RESTARTED,
+          {
             cleared_commands: clearedCount,
             reason: 'Kiosk restart detected'
           }
-        });
+        );
         
         console.log(`Cleared ${clearedCount} pending commands for kiosk ${kioskId} due to restart`);
       }
@@ -326,15 +326,15 @@ export class HeartbeatManager {
           // Only log if recently went offline (within the last cleanup interval)
           if (timeSinceLastSeen < this.config.cleanupIntervalMs + this.config.offlineThresholdMs) {
             if (this.eventLogger) {
-              await this.eventLogger.logEvent({
-                kiosk_id: kiosk.kiosk_id,
-                event_type: EventType.KIOSK_OFFLINE,
-                details: {
+              await this.eventLogger.logEvent(
+                kiosk.kiosk_id,
+                EventType.KIOSK_OFFLINE,
+                {
                   last_seen: kiosk.last_seen.toISOString(),
                   offline_duration_ms: timeSinceLastSeen,
                   zone: kiosk.zone
                 }
-              });
+              );
             }
             
             console.log(`Kiosk ${kiosk.kiosk_id} marked as offline (last seen: ${kiosk.last_seen})`);

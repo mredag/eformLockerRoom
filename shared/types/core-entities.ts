@@ -49,6 +49,7 @@ export interface VipContract {
   created_by: string;
   created_at: Date;
   updated_at?: Date;
+  version: number; // For optimistic locking
 }
 
 export interface VipContractRequest {
@@ -59,6 +60,40 @@ export interface VipContractRequest {
   start_date: Date;
   end_date: Date;
   created_by: string;
+}
+
+export type VipTransferStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+
+export interface VipTransferRequest {
+  id: number;
+  contract_id: number;
+  from_kiosk_id: string;
+  from_locker_id: number;
+  to_kiosk_id: string;
+  to_locker_id: number;
+  new_rfid_card?: string; // Optional new card for transfer
+  reason: string;
+  requested_by: string;
+  approved_by?: string;
+  status: VipTransferStatus;
+  created_at: Date;
+  approved_at?: Date;
+  version: number; // For optimistic locking
+  completed_at?: Date;
+  rejection_reason?: string;
+}
+
+export interface VipContractHistory {
+  id: number;
+  contract_id: number;
+  action_type: 'created' | 'extended' | 'card_changed' | 'transferred' | 'cancelled';
+  old_values?: Record<string, any>;
+  new_values?: Record<string, any>;
+  performed_by: string;
+  reason?: string;
+  timestamp: Date;
+  details: Record<string, any>;
+  version: number; // For optimistic locking
 }
 
 // ============================================================================
@@ -88,6 +123,11 @@ export enum EventType {
   VIP_CONTRACT_CREATED = 'vip_contract_created',
   VIP_CONTRACT_EXTENDED = 'vip_contract_extended',
   VIP_CONTRACT_CANCELLED = 'vip_contract_cancelled',
+  VIP_CARD_CHANGED = 'vip_card_changed',
+  VIP_TRANSFER_REQUESTED = 'vip_transfer_requested',
+  VIP_TRANSFER_APPROVED = 'vip_transfer_approved',
+  VIP_TRANSFER_REJECTED = 'vip_transfer_rejected',
+  VIP_TRANSFER_COMPLETED = 'vip_transfer_completed',
   
   // Configuration events
   CONFIG_PACKAGE_CREATED = 'config_package_created',
@@ -112,6 +152,7 @@ export interface Event {
   device_id?: string;
   staff_user?: string; // NOT NULL for staff operations
   details: Record<string, any>;
+  version: number; // For optimistic locking
 }
 
 export interface EventDetails {
@@ -183,6 +224,7 @@ export interface Command {
   created_at: Date;
   executed_at?: Date;
   completed_at?: Date;
+  version: number; // For optimistic locking
 }
 
 export interface CommandPayload {
@@ -232,7 +274,8 @@ export interface KioskHeartbeat {
   last_seen: Date;
   zone: string;
   status: KioskStatus;
-  version: string; // Software version
+  software_version: string; // Software version (renamed to avoid conflict)
+  version: number; // For optimistic locking
   last_config_hash?: string; // For configuration sync
   offline_threshold_seconds: number;
   hardware_id?: string;
@@ -477,6 +520,8 @@ export interface UpdateStatus {
 // ============================================================================
 // SYSTEM CONFIGURATION ENTITIES (Extended)
 // ============================================================================
+
+import { SystemConfig } from './system-config';
 
 export interface ExtendedSystemConfig extends SystemConfig {
   // Hardware configuration

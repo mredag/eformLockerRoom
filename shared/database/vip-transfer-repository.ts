@@ -96,7 +96,7 @@ export class VipTransferRepository extends BaseRepository<VipTransferRequest> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
-  async create(transfer: Omit<VipTransferRequest, 'id' | 'created_at' | 'approved_at' | 'completed_at'>): Promise<VipTransferRequest> {
+  async create(transfer: Omit<VipTransferRequest, 'id' | 'created_at' | 'approved_at' | 'completed_at' | 'version'>): Promise<VipTransferRequest> {
     const sql = `
       INSERT INTO ${this.tableName} (
         contract_id, from_kiosk_id, from_locker_id, to_kiosk_id, to_locker_id,
@@ -239,8 +239,12 @@ export class VipTransferRepository extends BaseRepository<VipTransferRequest> {
       AND status IN ('pending', 'approved')
     `;
     
-    const result = await this.db.get(sql, [kioskId, lockerId, kioskId, lockerId]);
-    return result.count > 0;
+    interface CountResult {
+      count: number;
+    }
+
+    const result = await this.db.get<CountResult>(sql, [kioskId, lockerId, kioskId, lockerId]);
+    return (result?.count || 0) > 0;
   }
 
   protected mapRowToEntity(row: any): VipTransferRequest {
@@ -259,7 +263,8 @@ export class VipTransferRepository extends BaseRepository<VipTransferRequest> {
       rejection_reason: row.rejection_reason,
       created_at: new Date(row.created_at),
       approved_at: row.approved_at ? new Date(row.approved_at) : undefined,
-      completed_at: row.completed_at ? new Date(row.completed_at) : undefined
+      completed_at: row.completed_at ? new Date(row.completed_at) : undefined,
+      version: row.version || 1
     };
   }
 

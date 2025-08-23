@@ -107,7 +107,12 @@ export class LockerRepository extends BaseRepository<Locker> {
     return created;
   }
 
-  async update(
+  // Override base update method to match signature
+  async update(id: string | number, updates: Partial<Locker>, expectedVersion: number): Promise<Locker> {
+    throw new Error('Use updateLocker method instead - requires both kiosk_id and locker_id');
+  }
+
+  async updateLocker(
     kioskId: string, 
     lockerId: number, 
     updates: Partial<Locker>, 
@@ -256,7 +261,16 @@ export class LockerRepository extends BaseRepository<Locker> {
       WHERE kiosk_id = ?
     `;
 
-    const result = await this.db.get(sql, [kioskId]);
+    interface LockerStatsResult {
+      total: number;
+      free: number;
+      reserved: number;
+      owned: number;
+      blocked: number;
+      vip: number;
+    }
+
+    const result = await this.db.get<LockerStatsResult>(sql, [kioskId]);
     return {
       total: result?.total || 0,
       free: result?.free || 0,

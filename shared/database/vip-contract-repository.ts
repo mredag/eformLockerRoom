@@ -94,7 +94,7 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
-  async create(contract: Omit<VipContract, 'id' | 'created_at' | 'updated_at'>): Promise<VipContract> {
+  async create(contract: Omit<VipContract, 'id' | 'created_at' | 'updated_at' | 'version'>): Promise<VipContract> {
     const sql = `
       INSERT INTO ${this.tableName} (
         kiosk_id, locker_id, rfid_card, backup_card,
@@ -264,7 +264,15 @@ export class VipContractRepository extends BaseRepository<VipContract> {
       FROM ${this.tableName}
     `;
 
-    const result = await this.db.get(sql);
+    interface VipContractStatsResult {
+      total: number;
+      active: number;
+      expired: number;
+      cancelled: number;
+      expiring_soon: number;
+    }
+
+    const result = await this.db.get<VipContractStatsResult>(sql);
     return {
       total: result?.total || 0,
       active: result?.active || 0,
@@ -286,7 +294,8 @@ export class VipContractRepository extends BaseRepository<VipContract> {
       status: row.status as VipContractStatus,
       created_by: row.created_by,
       created_at: new Date(row.created_at),
-      updated_at: row.updated_at ? new Date(row.updated_at) : undefined
+      updated_at: row.updated_at ? new Date(row.updated_at) : undefined,
+      version: row.version || 1
     };
   }
 

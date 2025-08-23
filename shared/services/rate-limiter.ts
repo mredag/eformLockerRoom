@@ -274,10 +274,10 @@ export class RateLimiter {
    */
   private async logRateLimitViolation(violation: RateLimitViolation, kioskId?: string): Promise<void> {
     try {
-      await this.eventRepository.createEvent({
-        kiosk_id: kioskId || 'system',
-        event_type: EventType.SYSTEM_RESTARTED, // Using existing event type, should add RATE_LIMIT_VIOLATION
-        details: {
+      await this.eventRepository.logEvent(
+        kioskId || 'system',
+        EventType.SYSTEM_RESTARTED, // Using existing event type, should add RATE_LIMIT_VIOLATION
+        {
           rate_limit_violation: {
             key: violation.key,
             limit_type: violation.limit_type,
@@ -288,7 +288,7 @@ export class RateLimiter {
             last_violation: violation.last_violation.toISOString()
           }
         }
-      });
+      );
     } catch (error) {
       console.error('Failed to log rate limit violation:', error);
     }
@@ -354,19 +354,22 @@ export class RateLimiter {
     // Log reset action
     if (hadViolation || hadBucket) {
       try {
-        await this.eventRepository.createEvent({
-          kiosk_id: kioskId || 'system',
-          event_type: EventType.STAFF_OPEN, // Using existing event type, should add RATE_LIMIT_RESET
-          staff_user: adminUser,
-          details: {
+        await this.eventRepository.logEvent(
+          kioskId || 'system',
+          EventType.STAFF_OPEN, // Using existing event type, should add RATE_LIMIT_RESET
+          {
             rate_limit_reset: {
               key,
               had_violation: hadViolation,
               had_bucket: hadBucket,
               reset_by: adminUser
             }
-          }
-        });
+          },
+          undefined, // lockerId
+          undefined, // rfidCard
+          undefined, // deviceId
+          adminUser // staffUser
+        );
       } catch (error) {
         console.error('Failed to log rate limit reset:', error);
       }

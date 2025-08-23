@@ -515,6 +515,8 @@ export interface UpdateStatus {
 // SYSTEM CONFIGURATION ENTITIES (Extended)
 // ============================================================================
 
+import { SystemConfig } from '../../shared/types/system-config';
+
 export interface ExtendedSystemConfig extends SystemConfig {
   // Hardware configuration
   MODBUS_PORT: string;

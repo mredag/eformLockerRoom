@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { EventLogger } from './event-logger';
+import { EventType } from '../types/core-entities';
 
 export interface SecurityViolation {
   type: string;
@@ -297,7 +298,7 @@ export class SecurityValidator {
    * Log security violation
    */
   logSecurityViolation(violation: SecurityViolation): void {
-    this.eventLogger.logEvent('security_violation', null, null, {
+    this.eventLogger.logEvent('system', EventType.SYSTEM_RESTARTED, {
       violation_type: violation.type,
       ip_address: violation.ip,
       details: violation.details,
@@ -309,7 +310,7 @@ export class SecurityValidator {
    * Log authentication failure
    */
   logAuthenticationFailure(failure: AuthenticationFailure): void {
-    this.eventLogger.logEvent('auth_failure', null, null, {
+    this.eventLogger.logEvent('system', EventType.SYSTEM_RESTARTED, {
       username: failure.username,
       ip_address: failure.ip,
       reason: failure.reason,
