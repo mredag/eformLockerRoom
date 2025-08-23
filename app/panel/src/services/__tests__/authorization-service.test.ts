@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AuthorizationService } from '../authorization-service.js';
-import { PermissionService } from '../permission-service.js';
-import { SessionManager } from '../session-manager.js';
+import { AuthorizationService } from '../authorization-service';
+import { PermissionService } from '../permission-service';
+import { SessionManager } from '../session-manager';
 
 // Mock dependencies
 vi.mock('../permission-service.js');

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { ProvisioningService } from '../services/provisioning.js';
-import { DatabaseConnection } from '../database/connection.js';
+import { ProvisioningService } from '../services/provisioning';
+import { DatabaseConnection } from '../database/connection';
 
 async function main() {
   const args = process.argv.slice(2);

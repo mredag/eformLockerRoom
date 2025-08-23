@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SecurityValidator } from '../security-validation.js';
-import { EventLogger } from '../event-logger.js';
+import { SecurityValidator } from '../security-validation';
+import { EventLogger } from '../event-logger';
 
 // Mock dependencies
 vi.mock('../event-logger.js');

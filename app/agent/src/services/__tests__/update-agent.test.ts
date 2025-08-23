@@ -1,4 +1,4 @@
-import { UpdateAgent } from '../update-agent.js';
+import { UpdateAgent } from '../update-agent';
 import { promises as fs } from 'fs';
 import { createHash } from 'crypto';
 import * as path from 'path';

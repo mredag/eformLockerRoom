@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Fastify from 'fastify';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { vipRoutes } from '../routes/vip-routes.js';
-import { AuthService } from '../services/auth-service.js';
-import { SessionManager } from '../services/session-manager.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { vipRoutes } from '../routes/vip-routes';
+import { AuthService } from '../services/auth-service';
+import { SessionManager } from '../services/session-manager';
 
 describe('VIP Routes', () => {
   let fastify: any;

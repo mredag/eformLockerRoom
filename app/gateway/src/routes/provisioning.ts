@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { ProvisioningController } from '../controllers/provisioning.js';
+import { ProvisioningController } from '../controllers/provisioning';
 
 export async function provisioningRoutes(fastify: FastifyInstance) {
   const controller = new ProvisioningController();

@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { User } from './auth-service.js';
+import { User } from './auth-service';
 
 export interface Session {
   id: string;

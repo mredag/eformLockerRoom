@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { I18nService, SupportedLanguage } from '../i18n-service.js';
+import { I18nService, SupportedLanguage } from '../i18n-service';
 
 /**
  * Regression tests for i18n system

@@ -13,9 +13,9 @@ export default defineConfig({
       hooks: 'stack'
     }
   },
-  resolve: {
-    alias: {
-      '@': new URL('./', import.meta.url).pathname
-    }
-  }
+  // resolve: {
+  //   alias: {
+  //     '@': new URL('./', import.meta.url).pathname
+  //   }
+  // }
 });

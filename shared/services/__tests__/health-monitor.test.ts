@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { HealthMonitor } from '../health-monitor.js';
-import { DatabaseConnection } from '../../database/connection.js';
-import { EventLogger } from '../event-logger.js';
-import { CommandQueueManager } from '../command-queue-manager.js';
+import { HealthMonitor } from '../health-monitor';
+import { DatabaseConnection } from '../../database/connection';
+import { EventLogger } from '../event-logger';
+import { CommandQueueManager } from '../command-queue-manager';
 import fs from 'fs/promises';
 import path from 'path';
 

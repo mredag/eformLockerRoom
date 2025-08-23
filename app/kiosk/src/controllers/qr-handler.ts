@@ -1,9 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { randomBytes, createHmac } from 'crypto';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { ModbusController } from '../hardware/modbus-controller.js';
-import { QrResponse, QrActionToken, EventType } from '../../../../shared/types/core-entities.js';
-import { RateLimiter } from '../services/rate-limiter.js';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { ModbusController } from '../hardware/modbus-controller';
+import { QrResponse, QrActionToken, EventType } from '../../../../shared/types/core-entities';
+import { RateLimiter } from '../services/rate-limiter';
 
 export class QrHandler {
   private lockerStateManager: LockerStateManager;

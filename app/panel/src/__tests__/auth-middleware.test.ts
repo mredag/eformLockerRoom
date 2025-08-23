@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createAuthMiddleware, requirePermission, requireCsrfToken } from '../middleware/auth-middleware.js';
-import { SessionManager } from '../services/session-manager.js';
-import { Permission } from '../services/permission-service.js';
-import { User } from '../services/auth-service.js';
+import { createAuthMiddleware, requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
+import { SessionManager } from '../services/session-manager';
+import { Permission } from '../services/permission-service';
+import { User } from '../services/auth-service';
 
 describe('AuthMiddleware', () => {
   let sessionManager: SessionManager;

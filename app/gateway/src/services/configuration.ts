@@ -1,12 +1,12 @@
 import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseConnection } from '../../../../shared/database/connection.js';
+import { DatabaseConnection } from '../../../../shared/database/connection';
 import { 
   SystemConfig, 
   ConfigurationPackage, 
   ConfigurationDeployment, 
   KioskConfigStatus 
-} from '../../../../shared/types/index.js';
+} from '../../../../shared/types/index';
 
 export class ConfigurationService {
   private db: DatabaseConnection;

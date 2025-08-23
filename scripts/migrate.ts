@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
-import { MigrationRunner } from '../shared/database/migration-runner.js';
-import { DatabaseConnection } from '../shared/database/connection.js';
+import { MigrationRunner } from '../shared/database/migration-runner';
+import { DatabaseConnection } from '../shared/database/connection';
 
 async function runMigrations() {
   console.log('🔄 Running database migrations...\n');

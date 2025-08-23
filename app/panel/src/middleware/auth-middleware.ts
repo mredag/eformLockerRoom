@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SessionManager } from '../services/session-manager.js';
-import { PermissionService, Permission } from '../services/permission-service.js';
-import { User } from '../services/auth-service.js';
+import { SessionManager } from '../services/session-manager';
+import { PermissionService, Permission } from '../services/permission-service';
+import { User } from '../services/auth-service';
 
 declare module 'fastify' {
   interface FastifyRequest {

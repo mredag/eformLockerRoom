@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { CommandQueueRepository } from '../command-queue-repository.js';
-import { DatabaseConnection } from '../connection.js';
+import { CommandQueueRepository } from '../command-queue-repository';
+import { DatabaseConnection } from '../connection';
 import { Command, CommandType, CommandStatus } from '../../types/core-entities';
 
 // Mock the database connection

@@ -1,5 +1,5 @@
-import { PermissionService } from './permission-service.js';
-import { SessionManager } from './session-manager.js';
+import { PermissionService } from './permission-service';
+import { SessionManager } from './session-manager';
 
 export interface AuthorizationResult {
   allowed: boolean;

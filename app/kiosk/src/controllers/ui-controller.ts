@@ -1,12 +1,12 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { RfidUserFlow } from '../services/rfid-user-flow.js';
-import { ModbusController } from '../hardware/modbus-controller.js';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { RfidUserFlow } from '../services/rfid-user-flow';
+import { ModbusController } from '../hardware/modbus-controller';
 
 // Use process.cwd() for compatibility with bundled code
-const __dirname = process.cwd();
+const currentDir = process.cwd();
 
 export class UiController {
   private lockerStateManager: LockerStateManager;
@@ -30,7 +30,7 @@ export class UiController {
   async registerRoutes(fastify: FastifyInstance) {
     // Serve static files
     await fastify.register(require('@fastify/static'), {
-      root: join(__dirname, 'app/kiosk/src/ui/static'),
+      root: join(__dirname, '../src/ui/static'),
       prefix: '/static/'
     });
 
@@ -75,7 +75,7 @@ export class UiController {
 
   private async serveUI(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const htmlPath = join(__dirname, 'app/kiosk/src/ui/index.html');
+      const htmlPath = join(__dirname, '../src/ui/index.html');
       const html = await readFile(htmlPath, 'utf-8');
       
       reply.type('text/html');

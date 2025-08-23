@@ -18,7 +18,9 @@ try {
 
 // Initialize database
 async function initializeDatabase() {
-  const dbManager = DatabaseManager.getInstance();
+  const dbManager = DatabaseManager.getInstance({
+    migrationsPath: '../../migrations'
+  });
   await dbManager.initialize();
 }
 

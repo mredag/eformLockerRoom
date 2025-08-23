@@ -1,5 +1,5 @@
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { SessionManager } from './session-manager.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { SessionManager } from './session-manager';
 import argon2 from 'argon2';
 
 export interface PinRotationConfig {

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
-import { DatabaseConnection } from '../database/connection.js';
-import { ConfigurationService } from '../services/configuration.js';
+import { DatabaseConnection } from '../database/connection';
+import { ConfigurationService } from '../services/configuration';
 
 async function testConfigurationSystem() {
   console.log('🔧 Testing Configuration Distribution System...\n');

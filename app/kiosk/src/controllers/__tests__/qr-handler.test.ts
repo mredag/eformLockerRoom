@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { QrHandler } from '../qr-handler.js';
-import { RateLimiter } from '../../services/rate-limiter.js';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { EventLogger } from '../../../../shared/services/event-logger.js';
+import { QrHandler } from '../qr-handler';
+import { RateLimiter } from '../../services/rate-limiter';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { EventLogger } from '../../../../shared/services/event-logger';
 
 // Mock dependencies
 vi.mock('../../services/rate-limiter.js');

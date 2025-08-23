@@ -1,5 +1,5 @@
-import { RateLimiter as SharedRateLimiter, createRateLimiter } from '../../../../shared/services/rate-limiter.js';
-import { EventRepository } from '../../../../shared/database/event-repository.js';
+import { RateLimiter as SharedRateLimiter, createRateLimiter } from '../../../../shared/services/rate-limiter';
+import { EventRepository } from '../../../../shared/database/event-repository';
 
 export interface RateLimitConfig {
   ip: { maxTokens: number; refillRate: number }; // 30/min

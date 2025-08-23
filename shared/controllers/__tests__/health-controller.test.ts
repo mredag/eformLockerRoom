@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { HealthController } from '../health-controller.js';
-import { HealthMonitor } from '../../services/health-monitor.js';
+import { HealthController } from '../health-controller';
+import { HealthMonitor } from '../../services/health-monitor';
 import { FastifyRequest, FastifyReply } from 'fastify';
 
 // Mock HealthMonitor

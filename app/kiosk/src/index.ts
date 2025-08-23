@@ -1,13 +1,13 @@
 import Fastify from 'fastify';
-import { LockerStateManager } from '../../../shared/services/locker-state-manager.js';
-import { QrHandler } from './controllers/qr-handler.js';
-import { UiController } from './controllers/ui-controller.js';
-import { RfidUserFlow } from './services/rfid-user-flow.js';
-import { ModbusController } from './hardware/modbus-controller.js';
-import { RfidHandler } from './hardware/rfid-handler.js';
-import { HeartbeatClient } from './services/heartbeat-client.js';
-import { KioskSecurityMiddleware, createKioskValidationMiddleware } from './middleware/security-middleware.js';
-import { KioskI18nController } from './controllers/i18n-controller.js';
+import { LockerStateManager } from '../../../shared/services/locker-state-manager';
+import { QrHandler } from './controllers/qr-handler';
+import { UiController } from './controllers/ui-controller';
+import { RfidUserFlow } from './services/rfid-user-flow';
+import { ModbusController } from './hardware/modbus-controller';
+import { RfidHandler } from './hardware/rfid-handler';
+import { HeartbeatClient } from './services/heartbeat-client';
+import { KioskSecurityMiddleware, createKioskValidationMiddleware } from './middleware/security-middleware';
+import { KioskI18nController } from './controllers/i18n-controller';
 
 const fastify = Fastify({
   logger: true
@@ -22,9 +22,45 @@ fastify.addHook('onRequest', securityMiddleware.createSecurityHook());
 
 // Initialize services
 const lockerStateManager = new LockerStateManager();
-const modbusController = new ModbusController();
-const rfidHandler = new RfidHandler();
-const rfidUserFlow = new RfidUserFlow(lockerStateManager, modbusController);
+
+// Modbus configuration
+const modbusConfig = {
+  port: process.env.MODBUS_PORT || '/dev/ttyUSB0',
+  baudrate: parseInt(process.env.MODBUS_BAUDRATE || '9600'),
+  timeout_ms: 1000,
+  pulse_duration_ms: 500,
+  burst_duration_seconds: 2,
+  burst_interval_ms: 100,
+  command_interval_ms: 50,
+  max_retries: 3,
+  retry_delay_base_ms: 100,
+  retry_delay_max_ms: 1000,
+  connection_retry_attempts: 5,
+  health_check_interval_ms: 30000,
+  test_mode: false,
+  use_multiple_coils: true,
+  verify_writes: true
+};
+
+// RFID configuration
+const rfidConfig = {
+  reader_type: (process.env.RFID_READER_TYPE as 'hid' | 'keyboard') || 'hid',
+  debounce_ms: 1000,
+  vendor_id: parseInt(process.env.RFID_VENDOR_ID || '0x0'),
+  product_id: parseInt(process.env.RFID_PRODUCT_ID || '0x0')
+};
+
+const modbusController = new ModbusController(modbusConfig);
+const rfidHandler = new RfidHandler(rfidConfig);
+
+// RFID User Flow configuration
+const rfidUserFlowConfig = {
+  kiosk_id: process.env.KIOSK_ID || 'kiosk-1',
+  max_available_lockers_display: parseInt(process.env.MAX_AVAILABLE_LOCKERS || '10'),
+  opening_timeout_ms: parseInt(process.env.OPENING_TIMEOUT_MS || '30000')
+};
+
+const rfidUserFlow = new RfidUserFlow(rfidUserFlowConfig, lockerStateManager, modbusController);
 const qrHandler = new QrHandler(lockerStateManager, modbusController);
 const uiController = new UiController(lockerStateManager, rfidUserFlow, modbusController);
 const i18nController = new KioskI18nController(fastify);
@@ -34,7 +70,7 @@ const KIOSK_ID = process.env.KIOSK_ID || 'kiosk-1';
 const ZONE = process.env.ZONE || 'main';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3000';
 const VERSION = process.env.npm_package_version || '1.0.0';
-const PORT = parseInt(process.env.PORT || '3001');
+const PORT = parseInt(process.env.PORT || '3002');
 
 // Initialize heartbeat client
 const heartbeatClient = new HeartbeatClient({
@@ -77,9 +113,9 @@ fastify.get('/health', async (request, reply) => {
 });
 
 // Initialize RFID handler
-rfidHandler.onCardScanned = async (cardId: string) => {
-  await rfidUserFlow.handleCardScanned(KIOSK_ID, cardId);
-};
+rfidHandler.on('card_scanned', async (scanEvent: any) => {
+  await rfidUserFlow.handleCardScanned(scanEvent);
+});
 
 // Register command handlers for heartbeat client
 heartbeatClient.registerCommandHandler('open_locker', async (command) => {
@@ -235,8 +271,8 @@ const start = async () => {
     // Initialize kiosk lockers if needed
     await lockerStateManager.initializeKioskLockers(KIOSK_ID, 30);
     
-    // Start heartbeat client
-    await heartbeatClient.start();
+    // Start heartbeat client (disabled for now)
+    // await heartbeatClient.start();
     
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`🚀 Kiosk service ${KIOSK_ID} running on port ${PORT} (zone: ${ZONE})`);
@@ -249,7 +285,7 @@ const start = async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('Received SIGTERM, shutting down gracefully...');
-  await heartbeatClient.stop();
+  // await heartbeatClient.stop();
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);
@@ -257,7 +293,7 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('Received SIGINT, shutting down gracefully...');
-  await heartbeatClient.stop();
+  // await heartbeatClient.stop();
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);

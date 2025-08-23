@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { AuthService } from '../services/auth-service.js';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
+import { AuthService } from '../services/auth-service';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
 
 describe('AuthService', () => {
   let authService: AuthService;

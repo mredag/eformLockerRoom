@@ -5,9 +5,9 @@
  */
 
 import { EventEmitter } from 'events';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { ModbusController } from '../hardware/modbus-controller.js';
-import { Locker, RfidScanEvent } from '../../../../src/types/core-entities.js';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { ModbusController } from '../hardware/modbus-controller';
+import { Locker, RfidScanEvent } from '../../../../src/types/core-entities';
 
 export interface RfidUserFlowConfig {
   kiosk_id: string;

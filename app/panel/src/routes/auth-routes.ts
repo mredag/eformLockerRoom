@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { AuthService, User } from '../services/auth-service.js';
-import { SessionManager } from '../services/session-manager.js';
-import { PermissionService, Permission } from '../services/permission-service.js';
+import { AuthService, User } from '../services/auth-service';
+import { SessionManager } from '../services/session-manager';
+import { PermissionService, Permission } from '../services/permission-service';
 
 interface AuthRouteOptions extends FastifyPluginOptions {
   authService: AuthService;

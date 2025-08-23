@@ -1,13 +1,13 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { VipContractRepository } from '../../../../shared/database/vip-contract-repository.js';
-import { VipTransferRepository } from '../../../../shared/database/vip-transfer-repository.js';
-import { VipHistoryRepository } from '../../../../shared/database/vip-history-repository.js';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager.js';
-import { EventRepository } from '../../../../shared/database/event-repository.js';
-import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware.js';
-import { Permission } from '../services/permission-service.js';
-import { User } from '../services/auth-service.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { VipContractRepository } from '../../../../shared/database/vip-contract-repository';
+import { VipTransferRepository } from '../../../../shared/database/vip-transfer-repository';
+import { VipHistoryRepository } from '../../../../shared/database/vip-history-repository';
+import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { EventRepository } from '../../../../shared/database/event-repository';
+import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
+import { Permission } from '../services/permission-service';
+import { User } from '../services/auth-service';
 
 interface VipRouteOptions extends FastifyPluginOptions {
   dbManager: DatabaseManager;

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { ConfigManager } from '../config-manager.js';
+import { ConfigManager } from '../config-manager';
 import { readFile, writeFile, access } from 'fs/promises';
-import { CompleteSystemConfig } from '../../types/system-config.js';
+import { CompleteSystemConfig } from '../../types/system-config';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({

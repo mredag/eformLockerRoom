@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { LogRetentionManager, RetentionConfig, CleanupResult } from '../log-retention-manager.js';
-import { DatabaseConnection } from '../../database/connection.js';
-import { EventLogger } from '../event-logger.js';
+import { LogRetentionManager, RetentionConfig, CleanupResult } from '../log-retention-manager';
+import { DatabaseConnection } from '../../database/connection';
+import { EventLogger } from '../event-logger';
 import fs from 'fs/promises';
 
 // Mock dependencies

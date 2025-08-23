@@ -4,10 +4,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { RfidUserFlow } from '../rfid-user-flow.js';
-import { LockerStateManager } from '../../../../../shared/services/locker-state-manager.js';
-import { ModbusController } from '../../hardware/modbus-controller.js';
-import { Locker } from '../../../../../src/types/core-entities.js';
+import { RfidUserFlow } from '../rfid-user-flow';
+import { LockerStateManager } from '../../../../../shared/services/locker-state-manager';
+import { ModbusController } from '../../hardware/modbus-controller';
+import { Locker } from '../../../../../src/types/core-entities';
 
 // Mock dependencies
 vi.mock('../../../../../shared/services/locker-state-manager.js');

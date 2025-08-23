@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { HeartbeatManager } from '../../../../shared/services/heartbeat-manager.js';
-import { KioskStatus } from '../../../../src/types/core-entities.js';
+import { HeartbeatManager } from '../../../../shared/services/heartbeat-manager';
+import { KioskStatus } from '../../../../src/types/core-entities';
 
 interface HeartbeatRequest {
   kiosk_id: string;

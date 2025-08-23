@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Eform Locker System - Shared Components",
   "main": "dist/index.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "build": "tsc",
     "test": "vitest --run",
@@ -20,6 +20,6 @@
     "vitest": "^3.2.4"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=18.0.0"
   }
 }

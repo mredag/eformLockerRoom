@@ -1,5 +1,5 @@
 import { beforeEach, afterEach } from 'vitest';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
 
 let testDbManager: DatabaseManager;
 

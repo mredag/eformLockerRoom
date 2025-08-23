@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
-import { I18nController } from '../i18n-controller.js';
+import { I18nController } from '../i18n-controller';
 
 describe('I18nController', () => {
   let fastify: FastifyInstance;

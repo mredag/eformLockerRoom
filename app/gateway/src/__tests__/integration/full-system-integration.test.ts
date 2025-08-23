@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DatabaseManager } from '../../../../../shared/database/database-manager.js';
-import { LockerStateManager } from '../../../../../shared/services/locker-state-manager.js';
-import { CommandQueueManager } from '../../../../../shared/services/command-queue-manager.js';
-import { HeartbeatManager } from '../../../../../shared/services/heartbeat-manager.js';
-import { EventLogger } from '../../../../../shared/services/event-logger.js';
-import { VipContractRepository } from '../../../../../shared/database/vip-contract-repository.js';
-import { LockerRepository } from '../../../../../shared/database/locker-repository.js';
-import { EventRepository } from '../../../../../shared/database/event-repository.js';
-import { EventType } from '../../../../../shared/types/core-entities.js';
+import { DatabaseManager } from '../../../../../shared/database/database-manager';
+import { LockerStateManager } from '../../../../../shared/services/locker-state-manager';
+import { CommandQueueManager } from '../../../../../shared/services/command-queue-manager';
+import { HeartbeatManager } from '../../../../../shared/services/heartbeat-manager';
+import { EventLogger } from '../../../../../shared/services/event-logger';
+import { VipContractRepository } from '../../../../../shared/database/vip-contract-repository';
+import { LockerRepository } from '../../../../../shared/database/locker-repository';
+import { EventRepository } from '../../../../../shared/database/event-repository';
+import { EventType } from '../../../../../shared/types/core-entities';
 
 describe('Full System Integration Tests', () => {
   let dbManager: DatabaseManager;

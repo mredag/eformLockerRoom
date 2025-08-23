@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { I18nService, SupportedLanguage } from '../i18n-service.js';
+import { I18nService, SupportedLanguage } from '../i18n-service';
 
 describe('I18nService', () => {
   let i18nService: I18nService;

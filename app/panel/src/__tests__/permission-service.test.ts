@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PermissionService, Permission } from '../services/permission-service.js';
+import { PermissionService, Permission } from '../services/permission-service';
 
 describe('PermissionService', () => {
   describe('hasPermission', () => {

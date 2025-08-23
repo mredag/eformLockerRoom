@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { DatabaseConnection } from '../../database/connection.js';
-import { LockerStateManager } from '../locker-state-manager.js';
-import { LockerStatus, OwnerType, EventType } from '../../types/core-entities.js';
+import { DatabaseConnection } from '../../database/connection';
+import { LockerStateManager } from '../locker-state-manager';
+import { LockerStatus, OwnerType, EventType } from '../../types/core-entities';
 
 describe('LockerStateManager', () => {
   let db: DatabaseConnection;

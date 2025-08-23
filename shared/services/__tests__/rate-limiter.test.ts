@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { RateLimiter, RateLimitConfig, createRateLimiter } from '../rate-limiter.js';
-import { EventRepository } from '../../database/event-repository.js';
-import { EventType } from '../../types/core-entities.js';
+import { RateLimiter, RateLimitConfig, createRateLimiter } from '../rate-limiter';
+import { EventRepository } from '../../database/event-repository';
+import { EventType } from '../../types/core-entities';
 
 // Mock EventRepository
 const mockEventRepository = {

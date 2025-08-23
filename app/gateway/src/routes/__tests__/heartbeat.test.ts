@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
-import { heartbeatRoutes } from '../heartbeat.js';
-import { DatabaseConnection } from '../../../../../shared/database/connection.js';
+import { heartbeatRoutes } from '../heartbeat';
+import { DatabaseConnection } from '../../../../../shared/database/connection';
 
 // Mock the database connection
 vi.mock('../../../../../shared/database/connection.js', () => ({

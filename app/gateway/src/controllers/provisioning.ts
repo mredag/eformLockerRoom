@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { ProvisioningService } from '../services/provisioning.js';
-import { KioskRegistrationRequest } from '../../../../shared/types/index.js';
+import { ProvisioningService } from '../services/provisioning';
+import { KioskRegistrationRequest } from '../../../../shared/types/index';
 
 export class ProvisioningController {
   private provisioningService: ProvisioningService;

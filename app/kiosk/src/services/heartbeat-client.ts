@@ -1,4 +1,4 @@
-import { EventType, Command } from '../../../../src/types/core-entities.js';
+import { EventType, Command } from '../../../../src/types/core-entities';
 
 export interface HeartbeatConfig {
   gatewayUrl: string;

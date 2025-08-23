@@ -1,16 +1,16 @@
 import Fastify from 'fastify';
-import { DatabaseManager } from '../../../shared/database/database-manager.js';
-import { AuthService } from './services/auth-service.js';
-import { SessionManager } from './services/session-manager.js';
-import { createAuthMiddleware } from './middleware/auth-middleware.js';
-import { SecurityMiddleware, AuditLogger } from './middleware/security-middleware.js';
-import { authRoutes } from './routes/auth-routes.js';
-import { lockerRoutes } from './routes/locker-routes.js';
-import { vipRoutes } from './routes/vip-routes.js';
-import { EventRepository } from '../../../shared/database/event-repository.js';
-import { I18nController } from './controllers/i18n-controller.js';
-import { ConfigController } from './controllers/config-controller.js';
-import { configManager } from '../../../shared/services/config-manager.js';
+import { DatabaseManager } from '../../../shared/database/database-manager';
+import { AuthService } from './services/auth-service';
+import { SessionManager } from './services/session-manager';
+import { createAuthMiddleware } from './middleware/auth-middleware';
+import { SecurityMiddleware, AuditLogger } from './middleware/security-middleware';
+import { authRoutes } from './routes/auth-routes';
+import { lockerRoutes } from './routes/locker-routes';
+import { vipRoutes } from './routes/vip-routes';
+import { EventRepository } from '../../../shared/database/event-repository';
+import { I18nController } from './controllers/i18n-controller';
+import { ConfigController } from './controllers/config-controller';
+import { configManager } from '../../../shared/services/config-manager';
 
 const fastify = Fastify({
   logger: true

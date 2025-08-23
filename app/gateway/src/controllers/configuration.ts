@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { ConfigurationService } from '../services/configuration.js';
-import { SystemConfig } from '../../../../shared/types/index.js';
+import { ConfigurationService } from '../services/configuration';
+import { SystemConfig } from '../../../../shared/types/index';
 
 export class ConfigurationController {
   private configService: ConfigurationService;

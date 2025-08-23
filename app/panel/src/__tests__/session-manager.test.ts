@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SessionManager } from '../services/session-manager.js';
-import { User } from '../services/auth-service.js';
+import { SessionManager } from '../services/session-manager';
+import { User } from '../services/auth-service';
 
 describe('SessionManager', () => {
   let sessionManager: SessionManager;

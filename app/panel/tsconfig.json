@@ -5,7 +5,13 @@
     "rootDir": "./src",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "composite": true,
+    "paths": {
+      "../shared/*": ["../../shared/*"],
+      "../../shared/*": ["../../shared/*"]
+    }
   },
   "include": [
     "src/**/*"

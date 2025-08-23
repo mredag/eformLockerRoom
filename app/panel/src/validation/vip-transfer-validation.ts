@@ -8,11 +8,11 @@
  * - VIP transfer validation and approval process
  */
 
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { VipContractRepository } from '../../../../shared/database/vip-contract-repository.js';
-import { VipTransferRepository } from '../../../../shared/database/vip-transfer-repository.js';
-import { VipHistoryRepository } from '../../../../shared/database/vip-history-repository.js';
-import { EventRepository } from '../../../../shared/database/event-repository.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { VipContractRepository } from '../../../../shared/database/vip-contract-repository';
+import { VipTransferRepository } from '../../../../shared/database/vip-transfer-repository';
+import { VipHistoryRepository } from '../../../../shared/database/vip-history-repository';
+import { EventRepository } from '../../../../shared/database/event-repository';
 
 interface ValidationResult {
   component: string;

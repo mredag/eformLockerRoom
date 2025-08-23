@@ -157,7 +157,7 @@ export class ModbusController extends EventEmitter {
         
         if (attempt === maxRetries) {
           this.health.status = 'error';
-          throw new Error(`Failed to initialize Modbus after ${maxRetries + 1} attempts: ${error.message}`);
+          throw new Error(`Failed to initialize Modbus after ${maxRetries + 1} attempts: ${error instanceof Error ? error.message : String(error)}`);
         }
         
         // Exponential backoff
@@ -696,7 +696,7 @@ export class ModbusController extends EventEmitter {
       }
 
     } catch (error) {
-      this.emit('error', { source: 'health_check', error: error.message });
+      this.emit('error', { source: 'health_check', error: error instanceof Error ? error.message : String(error) });
     }
   }
 

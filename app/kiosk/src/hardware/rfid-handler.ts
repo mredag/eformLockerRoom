@@ -6,6 +6,7 @@
 
 import { EventEmitter } from 'events';
 import { createHash } from 'crypto';
+// @ts-ignore
 import HID from 'node-hid';
 
 export interface RfidConfig {
@@ -63,15 +64,15 @@ export class RfidHandler extends EventEmitter {
     
     let targetDevice;
     if (this.config.vendor_id && this.config.product_id) {
-      targetDevice = devices.find(d => 
+      targetDevice = devices.find((d: any) => 
         d.vendorId === this.config.vendor_id && 
         d.productId === this.config.product_id
       );
     } else if (this.config.device_path) {
-      targetDevice = devices.find(d => d.path === this.config.device_path);
+      targetDevice = devices.find((d: any) => d.path === this.config.device_path);
     } else {
       // Auto-detect common RFID reader patterns
-      targetDevice = devices.find(d => 
+      targetDevice = devices.find((d: any) => 
         d.product?.toLowerCase().includes('rfid') ||
         d.manufacturer?.toLowerCase().includes('rfid') ||
         (d.vendorId === 0x08ff) || // AuthenTec/Upek readers

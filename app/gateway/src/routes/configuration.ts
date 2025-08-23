@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { ConfigurationController } from '../controllers/configuration.js';
+import { ConfigurationController } from '../controllers/configuration';
 
 export async function configurationRoutes(fastify: FastifyInstance) {
   const configController = new ConfigurationController();

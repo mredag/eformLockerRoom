@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Fastify, { FastifyInstance } from 'fastify';
-import { configurationRoutes } from '../src/routes/configuration.js';
-import { DatabaseConnection } from '../../../shared/database/connection.js';
+import { configurationRoutes } from '../src/routes/configuration';
+import { DatabaseConnection } from '../../../shared/database/connection';
 
 describe('ConfigurationController', () => {
   let app: FastifyInstance;

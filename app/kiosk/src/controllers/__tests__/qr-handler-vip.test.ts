@@ -4,9 +4,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { QrHandler } from '../qr-handler.js';
-import { LockerStateManager } from '../../../../../shared/services/locker-state-manager.js';
-import { ModbusController } from '../../hardware/modbus-controller.js';
+import { QrHandler } from '../qr-handler';
+import { LockerStateManager } from '../../../../../shared/services/locker-state-manager';
+import { ModbusController } from '../../hardware/modbus-controller';
 
 // Mock dependencies
 vi.mock('../../../../../shared/services/locker-state-manager.js');

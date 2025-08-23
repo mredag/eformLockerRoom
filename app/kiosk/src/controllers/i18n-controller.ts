@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { i18nService, SupportedLanguage } from '../../../../shared/services/i18n-service.js';
+import { i18nService, SupportedLanguage } from '../../../../shared/services/i18n-service';
 
 interface LanguageRequest {
   Body: {

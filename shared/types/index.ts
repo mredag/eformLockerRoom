@@ -1,5 +1,5 @@
 // Re-export core entities for backward compatibility
-export * from './core-entities.js';
+export * from './core-entities';
 
 // Provisioning-specific interfaces (legacy compatibility)
 export interface KioskRegistrationRequest {

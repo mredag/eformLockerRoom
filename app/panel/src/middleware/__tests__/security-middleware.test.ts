@@ -5,7 +5,7 @@ import {
   InputValidator, 
   AuditLogger,
   createValidationMiddleware 
-} from '../security-middleware.js';
+} from '../security-middleware';
 
 // Mock Fastify request and reply
 const createMockRequest = (overrides: Partial<FastifyRequest> = {}): FastifyRequest => ({

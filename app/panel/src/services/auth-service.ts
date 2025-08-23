@@ -1,5 +1,5 @@
 import argon2 from 'argon2';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
 
 export interface User {
   id: number;

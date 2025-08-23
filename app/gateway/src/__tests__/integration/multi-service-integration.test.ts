@@ -4,17 +4,17 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DatabaseManager } from '../../../../../shared/database/database-manager.js';
-import { CommandQueueManager } from '../../../../../shared/services/command-queue-manager.js';
-import { LockerStateManager } from '../../../../../shared/services/locker-state-manager.js';
-import { EventLogger } from '../../../../../shared/services/event-logger.js';
-import { HeartbeatManager } from '../../../../../shared/services/heartbeat-manager.js';
-import { LockerCoordinationService } from '../../services/locker-coordination.js';
-import { LockerRepository } from '../../../../../shared/database/locker-repository.js';
-import { VipContractRepository } from '../../../../../shared/database/vip-contract-repository.js';
-import { KioskHeartbeatRepository } from '../../../../../shared/database/kiosk-heartbeat-repository.js';
-import { EventRepository } from '../../../../../shared/database/event-repository.js';
-import { KioskHeartbeat, Command } from '../../../../../shared/types/core-entities.js';
+import { DatabaseManager } from '../../../../../shared/database/database-manager';
+import { CommandQueueManager } from '../../../../../shared/services/command-queue-manager';
+import { LockerStateManager } from '../../../../../shared/services/locker-state-manager';
+import { EventLogger } from '../../../../../shared/services/event-logger';
+import { HeartbeatManager } from '../../../../../shared/services/heartbeat-manager';
+import { LockerCoordinationService } from '../../services/locker-coordination';
+import { LockerRepository } from '../../../../../shared/database/locker-repository';
+import { VipContractRepository } from '../../../../../shared/database/vip-contract-repository';
+import { KioskHeartbeatRepository } from '../../../../../shared/database/kiosk-heartbeat-repository';
+import { EventRepository } from '../../../../../shared/database/event-repository';
+import { KioskHeartbeat, Command } from '../../../../../shared/types/core-entities';
 
 describe('Multi-Service Integration Tests', () => {
   let dbManager: DatabaseManager;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { UpdateAgent } from './services/update-agent.js';
+import { UpdateAgent } from './services/update-agent';
 
 /**
  * Eform Update Agent

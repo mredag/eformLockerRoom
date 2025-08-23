@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { LockerStateManager } from '../locker-state-manager.js';
-import { LockerStatus, OwnerType } from '../../types/core-entities.js';
+import { LockerStateManager } from '../locker-state-manager';
+import { LockerStatus, OwnerType } from '../../types/core-entities';
 
 // Mock database for testing assignment and release logic
 class MockDatabase {

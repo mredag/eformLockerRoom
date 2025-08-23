@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { LockerCoordinationService } from '../locker-coordination.js';
-import { DatabaseManager } from '../../../../shared/database/database-manager.js';
-import { CommandQueueManager } from '../../../../shared/services/command-queue-manager.js';
-import { EventLogger } from '../../../../shared/services/event-logger.js';
+import { LockerCoordinationService } from '../locker-coordination';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
+import { CommandQueueManager } from '../../../../shared/services/command-queue-manager';
+import { EventLogger } from '../../../../shared/services/event-logger';
 
 // Mock dependencies
 vi.mock('../../../../shared/database/database-manager.js');

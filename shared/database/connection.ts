@@ -8,7 +8,7 @@ export class DatabaseConnection {
   private isInitialized: boolean = false;
   private dbPath: string;
 
-  private constructor(dbPath: string = './data/eform.db') {
+  private constructor(dbPath: string = process.env.EFORM_DB_PATH || './data/eform.db') {
     this.dbPath = this.resolveDatabasePath(dbPath);
   }
 

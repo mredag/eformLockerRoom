@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { configManager } from '../../../../shared/services/config-manager.js';
-import { CompleteSystemConfig } from '../../../../shared/types/system-config.js';
+import { configManager } from '../../../../shared/services/config-manager';
+import { CompleteSystemConfig } from '../../../../shared/types/system-config';
 
 interface UpdateConfigRequest {
   Body: {

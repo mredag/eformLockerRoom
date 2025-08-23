@@ -1,13 +1,13 @@
 import { randomBytes, createHmac } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseConnection } from '../../../../shared/database/connection.js';
+import { DatabaseConnection } from '../../../../shared/database/connection';
 import { 
   KioskRegistrationRequest, 
   KioskRegistrationResponse, 
   ProvisioningToken, 
   ProvisioningStatus,
   KioskHeartbeat 
-} from '../../../../shared/types/index.js';
+} from '../../../../shared/types/index';
 
 export class ProvisioningService {
   private db: DatabaseConnection;

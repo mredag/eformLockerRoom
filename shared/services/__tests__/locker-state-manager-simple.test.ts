@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DatabaseConnection } from '../../database/connection.js';
-import { LockerStateManager } from '../locker-state-manager.js';
+import { DatabaseConnection } from '../../database/connection';
+import { LockerStateManager } from '../locker-state-manager';
 
 describe('LockerStateManager - Simple Tests', () => {
   let db: DatabaseConnection;

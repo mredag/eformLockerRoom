@@ -1,4 +1,4 @@
-import { User } from '../services/auth-service.js';
+import { User } from '../services/auth-service';
 
 declare module 'fastify' {
   interface FastifyRequest {

@@ -1,6 +1,6 @@
-import { DatabaseManager } from '../../../shared/database/database-manager.js';
-import { CommandQueueManager } from '../../../shared/services/command-queue-manager.js';
-import { EventLogger } from '../../../shared/services/event-logger.js';
+import { DatabaseManager } from '../../../shared/database/database-manager';
+import { CommandQueueManager } from '../../../shared/services/command-queue-manager';
+import { EventLogger } from '../../../shared/services/event-logger';
 
 export interface BulkOperationResult {
   success: boolean;
