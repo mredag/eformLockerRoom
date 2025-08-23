@@ -1,17 +1,46 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AuthService } from '../services/auth-service';
 import { DatabaseManager } from '../../../../shared/database/database-manager';
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('AuthService', () => {
   let authService: AuthService;
   let dbManager: DatabaseManager;
+  let testDbPath: string;
 
   beforeEach(async () => {
-    // Create a unique instance for each test
+    // Create a unique test database file
+    testDbPath = path.join(process.cwd(), 'data', `test-${Date.now()}.db`);
+    
+    // Ensure data directory exists
+    const dataDir = path.dirname(testDbPath);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    // Create database manager with test database
     dbManager = new DatabaseManager({
-      path: ':memory:'
+      path: testDbPath
     });
     await dbManager.initialize();
+    
+    // Create staff_users table for testing
+    const db = dbManager.getDatabase();
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS staff_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('admin', 'staff')),
+        active INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        last_login TEXT,
+        pin_expires_at TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
     authService = new AuthService(dbManager);
   });
 
@@ -21,6 +50,15 @@ describe('AuthService', () => {
         dbManager.close();
       } catch (error) {
         // Ignore close errors in tests
+      }
+    }
+    
+    // Clean up test database file
+    if (testDbPath && fs.existsSync(testDbPath)) {
+      try {
+        fs.unlinkSync(testDbPath);
+      } catch (error) {
+        // Ignore cleanup errors
       }
     }
   });
@@ -132,13 +170,21 @@ describe('AuthService', () => {
         role: 'staff'
       });
 
-      // Manually set expiration to past date
-      const db = dbManager.getDatabase();
-      db.prepare(`
-        UPDATE staff_users 
-        SET pin_expires_at = datetime('now', '-1 day') 
-        WHERE id = ?
-      `).run(user.id);
+      // Manually set expiration to past date using direct SQLite
+      const sqlite3 = require('sqlite3').verbose();
+      const db = new sqlite3.Database(testDbPath);
+      
+      await new Promise<void>((resolve, reject) => {
+        db.run(`
+          UPDATE staff_users 
+          SET pin_expires_at = datetime('now', '-1 day') 
+          WHERE id = ?
+        `, [user.id], (err) => {
+          db.close();
+          if (err) reject(err);
+          else resolve();
+        });
+      });
 
       const isExpired = await authService.isPasswordExpired(user.id);
       expect(isExpired).toBe(true);
@@ -187,6 +233,92 @@ describe('AuthService', () => {
       const activeUsers = await authService.listUsers();
       expect(activeUsers).toHaveLength(1);
       expect(activeUsers[0].username).toBe('staff1');
+    });
+  });
+
+  describe('Hash Algorithm Compatibility', () => {
+    it('should authenticate users with bcrypt hashes', async () => {
+      const bcrypt = require('bcrypt');
+      const sqlite3 = require('sqlite3').verbose();
+      
+      // Create a user with bcrypt hash directly in database
+      const bcryptHash = await bcrypt.hash('testpass123', 10);
+      const db = new sqlite3.Database(testDbPath);
+      
+      await new Promise<void>((resolve, reject) => {
+        db.run(
+          "INSERT INTO staff_users (username, password_hash, role, active, created_at, pin_expires_at) VALUES (?, ?, 'admin', 1, datetime('now'), datetime('now', '+90 days'))",
+          ['bcrypt_user', bcryptHash],
+          (err) => {
+            db.close();
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+      
+      // Should be able to authenticate with bcrypt hash
+      const user = await authService.authenticateUser('bcrypt_user', 'testpass123');
+      expect(user).toBeDefined();
+      expect(user!.username).toBe('bcrypt_user');
+    });
+
+    it('should authenticate users with argon2 hashes', async () => {
+      // Create user normally (uses argon2)
+      const user = await authService.createUser({
+        username: 'argon2_user',
+        password: 'testpass456',
+        role: 'staff'
+      });
+
+      // Should be able to authenticate with argon2 hash
+      const authUser = await authService.authenticateUser('argon2_user', 'testpass456');
+      expect(authUser).toBeDefined();
+      expect(authUser!.username).toBe('argon2_user');
+    });
+
+    it('should reject unknown hash formats', async () => {
+      const sqlite3 = require('sqlite3').verbose();
+      const db = new sqlite3.Database(testDbPath);
+      
+      // Insert user with invalid hash format
+      await new Promise<void>((resolve, reject) => {
+        db.run(
+          "INSERT INTO staff_users (username, password_hash, role, active, created_at, pin_expires_at) VALUES (?, ?, 'admin', 1, datetime('now'), datetime('now', '+90 days'))",
+          ['invalid_user', 'invalid_hash_format'],
+          (err) => {
+            db.close();
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+      
+      // Should not be able to authenticate with invalid hash
+      const user = await authService.authenticateUser('invalid_user', 'anypassword');
+      expect(user).toBeNull();
+    });
+
+    it('should handle empty or null password hashes', async () => {
+      const sqlite3 = require('sqlite3').verbose();
+      const db = new sqlite3.Database(testDbPath);
+      
+      // Insert user with empty hash
+      await new Promise<void>((resolve, reject) => {
+        db.run(
+          "INSERT INTO staff_users (username, password_hash, role, active, created_at, pin_expires_at) VALUES (?, ?, 'admin', 1, datetime('now'), datetime('now', '+90 days'))",
+          ['empty_hash_user', ''],
+          (err) => {
+            db.close();
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+      
+      // Should not be able to authenticate with empty hash
+      const user = await authService.authenticateUser('empty_hash_user', 'anypassword');
+      expect(user).toBeNull();
     });
   });
 });
