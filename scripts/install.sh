@@ -144,8 +144,19 @@ install_application() {
     cp -r app/ "$INSTALL_DIR/"
     cp -r shared/ "$INSTALL_DIR/"
     cp -r migrations/ "$INSTALL_DIR/"
-    cp -r static/ "$INSTALL_DIR/"
+    
+    # Copy static files if they exist
+    if [[ -d "static/" ]]; then
+        cp -r static/ "$INSTALL_DIR/"
+        log_info "Copied static files"
+    else
+        log_info "No static directory found, skipping"
+    fi
+    
     cp package*.json "$INSTALL_DIR/"
+    
+    # Create scripts directory and copy migrate script
+    mkdir -p "$INSTALL_DIR/scripts/"
     cp scripts/migrate.ts "$INSTALL_DIR/scripts/"
     
     # Copy configuration
