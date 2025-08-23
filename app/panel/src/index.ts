@@ -108,9 +108,63 @@ async function startPanelService() {
       prefix: "/",
     });
 
-    // TEMPORARY: Default route - redirect to dashboard (bypass login)
+    // TEMPORARY: Default route - serve dashboard directly (bypass login)
     fastify.get("/", async (_request, reply) => {
-      reply.redirect("/dashboard.html");
+      reply.type('text/html');
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Eform Panel - Dashboard</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+            .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .header { border-bottom: 1px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }
+            .nav { display: flex; gap: 20px; margin: 20px 0; }
+            .nav a { padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+            .nav a:hover { background: #0056b3; }
+            .status { padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; margin: 20px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🔐 Eform Locker Management Panel</h1>
+              <p>Staff Management Interface - <strong>AUTHENTICATION BYPASSED</strong></p>
+            </div>
+            
+            <div class="status">
+              ✅ <strong>Panel Service Status:</strong> Running<br>
+              ✅ <strong>Database:</strong> Connected<br>
+              ⚠️ <strong>Security:</strong> Authentication temporarily disabled for setup
+            </div>
+            
+            <div class="nav">
+              <a href="/lockers.html">🔒 Manage Lockers</a>
+              <a href="/vip.html">👑 VIP Management</a>
+              <a href="/config.html">⚙️ Configuration</a>
+              <a href="/health">📊 System Health</a>
+            </div>
+            
+            <h2>Quick Actions</h2>
+            <p>Welcome to the Eform Locker Management Panel. Use the navigation above to access different sections.</p>
+            
+            <h3>System Information</h3>
+            <ul>
+              <li><strong>Service:</strong> Panel Management Interface</li>
+              <li><strong>Version:</strong> 1.0.0</li>
+              <li><strong>Status:</strong> Operational</li>
+              <li><strong>Auth Status:</strong> Temporarily bypassed for setup</li>
+            </ul>
+            
+            <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+              <strong>⚠️ Security Notice:</strong> Authentication is currently disabled for initial setup. 
+              Please re-enable authentication after completing the setup process.
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
     });
 
     // VIP management page route
