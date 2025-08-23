@@ -28,7 +28,7 @@ describe('HardwareSoakTester', () => {
 
   describe('startSoakTest', () => {
     it('should start a new soak test with default parameters', async () => {
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       const test = await soakTester.startSoakTest('kiosk-1', 5);
@@ -71,7 +71,7 @@ describe('HardwareSoakTester', () => {
     });
 
     it('should start a soak test with custom parameters', async () => {
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       const test = await soakTester.startSoakTest('kiosk-2', 10, 500, 2000, 25);
@@ -82,7 +82,7 @@ describe('HardwareSoakTester', () => {
     });
 
     it('should throw error if test is already running', async () => {
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       // Start first test
@@ -97,7 +97,7 @@ describe('HardwareSoakTester', () => {
 
   describe('stopSoakTest', () => {
     it('should stop a running test', async () => {
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       // Start test
@@ -131,7 +131,7 @@ describe('HardwareSoakTester', () => {
 
   describe('getCurrentTest', () => {
     it('should return current test if running', async () => {
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       const test = await soakTester.startSoakTest('kiosk-1', 5);
@@ -299,7 +299,7 @@ describe('HardwareSoakTester', () => {
       ];
 
       vi.mocked(mockDb.all).mockResolvedValue(mockRows);
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       const blockedLockers = await soakTester.autoBlockFailedLockers('kiosk-1');
@@ -353,7 +353,7 @@ describe('HardwareSoakTester', () => {
 
   describe('Test Execution Simulation', () => {
     it('should handle successful test cycles', async () => {
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       const test = await soakTester.startSoakTest('kiosk-1', 5, 5, 100); // 5 cycles, 100ms interval
@@ -369,7 +369,7 @@ describe('HardwareSoakTester', () => {
     });
 
     it('should handle test failures and threshold exceeded', async () => {
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
       vi.mocked(mockEventLogger.logEvent).mockResolvedValue({} as any);
 
       const test = await soakTester.startSoakTest('kiosk-1', 5, 100, 50, 5); // Low failure threshold
@@ -440,7 +440,7 @@ describe('HardwareSoakTester', () => {
         }
       };
 
-      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ lastID: 1, changes: 1 } as any);
 
       await saveSoakTest(testData);
 

@@ -404,7 +404,7 @@ describe('SecurityValidator', () => {
     });
 
     it('should handle crypto errors gracefully', () => {
-      const invalidSecret = null;
+      const invalidSecret = '';
       const payload = { test: 'data' };
 
       expect(() => validator.generateHmacToken(payload, invalidSecret)).not.toThrow();

@@ -266,8 +266,7 @@ describe('I18nService', () => {
         const trParams = (trMessage.match(/\{[^}]+\}/g) || []).sort();
         const enParams = (enMessage.match(/\{[^}]+\}/g) || []).sort();
 
-        expect(trParams).toEqual(enParams, 
-          `Parameter mismatch in ${messageKey}: TR has ${trParams.join(', ')}, EN has ${enParams.join(', ')}`);
+        expect(trParams, `Parameter mismatch in ${messageKey}: TR has ${trParams.join(', ')}, EN has ${enParams.join(', ')}`).toEqual(enParams);
       }
     });
 
@@ -278,9 +277,8 @@ describe('I18nService', () => {
         
         const checkSection = (section: any, sectionName: string) => {
           for (const [key, value] of Object.entries(section)) {
-            expect(typeof value).toBe('string', `${sectionName}.${key} should be a string in ${language}`);
-            expect((value as string).trim().length).toBeGreaterThan(0, 
-              `${sectionName}.${key} should not be empty in ${language}`);
+            expect(typeof value, `${sectionName}.${key} should be a string in ${language}`).toBe('string');
+            expect((value as string).trim().length, `${sectionName}.${key} should not be empty in ${language}`).toBeGreaterThan(0);
           }
         };
 

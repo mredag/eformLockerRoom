@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DatabaseConnection } from '../connection';
 import { LockerRepository } from '../locker-repository';
 import { OptimisticLockError } from '../base-repository';
-import { Locker, LockerStatus } from '../../../src/types/core-entities';
+import { Locker, LockerStatus } from '../../types/core-entities';
 
 describe('LockerRepository', () => {
   let db: DatabaseConnection;
@@ -110,7 +110,7 @@ describe('LockerRepository', () => {
         is_vip: false
       });
 
-      const updated = await repository.update('kiosk-1', 1, {
+      const updated = await repository.updateLocker('kiosk-1', 1, {
         status: 'Reserved',
         owner_type: 'rfid',
         owner_key: 'card-123',
@@ -133,13 +133,13 @@ describe('LockerRepository', () => {
 
       // Update with wrong version
       await expect(
-        repository.update('kiosk-1', 1, { status: 'Reserved' }, 999)
+        repository.updateLocker('kiosk-1', 1, { status: 'Reserved' }, 999)
       ).rejects.toThrow(OptimisticLockError);
     });
 
     it('should throw error for non-existent locker', async () => {
       await expect(
-        repository.update('kiosk-1', 999, { status: 'Reserved' }, 1)
+        repository.updateLocker('kiosk-1', 999, { status: 'Reserved' }, 1)
       ).rejects.toThrow('Locker with id kiosk-1:999 not found');
     });
   });

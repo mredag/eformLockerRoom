@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EventLogger } from '../event-logger';
 import { EventRepository } from '../../database/event-repository';
-import { EventType } from '../../../src/types/core-entities';
+import { EventType } from '../../types/core-entities';
 
 // Mock EventRepository
 const mockEventRepository = {
@@ -129,7 +129,8 @@ describe('EventLogger', () => {
     it('should validate RFID assignment details', async () => {
       await expect(
         eventLogger.logRfidAssign('kiosk-1', 5, 'card123', {
-          // Missing required fields
+          previous_status: 'Free',
+          burst_required: false
         })
       ).rejects.toThrow('Event validation failed');
     });

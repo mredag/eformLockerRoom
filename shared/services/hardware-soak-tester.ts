@@ -159,7 +159,7 @@ export class HardwareSoakTester {
 
     const rows = await this.db.all(sql, [kioskId]);
     
-    const lockerReports: LockerEnduranceReport[] = rows.map(row => ({
+    const lockerReports: LockerEnduranceReport[] = rows.map((row: any) => ({
       locker_id: row.locker_id,
       test_count: row.test_count,
       total_cycles: row.total_cycles,

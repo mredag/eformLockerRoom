@@ -163,10 +163,10 @@ describe('LockerStateManager', () => {
       const events = await db.all(
         'SELECT * FROM events WHERE kiosk_id = ? AND locker_id = ? AND event_type = ?',
         ['kiosk-1', 1, EventType.RFID_ASSIGN]
-      );
+      ) as any[];
 
       expect(events).toHaveLength(1);
-      const details = JSON.parse(events[0].details);
+      const details = JSON.parse(events[0].details as string);
       expect(details.owner_type).toBe('rfid');
       expect(details.owner_key).toBe('card-123');
       expect(details.previous_status).toBe('Free');
@@ -228,10 +228,10 @@ describe('LockerStateManager', () => {
       const events = await db.all(
         'SELECT * FROM events WHERE kiosk_id = ? AND locker_id = ? AND event_type = ?',
         ['kiosk-1', 1, EventType.RFID_RELEASE]
-      );
+      ) as any[];
 
       expect(events).toHaveLength(1);
-      const details = JSON.parse(events[0].details);
+      const details = JSON.parse(events[0].details as string);
       expect(details.owner_type).toBe('rfid');
       expect(details.owner_key).toBe('card-123');
       expect(details.previous_status).toBe('Reserved');
@@ -312,10 +312,10 @@ describe('LockerStateManager', () => {
       const events = await db.all(
         'SELECT * FROM events WHERE event_type = ? AND details LIKE ?',
         [EventType.RFID_RELEASE, '%timeout_cleanup%']
-      );
+      ) as any[];
 
       expect(events).toHaveLength(1);
-      const details = JSON.parse(events[0].details);
+      const details = JSON.parse(events[0].details as string);
       expect(details.reason).toBe('timeout_cleanup');
       expect(details.timeout_seconds).toBe(90);
     });
@@ -396,10 +396,10 @@ describe('LockerStateManager', () => {
       const events = await db.all(
         'SELECT * FROM events WHERE staff_user = ? AND event_type = ?',
         ['staff-user', EventType.STAFF_OPEN]
-      );
+      ) as any[];
 
       expect(events).toHaveLength(1);
-      const details = JSON.parse(events[0].details);
+      const details = JSON.parse(events[0].details as string);
       expect(details.previous_status).toBe('Owned');
       expect(details.new_status).toBe('Free');
       expect(details.reason).toBe('maintenance');

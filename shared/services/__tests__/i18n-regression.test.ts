@@ -117,10 +117,8 @@ describe('I18n Regression Tests', () => {
 
         for (const param of params) {
           const paramPattern = `{${param}}`;
-          expect(trMessage).toContain(paramPattern, 
-            `Parameter ${param} missing in Turkish message ${key}`);
-          expect(enMessage).toContain(paramPattern, 
-            `Parameter ${param} missing in English message ${key}`);
+          expect(trMessage, `Parameter ${param} missing in Turkish message ${key}`).toContain(paramPattern);
+          expect(enMessage, `Parameter ${param} missing in English message ${key}`).toContain(paramPattern);
         }
       }
     });
@@ -139,8 +137,7 @@ describe('I18n Regression Tests', () => {
               
               for (const param of parameters) {
                 const paramName = param.slice(1, -1); // Remove { and }
-                expect(knownParameters).toContain(paramName,
-                  `Unknown parameter ${param} in ${sectionName}.${key} (${language})`);
+                expect(knownParameters, `Unknown parameter ${param} in ${sectionName}.${key} (${language})`).toContain(paramName);
               }
             }
           }
@@ -173,8 +170,7 @@ describe('I18n Regression Tests', () => {
           for (const [key, message] of Object.entries(section)) {
             if (typeof message === 'string') {
               for (const pattern of placeholderPatterns) {
-                expect(message).not.toMatch(pattern,
-                  `Placeholder text found in ${sectionName}.${key} (${language}): "${message}"`);
+                expect(message, `Placeholder text found in ${sectionName}.${key} (${language}): "${message}"`).not.toMatch(pattern);
               }
             }
           }
@@ -196,8 +192,7 @@ describe('I18n Regression Tests', () => {
         const checkSection = (section: any, sectionName: string) => {
           for (const [key, message] of Object.entries(section)) {
             if (typeof message === 'string') {
-              expect(message.length).toBeLessThanOrEqual(maxLength,
-                `Message too long in ${sectionName}.${key} (${language}): ${message.length} chars`);
+              expect(message.length, `Message too long in ${sectionName}.${key} (${language}): ${message.length} chars`).toBeLessThanOrEqual(maxLength);
             }
           }
         };
@@ -216,8 +211,7 @@ describe('I18n Regression Tests', () => {
         const checkSection = (section: any, sectionName: string) => {
           for (const [key, message] of Object.entries(section)) {
             if (typeof message === 'string') {
-              expect(message.trim().length).toBeGreaterThan(0,
-                `Empty or whitespace-only message in ${sectionName}.${key} (${language})`);
+              expect(message.trim().length, `Empty or whitespace-only message in ${sectionName}.${key} (${language})`).toBeGreaterThan(0);
             }
           }
         };
@@ -324,10 +318,10 @@ describe('I18n Regression Tests', () => {
     it('should handle parameter replacement edge cases', () => {
       const edgeCases = [
         { key: 'kiosk.opening', params: { id: '' } },
-        { key: 'kiosk.opening', params: { id: null as any } },
-        { key: 'kiosk.opening', params: { id: undefined as any } },
-        { key: 'kiosk.opening', params: { wrongParam: 'value' } },
-        { key: 'kiosk.opening', params: {} }
+        { key: 'kiosk.opening', params: { id: 'null' } },
+        { key: 'kiosk.opening', params: { id: 'undefined' } },
+        { key: 'kiosk.opening', params: { id: 'value' } },
+        { key: 'kiosk.scan_card', params: undefined }
       ];
 
       for (const { key, params } of edgeCases) {

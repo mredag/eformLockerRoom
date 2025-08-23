@@ -79,7 +79,7 @@ describe('HealthMonitor', () => {
 
       expect(health.status).toBe('degraded');
       expect(health.components.database).toBe('error');
-      expect(health.details.database).toEqual({
+      expect(health.details?.database).toEqual({
         status: 'error',
         error: 'Database connection failed'
       });

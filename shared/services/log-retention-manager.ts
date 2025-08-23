@@ -269,11 +269,11 @@ export class LogRetentionManager {
 
     let anonymized = 0;
     for (const record of records) {
-      const anonymizedCard = this.hashSensitiveData(record.rfid_card);
+      const anonymizedCard = this.hashSensitiveData((record as any).rfid_card);
       
       await this.db.run(
         'UPDATE events SET rfid_card = ? WHERE id = ?',
-        [anonymizedCard, record.id]
+        [anonymizedCard, (record as any).id]
       );
       
       anonymized++;
@@ -306,14 +306,14 @@ export class LogRetentionManager {
     let anonymized = 0;
     for (const record of records) {
       try {
-        const details = JSON.parse(record.details || '{}');
+        const details = JSON.parse((record as any).details || '{}');
         
         if (details.ip_address && !details.ip_address.startsWith('anon_')) {
           details.ip_address = this.hashSensitiveData(details.ip_address);
           
           await this.db.run(
             'UPDATE events SET details = ? WHERE id = ?',
-            [JSON.stringify(details), record.id]
+            [JSON.stringify(details), (record as any).id]
           );
           
           anonymized++;
@@ -377,7 +377,7 @@ export class LogRetentionManager {
 
     // Get total events
     const totalResult = await this.db.get('SELECT COUNT(*) as count FROM events');
-    stats.total_events = totalResult?.count || 0;
+    stats.total_events = (totalResult as any)?.count || 0;
 
     // Get events by age ranges
     const ageRanges = [
@@ -402,7 +402,7 @@ export class LogRetentionManager {
       const params = previousDays === 0 ? [startDate.toISOString()] : [startDate.toISOString(), endDate.toISOString()];
       
       const result = await this.db.get(sql, params);
-      stats.events_by_age[range.label] = result?.count || 0;
+      stats.events_by_age[range.label] = (result as any)?.count || 0;
       
       previousDays = range.days;
     }
@@ -414,7 +414,7 @@ export class LogRetentionManager {
          OR rfid_card LIKE 'anon_%'
          OR details LIKE '%"ip_address":"anon_%'
     `);
-    stats.anonymized_records = anonymizedResult?.count || 0;
+    stats.anonymized_records = (anonymizedResult as any)?.count || 0;
 
     // Estimate cleanup size (events older than retention period)
     const eventCutoff = new Date();
@@ -424,7 +424,7 @@ export class LogRetentionManager {
       'SELECT COUNT(*) as count FROM events WHERE timestamp < ? AND event_type NOT LIKE \'staff_%\'',
       [eventCutoff.toISOString()]
     );
-    stats.estimated_cleanup_size = cleanupResult?.count || 0;
+    stats.estimated_cleanup_size = (cleanupResult as any)?.count || 0;
 
     // Calculate next cleanup date
     stats.next_cleanup_date = new Date();
@@ -487,7 +487,7 @@ export class LogRetentionManager {
 
     const records = await this.db.all(sql, params);
 
-    exportData.data = records.map(record => ({
+    exportData.data = records.map((record: any) => ({
       timestamp: record.timestamp,
       kiosk_id: record.kiosk_id,
       locker_id: record.locker_id,

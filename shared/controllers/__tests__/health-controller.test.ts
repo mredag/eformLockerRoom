@@ -98,7 +98,7 @@ describe('HealthController', () => {
 
       expect(mockReply.code).toHaveBeenCalledWith(503);
       expect(result.status).toBe('unhealthy');
-      expect(result.details.error).toBe('Health check failed');
+      expect(result.details?.error).toBe('Health check failed');
     });
   });
 

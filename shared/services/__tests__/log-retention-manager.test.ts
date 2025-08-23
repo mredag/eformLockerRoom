@@ -48,9 +48,9 @@ describe('LogRetentionManager', () => {
     it('should run comprehensive cleanup successfully', async () => {
       // Mock database operations
       vi.mocked(mockDb.run)
-        .mockResolvedValueOnce({ changes: 50 }) // regular events
-        .mockResolvedValueOnce({ changes: 10 }) // audit events
-        .mockResolvedValueOnce({ changes: 5 }); // anonymization updates
+        .mockResolvedValueOnce({ changes: 50 } as any) // regular events
+        .mockResolvedValueOnce({ changes: 10 } as any) // audit events
+        .mockResolvedValueOnce({ changes: 5 } as any); // anonymization updates
 
       vi.mocked(mockDb.all)
         .mockResolvedValueOnce([
@@ -113,8 +113,8 @@ describe('LogRetentionManager', () => {
   describe('cleanupOldEvents', () => {
     it('should delete old regular events and audit events separately', async () => {
       vi.mocked(mockDb.run)
-        .mockResolvedValueOnce({ changes: 100 }) // regular events
-        .mockResolvedValueOnce({ changes: 25 }); // audit events
+        .mockResolvedValueOnce({ changes: 100 } as any) // regular events
+        .mockResolvedValueOnce({ changes: 25 } as any); // audit events
 
       const deleted = await retentionManager.cleanupOldEvents();
 
@@ -185,7 +185,7 @@ describe('LogRetentionManager', () => {
           { id: 4, details: '{"ip_address":"192.168.1.100"}' }
         ]);
 
-      vi.mocked(mockDb.run).mockResolvedValue({ changes: 1 });
+      vi.mocked(mockDb.run).mockResolvedValue({ changes: 1 } as any);
 
       const anonymized = await retentionManager.anonymizeOldRecords();
 

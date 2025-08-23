@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CommandQueueManager } from '../command-queue-manager';
 import { DatabaseConnection } from '../../database/connection';
-import { CommandType, CommandStatus } from '../../../src/types/core-entities';
+import { CommandType, CommandStatus } from '../../types/core-entities';
 
 // Mock the database connection
 vi.mock('../../database/connection.js');

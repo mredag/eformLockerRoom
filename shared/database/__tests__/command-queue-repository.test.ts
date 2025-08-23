@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CommandQueueRepository } from '../command-queue-repository.js';
 import { DatabaseConnection } from '../connection.js';
-import { Command, CommandType, CommandStatus } from '../../../src/types/core-entities.js';
+import { Command, CommandType, CommandStatus } from '../../types/core-entities';
 
 // Mock the database connection
 vi.mock('../connection.js');
@@ -190,7 +190,8 @@ describe('CommandQueueRepository', () => {
         next_attempt_at: new Date('2024-01-01T10:00:00.000Z'),
         last_error: undefined,
         executed_at: undefined,
-        completed_at: undefined
+        completed_at: undefined,
+        version: 1
       };
 
       const createdCommand = {
@@ -247,7 +248,8 @@ describe('CommandQueueRepository', () => {
         next_attempt_at: new Date(),
         last_error: undefined,
         executed_at: undefined,
-        completed_at: undefined
+        completed_at: undefined,
+        version: 1
       };
 
       mockDb.run.mockResolvedValue({ changes: 1 });

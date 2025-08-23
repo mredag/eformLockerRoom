@@ -263,7 +263,7 @@ describe('RateLimiter', () => {
       }
       
       // Should have logged the violation
-      expect(mockEventRepository.createEvent).toHaveBeenCalledWith(
+      expect(mockEventRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           kiosk_id: 'kiosk1',
           details: expect.objectContaining({
