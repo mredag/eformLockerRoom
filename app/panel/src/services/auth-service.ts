@@ -33,17 +33,33 @@ export class AuthService {
     
     try {
       // First check if table exists and has the right structure
-      const tableInfo = db.prepare(`PRAGMA table_info(staff_users)`).all();
-      console.log('Table structure:', tableInfo);
+      const tableInfoStmt = db.prepare(`PRAGMA table_info(staff_users)`);
+      const tableInfo = tableInfoStmt.all();
+      console.log('Table structure:', JSON.stringify(tableInfo));
       
-      const result = db.prepare(`
+      // Prepare the insert statement
+      const insertStmt = db.prepare(`
         INSERT INTO staff_users (username, password_hash, role, created_at, pin_expires_at, active)
         VALUES (?, ?, ?, datetime('now'), datetime('now', '+90 days'), 1)
-      `).run(request.username, hashedPassword, request.role);
-
-      console.log('Insert result:', result);
+      `);
+      
+      const result = insertStmt.run(request.username, hashedPassword, request.role);
+      console.log('Insert result:', JSON.stringify(result));
+      console.log('lastInsertRowid:', result.lastInsertRowid);
+      console.log('changes:', result.changes);
 
       if (!result.lastInsertRowid || result.lastInsertRowid === 0) {
+        // Try alternative approach - get the last inserted ID
+        const lastIdStmt = db.prepare(`SELECT last_insert_rowid() as id`);
+        const lastIdResult = lastIdStmt.get();
+        console.log('Alternative ID lookup:', JSON.stringify(lastIdResult));
+        
+        if (lastIdResult && lastIdResult.id && lastIdResult.id > 0) {
+          const userId = lastIdResult.id as number;
+          console.log('Using alternative ID:', userId);
+          return this.getUserById(userId);
+        }
+        
         throw new Error(`Failed to create user - no ID returned. Result: ${JSON.stringify(result)}`);
       }
 
