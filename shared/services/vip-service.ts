@@ -1,6 +1,6 @@
 import { Database } from 'sqlite3';
-import { ContractRepository, Contract, CreateContractData, UpdateContractData, ContractWithPayments, ExpiringContract } from '../data/contract-repository';
-import { PaymentRepository, Payment, CreatePaymentData, PaymentSummary } from '../data/payment-repository';
+import { ContractRepository, Contract, CreateContractData, UpdateContractData, ContractWithPayments, ExpiringContract } from '../database/contract-repository';
+import { PaymentRepository, Payment, CreatePaymentData, PaymentSummary } from '../database/payment-repository';
 import { PDFService, ContractPDFData, PDFGenerationOptions } from './pdf-service';
 
 /**

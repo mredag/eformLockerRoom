@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
-import { Contract } from '../data/contract-repository';
-import { Payment } from '../data/payment-repository';
+import { Contract } from '../database/contract-repository';
+import { Payment } from '../database/payment-repository';
 
 export interface ContractPDFData extends Contract {
   payments?: Payment[];

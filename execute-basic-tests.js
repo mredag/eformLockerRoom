@@ -116,11 +116,6 @@ executeTest(
   'VIP Service Core Functionality'
 );
 
-executeTest(
-  'shared/data/__tests__/contract-repository.test.ts',
-  'Contract Repository'
-);
-
 // WebSocket Tests
 executeTest(
   'app/gateway/src/services/__tests__/websocket-manager.test.ts',

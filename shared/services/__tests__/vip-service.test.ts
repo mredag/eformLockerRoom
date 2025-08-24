@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Database } from 'sqlite3';
 import { VipService, CreateVipContract, RenewContractRequest, CancelContractRequest } from '../vip-service';
-import { ContractRepository } from '../../data/contract-repository';
-import { PaymentRepository } from '../../data/payment-repository';
+import { ContractRepository } from '../../database/contract-repository';
+import { PaymentRepository } from '../../database/payment-repository';
 
 // Mock the repositories
-vi.mock('../../data/contract-repository');
-vi.mock('../../data/payment-repository');
+vi.mock('../../database/contract-repository');
+vi.mock('../../database/payment-repository');
 
 describe('VipService', () => {
   let vipService: VipService;

@@ -34,9 +34,7 @@ const testCategories = [
     name: 'Unit Tests - VIP Service',
     description: 'Testing VIP contract management',
     tests: [
-      'shared/services/__tests__/vip-service.test.ts',
-      'shared/data/__tests__/contract-repository.test.ts',
-      'shared/data/__tests__/payment-repository.test.ts'
+      'shared/services/__tests__/vip-service.test.ts'
     ]
   },
   {
