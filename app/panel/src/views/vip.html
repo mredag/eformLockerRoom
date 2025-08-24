@@ -492,10 +492,10 @@
     <div class="header">
         <h1>VIP Sözleşme Yönetimi</h1>
         <div class="nav-links">
-            <a href="/dashboard" data-i18n="panel.dashboard">Ana Sayfa</a>
-            <a href="/lockers" data-i18n="panel.lockers">Dolaplar</a>
-            <a href="/vip" class="active" data-i18n="panel.vip_contracts">VIP Sözleşmeler</a>
-            <a href="#" onclick="logout()" data-i18n="panel.logout">Çıkış</a>
+            <a href="/dashboard">Ana Sayfa</a>
+            <a href="/lockers">Dolaplar</a>
+            <a href="/vip" class="active">VIP Sözleşmeler</a>
+            <a href="#" onclick="logout()">Çıkış</a>
         </div>
     </div>
 
@@ -586,7 +586,7 @@
     <div id="contractModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Create VIP Contract</h3>
+                <h3 class="modal-title" id="modalTitle">VIP Sözleşme Oluştur</h3>
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
 
@@ -599,13 +599,13 @@
                     <div class="form-group">
                         <label for="kioskId">Kiosk *</label>
                         <select id="kioskId" name="kioskId" required>
-                            <option value="">Select Kiosk</option>
+                            <option value="">Kiosk Seçin</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label for="lockerId">Locker *</label>
                         <select id="lockerId" name="lockerId" required>
-                            <option value="">Select Locker</option>
+                            <option value="">Dolap Seçin</option>
                         </select>
                     </div>
                 </div>
@@ -614,12 +614,12 @@
                     <div class="form-group">
                         <label for="rfidCard">RFID Card *</label>
                         <input type="text" id="rfidCard" name="rfidCard" required 
-                               placeholder="Enter RFID card ID">
+                               placeholder="RFID kart ID'sini girin">
                     </div>
                     <div class="form-group">
                         <label for="backupCard">Backup Card</label>
                         <input type="text" id="backupCard" name="backupCard" 
-                               placeholder="Enter backup card ID (optional)">
+                               placeholder="Yedek kart ID'sini girin (opsiyonel)">
                     </div>
                 </div>
 
@@ -635,8 +635,8 @@
                 </div>
 
                 <div class="form-group">
-                    <button type="submit" class="btn btn-success">Create Contract</button>
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-success">Sözleşme Oluştur</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">İptal</button>
                 </div>
             </form>
         </div>
@@ -904,7 +904,7 @@
                 const kioskSelect = document.getElementById('kioskId');
                 const kioskFilter = document.getElementById('kioskFilter');
                 
-                kioskSelect.innerHTML = '<option value="">Select Kiosk</option>';
+                kioskSelect.innerHTML = '<option value="">Kiosk Seçin</option>';
                 kioskFilter.innerHTML = '<option value="">All Kiosks</option>';
                 
                 kiosks.forEach(kiosk => {
@@ -921,7 +921,7 @@
         // Load available lockers for selected kiosk
         async function loadAvailableLockers(kioskId) {
             if (!kioskId) {
-                document.getElementById('lockerId').innerHTML = '<option value="">Select Locker</option>';
+                document.getElementById('lockerId').innerHTML = '<option value="">Dolap Seçin</option>';
                 return;
             }
 
@@ -930,7 +930,7 @@
                 const data = await response.json();
                 
                 const lockerSelect = document.getElementById('lockerId');
-                lockerSelect.innerHTML = '<option value="">Select Locker</option>';
+                lockerSelect.innerHTML = '<option value="">Dolap Seçin</option>';
                 
                 data.lockers.forEach(locker => {
                     const option = new Option(`Locker ${locker.id}`, locker.id);
@@ -974,8 +974,8 @@
             if (contracts.length === 0) {
                 content.innerHTML = `
                     <div class="empty-state">
-                        <h3>No VIP contracts found</h3>
-                        <p>Create your first VIP contract to get started.</p>
+                        <h3>VIP sözleşme bulunamadı</h3>
+                        <p>Başlamak için ilk VIP sözleşmenizi oluşturun.</p>
                     </div>
                 `;
                 return;
@@ -1073,7 +1073,7 @@
 
         // Show create modal
         function showCreateModal() {
-            document.getElementById('modalTitle').textContent = 'Create VIP Contract';
+            document.getElementById('modalTitle').textContent = 'VIP Sözleşme Oluştur';
             document.getElementById('contractForm').reset();
             document.getElementById('contractId').value = '';
             document.getElementById('modalAlert').innerHTML = '';
@@ -1185,7 +1185,7 @@
                 }
             } catch (error) {
                 document.getElementById('modalAlert').innerHTML = 
-                    '<div class="alert alert-error">Failed to create contract</div>';
+                    '<div class="alert alert-error">Sözleşme oluşturulamadı</div>';
             }
         });
 

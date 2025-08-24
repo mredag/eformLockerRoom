@@ -436,10 +436,10 @@
     <div class="header">
         <h1>Dolap Yönetimi</h1>
         <div class="nav-links">
-            <a href="/dashboard" data-i18n="panel.dashboard">Ana Sayfa</a>
-            <a href="/lockers" style="background: #f0f0f0;" data-i18n="panel.lockers">Dolaplar</a>
-            <a href="/vip" data-i18n="panel.vip_contracts">VIP Sözleşmeler</a>
-            <a href="#" onclick="logout()" data-i18n="panel.logout">Çıkış</a>
+            <a href="/dashboard">Ana Sayfa</a>
+            <a href="/lockers" style="background: #f0f0f0;">Dolaplar</a>
+            <a href="/vip">VIP Sözleşmeler</a>
+            <a href="#" onclick="logout()">Çıkış</a>
         </div>
     </div>
 
@@ -532,17 +532,17 @@
     <div id="action-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modal-title">Action</h2>
+                <h2 id="modal-title">İşlem</h2>
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
             <form id="action-form">
                 <div class="form-group">
-                    <label for="reason">Reason</label>
-                    <textarea id="reason" name="reason" placeholder="Enter reason for this action..."></textarea>
+                    <label for="reason">Sebep</label>
+                    <textarea id="reason" name="reason" placeholder="Bu işlem için sebep girin..."></textarea>
                 </div>
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary" id="modal-submit-btn">Submit</button>
-                    <button type="button" class="btn" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="modal-submit-btn">Gönder</button>
+                    <button type="button" class="btn" onclick="closeModal()">İptal</button>
                 </div>
             </form>
         </div>
@@ -811,19 +811,19 @@
         async function openSelectedLockers() {
             if (selectedLockers.size === 0) return;
             
-            showActionModal('Open Lockers', 'open');
+            showActionModal('Dolapları Aç', 'open');
         }
 
         async function blockSelectedLockers() {
             if (selectedLockers.size === 0) return;
             
-            showActionModal('Block Lockers', 'block');
+            showActionModal('Dolapları Blokla', 'block');
         }
 
         async function unblockSelectedLockers() {
             if (selectedLockers.size === 0) return;
             
-            showActionModal('Unblock Lockers', 'unblock');
+            showActionModal('Blokları Kaldır', 'unblock');
         }
 
         function showActionModal(title, action) {
