@@ -102,9 +102,9 @@ async function startPanelService() {
     // Register configuration routes
     await configController.registerRoutes();
 
-    // Initialize cookie cleanup service
-    const cookieCleanupService = CookieCleanupService.getInstance();
-    cookieCleanupService.startCleanup(fastify);
+    // Initialize cookie cleanup service (temporarily disabled)
+    // const cookieCleanupService = CookieCleanupService.getInstance();
+    // cookieCleanupService.startCleanup(fastify);
 
     // Serve static files
     await fastify.register(import("@fastify/static"), {

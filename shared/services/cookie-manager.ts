@@ -14,11 +14,13 @@ export class CookieManager {
   private static readonly DEFAULT_PATH = '/';
   
   /**
-   * Set session cookie with comprehensive clearing of old cookies
+   * Set session cookie with simple clearing of old cookies
    */
   static setSessionCookie(reply: FastifyReply, sessionId: string, options: CookieOptions = {}): void {
-    // First, aggressively clear any existing session cookies
-    this.clearAllSessionCookies(reply);
+    // Simple clearing - just the main variations
+    reply.clearCookie(this.COOKIE_NAME, { path: '/' });
+    reply.clearCookie(this.COOKIE_NAME, { path: '/auth' });
+    reply.clearCookie(this.COOKIE_NAME); // Default path
     
     // Set the new cookie with proper options
     const cookieOptions = {
@@ -35,28 +37,15 @@ export class CookieManager {
   }
   
   /**
-   * Clear all possible session cookies to prevent conflicts
+   * Clear session cookies (simplified)
    */
   static clearAllSessionCookies(reply: FastifyReply): void {
-    const pathVariations = ['/', '/auth', '/panel', ''];
-    const domainVariations = [undefined, 'localhost', '192.168.1.8'];
+    // Simple clearing without aggressive domain/path combinations
+    reply.clearCookie(this.COOKIE_NAME, { path: '/' });
+    reply.clearCookie(this.COOKIE_NAME, { path: '/auth' });
+    reply.clearCookie(this.COOKIE_NAME); // Default path
     
-    // Clear with all possible path and domain combinations
-    pathVariations.forEach(path => {
-      domainVariations.forEach(domain => {
-        const clearOptions: any = {};
-        if (path) clearOptions.path = path;
-        if (domain) clearOptions.domain = domain;
-        
-        try {
-          reply.clearCookie(this.COOKIE_NAME, clearOptions);
-        } catch (error) {
-          // Ignore errors - some combinations might not be valid
-        }
-      });
-    });
-    
-    console.log('🗑️ Cleared all session cookie variations');
+    console.log('🗑️ Cleared session cookies');
   }
   
   /**
