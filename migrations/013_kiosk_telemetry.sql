@@ -1,9 +1,8 @@
 -- Migration 013: Kiosk Telemetry System
 -- Add telemetry support to existing heartbeat system
 
--- Add telemetry columns to kiosk_heartbeat table
-ALTER TABLE kiosk_heartbeat ADD COLUMN telemetry_data TEXT;
-ALTER TABLE kiosk_heartbeat ADD COLUMN last_telemetry_update DATETIME;
+-- Note: telemetry_data and last_telemetry_update columns already exist
+-- This migration ensures the telemetry_history table and indexes are created
 
 -- Create telemetry_history table for historical data
 CREATE TABLE IF NOT EXISTS telemetry_history (
