@@ -38,7 +38,15 @@ describe('VipService', () => {
 writeFileSync('shared/services/__tests__/vip-service.test.ts', vipTestContent);
 console.log('✅ Fixed vip-service.test.ts');
 
-// 2. Create shared data index
+// 2. Create shared data directory and index
+import { mkdirSync } from 'fs';
+
+try {
+  mkdirSync('shared/data', { recursive: true });
+} catch (e) {
+  // Directory might already exist
+}
+
 const dataIndexContent = `export * from './contract-repository';
 export * from './payment-repository';
 `;
