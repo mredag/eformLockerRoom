@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk Language Switching Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .language-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .lang-btn {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: 2px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .lang-btn.active {
+            background: #007bff;
+            color: white;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-item {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .test-item strong {
+            color: #007bff;
+        }
+        .form-test {
+            margin: 10px 0;
+        }
+        .form-test input, .form-test textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Kiosk Language Switching Test</h1>
+        
+        <div class="language-selector">
+            <button id="lang-tr" class="lang-btn active">TR</button>
+            <button id="lang-en" class="lang-btn">EN</button>
+        </div>
+        
+        <div class="status success">
+            <span data-i18n="test_status">Test durumu: Dil değiştirme sistemi aktif</span>
+        </div>
+        
+        <div class="test-section">
+            <h3>Basic UI Elements</h3>
+            <div class="test-item">
+                <strong>Scan Card:</strong> <span data-i18n="scan_card">Kart okutunuz</span>
+            </div>
+            <div class="test-item">
+                <strong>Help Button:</strong> <span data-i18n="help_button">Yardım</span>
+            </div>
+            <div class="test-item">
+                <strong>Back:</strong> <span data-i18n="back">Geri</span>
+            </div>
+            <div class="test-item">
+                <strong>Master Access:</strong> <span data-i18n="master_access">Master Erişim</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Lock Failure Messages</h3>
+            <div class="test-item">
+                <strong>Lock Failure Title:</strong> <span data-i18n="lock_failure_title">Dolap Açılamadı</span>
+            </div>
+            <div class="test-item">
+                <strong>Lock Failure Message:</strong> <span data-i18n="lock_failure_message">Dolap açılırken bir sorun oluştu</span>
+            </div>
+            <div class="test-item">
+                <strong>Retry:</strong> <span data-i18n="retry">Tekrar Dene</span>
+            </div>
+            <div class="test-item">
+                <strong>Get Help:</strong> <span data-i18n="get_help">Yardım İste</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Help System</h3>
+            <div class="test-item">
+                <strong>Help Request:</strong> <span data-i18n="help_request">Yardım Talebi</span>
+            </div>
+            <div class="test-item">
+                <strong>Help Category:</strong> <span data-i18n="help_category">Sorun Kategorisi</span>
+            </div>
+            <div class="test-item">
+                <strong>Lock Problem:</strong> <span data-i18n="category_lock_problem">Dolap Sorunu</span>
+            </div>
+            <div class="test-item">
+                <strong>Other:</strong> <span data-i18n="category_other">Diğer</span>
+            </div>
+            <div class="test-item">
+                <strong>Submit Help:</strong> <span data-i18n="submit_help">Yardım Talep Et</span>
+            </div>
+            <div class="test-item">
+                <strong>Cancel:</strong> <span data-i18n="cancel">İptal</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Form Placeholders Test</h3>
+            <div class="form-test">
+                <label><strong data-i18n="help_note">Açıklama (İsteğe bağlı)</strong></label>
+                <textarea data-i18n="help_note_placeholder" placeholder="Sorununuzu kısaca açıklayın..."></textarea>
+            </div>
+            <div class="form-test">
+                <label><strong data-i18n="help_contact">İletişim (İsteğe bağlı)</strong></label>
+                <input type="text" data-i18n="help_contact_placeholder" placeholder="Telefon veya e-posta">
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Accessibility</h3>
+            <div class="test-item">
+                <strong>Text Size Toggle:</strong> <span data-i18n="text_size_toggle">Metin boyutunu değiştir</span>
+            </div>
+            <div class="test-item">
+                <strong>Skip to Main:</strong> <span data-i18n="skip_to_main">Ana içeriğe geç</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Parameter Interpolation Test</h3>
+            <div class="test-item">
+                <strong>Opening Locker 5:</strong> <span id="opening-test">Dolap 5 açılıyor</span>
+            </div>
+            <div class="test-item">
+                <strong>3 Attempts Remaining:</strong> <span id="attempts-test">3 deneme hakkınız kaldı</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock i18n system for testing
+        const messages = {
+            tr: {
+                test_status: 'Test durumu: Dil değiştirme sistemi aktif',
+                scan_card: 'Kart okutunuz',
+                help_button: 'Yardım',
+                back: 'Geri',
+                master_access: 'Master Erişim',
+                lock_failure_title: 'Dolap Açılamadı',
+                lock_failure_message: 'Dolap açılırken bir sorun oluştu',
+                retry: 'Tekrar Dene',
+                get_help: 'Yardım İste',
+                help_request: 'Yardım Talebi',
+                help_category: 'Sorun Kategorisi',
+                category_lock_problem: 'Dolap Sorunu',
+                category_other: 'Diğer',
+                submit_help: 'Yardım Talep Et',
+                cancel: 'İptal',
+                help_note: 'Açıklama (İsteğe bağlı)',
+                help_contact: 'İletişim (İsteğe bağlı)',
+                help_note_placeholder: 'Sorununuzu kısaca açıklayın...',
+                help_contact_placeholder: 'Telefon veya e-posta',
+                text_size_toggle: 'Metin boyutunu değiştir',
+                skip_to_main: 'Ana içeriğe geç',
+                opening: 'Dolap {id} açılıyor',
+                pin_attempts_remaining: '{attempts} deneme hakkınız kaldı'
+            },
+            en: {
+                test_status: 'Test status: Language switching system active',
+                scan_card: 'Scan your card',
+                help_button: 'Help',
+                back: 'Back',
+                master_access: 'Master Access',
+                lock_failure_title: 'Lock Failed',
+                lock_failure_message: 'There was a problem opening the locker',
+                retry: 'Retry',
+                get_help: 'Get Help',
+                help_request: 'Help Request',
+                help_category: 'Issue Category',
+                category_lock_problem: 'Lock Problem',
+                category_other: 'Other',
+                submit_help: 'Request Help',
+                cancel: 'Cancel',
+                help_note: 'Description (Optional)',
+                help_contact: 'Contact (Optional)',
+                help_note_placeholder: 'Briefly describe your issue...',
+                help_contact_placeholder: 'Phone or email',
+                text_size_toggle: 'Toggle text size',
+                skip_to_main: 'Skip to main content',
+                opening: 'Opening locker {id}',
+                pin_attempts_remaining: '{attempts} attempts remaining'
+            }
+        };
+
+        let currentLanguage = 'tr';
+
+        function get(key, params = {}) {
+            let message = messages[currentLanguage][key] || key;
+            
+            // Replace parameters
+            Object.keys(params).forEach(param => {
+                message = message.replace(new RegExp(`\\{${param}\\}`, 'g'), String(params[param]));
+            });
+            
+            return message;
+        }
+
+        function updateUI() {
+            // Update all elements with data-i18n attribute
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const translatedText = get(key);
+                
+                // Handle different element types
+                if (element.tagName === 'INPUT' && element.type === 'text') {
+                    element.placeholder = translatedText;
+                } else if (element.tagName === 'TEXTAREA') {
+                    element.placeholder = translatedText;
+                } else {
+                    element.textContent = translatedText;
+                }
+            });
+            
+            // Update parameter interpolation examples
+            document.getElementById('opening-test').textContent = get('opening', { id: '5' });
+            document.getElementById('attempts-test').textContent = get('pin_attempts_remaining', { attempts: 3 });
+            
+            // Update document language
+            document.documentElement.lang = currentLanguage;
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            updateUI();
+            updateLanguageButtons();
+        }
+
+        function updateLanguageButtons() {
+            document.getElementById('lang-tr').classList.toggle('active', currentLanguage === 'tr');
+            document.getElementById('lang-en').classList.toggle('active', currentLanguage === 'en');
+        }
+
+        // Setup event listeners
+        document.getElementById('lang-tr').addEventListener('click', () => setLanguage('tr'));
+        document.getElementById('lang-en').addEventListener('click', () => setLanguage('en'));
+
+        // Initialize
+        updateUI();
+        
+        console.log('✅ Kiosk Language Switching Test loaded successfully!');
+        console.log('Click TR/EN buttons to test language switching');
+    </script>
+</body>
+</html>

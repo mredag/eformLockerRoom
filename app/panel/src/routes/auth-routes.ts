@@ -261,6 +261,29 @@ export async function authRoutes(fastify: FastifyInstance, options: AuthRouteOpt
     });
   });
 
+  // Refresh session endpoint (alias for renew for frontend compatibility)
+  fastify.post('/refresh', async (request, reply) => {
+    const sessionToken = request.cookies.session;
+    if (!sessionToken) {
+      reply.code(401).send({ error: 'Not authenticated' });
+      return;
+    }
+
+    const ipAddress = extractClientIp(request);
+    const userAgent = request.headers['user-agent'] || 'unknown';
+    const renewedSession = sessionManager.renewSession(sessionToken, ipAddress, userAgent);
+    if (!renewedSession) {
+      reply.clearCookie('session');
+      reply.code(401).send({ error: 'Session expired' });
+      return;
+    }
+
+    reply.send({
+      success: true,
+      csrfToken: renewedSession.csrfToken
+    });
+  });
+
   // Admin-only: Create user
   fastify.post('/users', {
     preHandler: async (request, reply) => {

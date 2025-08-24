@@ -36,7 +36,22 @@ class I18n {
             this.messages = {
                 kiosk: {
                     scan_card: this.currentLanguage === 'tr' ? 'Kart okutunuz' : 'Scan your card',
-                    error_network: this.currentLanguage === 'tr' ? 'Ağ hatası' : 'Network error'
+                    error_network: this.currentLanguage === 'tr' ? 'Ağ hatası' : 'Network error',
+                    text_size_toggle: this.currentLanguage === 'tr' ? 'Metin Boyutu' : 'Text Size',
+                    text_size: this.currentLanguage === 'tr' ? 'A' : 'A',
+                    text_size_large: this.currentLanguage === 'tr' ? 'Büyük metin boyutu' : 'Large text size',
+                    text_size_normal: this.currentLanguage === 'tr' ? 'Normal metin boyutu' : 'Normal text size',
+                    lock_failure_title: this.currentLanguage === 'tr' ? 'Dolap Açılamadı' : 'Lock Failed',
+                    lock_failure_message: this.currentLanguage === 'tr' ? 'Dolap açılırken bir sorun oluştu' : 'There was a problem opening the locker',
+                    lock_failure_description: this.currentLanguage === 'tr' ? 'Lütfen tekrar deneyin veya yardım isteyin.' : 'Please try again or request help.',
+                    retry: this.currentLanguage === 'tr' ? 'Tekrar Dene' : 'Retry',
+                    get_help: this.currentLanguage === 'tr' ? 'Yardım İste' : 'Get Help',
+                    retry_failed: this.currentLanguage === 'tr' ? 'Tekrar deneme başarısız' : 'Retry failed',
+                    lock_failure_help_note: this.currentLanguage === 'tr' ? 'Dolap açılmadı, yardıma ihtiyacım var.' : 'Locker failed to open, I need help.',
+                    back: this.currentLanguage === 'tr' ? 'Geri' : 'Back',
+                    skip_to_main: this.currentLanguage === 'tr' ? 'Ana içeriğe geç' : 'Skip to main content',
+                    category_lock_problem: this.currentLanguage === 'tr' ? 'Dolap Sorunu' : 'Lock Problem',
+                    category_other: this.currentLanguage === 'tr' ? 'Diğer' : 'Other'
                 },
                 qr: {}
             };
@@ -60,6 +75,11 @@ class I18n {
                 localStorage.setItem('kiosk-language', lang);
                 this.updateUI();
                 this.updateLanguageButtons();
+                
+                // Trigger custom event for other components to react to language change
+                window.dispatchEvent(new CustomEvent('languageChanged', {
+                    detail: { language: lang, messages: this.messages }
+                }));
             }
         } catch (error) {
             console.error('Failed to set language:', error);
@@ -89,11 +109,30 @@ class I18n {
         // Update all elements with data-i18n attribute
         document.querySelectorAll('[data-i18n]').forEach(element => {
             const key = element.getAttribute('data-i18n');
-            element.textContent = this.get(key);
+            const translatedText = this.get(key);
+            
+            // Handle different element types
+            if (element.tagName === 'INPUT' && element.type === 'text') {
+                element.placeholder = translatedText;
+            } else if (element.tagName === 'INPUT' && element.type === 'number') {
+                element.placeholder = translatedText;
+            } else if (element.tagName === 'TEXTAREA') {
+                element.placeholder = translatedText;
+            } else {
+                element.textContent = translatedText;
+            }
         });
         
         // Update document language
         document.documentElement.lang = this.currentLanguage;
+        
+        // Update title attributes for accessibility
+        document.querySelectorAll('[title]').forEach(element => {
+            const titleKey = element.getAttribute('data-title-i18n');
+            if (titleKey) {
+                element.title = this.get(titleKey);
+            }
+        });
     }
     
     setupLanguageButtons() {

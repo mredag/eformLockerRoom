@@ -1,19 +1,25 @@
-# Kiosk Startup Troubleshooting Guide
+# 🔧 Kiosk Startup Troubleshooting Guide
+
+**Status:** ✅ Updated for Production Deployment  
+**Last Updated:** January 2025  
+**Target:** Raspberry Pi 4/5 with Turkish Localization
 
 ## Common Error: "Cannot read properties of undefined (reading 'port')"
 
-This error occurs when the ModbusController constructor receives an undefined config parameter.
+This error occurs when the ModbusController constructor receives an undefined config parameter. This issue has been resolved in the latest version.
 
-### Quick Fix
+### Quick Fix (Updated for 2025)
 
-Run the fix script on your Raspberry Pi:
+Use the automated deployment script for the latest fixes:
 
 ```bash
-# Make the script executable
-chmod +x scripts/fix-kiosk-startup.sh
+# Use the comprehensive deployment script
+chmod +x scripts/deploy-to-pi.sh
+./scripts/deploy-to-pi.sh
 
-# Run the fix script
-./scripts/fix-kiosk-startup.sh
+# Or use the quick setup for new installations
+chmod +x scripts/quick-setup.sh
+./scripts/quick-setup.sh
 ```
 
 ### Manual Fix Steps

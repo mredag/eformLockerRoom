@@ -1,4 +1,9 @@
-# Eform Locker System - Operational Runbook
+# 📋 Eform Locker System - Operational Runbook
+
+**Status:** ✅ Production Ready for Turkey Deployment  
+**Last Updated:** January 2025  
+**Language:** Turkish UI with English Operations Manual  
+**Target Environment:** Raspberry Pi with Waveshare Hardware
 
 ## Table of Contents
 1. [Emergency Opening Procedures](#emergency-opening-procedures)
@@ -49,9 +54,10 @@
 4. If all electronic systems fail, use physical master keys
 
 **Emergency Panel Access:**
-- URL: `http://[panel-ip]:3001/emergency`
+- URL: `http://[panel-ip]:3003/emergency` (Updated port)
 - Emergency admin credentials stored in secure cabinet
 - Bypass normal authentication in emergency mode
+- **Interface Language:** Turkish (Türkçe)
 
 **Kiosk Master PIN Emergency:**
 1. Press and hold Master button for 10 seconds

@@ -11,12 +11,24 @@ class KioskApp {
         this.lockoutEndTime = null;
         this.availableLockers = [];
         this.allLockers = [];
+        this.isLargeText = false;
+        this.lastFailedLockerId = null;
+        this.helpRequest = {
+            category: null,
+            lockerNumber: null,
+            note: '',
+            contact: '',
+            photo: null
+        };
+        this.lockoutTimerInterval = null;
         
         this.init();
     }
     
     init() {
         this.setupEventListeners();
+        this.setupAccessibilityFeatures();
+        this.setupKeyboardNavigation();
         this.startClock();
         this.loadKioskInfo();
         this.checkPinLockout();
@@ -43,6 +55,43 @@ class KioskApp {
             this.showScreen('main-screen');
         });
         
+        document.getElementById('back-to-main-from-help')?.addEventListener('click', () => {
+            this.showScreen('main-screen');
+            this.resetHelpForm();
+        });
+        
+        document.getElementById('back-to-main-from-success')?.addEventListener('click', () => {
+            this.showScreen('main-screen');
+        });
+        
+        document.getElementById('back-to-main-from-failure')?.addEventListener('click', () => {
+            this.showScreen('main-screen');
+        });
+        
+        // Lock failure screen buttons
+        document.getElementById('retry-lock-btn')?.addEventListener('click', () => {
+            this.retryLockOperation();
+        });
+        
+        document.getElementById('help-from-failure-btn')?.addEventListener('click', () => {
+            this.showScreen('help-request-screen');
+            this.resetHelpForm();
+            // Pre-fill with lock problem category and locker number
+            if (this.lastFailedLockerId) {
+                this.helpRequest.category = 'lock_problem';
+                this.helpRequest.lockerNumber = this.lastFailedLockerId;
+                this.updateHelpFormFromFailure();
+            }
+            this.checkCameraAvailability();
+        });
+        
+        // Help button
+        document.getElementById('help-btn')?.addEventListener('click', () => {
+            this.showScreen('help-request-screen');
+            this.resetHelpForm();
+            this.checkCameraAvailability();
+        });
+        
         // Master access button
         document.getElementById('master-btn')?.addEventListener('click', () => {
             if (this.isLocked) {
@@ -56,6 +105,9 @@ class KioskApp {
         // PIN keypad
         this.setupPinKeypad();
         
+        // Help form
+        this.setupHelpForm();
+        
         // Handle window focus/blur for polling
         window.addEventListener('focus', () => this.startPolling());
         window.addEventListener('blur', () => this.stopPolling());
@@ -68,6 +120,211 @@ class KioskApp {
                 this.startPolling();
             }
         });
+        
+        // Handle language changes
+        window.addEventListener('languageChanged', (e) => {
+            this.onLanguageChanged(e.detail);
+        });
+    }
+    
+    setupAccessibilityFeatures() {
+        // Text size toggle
+        const textSizeToggle = document.getElementById('text-size-toggle');
+        if (textSizeToggle) {
+            textSizeToggle.addEventListener('click', () => {
+                this.toggleTextSize();
+            });
+        }
+        
+        // Load saved text size preference
+        const savedTextSize = localStorage.getItem('kiosk-text-size');
+        if (savedTextSize === 'large') {
+            this.enableLargeText();
+        }
+    }
+    
+    setupKeyboardNavigation() {
+        // Add keyboard event listeners for navigation
+        document.addEventListener('keydown', (e) => {
+            this.handleKeyboardNavigation(e);
+        });
+        
+        // Ensure all interactive elements are focusable
+        this.ensureFocusableElements();
+    }
+    
+    handleKeyboardNavigation(e) {
+        switch (e.key) {
+            case 'Escape':
+                // Go back to main screen or previous screen
+                if (this.currentScreen !== 'main-screen') {
+                    this.showScreen('main-screen');
+                }
+                break;
+            case 'Enter':
+                // Activate focused element
+                if (document.activeElement && document.activeElement.click) {
+                    document.activeElement.click();
+                }
+                break;
+            case 'Tab':
+                // Let default tab behavior work, but ensure proper focus management
+                this.manageFocus(e);
+                break;
+            case 'ArrowUp':
+            case 'ArrowDown':
+            case 'ArrowLeft':
+            case 'ArrowRight':
+                // Navigate between locker buttons or PIN buttons
+                this.handleArrowNavigation(e);
+                break;
+        }
+    }
+    
+    manageFocus(e) {
+        // Ensure focus stays within the current screen
+        const currentScreenEl = document.getElementById(this.currentScreen);
+        if (!currentScreenEl) return;
+        
+        const focusableElements = currentScreenEl.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        
+        if (focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        if (e.shiftKey && document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+        } else if (!e.shiftKey && document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+        }
+    }
+    
+    handleArrowNavigation(e) {
+        // Handle arrow key navigation for grids (lockers, PIN pad)
+        if (this.currentScreen === 'locker-selection-screen' || this.currentScreen === 'master-locker-screen') {
+            this.navigateLockerGrid(e);
+        } else if (this.currentScreen === 'master-pin-screen') {
+            this.navigatePinKeypad(e);
+        }
+    }
+    
+    navigateLockerGrid(e) {
+        const grid = this.currentScreen === 'locker-selection-screen' 
+            ? document.getElementById('locker-grid')
+            : document.getElementById('master-locker-grid');
+        
+        if (!grid) return;
+        
+        const buttons = Array.from(grid.querySelectorAll('.locker-btn:not([disabled])'));
+        const currentIndex = buttons.indexOf(document.activeElement);
+        
+        if (currentIndex === -1) return;
+        
+        let newIndex = currentIndex;
+        const gridWidth = Math.floor(grid.offsetWidth / buttons[0].offsetWidth);
+        
+        switch (e.key) {
+            case 'ArrowLeft':
+                newIndex = Math.max(0, currentIndex - 1);
+                break;
+            case 'ArrowRight':
+                newIndex = Math.min(buttons.length - 1, currentIndex + 1);
+                break;
+            case 'ArrowUp':
+                newIndex = Math.max(0, currentIndex - gridWidth);
+                break;
+            case 'ArrowDown':
+                newIndex = Math.min(buttons.length - 1, currentIndex + gridWidth);
+                break;
+        }
+        
+        if (newIndex !== currentIndex) {
+            e.preventDefault();
+            buttons[newIndex].focus();
+        }
+    }
+    
+    navigatePinKeypad(e) {
+        const keypad = document.querySelector('.pin-keypad');
+        if (!keypad) return;
+        
+        const buttons = Array.from(keypad.querySelectorAll('.pin-btn'));
+        const currentIndex = buttons.indexOf(document.activeElement);
+        
+        if (currentIndex === -1) return;
+        
+        let newIndex = currentIndex;
+        
+        switch (e.key) {
+            case 'ArrowLeft':
+                newIndex = currentIndex > 0 ? currentIndex - 1 : buttons.length - 1;
+                break;
+            case 'ArrowRight':
+                newIndex = currentIndex < buttons.length - 1 ? currentIndex + 1 : 0;
+                break;
+            case 'ArrowUp':
+                newIndex = currentIndex >= 3 ? currentIndex - 3 : currentIndex + 9;
+                if (newIndex >= buttons.length) newIndex = currentIndex;
+                break;
+            case 'ArrowDown':
+                newIndex = currentIndex + 3;
+                if (newIndex >= buttons.length) newIndex = currentIndex % 3;
+                break;
+        }
+        
+        if (newIndex !== currentIndex && newIndex < buttons.length) {
+            e.preventDefault();
+            buttons[newIndex].focus();
+        }
+    }
+    
+    ensureFocusableElements() {
+        // Ensure all interactive elements have proper tabindex
+        document.querySelectorAll('button, input, textarea').forEach(element => {
+            if (!element.hasAttribute('tabindex') && !element.disabled) {
+                element.setAttribute('tabindex', '0');
+            }
+        });
+    }
+    
+    toggleTextSize() {
+        this.isLargeText = !this.isLargeText;
+        
+        if (this.isLargeText) {
+            this.enableLargeText();
+        } else {
+            this.disableLargeText();
+        }
+        
+        // Save preference
+        localStorage.setItem('kiosk-text-size', this.isLargeText ? 'large' : 'normal');
+    }
+    
+    enableLargeText() {
+        document.body.classList.add('large-text');
+        const toggleBtn = document.getElementById('text-size-toggle');
+        if (toggleBtn) {
+            toggleBtn.classList.add('large-text');
+            toggleBtn.setAttribute('title', window.i18n?.get('text_size_normal') || 'Normal metin boyutu');
+            toggleBtn.setAttribute('data-title-i18n', 'text_size_normal');
+        }
+        this.isLargeText = true;
+    }
+    
+    disableLargeText() {
+        document.body.classList.remove('large-text');
+        const toggleBtn = document.getElementById('text-size-toggle');
+        if (toggleBtn) {
+            toggleBtn.classList.remove('large-text');
+            toggleBtn.setAttribute('title', window.i18n?.get('text_size_large') || 'Büyük metin boyutu');
+            toggleBtn.setAttribute('data-title-i18n', 'text_size_large');
+        }
+        this.isLargeText = false;
     }
     
     setupPinKeypad() {
@@ -159,17 +416,31 @@ class KioskApp {
                 await this.loadAllLockers();
                 this.showScreen('master-locker-screen');
                 this.resetPin();
+            } else if (response.status === 429) {
+                // Locked out by server
+                this.hideLoading();
+                this.handleServerLockout(result.remaining_seconds || 0);
             } else {
                 // PIN incorrect
-                this.pinAttempts++;
                 this.hideLoading();
                 
-                if (this.pinAttempts >= this.maxPinAttempts) {
-                    this.lockPinEntry();
+                if (result.attempts_remaining !== undefined) {
+                    if (result.attempts_remaining === 0) {
+                        this.handleServerLockout(result.remaining_seconds || 0);
+                    } else {
+                        this.updatePinStatus('pin_attempts_remaining', { attempts: result.attempts_remaining }, true);
+                        this.clearPin();
+                    }
                 } else {
-                    const remaining = this.maxPinAttempts - this.pinAttempts;
-                    this.updatePinStatus('pin_attempts_remaining', { attempts: remaining }, true);
-                    this.clearPin();
+                    // Fallback to client-side attempt tracking
+                    this.pinAttempts++;
+                    if (this.pinAttempts >= this.maxPinAttempts) {
+                        this.lockPinEntry();
+                    } else {
+                        const remaining = this.maxPinAttempts - this.pinAttempts;
+                        this.updatePinStatus('pin_attempts_remaining', { attempts: remaining }, true);
+                        this.clearPin();
+                    }
                 }
             }
         } catch (error) {
@@ -187,6 +458,8 @@ class KioskApp {
         
         this.updatePinStatus('pin_locked', { minutes: this.pinLockoutMinutes }, true);
         this.clearPin();
+        this.startLockoutTimer();
+        this.disablePinKeypad();
         
         // Set timer to unlock
         setTimeout(() => {
@@ -200,6 +473,8 @@ class KioskApp {
         this.pinAttempts = 0;
         localStorage.removeItem('pin-lockout-end');
         this.updatePinStatus('enter_master_pin');
+        this.stopLockoutTimer();
+        this.enablePinKeypad();
     }
     
     checkPinLockout() {
@@ -213,6 +488,7 @@ class KioskApp {
                 const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
                 
                 this.updatePinStatus('pin_locked', { minutes: remainingMinutes }, true);
+                this.startLockoutTimer();
                 
                 // Set timer to unlock
                 setTimeout(() => {
@@ -229,6 +505,67 @@ class KioskApp {
             const remainingMs = this.lockoutEndTime - Date.now();
             const remainingMinutes = Math.ceil(remainingMs / (60 * 1000));
             this.showStatusMessage('pin_locked', { minutes: remainingMinutes }, 'error');
+        }
+    }
+    
+    startLockoutTimer() {
+        if (this.lockoutTimerInterval) {
+            clearInterval(this.lockoutTimerInterval);
+        }
+        
+        this.lockoutTimerInterval = setInterval(() => {
+            if (this.lockoutEndTime && Date.now() < this.lockoutEndTime) {
+                const remainingMs = this.lockoutEndTime - Date.now();
+                const remainingSeconds = Math.ceil(remainingMs / 1000);
+                const minutes = Math.floor(remainingSeconds / 60);
+                const seconds = remainingSeconds % 60;
+                
+                const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                this.updatePinStatus('pin_locked_timer', { time: timeString }, true);
+            } else {
+                this.unlockPinEntry();
+            }
+        }, 1000);
+    }
+    
+    handleServerLockout(remainingSeconds) {
+        this.isLocked = true;
+        this.lockoutEndTime = Date.now() + (remainingSeconds * 1000);
+        localStorage.setItem('pin-lockout-end', this.lockoutEndTime.toString());
+        
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        this.updatePinStatus('pin_locked_timer', { time: timeString }, true);
+        this.clearPin();
+        this.startLockoutTimer();
+        this.disablePinKeypad();
+        
+        // Set timer to unlock
+        setTimeout(() => {
+            this.unlockPinEntry();
+        }, remainingSeconds * 1000);
+    }
+    
+    stopLockoutTimer() {
+        if (this.lockoutTimerInterval) {
+            clearInterval(this.lockoutTimerInterval);
+            this.lockoutTimerInterval = null;
+        }
+    }
+    
+    disablePinKeypad() {
+        const pinEntry = document.querySelector('.pin-entry');
+        if (pinEntry) {
+            pinEntry.classList.add('locked');
+        }
+    }
+    
+    enablePinKeypad() {
+        const pinEntry = document.querySelector('.pin-entry');
+        if (pinEntry) {
+            pinEntry.classList.remove('locked');
         }
     }
     
@@ -369,7 +706,8 @@ class KioskApp {
                 this.showStatusMessage('opened_released', { id: event.locker_id }, 'success');
                 break;
             case 'locker_failed':
-                this.showStatusMessage('failed_open', {}, 'error');
+                this.lastFailedLockerId = event.locker_id;
+                this.showLockFailureScreen(event.locker_id);
                 break;
         }
     }
@@ -484,7 +822,7 @@ class KioskApp {
         
         const status = document.createElement('div');
         status.className = 'locker-status';
-        status.textContent = window.i18n.get(`status_${locker.status.toLowerCase()}`);
+        status.textContent = window.i18n?.get(`status_${locker.status.toLowerCase()}`) || locker.status;
         
         btn.appendChild(number);
         btn.appendChild(status);
@@ -514,12 +852,14 @@ class KioskApp {
                 this.showStatusMessage('opening', { id: lockerId }, 'info');
                 this.showScreen('main-screen');
             } else {
-                this.showStatusMessage(result.error || 'error_unknown', {}, 'error');
+                this.lastFailedLockerId = lockerId;
+                this.showLockFailureScreen(lockerId);
             }
         } catch (error) {
             console.error('Locker selection error:', error);
             this.hideLoading();
-            this.showStatusMessage('error_network', {}, 'error');
+            this.lastFailedLockerId = lockerId;
+            this.showLockFailureScreen(lockerId);
         }
     }
     
@@ -552,6 +892,365 @@ class KioskApp {
             console.error('Master open error:', error);
             this.hideLoading();
             this.showStatusMessage('error_network', {}, 'error');
+        }
+    }
+    
+    // Help Request Methods
+    setupHelpForm() {
+        // Category selection
+        const categoryButtons = document.getElementById('category-buttons');
+        if (categoryButtons) {
+            categoryButtons.addEventListener('click', (e) => {
+                const btn = e.target.closest('.category-btn');
+                if (btn) {
+                    // Remove previous selection
+                    categoryButtons.querySelectorAll('.category-btn').forEach(b => {
+                        b.classList.remove('selected');
+                    });
+                    
+                    // Select current category
+                    btn.classList.add('selected');
+                    this.helpRequest.category = btn.getAttribute('data-category');
+                    this.updateSubmitButton();
+                }
+            });
+        }
+        
+        // Form inputs
+        const lockerNumberInput = document.getElementById('help-locker-number');
+        if (lockerNumberInput) {
+            lockerNumberInput.addEventListener('input', (e) => {
+                this.helpRequest.lockerNumber = e.target.value ? parseInt(e.target.value) : null;
+            });
+        }
+        
+        const noteTextarea = document.getElementById('help-note');
+        const charCount = document.getElementById('note-char-count');
+        if (noteTextarea && charCount) {
+            noteTextarea.addEventListener('input', (e) => {
+                this.helpRequest.note = e.target.value;
+                charCount.textContent = e.target.value.length;
+            });
+        }
+        
+        const contactInput = document.getElementById('help-contact');
+        if (contactInput) {
+            contactInput.addEventListener('input', (e) => {
+                this.helpRequest.contact = e.target.value;
+            });
+        }
+        
+        // Photo capture (placeholder for now)
+        const capturePhotoBtn = document.getElementById('capture-photo-btn');
+        if (capturePhotoBtn) {
+            capturePhotoBtn.addEventListener('click', () => {
+                this.capturePhoto();
+            });
+        }
+        
+        const removePhotoBtn = document.getElementById('remove-photo-btn');
+        if (removePhotoBtn) {
+            removePhotoBtn.addEventListener('click', () => {
+                this.removePhoto();
+            });
+        }
+        
+        // Form actions
+        const cancelBtn = document.getElementById('cancel-help-btn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.showScreen('main-screen');
+                this.resetHelpForm();
+            });
+        }
+        
+        const submitBtn = document.getElementById('submit-help-btn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                this.submitHelpRequest();
+            });
+        }
+    }
+    
+    resetHelpForm() {
+        this.helpRequest = {
+            category: null,
+            lockerNumber: null,
+            note: '',
+            contact: '',
+            photo: null
+        };
+        
+        // Reset form elements
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        
+        const lockerNumberInput = document.getElementById('help-locker-number');
+        if (lockerNumberInput) lockerNumberInput.value = '';
+        
+        const noteTextarea = document.getElementById('help-note');
+        const charCount = document.getElementById('note-char-count');
+        if (noteTextarea) noteTextarea.value = '';
+        if (charCount) charCount.textContent = '0';
+        
+        const contactInput = document.getElementById('help-contact');
+        if (contactInput) contactInput.value = '';
+        
+        this.removePhoto();
+        this.updateSubmitButton();
+    }
+    
+    updateSubmitButton() {
+        const submitBtn = document.getElementById('submit-help-btn');
+        if (submitBtn) {
+            submitBtn.disabled = !this.helpRequest.category;
+        }
+    }
+    
+    async checkCameraAvailability() {
+        try {
+            const photoSection = document.getElementById('photo-section');
+            if (!photoSection) return;
+            
+            // Check if camera is available
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const hasCamera = devices.some(device => device.kind === 'videoinput');
+            
+            if (hasCamera) {
+                photoSection.style.display = 'block';
+            } else {
+                photoSection.style.display = 'none';
+            }
+        } catch (error) {
+            console.log('Camera check failed:', error);
+            // Hide photo section if camera check fails
+            const photoSection = document.getElementById('photo-section');
+            if (photoSection) photoSection.style.display = 'none';
+        }
+    }
+    
+    async capturePhoto() {
+        try {
+            // For now, simulate photo capture
+            // In a real implementation, this would use getUserMedia to capture from camera
+            this.showStatusMessage('photo_capture_not_implemented', {}, 'info', 3000);
+            
+            // Placeholder implementation - would be replaced with actual camera capture
+            /*
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'environment' } 
+            });
+            
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.play();
+            
+            // Create canvas to capture frame
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Wait for video to load
+            video.addEventListener('loadedmetadata', () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+                
+                // Convert to blob
+                canvas.toBlob((blob) => {
+                    this.helpRequest.photo = blob;
+                    this.showPhotoPreview(URL.createObjectURL(blob));
+                    
+                    // Stop camera stream
+                    stream.getTracks().forEach(track => track.stop());
+                }, 'image/jpeg', 0.8);
+            });
+            */
+        } catch (error) {
+            console.error('Photo capture error:', error);
+            this.showStatusMessage('photo_capture_failed', {}, 'error', 3000);
+        }
+    }
+    
+    showPhotoPreview(imageUrl) {
+        const preview = document.getElementById('photo-preview');
+        const previewImage = document.getElementById('preview-image');
+        const captureBtn = document.getElementById('capture-photo-btn');
+        
+        if (preview && previewImage && captureBtn) {
+            previewImage.src = imageUrl;
+            preview.style.display = 'block';
+            captureBtn.style.display = 'none';
+        }
+    }
+    
+    removePhoto() {
+        this.helpRequest.photo = null;
+        
+        const preview = document.getElementById('photo-preview');
+        const previewImage = document.getElementById('preview-image');
+        const captureBtn = document.getElementById('capture-photo-btn');
+        
+        if (preview && previewImage && captureBtn) {
+            preview.style.display = 'none';
+            previewImage.src = '';
+            captureBtn.style.display = 'flex';
+        }
+    }
+    
+    async submitHelpRequest() {
+        if (!this.helpRequest.category) {
+            this.showStatusMessage('help_category_required', {}, 'error', 3000);
+            return;
+        }
+        
+        this.showLoading('Submitting help request...');
+        
+        try {
+            const requestData = {
+                kiosk_id: this.kioskId,
+                category: this.helpRequest.category,
+                locker_no: this.helpRequest.lockerNumber,
+                note: this.helpRequest.note || undefined,
+                user_contact: this.helpRequest.contact || undefined,
+                priority: 'medium'
+            };
+            
+            const response = await fetch('/api/help', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const result = await response.json();
+            this.hideLoading();
+            
+            if (response.ok && result.success) {
+                // Show success screen
+                const requestNumber = document.getElementById('help-request-number');
+                if (requestNumber) {
+                    requestNumber.textContent = `#${result.data.id}`;
+                }
+                
+                this.showScreen('help-success-screen');
+                this.resetHelpForm();
+            } else {
+                this.showStatusMessage(result.error || 'help_submit_failed', {}, 'error', 5000);
+            }
+        } catch (error) {
+            console.error('Help request submission error:', error);
+            this.hideLoading();
+            this.showStatusMessage('error_network', {}, 'error', 5000);
+        }
+    }
+    
+    showLockFailureScreen(lockerId) {
+        this.hideLoading();
+        this.lastFailedLockerId = lockerId;
+        this.showScreen('lock-failure-screen');
+        
+        // Focus on the retry button for accessibility
+        setTimeout(() => {
+            const retryBtn = document.getElementById('retry-lock-btn');
+            if (retryBtn) {
+                retryBtn.focus();
+            }
+        }, 300);
+    }
+    
+    async retryLockOperation() {
+        if (!this.lastFailedLockerId) {
+            this.showScreen('main-screen');
+            return;
+        }
+        
+        // Try to open the locker again
+        this.showLoading('Retrying locker operation...');
+        
+        try {
+            const response = await fetch('/api/lockers/retry', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    locker_id: this.lastFailedLockerId,
+                    kiosk_id: this.kioskId
+                })
+            });
+            
+            const result = await response.json();
+            this.hideLoading();
+            
+            if (result.success) {
+                this.showStatusMessage('opening', { id: this.lastFailedLockerId }, 'info');
+                this.showScreen('main-screen');
+                this.lastFailedLockerId = null;
+            } else {
+                // Still failed, stay on failure screen
+                this.showStatusMessage('retry_failed', {}, 'error', 3000);
+            }
+        } catch (error) {
+            console.error('Retry operation error:', error);
+            this.hideLoading();
+            this.showStatusMessage('error_network', {}, 'error', 3000);
+        }
+    }
+    
+    updateHelpFormFromFailure() {
+        // Pre-select lock problem category
+        const lockProblemBtn = document.querySelector('[data-category="lock_problem"]');
+        if (lockProblemBtn) {
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            lockProblemBtn.classList.add('selected');
+        }
+        
+        // Pre-fill locker number
+        const lockerNumberInput = document.getElementById('help-locker-number');
+        if (lockerNumberInput && this.lastFailedLockerId) {
+            lockerNumberInput.value = this.lastFailedLockerId;
+        }
+        
+        // Pre-fill note with failure context
+        const noteTextarea = document.getElementById('help-note');
+        if (noteTextarea) {
+            noteTextarea.value = window.i18n?.get('lock_failure_help_note') || 'Dolap açılmadı, yardıma ihtiyacım var.';
+            const charCount = document.getElementById('note-char-count');
+            if (charCount) {
+                charCount.textContent = noteTextarea.value.length;
+            }
+        }
+        
+        this.updateSubmitButton();
+    }
+    
+    onLanguageChanged(detail) {
+        // Update any dynamic content that might not be caught by the i18n updateUI
+        // Update locker grid if visible
+        if (this.currentScreen === 'locker-selection-screen' && this.availableLockers.length > 0) {
+            this.renderLockerGrid();
+        } else if (this.currentScreen === 'master-locker-screen' && this.allLockers.length > 0) {
+            this.renderMasterLockerGrid();
+        }
+        
+        // Update text size button title based on current state
+        if (this.isLargeText) {
+            this.enableLargeText();
+        } else {
+            this.disableLargeText();
+        }
+        
+        // Update any status messages that might be showing
+        const statusMessage = document.getElementById('status-message');
+        if (statusMessage && statusMessage.classList.contains('show')) {
+            // Re-render status message if it's currently showing
+            // This would require storing the message key and params, which we don't currently do
+            // For now, just hide it to avoid showing outdated language
+            statusMessage.classList.remove('show');
         }
     }
 }

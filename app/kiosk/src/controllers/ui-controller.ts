@@ -4,6 +4,9 @@ import { join } from 'path';
 import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
 import { RfidUserFlow } from '../services/rfid-user-flow';
 import { ModbusController } from '../hardware/modbus-controller';
+import { SettingsService } from '../../../../shared/services/settings-service';
+import { EventLogger } from '../../../../shared/services/event-logger';
+import { EventType } from '../../../../shared/types/core-entities';
 
 // Use process.cwd() for compatibility with bundled code
 const currentDir = process.cwd();
@@ -12,10 +15,8 @@ export class UiController {
   private lockerStateManager: LockerStateManager;
   private rfidUserFlow: RfidUserFlow;
   private modbusController: ModbusController;
-  private masterPin: string = '1234'; // TODO: Load from config
-  private pinAttempts: Map<string, { count: number; lockoutEnd?: number }> = new Map();
-  private readonly maxAttempts = 5;
-  private readonly lockoutMinutes = 5;
+  private settingsService: SettingsService;
+  private eventLogger: EventLogger;
 
   constructor(
     lockerStateManager: LockerStateManager,
@@ -25,6 +26,8 @@ export class UiController {
     this.lockerStateManager = lockerStateManager;
     this.rfidUserFlow = rfidUserFlow;
     this.modbusController = modbusController;
+    this.settingsService = new SettingsService();
+    this.eventLogger = new EventLogger();
   }
 
   async registerRoutes(fastify: FastifyInstance) {
@@ -250,48 +253,63 @@ export class UiController {
       }
 
       const clientIp = request.ip;
-      const attemptKey = `${clientIp}-${kiosk_id}`;
       
       // Check if locked out
-      const attempts = this.pinAttempts.get(attemptKey) || { count: 0 };
-      
-      if (attempts.lockoutEnd && Date.now() < attempts.lockoutEnd) {
+      const isLocked = await this.settingsService.isLocked(kiosk_id, clientIp);
+      if (isLocked) {
+        const remainingTime = await this.settingsService.getRemainingLockoutTime(kiosk_id, clientIp);
         reply.code(429);
         return { 
           error: 'PIN entry locked',
-          lockout_end: attempts.lockoutEnd
+          remaining_seconds: remainingTime
         };
       }
 
       // Verify PIN
-      if (pin === this.masterPin) {
-        // Reset attempts on success
-        this.pinAttempts.delete(attemptKey);
+      const isValid = await this.settingsService.verifyMasterPin(pin);
+      
+      // Record the attempt
+      const nowLocked = await this.settingsService.recordPinAttempt(kiosk_id, clientIp, isValid);
+      
+      if (isValid) {
+        // Log successful PIN usage
+        await this.eventLogger.logMasterPinUsage(kiosk_id, 0, {
+          pin_attempts: 1,
+          success: true,
+          client_ip: clientIp
+        });
         
-        // Log master PIN usage
-        this.logMasterPinUsage(clientIp, kiosk_id, 'success');
         console.log(`Master PIN used successfully from ${clientIp} for kiosk ${kiosk_id}`);
-        
         return { success: true };
       } else {
-        // Increment attempts
-        attempts.count++;
+        // Log failed attempt
+        await this.eventLogger.logMasterPinUsage(kiosk_id, 0, {
+          pin_attempts: 1,
+          success: false,
+          lockout_triggered: nowLocked,
+          client_ip: clientIp
+        });
         
-        if (attempts.count >= this.maxAttempts) {
-          attempts.lockoutEnd = Date.now() + (this.lockoutMinutes * 60 * 1000);
-          this.logMasterPinUsage(clientIp, kiosk_id, 'locked');
+        if (nowLocked) {
           console.log(`Master PIN locked out for ${clientIp} on kiosk ${kiosk_id}`);
+          reply.code(429);
+          return { 
+            error: 'PIN entry locked',
+            remaining_seconds: await this.settingsService.getRemainingLockoutTime(kiosk_id, clientIp)
+          };
         } else {
-          this.logMasterPinUsage(clientIp, kiosk_id, 'failed');
+          const settings = await this.settingsService.getSecuritySettings();
+          // Get current attempts to calculate remaining
+          const status = await this.settingsService.getLockoutStatus();
+          const kioskStatus = status.find(s => s.kiosk_id === kiosk_id);
+          const attemptsRemaining = settings.lockout_attempts - (kioskStatus?.attempts || 0);
+          
+          reply.code(401);
+          return { 
+            error: 'Incorrect PIN',
+            attempts_remaining: Math.max(0, attemptsRemaining)
+          };
         }
-        
-        this.pinAttempts.set(attemptKey, attempts);
-        
-        reply.code(401);
-        return { 
-          error: 'Incorrect PIN',
-          attempts_remaining: Math.max(0, this.maxAttempts - attempts.count)
-        };
       }
     } catch (error) {
       console.error('Error verifying master PIN:', error);
@@ -317,7 +335,18 @@ export class UiController {
         await this.lockerStateManager.releaseLocker(kiosk_id, locker_id);
         
         // Log master open action
-        this.logMasterAction(request.ip, kiosk_id, locker_id, 'open');
+        await this.eventLogger.logEvent(
+          kiosk_id,
+          EventType.MASTER_PIN_USED,
+          {
+            action: 'open_locker',
+            locker_id: locker_id,
+            client_ip: request.ip,
+            success: true
+          },
+          locker_id
+        );
+        
         console.log(`Master opened locker ${locker_id} on kiosk ${kiosk_id} from ${request.ip}`);
         
         return { success: true, locker_id };
@@ -329,40 +358,5 @@ export class UiController {
       reply.code(500);
       return { error: 'error_server' };
     }
-  }
-
-  private logMasterPinUsage(clientIp: string, kioskId: string, result: 'success' | 'failed' | 'locked'): void {
-    // TODO: Implement proper event logging to database
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      event_type: 'master_pin_used',
-      kiosk_id: kioskId,
-      client_ip: clientIp,
-      result: result,
-      details: {
-        action: 'pin_verification',
-        success: result === 'success'
-      }
-    };
-    
-    console.log('Master PIN Event:', JSON.stringify(logEntry));
-  }
-
-  private logMasterAction(clientIp: string, kioskId: string, lockerId: number, action: string): void {
-    // TODO: Implement proper event logging to database
-    const logEntry = {
-      timestamp: new Date().toISOString(),
-      event_type: 'master_action',
-      kiosk_id: kioskId,
-      locker_id: lockerId,
-      client_ip: clientIp,
-      action: action,
-      details: {
-        master_operation: true,
-        staff_override: true
-      }
-    };
-    
-    console.log('Master Action Event:', JSON.stringify(logEntry));
   }
 }

@@ -141,6 +141,29 @@ fastify.get("/health", async (request, reply) => {
   };
 });
 
+// Help request proxy endpoint
+fastify.post("/api/help", async (request, reply) => {
+  try {
+    const response = await fetch(`${GATEWAY_URL}/api/help`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request.body)
+    });
+
+    const result = await response.json();
+    
+    reply.code(response.status).send(result);
+  } catch (error) {
+    fastify.log.error('Help request proxy error:', error);
+    reply.code(500).send({
+      success: false,
+      error: 'Failed to submit help request'
+    });
+  }
+});
+
 // Initialize RFID handler
 rfidHandler.on("card_scanned", async (scanEvent: any) => {
   await rfidUserFlow.handleCardScanned(scanEvent);

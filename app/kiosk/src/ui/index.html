@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
+    <a href="#main-content" class="skip-link" data-i18n="skip_to_main">Ana içeriğe geç</a>
     <div id="app">
         <!-- Main Screen -->
         <div id="main-screen" class="screen active">
@@ -21,7 +22,7 @@
                 </div>
             </div>
             
-            <div class="main-content">
+            <div id="main-content" class="main-content">
                 <div class="rfid-prompt">
                     <div class="rfid-icon">
                         <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -38,10 +39,21 @@
             </div>
             
             <div class="footer">
+                <button id="help-btn" class="help-button" data-i18n="help_button">Yardım</button>
                 <button id="master-btn" class="master-button" data-i18n="master_access">Master Erişim</button>
-                <div class="language-selector">
-                    <button id="lang-tr" class="lang-btn active">TR</button>
-                    <button id="lang-en" class="lang-btn">EN</button>
+                <div class="accessibility-controls">
+                    <button id="text-size-toggle" class="text-size-button" data-i18n="text_size_toggle" data-title-i18n="text_size_large" title="Metin boyutunu değiştir">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 7V4h16v3"/>
+                            <path d="M9 20h6"/>
+                            <path d="M12 4v16"/>
+                        </svg>
+                        <span data-i18n="text_size">A</span>
+                    </button>
+                    <div class="language-selector">
+                        <button id="lang-tr" class="lang-btn active">TR</button>
+                        <button id="lang-en" class="lang-btn">EN</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -120,6 +132,10 @@
                 <div class="pin-status" id="pin-status">
                     <p data-i18n="enter_master_pin">Master PIN'i girin</p>
                 </div>
+                
+                <div class="security-notice">
+                    <small data-i18n="pin_security_notice">Bu alan güvenlik kamerası ile izlenmektedir</small>
+                </div>
             </div>
         </div>
 
@@ -142,6 +158,150 @@
             
             <div class="master-info">
                 <p data-i18n="master_locker_info">Açmak istediğiniz dolabı seçin</p>
+            </div>
+        </div>
+
+        <!-- Help Request Screen -->
+        <div id="help-request-screen" class="screen">
+            <div class="header">
+                <button id="back-to-main-from-help" class="back-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"/>
+                        <path d="M19 12H5"/>
+                    </svg>
+                    <span data-i18n="back">Geri</span>
+                </button>
+                <h2 class="screen-title" data-i18n="help_request">Yardım Talebi</h2>
+            </div>
+            
+            <div class="help-form">
+                <div class="form-section">
+                    <label class="form-label" data-i18n="help_category">Sorun Kategorisi</label>
+                    <div class="category-buttons" id="category-buttons">
+                        <button class="category-btn" data-category="lock_problem">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <circle cx="12" cy="16" r="1"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                            <span data-i18n="category_lock_problem">Dolap Sorunu</span>
+                        </button>
+                        <button class="category-btn" data-category="other">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                            <span data-i18n="category_other">Diğer</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <label class="form-label" data-i18n="help_locker_number">Dolap Numarası (İsteğe bağlı)</label>
+                    <input type="number" id="help-locker-number" class="form-input" min="1" max="100" data-i18n="help_locker_number" placeholder="Dolap numarası">
+                </div>
+                
+                <div class="form-section">
+                    <label class="form-label" data-i18n="help_note">Açıklama (İsteğe bağlı)</label>
+                    <textarea id="help-note" class="form-textarea" rows="4" maxlength="500" data-i18n="help_note_placeholder" placeholder="Sorununuzu kısaca açıklayın..."></textarea>
+                    <div class="char-counter">
+                        <span id="note-char-count">0</span>/500
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <label class="form-label" data-i18n="help_contact">İletişim (İsteğe bağlı)</label>
+                    <input type="text" id="help-contact" class="form-input" maxlength="100" data-i18n="help_contact_placeholder" placeholder="Telefon veya e-posta">
+                </div>
+                
+                <div class="form-section photo-section" id="photo-section" style="display: none;">
+                    <label class="form-label" data-i18n="help_photo">Fotoğraf (İsteğe bağlı)</label>
+                    <div class="photo-capture">
+                        <button id="capture-photo-btn" class="photo-btn">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                <circle cx="12" cy="13" r="4"/>
+                            </svg>
+                            <span data-i18n="capture_photo">Fotoğraf Çek</span>
+                        </button>
+                        <div id="photo-preview" class="photo-preview" style="display: none;">
+                            <img id="preview-image" src="" alt="Preview">
+                            <button id="remove-photo-btn" class="remove-photo-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button id="cancel-help-btn" class="cancel-btn" data-i18n="cancel">İptal</button>
+                    <button id="submit-help-btn" class="submit-btn" data-i18n="submit_help">Yardım Talep Et</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lock Failure Screen -->
+        <div id="lock-failure-screen" class="screen">
+            <div class="header">
+                <button id="back-to-main-from-failure" class="back-button">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"/>
+                        <path d="M19 12H5"/>
+                    </svg>
+                    <span data-i18n="back">Geri</span>
+                </button>
+                <h2 class="screen-title" data-i18n="lock_failure_title">Dolap Açılamadı</h2>
+            </div>
+            
+            <div class="failure-content">
+                <div class="failure-icon">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                </div>
+                
+                <div class="failure-message">
+                    <h3 data-i18n="lock_failure_message">Dolap açılırken bir sorun oluştu</h3>
+                    <p data-i18n="lock_failure_description">Lütfen tekrar deneyin veya yardım isteyin.</p>
+                </div>
+                
+                <div class="failure-actions">
+                    <button id="retry-lock-btn" class="retry-btn" data-i18n="retry">Tekrar Dene</button>
+                    <button id="help-from-failure-btn" class="help-btn-failure" data-i18n="get_help">Yardım İste</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Success Screen -->
+        <div id="help-success-screen" class="screen">
+            <div class="header">
+                <h2 class="screen-title" data-i18n="help_submitted">Yardım Talebi Gönderildi</h2>
+            </div>
+            
+            <div class="success-content">
+                <div class="success-icon">
+                    <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22,4 12,14.01 9,11.01"/>
+                    </svg>
+                </div>
+                
+                <div class="success-message">
+                    <h3 data-i18n="help_success_title">Talebiniz Alındı</h3>
+                    <p data-i18n="help_success_message">Yardım talebiniz personelimize iletildi. En kısa sürede size yardımcı olacağız.</p>
+                    <div class="help-request-id">
+                        <span data-i18n="help_request_id">Talep No:</span>
+                        <strong id="help-request-number">#12345</strong>
+                    </div>
+                </div>
+                
+                <button id="back-to-main-from-success" class="primary-btn" data-i18n="back_to_main">Ana Ekrana Dön</button>
             </div>
         </div>
 

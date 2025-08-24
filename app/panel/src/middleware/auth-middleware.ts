@@ -70,15 +70,18 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         request.url === '/auth/login' ||
         request.url === '/auth/logout' ||
         request.url === '/auth/me' ||
+        request.url === '/auth/refresh' ||
         request.url === '/auth/csrf-token' ||
         request.url.startsWith('/auth/change-password') ||
         request.url === '/health' ||
         request.url === '/setup' ||
-        request.url === '/login.html' ||
         request.url.startsWith('/static/') ||
+        request.url.startsWith('/assets/') ||
+        request.url.startsWith('/legacy/') ||
         request.url.endsWith('.css') ||
         request.url.endsWith('.js') ||
-        request.url.endsWith('.ico')) {
+        request.url.endsWith('.ico') ||
+        request.url.endsWith('.html')) {
       return;
     }
 
@@ -94,7 +97,7 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
       // Check if this is a browser request (accepts HTML)
       const acceptsHtml = request.headers.accept?.includes('text/html');
       if (acceptsHtml) {
-        reply.redirect('/login.html');
+        reply.redirect('/login');
         return;
       }
       reply.code(401).send({ error: 'Authentication required' });
@@ -110,7 +113,7 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
       // Check if this is a browser request (accepts HTML)
       const acceptsHtml = request.headers.accept?.includes('text/html');
       if (acceptsHtml) {
-        reply.redirect('/login.html');
+        reply.redirect('/login');
         return;
       }
       reply.code(401).send({ error: 'Invalid or expired session' });

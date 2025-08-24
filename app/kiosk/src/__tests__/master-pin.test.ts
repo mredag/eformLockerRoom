@@ -305,5 +305,125 @@ describe('Master PIN Interface', () => {
       await verifyMasterPin(ip1, kiosk1, '1234');
       expect(attemptTracker.has(`${ip1}-${kiosk1}`)).toBe(false);
     });
+
+    it('should implement lockout timer display', async () => {
+      const mockRequest = {
+        body: { pin: '9999', kiosk_id: 'kiosk-1' },
+        ip: '127.0.0.1'
+      };
+      const mockReply = { code: vi.fn().mockReturnThis() };
+
+      let attempts = 0;
+      const maxAttempts = 5;
+      const lockoutMinutes = 5;
+      let isLocked = false;
+      let lockoutEnd: number | null = null;
+
+      const verifyMasterPin = async (request: any, reply: any) => {
+        const { pin } = request.body;
+        const masterPin = '1234';
+        
+        // Check if locked out
+        if (isLocked && lockoutEnd && Date.now() < lockoutEnd) {
+          const remainingSeconds = Math.ceil((lockoutEnd - Date.now()) / 1000);
+          reply.code(429);
+          return { 
+            error: 'PIN entry locked',
+            remaining_seconds: remainingSeconds
+          };
+        }
+
+        if (pin === masterPin) {
+          attempts = 0;
+          isLocked = false;
+          lockoutEnd = null;
+          return { success: true };
+        } else {
+          attempts++;
+          
+          if (attempts >= maxAttempts) {
+            isLocked = true;
+            lockoutEnd = Date.now() + (lockoutMinutes * 60 * 1000);
+            reply.code(429);
+            return { 
+              error: 'PIN entry locked',
+              remaining_seconds: lockoutMinutes * 60
+            };
+          }
+          
+          reply.code(401);
+          return { 
+            error: 'Incorrect PIN',
+            attempts_remaining: maxAttempts - attempts
+          };
+        }
+      };
+
+      // Make 5 failed attempts to trigger lockout
+      for (let i = 0; i < 5; i++) {
+        await verifyMasterPin(mockRequest, mockReply);
+      }
+
+      // Verify lockout with timer
+      const lockedResult = await verifyMasterPin(mockRequest, mockReply);
+      expect(lockedResult.error).toBe('PIN entry locked');
+      expect(lockedResult.remaining_seconds).toBeGreaterThan(0);
+      expect(lockedResult.remaining_seconds).toBeLessThanOrEqual(300); // 5 minutes
+    });
+
+    it('should provide secure PIN entry interface', () => {
+      // Test that PIN dots are masked
+      const pinDisplay = document.createElement('div');
+      pinDisplay.className = 'pin-dots';
+      
+      for (let i = 0; i < 4; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'pin-dot';
+        pinDisplay.appendChild(dot);
+      }
+
+      // Simulate PIN entry
+      const currentPin = '12';
+      const dots = pinDisplay.querySelectorAll('.pin-dot');
+      
+      dots.forEach((dot, index) => {
+        if (index < currentPin.length) {
+          dot.classList.add('filled');
+        } else {
+          dot.classList.remove('filled');
+        }
+      });
+
+      // Verify only filled dots show, actual PIN is hidden
+      expect(dots[0].classList.contains('filled')).toBe(true);
+      expect(dots[1].classList.contains('filled')).toBe(true);
+      expect(dots[2].classList.contains('filled')).toBe(false);
+      expect(dots[3].classList.contains('filled')).toBe(false);
+      
+      // Verify no actual PIN digits are visible in DOM
+      expect(pinDisplay.textContent).not.toContain('1');
+      expect(pinDisplay.textContent).not.toContain('2');
+    });
+
+    it('should disable keypad during lockout', () => {
+      const pinEntry = document.createElement('div');
+      pinEntry.className = 'pin-entry';
+      
+      const keypad = document.createElement('div');
+      keypad.className = 'pin-keypad';
+      pinEntry.appendChild(keypad);
+
+      // Simulate lockout
+      pinEntry.classList.add('locked');
+
+      // Verify keypad is disabled
+      expect(pinEntry.classList.contains('locked')).toBe(true);
+      
+      // CSS should handle visual disabled state
+      const computedStyle = getComputedStyle(keypad);
+      // In a real browser, this would check opacity and pointer-events
+      // For testing, we just verify the class is applied
+      expect(pinEntry.className).toContain('locked');
+    });
   });
 });

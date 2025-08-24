@@ -14,14 +14,20 @@
     "config-test": "tsx src/utils/config-test.ts"
   },
   "dependencies": {
+    "@fastify/multipart": "^8.3.0",
+    "@fastify/websocket": "^10.0.1",
+    "@types/pdfkit": "^0.17.2",
     "argon2": "^0.31.2",
     "fastify": "^4.24.3",
+    "pdfkit": "^0.17.1",
     "sqlite3": "^5.1.6",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^20.8.0",
     "@types/uuid": "^9.0.5",
+    "@types/ws": "^8.5.10",
     "esbuild": "^0.19.5",
     "ts-node": "^10.9.2",
     "tsx": "^3.14.0",

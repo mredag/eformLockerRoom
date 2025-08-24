@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk PIN Security Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .pin-display {
+            font-family: monospace;
+            font-size: 18px;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .timer {
+            font-weight: bold;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Kiosk PIN Security Test</h1>
+    <p>This page tests the enhanced master PIN security features including lockout timer and secure PIN entry.</p>
+
+    <div class="test-section">
+        <h2>📋 Security Settings Test</h2>
+        <button onclick="testSecuritySettings()">Test Security Settings API</button>
+        <div id="settings-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔑 PIN Verification Test</h2>
+        <div>
+            <label>Test PIN: <input type="text" id="test-pin" value="1234" maxlength="4"></label>
+            <label>Kiosk ID: <input type="text" id="kiosk-id" value="test-kiosk-ui"></label>
+        </div>
+        <button onclick="testPinVerification()">Test Valid PIN</button>
+        <button onclick="testInvalidPin()">Test Invalid PIN</button>
+        <button onclick="triggerLockout()">Trigger Lockout (5 attempts)</button>
+        <div id="pin-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚫 Lockout Status Test</h2>
+        <button onclick="checkLockoutStatus()">Check Lockout Status</button>
+        <button onclick="clearLockout()">Emergency Clear Lockout</button>
+        <div id="lockout-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>⏱️ Timer Display Test</h2>
+        <div>Simulated lockout timer:</div>
+        <div class="pin-display">
+            <span id="timer-display">PIN locked. Try again in 5:00</span>
+        </div>
+        <button onclick="startTimerDemo()">Start Timer Demo</button>
+        <button onclick="stopTimerDemo()">Stop Timer</button>
+        <div id="timer-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔒 PIN Entry Security Test</h2>
+        <div>Test secure PIN entry with masking:</div>
+        <div class="pin-display">
+            PIN Dots: <span id="pin-dots-demo">○ ○ ○ ○</span>
+        </div>
+        <div>
+            <button onclick="addPinDigit('1')">1</button>
+            <button onclick="addPinDigit('2')">2</button>
+            <button onclick="addPinDigit('3')">3</button>
+            <button onclick="addPinDigit('4')">4</button>
+            <button onclick="clearPinDemo()">Clear</button>
+        </div>
+        <div id="pin-entry-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Test Results Summary</h2>
+        <div id="test-summary"></div>
+    </div>
+
+    <script>
+        let timerInterval = null;
+        let demoPin = '';
+        let testResults = [];
+
+        function addResult(test, status, message) {
+            testResults.push({ test, status, message });
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const summary = document.getElementById('test-summary');
+            const passed = testResults.filter(r => r.status === 'success').length;
+            const failed = testResults.filter(r => r.status === 'error').length;
+            
+            summary.innerHTML = `
+                <div class="info">
+                    <strong>Tests Run:</strong> ${testResults.length} | 
+                    <strong>Passed:</strong> ${passed} | 
+                    <strong>Failed:</strong> ${failed}
+                </div>
+                ${testResults.map(r => `
+                    <div class="${r.status}">
+                        <strong>${r.test}:</strong> ${r.message}
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        async function makeRequest(method, path, data = null) {
+            try {
+                const response = await fetch(path, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: data ? JSON.stringify(data) : null
+                });
+                
+                const result = await response.json();
+                return { status: response.status, data: result };
+            } catch (error) {
+                return { status: 0, error: error.message };
+            }
+        }
+
+        async function testSecuritySettings() {
+            const result = document.getElementById('settings-result');
+            result.innerHTML = '<div class="info">Testing security settings...</div>';
+            
+            try {
+                const response = await makeRequest('GET', '/api/settings/security');
+                if (response.status === 200) {
+                    result.innerHTML = `
+                        <div class="success">
+                            <strong>Security Settings Retrieved:</strong><br>
+                            Lockout Attempts: ${response.data.lockout_attempts}<br>
+                            Lockout Minutes: ${response.data.lockout_minutes}
+                        </div>
+                    `;
+                    addResult('Security Settings', 'success', 'API working correctly');
+                } else {
+                    result.innerHTML = `<div class="error">Failed to get settings: ${response.status}</div>`;
+                    addResult('Security Settings', 'error', `API returned ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                addResult('Security Settings', 'error', error.message);
+            }
+        }
+
+        async function testPinVerification() {
+            const result = document.getElementById('pin-result');
+            const pin = document.getElementById('test-pin').value;
+            const kioskId = document.getElementById('kiosk-id').value;
+            
+            result.innerHTML = '<div class="info">Testing PIN verification...</div>';
+            
+            try {
+                const response = await makeRequest('POST', '/api/master/verify-pin', {
+                    pin: pin,
+                    kiosk_id: kioskId
+                });
+                
+                if (response.status === 200) {
+                    result.innerHTML = '<div class="success">Valid PIN accepted successfully</div>';
+                    addResult('PIN Verification', 'success', 'Valid PIN accepted');
+                } else {
+                    result.innerHTML = `<div class="error">PIN verification failed: ${response.status}</div>`;
+                    addResult('PIN Verification', 'error', `Status ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                addResult('PIN Verification', 'error', error.message);
+            }
+        }
+
+        async function testInvalidPin() {
+            const result = document.getElementById('pin-result');
+            const kioskId = document.getElementById('kiosk-id').value;
+            
+            result.innerHTML = '<div class="info">Testing invalid PIN...</div>';
+            
+            try {
+                const response = await makeRequest('POST', '/api/master/verify-pin', {
+                    pin: '9999',
+                    kiosk_id: kioskId
+                });
+                
+                if (response.status === 401) {
+                    const attemptsRemaining = response.data.attempts_remaining || 'unknown';
+                    result.innerHTML = `<div class="warning">Invalid PIN rejected. Attempts remaining: ${attemptsRemaining}</div>`;
+                    addResult('Invalid PIN', 'success', 'Invalid PIN properly rejected');
+                } else if (response.status === 429) {
+                    result.innerHTML = '<div class="error">Account locked out</div>';
+                    addResult('Invalid PIN', 'success', 'Lockout triggered as expected');
+                } else {
+                    result.innerHTML = `<div class="error">Unexpected response: ${response.status}</div>`;
+                    addResult('Invalid PIN', 'error', `Unexpected status ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                addResult('Invalid PIN', 'error', error.message);
+            }
+        }
+
+        async function triggerLockout() {
+            const result = document.getElementById('pin-result');
+            const kioskId = document.getElementById('kiosk-id').value;
+            
+            result.innerHTML = '<div class="info">Triggering lockout with 5 invalid attempts...</div>';
+            
+            try {
+                for (let i = 1; i <= 5; i++) {
+                    const response = await makeRequest('POST', '/api/master/verify-pin', {
+                        pin: '9999',
+                        kiosk_id: kioskId
+                    });
+                    
+                    if (response.status === 429) {
+                        result.innerHTML = `<div class="success">Lockout triggered after ${i} attempts. Remaining time: ${response.data.remaining_seconds || 'unknown'} seconds</div>`;
+                        addResult('Lockout Trigger', 'success', `Locked after ${i} attempts`);
+                        return;
+                    }
+                    
+                    // Small delay between attempts
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                result.innerHTML = '<div class="warning">Lockout not triggered after 5 attempts</div>';
+                addResult('Lockout Trigger', 'warning', 'Lockout not triggered');
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                addResult('Lockout Trigger', 'error', error.message);
+            }
+        }
+
+        async function checkLockoutStatus() {
+            const result = document.getElementById('lockout-result');
+            result.innerHTML = '<div class="info">Checking lockout status...</div>';
+            
+            try {
+                const response = await makeRequest('GET', '/api/settings/lockout-status');
+                if (response.status === 200) {
+                    const statuses = response.data;
+                    if (statuses.length === 0) {
+                        result.innerHTML = '<div class="info">No active lockouts</div>';
+                    } else {
+                        const statusHtml = statuses.map(s => `
+                            <div class="${s.locked ? 'error' : 'warning'}">
+                                Kiosk ${s.kiosk_id}: ${s.attempts} attempts, ${s.locked ? 'LOCKED' : 'UNLOCKED'}
+                                ${s.lockout_end ? `(until ${new Date(s.lockout_end).toLocaleTimeString()})` : ''}
+                            </div>
+                        `).join('');
+                        result.innerHTML = statusHtml;
+                    }
+                    addResult('Lockout Status', 'success', `Found ${statuses.length} kiosks with attempts`);
+                } else {
+                    result.innerHTML = `<div class="error">Failed to get lockout status: ${response.status}</div>`;
+                    addResult('Lockout Status', 'error', `API returned ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                addResult('Lockout Status', 'error', error.message);
+            }
+        }
+
+        async function clearLockout() {
+            const result = document.getElementById('lockout-result');
+            const kioskId = document.getElementById('kiosk-id').value;
+            
+            result.innerHTML = '<div class="info">Clearing lockout...</div>';
+            
+            try {
+                const response = await makeRequest('POST', '/api/settings/clear-lockout', {
+                    kiosk_id: kioskId
+                });
+                
+                if (response.status === 200) {
+                    result.innerHTML = '<div class="success">Lockout cleared successfully</div>';
+                    addResult('Clear Lockout', 'success', 'Emergency unlock working');
+                } else {
+                    result.innerHTML = `<div class="error">Failed to clear lockout: ${response.status}</div>`;
+                    addResult('Clear Lockout', 'error', `API returned ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                addResult('Clear Lockout', 'error', error.message);
+            }
+        }
+
+        function startTimerDemo() {
+            let seconds = 300; // 5 minutes
+            const display = document.getElementById('timer-display');
+            const result = document.getElementById('timer-result');
+            
+            if (timerInterval) clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                const timeString = `${minutes}:${secs.toString().padStart(2, '0')}`;
+                
+                display.innerHTML = `PIN locked. Try again in <span class="timer">${timeString}</span>`;
+                
+                if (seconds <= 0) {
+                    clearInterval(timerInterval);
+                    display.innerHTML = 'PIN unlocked. You may try again.';
+                    result.innerHTML = '<div class="success">Timer demo completed - lockout expired</div>';
+                    addResult('Timer Display', 'success', 'Countdown timer working correctly');
+                }
+                
+                seconds--;
+            }, 1000);
+            
+            result.innerHTML = '<div class="info">Timer demo started - 5 minute countdown</div>';
+        }
+
+        function stopTimerDemo() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                document.getElementById('timer-display').innerHTML = 'Timer stopped';
+                document.getElementById('timer-result').innerHTML = '<div class="info">Timer demo stopped</div>';
+            }
+        }
+
+        function addPinDigit(digit) {
+            if (demoPin.length < 4) {
+                demoPin += digit;
+                updatePinDisplay();
+            }
+        }
+
+        function clearPinDemo() {
+            demoPin = '';
+            updatePinDisplay();
+            document.getElementById('pin-entry-result').innerHTML = '<div class="info">PIN cleared</div>';
+        }
+
+        function updatePinDisplay() {
+            const display = document.getElementById('pin-dots-demo');
+            let dots = '';
+            
+            for (let i = 0; i < 4; i++) {
+                if (i < demoPin.length) {
+                    dots += '● '; // Filled dot
+                } else {
+                    dots += '○ '; // Empty dot
+                }
+            }
+            
+            display.innerHTML = dots.trim();
+            
+            if (demoPin.length === 4) {
+                document.getElementById('pin-entry-result').innerHTML = '<div class="success">4-digit PIN entered with secure masking</div>';
+                addResult('PIN Entry Security', 'success', 'Secure PIN masking working');
+            }
+        }
+
+        // Initialize
+        updateSummary();
+    </script>
+</body>
+</html>

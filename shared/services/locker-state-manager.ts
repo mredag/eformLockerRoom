@@ -1,11 +1,23 @@
 import { DatabaseConnection } from '../database/connection';
 import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition } from '../types/core-entities';
 
+// WebSocket manager interface for emitting events
+export interface WebSocketEventEmitter {
+  emitLockerStateChanged(
+    lockerId: string,
+    oldState: 'closed' | 'open' | 'reserved' | 'maintenance' | 'error',
+    newState: 'closed' | 'open' | 'reserved' | 'maintenance' | 'error',
+    kioskId: string,
+    options?: { userId?: string; reason?: string; metadata?: Record<string, any> }
+  ): Promise<void>;
+}
+
 export class LockerStateManager {
   private db: DatabaseConnection;
   private dbManager: any;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly RESERVE_TIMEOUT_SECONDS = 90;
+  private webSocketEmitter?: WebSocketEventEmitter;
 
   // Define valid state transitions
   private readonly STATE_TRANSITIONS: LockerStateTransition[] = [
@@ -20,13 +32,14 @@ export class LockerStateManager {
     { from: 'Blocked', to: 'Free', trigger: 'staff_unblock', conditions: ['staff_action'] }
   ];
 
-  constructor(dbManager?: any) {
+  constructor(dbManager?: any, webSocketEmitter?: WebSocketEventEmitter) {
     if (dbManager) {
       this.dbManager = dbManager;
       this.db = dbManager.getConnection().getDatabase();
     } else {
       this.db = DatabaseConnection.getInstance();
     }
+    this.webSocketEmitter = webSocketEmitter;
     this.startCleanupTimer();
   }
 
@@ -205,6 +218,12 @@ export class LockerStateManager {
         previous_status: 'Free'
       });
 
+      // Emit WebSocket event
+      await this.emitLockerStateChange(kioskId, lockerId, 'Free', 'Reserved', {
+        reason: 'assign',
+        metadata: { ownerType, ownerKey }
+      });
+
       return true;
     } catch (error) {
       console.error('Error assigning locker:', error);
@@ -234,6 +253,13 @@ export class LockerStateManager {
           locker.version
         ]
       );
+
+      if (result.changes > 0) {
+        // Emit WebSocket event
+        await this.emitLockerStateChange(kioskId, lockerId, 'Reserved', 'Owned', {
+          reason: 'confirm_ownership'
+        });
+      }
 
       return result.changes > 0;
     } catch (error) {
@@ -301,6 +327,13 @@ export class LockerStateManager {
             owner_key: locker.owner_key,
             previous_status: locker.status
           });
+
+          // Emit WebSocket event
+          await this.emitLockerStateChange(kioskId, lockerId, locker.status, 'Free', {
+            reason: 'release',
+            metadata: { ownerType: locker.owner_type, ownerKey: locker.owner_key }
+          });
+          
           return true;
         }
       }
@@ -354,6 +387,14 @@ export class LockerStateManager {
             reason: reason || 'Manual block',
             previous_status: locker.status
           }, staffUser);
+
+          // Emit WebSocket event
+          await this.emitLockerStateChange(kioskId, lockerId, locker.status, 'Blocked', {
+            userId: staffUser,
+            reason: 'staff_block',
+            metadata: { blockReason: reason || 'Manual block' }
+          });
+          
           return true;
         }
       }
@@ -407,6 +448,13 @@ export class LockerStateManager {
           await this.logEvent(kioskId, lockerId, EventType.STAFF_UNBLOCK, {
             previous_status: 'Blocked'
           }, staffUser);
+
+          // Emit WebSocket event
+          await this.emitLockerStateChange(kioskId, lockerId, 'Blocked', 'Free', {
+            userId: staffUser,
+            reason: 'staff_unblock'
+          });
+          
           return true;
         }
       }
@@ -456,6 +504,16 @@ export class LockerStateManager {
           previous_status: 'Reserved',
           reason: 'timeout_cleanup',
           timeout_seconds: this.RESERVE_TIMEOUT_SECONDS
+        });
+
+        // Emit WebSocket event for each expired locker
+        await this.emitLockerStateChange(locker.kiosk_id, locker.id, 'Reserved', 'Free', {
+          reason: 'timeout_cleanup',
+          metadata: { 
+            timeoutSeconds: this.RESERVE_TIMEOUT_SECONDS,
+            ownerType: locker.owner_type,
+            ownerKey: locker.owner_key
+          }
         });
       }
 
@@ -589,6 +647,14 @@ export class LockerStateManager {
           reason: reason,
           forced_transition: true
         }, staffUser);
+
+        // Emit WebSocket event
+        await this.emitLockerStateChange(kioskId, lockerId, locker.status, newStatus, {
+          userId: staffUser,
+          reason: 'force_transition',
+          metadata: { forcedTransition: true, transitionReason: reason }
+        });
+        
         return true;
       }
 
@@ -619,6 +685,63 @@ export class LockerStateManager {
     this.stopCleanupTimer();
     // Perform final cleanup
     await this.cleanupExpiredReservations();
+  }
+
+  /**
+   * Map locker status to WebSocket event status
+   */
+  private mapLockerStatusToWebSocketStatus(status: LockerStatus): 'closed' | 'open' | 'reserved' | 'maintenance' | 'error' {
+    switch (status) {
+      case 'Free':
+        return 'closed';
+      case 'Reserved':
+        return 'reserved';
+      case 'Owned':
+        return 'open';
+      case 'Opening':
+        return 'open';
+      case 'Blocked':
+        return 'maintenance';
+      default:
+        return 'error';
+    }
+  }
+
+  /**
+   * Emit WebSocket event for locker state change
+   */
+  private async emitLockerStateChange(
+    kioskId: string,
+    lockerId: number,
+    oldStatus: LockerStatus,
+    newStatus: LockerStatus,
+    options: { userId?: string; reason?: string; metadata?: Record<string, any> } = {}
+  ): Promise<void> {
+    if (!this.webSocketEmitter) {
+      return;
+    }
+
+    try {
+      const oldState = this.mapLockerStatusToWebSocketStatus(oldStatus);
+      const newState = this.mapLockerStatusToWebSocketStatus(newStatus);
+      
+      await this.webSocketEmitter.emitLockerStateChanged(
+        `${kioskId}:${lockerId}`,
+        oldState,
+        newState,
+        kioskId,
+        {
+          ...options,
+          metadata: {
+            ...options.metadata,
+            lockerId,
+            timestamp: new Date().toISOString()
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Failed to emit WebSocket event for locker state change:', error);
+    }
   }
 
   /**

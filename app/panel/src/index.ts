@@ -106,14 +106,37 @@ async function startPanelService() {
     // const cookieCleanupService = CookieCleanupService.getInstance();
     // cookieCleanupService.startCleanup(fastify);
 
-    // Serve static files
+    // Serve React app static files
     await fastify.register(import("@fastify/static"), {
-      root: path.join(__dirname, "views"),
-      prefix: "/",
+      root: path.join(__dirname, "../public"),
+      prefix: "/static/",
     });
 
-    // Default route - redirect based on setup status and auth
-    fastify.get("/", async (request, reply) => {
+    // Serve React app assets
+    await fastify.register(import("@fastify/static"), {
+      root: path.join(__dirname, "../public/assets"),
+      prefix: "/assets/",
+      decorateReply: false,
+    });
+
+    // Serve legacy static files for backward compatibility during transition
+    await fastify.register(import("@fastify/static"), {
+      root: path.join(__dirname, "views/static"),
+      prefix: "/legacy/",
+      decorateReply: false,
+    });
+
+    // API routes that should not serve the React app
+    const apiRoutes = ['/auth', '/api', '/setup', '/health', '/clear-cookies', '/debug-session'];
+
+    // Catch-all route for React app (SPA routing)
+    fastify.get("*", async (request, reply) => {
+      // Skip API routes
+      if (apiRoutes.some(route => request.url.startsWith(route))) {
+        reply.code(404);
+        return { error: 'Not Found' };
+      }
+
       try {
         // Check if setup is needed (no admin users exist)
         const hasAdmins = await authService.hasAdminUsers();
@@ -121,41 +144,13 @@ async function startPanelService() {
           return reply.redirect("/setup");
         }
 
-        // Setup is complete, check authentication
-        const sessionToken = request.cookies.session;
-        if (sessionToken) {
-          const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
-          const userAgent = request.headers['user-agent'] || 'unknown';
-          const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
-          if (session) {
-            return reply.redirect("/dashboard");
-          }
-        }
-        return reply.redirect("/login.html");
+        // For all other routes, serve the React app
+        return reply.sendFile("index.html", path.join(__dirname, "../public"));
       } catch (error) {
-        fastify.log.error('Root route error:', error);
-        return reply.redirect("/login.html");
+        fastify.log.error('React app route error:', error);
+        reply.code(500);
+        return { error: 'Internal Server Error' };
       }
-    });
-
-    // VIP management page route
-    fastify.get("/vip", async (_request, reply) => {
-      return reply.sendFile("vip.html");
-    });
-
-    // Dashboard route
-    fastify.get("/dashboard", async (request, reply) => {
-      return reply.sendFile("dashboard.html");
-    });
-
-    // Lockers route
-    fastify.get("/lockers", async (_request, reply) => {
-      return reply.sendFile("lockers.html");
-    });
-
-    // Configuration route
-    fastify.get("/config", async (_request, reply) => {
-      return reply.sendFile("config.html");
     });
 
     
