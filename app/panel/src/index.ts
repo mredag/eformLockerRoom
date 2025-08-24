@@ -118,8 +118,7 @@ async function startPanelService() {
         // Check if setup is needed (no admin users exist)
         const hasAdmins = await authService.hasAdminUsers();
         if (!hasAdmins) {
-          reply.redirect("/setup");
-          return;
+          return reply.redirect("/setup");
         }
 
         // Setup is complete, check authentication
@@ -129,35 +128,34 @@ async function startPanelService() {
           const userAgent = request.headers['user-agent'] || 'unknown';
           const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
           if (session) {
-            reply.redirect("/dashboard.html");
-            return;
+            return reply.redirect("/dashboard");
           }
         }
-        reply.redirect("/login.html");
+        return reply.redirect("/login.html");
       } catch (error) {
         fastify.log.error('Root route error:', error);
-        reply.redirect("/login.html");
+        return reply.redirect("/login.html");
       }
     });
 
     // VIP management page route
     fastify.get("/vip", async (_request, reply) => {
-      reply.sendFile("vip.html");
+      return reply.sendFile("vip.html");
     });
 
     // Dashboard route
     fastify.get("/dashboard", async (request, reply) => {
-      reply.sendFile("dashboard.html");
+      return reply.sendFile("dashboard.html");
     });
 
     // Lockers route
     fastify.get("/lockers", async (_request, reply) => {
-      reply.sendFile("lockers.html");
+      return reply.sendFile("lockers.html");
     });
 
     // Configuration route
     fastify.get("/config", async (_request, reply) => {
-      reply.sendFile("config.html");
+      return reply.sendFile("config.html");
     });
 
     
@@ -274,8 +272,7 @@ async function startPanelService() {
         const hasAdmins = await authService.hasAdminUsers();
         if (hasAdmins) {
           // Admin users already exist, redirect to login
-          reply.redirect("/login.html");
-          return;
+          return reply.redirect("/login.html");
         }
 
         // No users exist, show setup page
@@ -401,7 +398,7 @@ async function startPanelService() {
         `;
       } catch (error) {
         fastify.log.error('Setup page error:', error);
-        reply.code(500).send({ error: 'Internal server error' });
+        return reply.code(500).send({ error: 'Internal server error' });
       }
     });
 
@@ -421,8 +418,7 @@ async function startPanelService() {
       try {
         const hasAdmins = await authService.hasAdminUsers();
         if (hasAdmins) {
-          reply.code(403).send({ error: 'Setup already completed' });
-          return;
+          return reply.code(403).send({ error: 'Setup already completed' });
         }
 
         const { username, password } = request.body as { username: string; password: string };
@@ -433,13 +429,13 @@ async function startPanelService() {
           role: 'admin' 
         });
 
-        reply.send({
+        return reply.send({
           success: true,
           message: 'Administrator account created successfully'
         });
       } catch (error) {
         fastify.log.error('Setup error:', error);
-        reply.code(500).send({ error: 'Failed to create administrator account' });
+        return reply.code(500).send({ error: 'Failed to create administrator account' });
       }
     });
 
