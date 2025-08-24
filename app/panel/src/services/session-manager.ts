@@ -30,7 +30,7 @@ export interface SessionConfig {
 
 const DEFAULT_SESSION_CONFIG: SessionConfig = {
   sessionTimeout: 8 * 60 * 60 * 1000, // 8 hours
-  maxIdleTime: 30 * 60 * 1000, // 30 minutes
+  maxIdleTime: 2 * 60 * 60 * 1000, // 2 hours (increased from 30 minutes)
   autoRenewalEnabled: true,
   pinRotationDays: 90,
   maxConcurrentSessions: 3,
