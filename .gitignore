@@ -18,6 +18,8 @@ build/
 
 # Database files
 data/
+!shared/data/
+!shared/data/**
 *.db
 *.sqlite
 *.sqlite3

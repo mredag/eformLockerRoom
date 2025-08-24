@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PDFService, ContractPDFData, PDFGenerationOptions } from '../pdf-service';
+import { Contract } from '../../data/contract-repository';
+import { Payment } from '../../data/payment-repository';
 
 describe('PDFService', () => {
   let pdfService: PDFService;
@@ -7,13 +9,14 @@ describe('PDFService', () => {
 
   beforeEach(() => {
     pdfService = new PDFService();
-    mockContract = {
+
+    const baseContract: Contract = {
       id: 1,
       member_name: 'John Doe',
       phone: '+90 555 123 4567',
       email: 'john.doe@example.com',
       plan: 'premium',
-      price: 450.00,
+      price: 450.0,
       start_at: '2024-01-01',
       end_at: '2024-07-01',
       status: 'active',
@@ -23,9 +26,13 @@ describe('PDFService', () => {
       locker_id: 5,
       rfid_card: 'RFID123456',
       backup_card: 'RFID789012',
-      notes: 'Premium member with backup card',
-      total_paid: 225.00,
-      remaining_balance: 225.00
+      notes: 'Premium member with backup card'
+    };
+
+    mockContract = {
+      ...baseContract,
+      total_paid: 225.0,
+      remaining_balance: 225.0
     };
   });
 
@@ -42,20 +49,22 @@ describe('PDFService', () => {
     });
 
     it('should generate a PDF with payment history when includePayments is true', async () => {
+      const payments: Payment[] = [
+        {
+          id: 1,
+          contract_id: 1,
+          amount: 225.0,
+          method: 'card',
+          paid_at: '2024-01-01T10:00:00Z',
+          reference: 'PAY123456',
+          notes: 'Initial payment',
+          created_by: 'admin'
+        }
+      ];
+
       const contractWithPayments: ContractPDFData = {
         ...mockContract,
-        payments: [
-          {
-            id: 1,
-            contract_id: 1,
-            amount: 225.00,
-            method: 'card',
-            paid_at: '2024-01-01T10:00:00Z',
-            reference: 'PAY123456',
-            notes: 'Initial payment',
-            created_by: 'admin'
-          }
-        ]
+        payments
       };
 
       const options: PDFGenerationOptions = {
@@ -141,32 +150,34 @@ describe('PDFService', () => {
     });
 
     it('should handle contracts with multiple payments', async () => {
+      const payments: Payment[] = [
+        {
+          id: 1,
+          contract_id: 1,
+          amount: 150.0,
+          method: 'cash',
+          paid_at: '2024-01-01T10:00:00Z',
+          reference: 'CASH001',
+          notes: 'Initial payment',
+          created_by: 'admin'
+        },
+        {
+          id: 2,
+          contract_id: 1,
+          amount: 75.0,
+          method: 'card',
+          paid_at: '2024-02-01T10:00:00Z',
+          reference: 'CARD002',
+          notes: 'Second payment',
+          created_by: 'admin'
+        }
+      ];
+
       const contractWithMultiplePayments: ContractPDFData = {
         ...mockContract,
-        payments: [
-          {
-            id: 1,
-            contract_id: 1,
-            amount: 150.00,
-            method: 'cash',
-            paid_at: '2024-01-01T10:00:00Z',
-            reference: 'CASH001',
-            notes: 'Initial payment',
-            created_by: 'admin'
-          },
-          {
-            id: 2,
-            contract_id: 1,
-            amount: 75.00,
-            method: 'card',
-            paid_at: '2024-02-01T10:00:00Z',
-            reference: 'CARD002',
-            notes: 'Second payment',
-            created_by: 'admin'
-          }
-        ],
-        total_paid: 225.00,
-        remaining_balance: 225.00
+        payments,
+        total_paid: 225.0,
+        remaining_balance: 225.0
       };
 
       const options: PDFGenerationOptions = {
