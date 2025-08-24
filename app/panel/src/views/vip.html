@@ -492,10 +492,10 @@
     <div class="header">
         <h1>VIP Contract Management</h1>
         <div class="nav-links">
-            <a href="/panel/dashboard">Dashboard</a>
-            <a href="/panel/lockers">Lockers</a>
-            <a href="/panel/vip" class="active">VIP Contracts</a>
-            <a href="/panel/logout">Logout</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/lockers">Lockers</a>
+            <a href="/vip" class="active">VIP Contracts</a>
+            <a href="#" onclick="logout()">Logout</a>
         </div>
     </div>
 
@@ -826,6 +826,17 @@
         let availableLockers = {};
         let transferRequests = [];
         let csrfToken = '';
+
+        // Logout function
+        async function logout() {
+            try {
+                await fetch('/auth/logout', { method: 'POST' });
+                window.location.href = '/login.html';
+            } catch (error) {
+                // Even if logout fails, redirect to login
+                window.location.href = '/login.html';
+            }
+        }
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
