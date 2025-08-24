@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eform Panel - Dashboard</title>
+    <title>Eform Panel - Ana Sayfa</title>
     <style>
         * {
             margin: 0;
@@ -131,16 +131,16 @@
 </head>
 <body>
     <div class="header">
-        <h1>Eform Management Panel</h1>
+        <h1>Eform Yönetim Paneli</h1>
         <div style="display: flex; align-items: center;">
             <div class="nav-links">
-                <a href="/dashboard" class="active">Dashboard</a>
-                <a href="/lockers">Lockers</a>
-                <a href="/vip">VIP Contracts</a>
+                <a href="/dashboard" class="active" data-i18n="panel.dashboard">Ana Sayfa</a>
+                <a href="/lockers" data-i18n="panel.lockers">Dolaplar</a>
+                <a href="/vip" data-i18n="panel.vip_contracts">VIP Sözleşmeler</a>
             </div>
             <div class="user-info">
-                <div class="user-badge" id="user-badge">Loading...</div>
-                <button class="logout-button" onclick="logout()">Logout</button>
+                <div class="user-badge" id="user-badge">Yükleniyor...</div>
+                <button class="logout-button" onclick="logout()" data-i18n="panel.logout">Çıkış</button>
             </div>
         </div>
     </div>
@@ -150,27 +150,27 @@
 
         <div class="dashboard-grid">
             <div class="dashboard-card">
-                <h2>Locker Management</h2>
-                <p>Monitor and control all lockers across multiple rooms. View real-time status, perform bulk operations, and manage individual lockers.</p>
-                <a href="/lockers" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">Manage Lockers</a>
+                <h2>Dolap Yönetimi</h2>
+                <p>Tüm odalardaki dolapları izleyin ve kontrol edin. Gerçek zamanlı durumu görüntüleyin, toplu işlemler yapın ve bireysel dolapları yönetin.</p>
+                <a href="/lockers" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">Dolapları Yönet</a>
             </div>
 
             <div class="dashboard-card">
-                <h2>VIP Contracts</h2>
-                <p>Manage long-term locker contracts for premium customers. Create, extend, and cancel VIP contracts with dedicated locker assignments.</p>
-                <a href="/vip" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">Manage VIP Contracts</a>
+                <h2>VIP Sözleşmeler</h2>
+                <p>Premium müşteriler için uzun vadeli dolap sözleşmelerini yönetin. Özel dolap atamaları ile VIP sözleşmeleri oluşturun, uzatın ve iptal edin.</p>
+                <a href="/vip" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">VIP Sözleşmeleri Yönet</a>
             </div>
 
             <div class="dashboard-card">
-                <h2>Event Logs</h2>
-                <p>View comprehensive audit logs of all system activities including user access, staff operations, and system events.</p>
-                <div class="coming-soon">Coming in Task 11.1</div>
+                <h2>Olay Günlükleri</h2>
+                <p>Kullanıcı erişimi, personel işlemleri ve sistem olayları dahil tüm sistem aktivitelerinin kapsamlı denetim günlüklerini görüntüleyin.</p>
+                <div class="coming-soon">Görev 11.1'de Gelecek</div>
             </div>
 
             <div class="dashboard-card">
-                <h2>System Health</h2>
-                <p>Monitor system health, kiosk status, and hardware diagnostics. View real-time status of all connected devices.</p>
-                <div class="coming-soon">Coming in Task 11.2</div>
+                <h2>Sistem Sağlığı</h2>
+                <p>Sistem sağlığını, kiosk durumunu ve donanım tanılamalarını izleyin. Tüm bağlı cihazların gerçek zamanlı durumunu görüntüleyin.</p>
+                <div class="coming-soon">Görev 11.2'de Gelecek</div>
             </div>
         </div>
     </div>
@@ -209,7 +209,7 @@
                     window.location.href = '/login.html';
                 }
             } catch (error) {
-                showError('Failed to load user information');
+                showError('Kullanıcı bilgileri yüklenemedi');
             }
         }
 
@@ -239,5 +239,8 @@
             }
         }, 30 * 60 * 1000);
     </script>
+    
+    <!-- Include i18n script -->
+    <script src="/static/i18n.js"></script>
 </body>
 </html>

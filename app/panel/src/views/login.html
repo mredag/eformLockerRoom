@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eform Panel - Login</title>
+    <title>Eform Panel - Giriş</title>
     <style>
         * {
             margin: 0;
@@ -126,7 +126,7 @@
     <div class="login-container">
         <div class="login-header">
             <h1>Eform Panel</h1>
-            <p>Staff Management Interface</p>
+            <p>Personel Yönetim Arayüzü</p>
         </div>
 
         <div id="error-message" class="error-message" style="display: none;"></div>
@@ -135,27 +135,27 @@
         <!-- Login Form -->
         <form id="login-form" class="login-form">
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required>
+                <label for="username" data-i18n="panel.username">Kullanıcı Adı</label>
+                <input type="text" id="username" name="username" required data-i18n-placeholder="panel.username">
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
+                <label for="password" data-i18n="panel.password">Şifre</label>
+                <input type="password" id="password" name="password" required data-i18n-placeholder="panel.password">
             </div>
-            <button type="submit" class="login-button" id="login-button">Login</button>
+            <button type="submit" class="login-button" id="login-button" data-i18n="panel.login">Giriş</button>
         </form>
 
         <!-- Password Change Form -->
         <form id="password-change-form" class="password-change-form">
             <div class="form-group">
-                <label for="new-password">New Password</label>
-                <input type="password" id="new-password" name="newPassword" required minlength="8">
+                <label for="new-password">Yeni Şifre</label>
+                <input type="password" id="new-password" name="newPassword" required minlength="8" placeholder="Yeni şifre">
             </div>
             <div class="form-group">
-                <label for="confirm-password">Confirm Password</label>
-                <input type="password" id="confirm-password" name="confirmPassword" required minlength="8">
+                <label for="confirm-password">Şifre Onayı</label>
+                <input type="password" id="confirm-password" name="confirmPassword" required minlength="8" placeholder="Şifreyi tekrar girin">
             </div>
-            <button type="submit" class="login-button" id="change-password-button">Change Password</button>
+            <button type="submit" class="login-button" id="change-password-button">Şifreyi Değiştir</button>
         </form>
     </div>
 
@@ -193,7 +193,7 @@
             const loginButton = document.getElementById('login-button');
             
             loginButton.disabled = true;
-            loginButton.textContent = 'Logging in...';
+            loginButton.textContent = 'Giriş yapılıyor...';
 
             try {
                 const response = await fetch('/auth/login', {
@@ -221,15 +221,15 @@
                     csrfToken = data.csrfToken;
                     loginForm.classList.add('hidden');
                     passwordChangeForm.classList.add('active');
-                    showError('Your password has expired. Please set a new password.');
+                    showError('Şifrenizin süresi dolmuş. Lütfen yeni bir şifre belirleyin.');
                 } else {
-                    showError(data.error || 'Login failed');
+                    showError(data.error || 'Giriş başarısız');
                 }
             } catch (error) {
                 showError('Network error. Please try again.');
             } finally {
                 loginButton.disabled = false;
-                loginButton.textContent = 'Login';
+                loginButton.textContent = 'Giriş';
             }
         });
 
@@ -242,13 +242,13 @@
             const confirmPassword = formData.get('confirmPassword');
 
             if (newPassword !== confirmPassword) {
-                showError('Passwords do not match');
+                showError('Şifreler eşleşmiyor');
                 return;
             }
 
             const changeButton = document.getElementById('change-password-button');
             changeButton.disabled = true;
-            changeButton.textContent = 'Changing...';
+            changeButton.textContent = 'Değiştiriliyor...';
 
             try {
                 const response = await fetch('/auth/change-password', {
@@ -266,7 +266,7 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    showSuccess('Password changed successfully. Please log in with your new password.');
+                    showSuccess('Şifre başarıyla değiştirildi. Lütfen yeni şifrenizle giriş yapın.');
                     setTimeout(() => {
                         passwordChangeForm.classList.remove('active');
                         loginForm.classList.remove('hidden');
@@ -275,13 +275,13 @@
                         hideMessages();
                     }, 2000);
                 } else {
-                    showError(data.error || 'Failed to change password');
+                    showError(data.error || 'Şifre değiştirilemedi');
                 }
             } catch (error) {
                 showError('Network error. Please try again.');
             } finally {
                 changeButton.disabled = false;
-                changeButton.textContent = 'Change Password';
+                changeButton.textContent = 'Şifreyi Değiştir';
             }
         });
 
@@ -297,5 +297,8 @@
                 // Not logged in, stay on login page
             });
     </script>
+    
+    <!-- Include i18n script -->
+    <script src="/static/i18n.js"></script>
 </body>
 </html>

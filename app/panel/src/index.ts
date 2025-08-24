@@ -281,7 +281,7 @@ async function startPanelService() {
           <!DOCTYPE html>
           <html>
           <head>
-            <title>Eform Panel - Initial Setup</title>
+            <title>Eform Panel - İlk Kurulum</title>
             <style>
               body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }
               .setup-container { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); width: 100%; max-width: 500px; }
@@ -300,8 +300,8 @@ async function startPanelService() {
           <body>
             <div class="setup-container">
               <div class="setup-header">
-                <h1>🔐 Eform Panel Setup</h1>
-                <p>Create the first administrator account</p>
+                <h1>🔐 Eform Panel Kurulumu</h1>
+                <p>İlk yönetici hesabını oluşturun</p>
               </div>
 
               <div id="error-message" class="error-message" style="display: none;"></div>
@@ -309,18 +309,18 @@ async function startPanelService() {
 
               <form id="setup-form">
                 <div class="form-group">
-                  <label for="username">Administrator Username</label>
-                  <input type="text" id="username" name="username" required minlength="3">
+                  <label for="username">Yönetici Kullanıcı Adı</label>
+                  <input type="text" id="username" name="username" required minlength="3" placeholder="Kullanıcı adı">
                 </div>
                 <div class="form-group">
-                  <label for="password">Password</label>
-                  <input type="password" id="password" name="password" required minlength="8">
+                  <label for="password">Şifre</label>
+                  <input type="password" id="password" name="password" required minlength="8" placeholder="Şifre">
                 </div>
                 <div class="form-group">
-                  <label for="confirm-password">Confirm Password</label>
-                  <input type="password" id="confirm-password" name="confirmPassword" required minlength="8">
+                  <label for="confirm-password">Şifre Onayı</label>
+                  <input type="password" id="confirm-password" name="confirmPassword" required minlength="8" placeholder="Şifreyi tekrar girin">
                 </div>
-                <button type="submit" class="setup-button" id="setup-button">Create Administrator</button>
+                <button type="submit" class="setup-button" id="setup-button">Yönetici Oluştur</button>
               </form>
             </div>
 
@@ -355,13 +355,13 @@ async function startPanelService() {
                 const confirmPassword = formData.get('confirmPassword');
 
                 if (password !== confirmPassword) {
-                  showError('Passwords do not match');
+                  showError('Şifreler eşleşmiyor');
                   return;
                 }
 
                 const setupButton = document.getElementById('setup-button');
                 setupButton.disabled = true;
-                setupButton.textContent = 'Creating...';
+                setupButton.textContent = 'Oluşturuluyor...';
 
                 try {
                   const response = await fetch('/setup', {
@@ -378,18 +378,18 @@ async function startPanelService() {
                   const data = await response.json();
 
                   if (response.ok && data.success) {
-                    showSuccess('Administrator account created successfully! Redirecting to login...');
+                    showSuccess('Yönetici hesabı başarıyla oluşturuldu! Giriş sayfasına yönlendiriliyor...');
                     setTimeout(() => {
                       window.location.href = '/login.html';
                     }, 2000);
                   } else {
-                    showError(data.error || 'Failed to create administrator account');
+                    showError(data.error || 'Yönetici hesabı oluşturulamadı');
                   }
                 } catch (error) {
-                  showError('Network error. Please try again.');
+                  showError('Ağ hatası. Lütfen tekrar deneyin.');
                 } finally {
                   setupButton.disabled = false;
-                  setupButton.textContent = 'Create Administrator';
+                  setupButton.textContent = 'Yönetici Oluştur';
                 }
               });
             </script>
@@ -431,7 +431,7 @@ async function startPanelService() {
 
         return reply.send({
           success: true,
-          message: 'Administrator account created successfully'
+          message: 'Yönetici hesabı başarıyla oluşturuldu'
         });
       } catch (error) {
         fastify.log.error('Setup error:', error);

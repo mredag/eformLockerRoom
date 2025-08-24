@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIP Contract Management - Eform Panel</title>
+    <title>VIP Sözleşme Yönetimi - Eform Panel</title>
     <style>
         * {
             margin: 0;
@@ -490,12 +490,12 @@
 </head>
 <body>
     <div class="header">
-        <h1>VIP Contract Management</h1>
+        <h1>VIP Sözleşme Yönetimi</h1>
         <div class="nav-links">
-            <a href="/dashboard">Dashboard</a>
-            <a href="/lockers">Lockers</a>
-            <a href="/vip" class="active">VIP Contracts</a>
-            <a href="#" onclick="logout()">Logout</a>
+            <a href="/dashboard" data-i18n="panel.dashboard">Ana Sayfa</a>
+            <a href="/lockers" data-i18n="panel.lockers">Dolaplar</a>
+            <a href="/vip" class="active" data-i18n="panel.vip_contracts">VIP Sözleşmeler</a>
+            <a href="#" onclick="logout()" data-i18n="panel.logout">Çıkış</a>
         </div>
     </div>
 
@@ -504,19 +504,19 @@
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
                 <div class="stat-number" id="totalContracts">-</div>
-                <div class="stat-label">Total Contracts</div>
+                <div class="stat-label">Toplam Sözleşme</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="activeContracts">-</div>
-                <div class="stat-label">Active Contracts</div>
+                <div class="stat-label">Aktif Sözleşmeler</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="expiredContracts">-</div>
-                <div class="stat-label">Expired Contracts</div>
+                <div class="stat-label">Süresi Dolan</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="expiringSoonContracts">-</div>
-                <div class="stat-label">Expiring Soon</div>
+                <div class="stat-label">Yakında Sona Erecek</div>
             </div>
         </div>
 
@@ -524,30 +524,30 @@
         <div class="filters">
             <div class="filter-row">
                 <div class="filter-group">
-                    <label for="statusFilter">Status</label>
+                    <label for="statusFilter">Durum</label>
                     <select id="statusFilter">
-                        <option value="">All Statuses</option>
-                        <option value="active">Active</option>
-                        <option value="expired">Expired</option>
-                        <option value="cancelled">Cancelled</option>
+                        <option value="">Tüm Durumlar</option>
+                        <option value="active">Aktif</option>
+                        <option value="expired">Süresi Dolmuş</option>
+                        <option value="cancelled">İptal Edilmiş</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label for="kioskFilter">Kiosk</label>
                     <select id="kioskFilter">
-                        <option value="">All Kiosks</option>
+                        <option value="">Tüm Kiosklar</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label for="expiringSoonFilter">Expiring Soon</label>
+                    <label for="expiringSoonFilter">Yakında Sona Erecek</label>
                     <select id="expiringSoonFilter">
-                        <option value="">All</option>
-                        <option value="true">Expiring in 7 days</option>
+                        <option value="">Tümü</option>
+                        <option value="true">7 gün içinde sona erecek</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label>&nbsp;</label>
-                    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+                    <button class="btn btn-primary" onclick="applyFilters()">Filtreleri Uygula</button>
                 </div>
             </div>
         </div>
@@ -555,15 +555,15 @@
         <!-- Contracts Section -->
         <div class="contracts-section">
             <div class="section-header">
-                <h2 class="section-title">VIP Contracts</h2>
+                <h2 class="section-title">VIP Sözleşmeler</h2>
                 <div>
-                    <button class="btn btn-primary" onclick="showTransferRequests()" style="margin-right: 1rem;">Transfer Requests</button>
-                    <button class="btn btn-success" onclick="showCreateModal()">Create New Contract</button>
+                    <button class="btn btn-primary" onclick="showTransferRequests()" style="margin-right: 1rem;">Transfer Talepleri</button>
+                    <button class="btn btn-success" onclick="showCreateModal()">Yeni Sözleşme Oluştur</button>
                 </div>
             </div>
 
             <div id="contractsContent">
-                <div class="loading">Loading contracts...</div>
+                <div class="loading">Sözleşmeler yükleniyor...</div>
             </div>
         </div>
 
@@ -1709,5 +1709,8 @@
             });
         });
     </script>
+    
+    <!-- Include i18n script -->
+    <script src="/static/i18n.js"></script>
 </body>
 </html>

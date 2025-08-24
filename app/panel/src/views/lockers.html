@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Locker Management - Eform Panel</title>
+    <title>Dolap Yönetimi - Eform Panel</title>
     <style>
         * {
             margin: 0;
@@ -434,12 +434,12 @@
 </head>
 <body>
     <div class="header">
-        <h1>Locker Management</h1>
+        <h1>Dolap Yönetimi</h1>
         <div class="nav-links">
-            <a href="/dashboard">Dashboard</a>
-            <a href="/lockers" style="background: #f0f0f0;">Lockers</a>
-            <a href="/vip">VIP Contracts</a>
-            <a href="#" onclick="logout()">Logout</a>
+            <a href="/dashboard" data-i18n="panel.dashboard">Ana Sayfa</a>
+            <a href="/lockers" style="background: #f0f0f0;" data-i18n="panel.lockers">Dolaplar</a>
+            <a href="/vip" data-i18n="panel.vip_contracts">VIP Sözleşmeler</a>
+            <a href="#" onclick="logout()" data-i18n="panel.logout">Çıkış</a>
         </div>
     </div>
 
@@ -451,80 +451,80 @@
         <div class="stats" id="stats">
             <div class="stat-card">
                 <div class="stat-number" id="stat-total">-</div>
-                <div class="stat-label">Total Lockers</div>
+                <div class="stat-label">Toplam Dolap</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="stat-free">-</div>
-                <div class="stat-label">Free</div>
+                <div class="stat-label">Boş</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="stat-owned">-</div>
-                <div class="stat-label">Owned</div>
+                <div class="stat-label">Dolu</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="stat-reserved">-</div>
-                <div class="stat-label">Reserved</div>
+                <div class="stat-label">Rezerve</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="stat-blocked">-</div>
-                <div class="stat-label">Blocked</div>
+                <div class="stat-label">Bloklu</div>
             </div>
         </div>
 
         <!-- Kiosk Status -->
         <div class="kiosk-status" id="kiosk-status" style="display: none;">
-            <h3>Kiosk Status</h3>
+            <h3>Kiosk Durumu</h3>
             <div class="kiosk-grid" id="kiosk-grid"></div>
         </div>
 
         <!-- Filters -->
         <div class="filters">
             <div class="filter-group">
-                <label for="zone-filter">Zone</label>
+                <label for="zone-filter">Bölge</label>
                 <select id="zone-filter">
-                    <option value="">All Zones</option>
+                    <option value="">Tüm Bölgeler</option>
                 </select>
             </div>
             <div class="filter-group">
                 <label for="kiosk-filter">Kiosk</label>
                 <select id="kiosk-filter">
-                    <option value="">All Kiosks</option>
+                    <option value="">Tüm Kiosklar</option>
                 </select>
             </div>
             <div class="filter-group">
-                <label for="status-filter">Status</label>
+                <label for="status-filter">Durum</label>
                 <select id="status-filter">
-                    <option value="">All Statuses</option>
-                    <option value="Free">Free</option>
-                    <option value="Owned">Owned</option>
-                    <option value="Reserved">Reserved</option>
-                    <option value="Blocked">Blocked</option>
+                    <option value="">Tüm Durumlar</option>
+                    <option value="Free">Boş</option>
+                    <option value="Owned">Dolu</option>
+                    <option value="Reserved">Rezerve</option>
+                    <option value="Blocked">Bloklu</option>
                 </select>
             </div>
             <div class="filter-group">
                 <label>&nbsp;</label>
-                <button class="btn btn-primary" onclick="loadData()">Refresh</button>
+                <button class="btn btn-primary" onclick="loadData()">Yenile</button>
             </div>
         </div>
 
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-primary" onclick="openSelectedLockers()" id="open-btn" disabled>
-                Open Selected (<span id="selected-count">0</span>)
+                Seçilenleri Aç (<span id="selected-count">0</span>)
             </button>
             <button class="btn btn-danger" onclick="blockSelectedLockers()" id="block-btn" disabled>
-                Block Selected
+                Seçilenleri Blokla
             </button>
             <button class="btn btn-success" onclick="unblockSelectedLockers()" id="unblock-btn" disabled>
-                Unblock Selected
+                Bloğu Kaldır
             </button>
             <button class="btn btn-danger" onclick="showEndOfDayModal()">
-                End of Day Opening
+                Gün Sonu Açma
             </button>
         </div>
 
         <!-- Locker Grid -->
-        <div id="loading" class="loading">Loading lockers...</div>
+        <div id="loading" class="loading">Dolaplar yükleniyor...</div>
         <div class="locker-grid" id="locker-grid" style="display: none;"></div>
     </div>
 
@@ -1011,5 +1011,8 @@
             }
         }
     </script>
+    
+    <!-- Include i18n script -->
+    <script src="/static/i18n.js"></script>
 </body>
 </html>
