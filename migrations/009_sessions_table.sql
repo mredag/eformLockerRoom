@@ -23,10 +23,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity)
 CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at);
 
 -- Trigger to automatically update last_activity on session updates
+-- Note: Simplified trigger to avoid column reference issues during migration
 CREATE TRIGGER IF NOT EXISTS update_sessions_last_activity 
   AFTER UPDATE ON sessions
   FOR EACH ROW
-  WHEN NEW.last_activity = OLD.last_activity
   BEGIN
     UPDATE sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = NEW.id;
   END;
