@@ -1,5 +1,12 @@
 import { DatabaseConnection } from '../database/connection';
 
+export interface LockerStatusData {
+  total_lockers?: number;
+  available_lockers?: number;
+  occupied_lockers?: number;
+  error_lockers?: number;
+}
+
 export interface KioskTelemetryData {
   voltage?: {
     main_power?: number;      // Main power supply voltage (V)
@@ -20,12 +27,7 @@ export interface KioskTelemetryData {
     display_connected?: boolean;
     network_connected?: boolean;
   };
-  locker_status?: {
-    total_lockers?: number;
-    available_lockers?: number;
-    occupied_lockers?: number;
-    error_lockers?: number;
-  };
+  locker_status?: LockerStatusData;
 }
 
 export interface TelemetryValidationResult {
@@ -337,9 +339,13 @@ export class TelemetryService {
   private validateLockerStatus(lockerStatus: any): {
     errors: string[];
     warnings: string[];
-    sanitizedData?: any;
+    sanitizedData: LockerStatusData;
   } {
-    const result = { errors: [], warnings: [], sanitizedData: {} };
+    const result: { errors: string[]; warnings: string[]; sanitizedData: LockerStatusData } = {
+      errors: [],
+      warnings: [],
+      sanitizedData: {},
+    };
 
     if (typeof lockerStatus !== 'object') {
       result.errors.push('Locker status must be an object');
@@ -347,7 +353,7 @@ export class TelemetryService {
     }
 
     // Validate integer fields
-    ['total_lockers', 'available_lockers', 'occupied_lockers', 'error_lockers'].forEach(field => {
+    (['total_lockers', 'available_lockers', 'occupied_lockers', 'error_lockers'] as Array<keyof LockerStatusData>).forEach(field => {
       if (lockerStatus[field] !== undefined) {
         const value = Number(lockerStatus[field]);
         if (isNaN(value) || !Number.isInteger(value)) {
