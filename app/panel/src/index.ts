@@ -440,7 +440,7 @@ async function startPanelService() {
     });
 
     // Start the server
-    const port = parseInt(process.env.PANEL_PORT || "3002");
+    const port = parseInt(process.env.PANEL_PORT || "3001");
     await fastify.listen({ port, host: "0.0.0.0" });
     console.log(`Panel server listening on port ${port}`);
   } catch (err) {
