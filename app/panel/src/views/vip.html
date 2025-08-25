@@ -821,6 +821,14 @@
     </div>
 
     <script>
+        // Prevent service worker registration errors
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker && !navigator.serviceWorker.register) {
+            navigator.serviceWorker.register = function() {
+                console.log('🔧 Service worker registration stubbed');
+                return Promise.resolve();
+            };
+        }
+
         let contracts = [];
         let kiosks = [];
         let availableLockers = {};
@@ -857,7 +865,7 @@
         // Load CSRF token
         async function loadCsrfToken() {
             try {
-                const response = await fetch('/panel/auth/csrf-token');
+                const response = await fetch('/auth/csrf-token');
                 const data = await response.json();
                 csrfToken = data.token;
             } catch (error) {
@@ -868,7 +876,7 @@
         // Load statistics
         async function loadStatistics() {
             try {
-                const response = await fetch('/panel/api/vip');
+                const response = await fetch('/api/vip');
                 const data = await response.json();
                 
                 const stats = {
@@ -897,7 +905,7 @@
         // Load kiosks
         async function loadKiosks() {
             try {
-                const response = await fetch('/panel/api/lockers/kiosks');
+                const response = await fetch('/api/lockers/kiosks');
                 const data = await response.json();
                 kiosks = data.kiosks || [];
                 
@@ -926,7 +934,7 @@
             }
 
             try {
-                const response = await fetch(`/panel/api/vip/available-lockers/${kioskId}`);
+                const response = await fetch(`/api/vip/available-lockers/${kioskId}`);
                 const data = await response.json();
                 
                 const lockerSelect = document.getElementById('lockerId');
@@ -947,7 +955,7 @@
             const kioskFilter = document.getElementById('kioskFilter').value;
             const expiringSoonFilter = document.getElementById('expiringSoonFilter').value;
 
-            let url = '/panel/api/vip?';
+            let url = '/api/vip?';
             const params = new URLSearchParams();
             
             if (statusFilter) params.append('status', statusFilter);
@@ -1143,7 +1151,7 @@
 
         // View contract history
         function viewHistory(contractId) {
-            window.open(`/panel/vip/${contractId}/history`, '_blank');
+            window.open(`/vip/${contractId}/history`, '_blank');
         }
 
         // Event listeners
@@ -1159,7 +1167,7 @@
             const data = Object.fromEntries(formData.entries());
             
             try {
-                const response = await fetch('/panel/api/vip', {
+                const response = await fetch('/api/vip', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1196,7 +1204,7 @@
             const newEndDate = document.getElementById('newEndDate').value;
             
             try {
-                const response = await fetch(`/panel/api/vip/${contractId}/extend`, {
+                const response = await fetch(`/api/vip/${contractId}/extend`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1234,7 +1242,7 @@
             const data = Object.fromEntries(formData.entries());
             
             try {
-                const response = await fetch(`/panel/api/vip/${contractId}/change-card`, {
+                const response = await fetch(`/api/vip/${contractId}/change-card`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1270,7 +1278,7 @@
             const reason = document.getElementById('cancelReason').value;
             
             try {
-                const response = await fetch(`/panel/api/vip/${contractId}/cancel`, {
+                const response = await fetch(`/api/vip/${contractId}/cancel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1340,7 +1348,7 @@
             }
 
             try {
-                const response = await fetch(`/panel/api/vip/available-lockers/${kioskId}`);
+                const response = await fetch(`/api/vip/available-lockers/${kioskId}`);
                 const data = await response.json();
                 
                 const lockerSelect = document.getElementById('toLockerId');
@@ -1371,7 +1379,7 @@
         // Load transfer requests
         async function loadTransferRequests() {
             try {
-                const response = await fetch('/panel/api/vip/transfers');
+                const response = await fetch('/api/vip/transfers');
                 const data = await response.json();
                 transferRequests = data.transfers || [];
                 
@@ -1480,7 +1488,7 @@
             }
 
             try {
-                const response = await fetch(`/panel/api/vip/transfers/${transferId}/approve`, {
+                const response = await fetch(`/api/vip/transfers/${transferId}/approve`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1509,7 +1517,7 @@
             if (!reason) return;
 
             try {
-                const response = await fetch(`/panel/api/vip/transfers/${transferId}/reject`, {
+                const response = await fetch(`/api/vip/transfers/${transferId}/reject`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1534,7 +1542,7 @@
         // View contract history
         async function viewHistory(contractId) {
             try {
-                const response = await fetch(`/panel/api/vip/${contractId}/history`);
+                const response = await fetch(`/api/vip/${contractId}/history`);
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -1669,7 +1677,7 @@
             const data = Object.fromEntries(formData.entries());
             
             try {
-                const response = await fetch(`/panel/api/vip/${contractId}/transfer`, {
+                const response = await fetch(`/api/vip/${contractId}/transfer`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
