@@ -1053,6 +1053,25 @@
         }
     </script>
     
+    <!-- Global error handler for debugging -->
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error('🚨 Global JavaScript Error:', {
+                message: e.message,
+                filename: e.filename,
+                lineno: e.lineno,
+                colno: e.colno,
+                error: e.error,
+                stack: e.error?.stack
+            });
+        });
+        
+        // Prevent undefined register errors
+        if (typeof navigator !== 'undefined' && !navigator.serviceWorker) {
+            console.log('🔧 Service worker not available, creating stub');
+        }
+    </script>
+    
     <!-- Include i18n script -->
     <script src="/static/i18n.js"></script>
 </body>

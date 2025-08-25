@@ -40,6 +40,9 @@ export class HeartbeatClient {
     console.log(`Starting heartbeat client for kiosk ${this.config.kioskId}...`);
 
     try {
+      // Wait a moment for gateway to be fully ready
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       // Register with gateway
       await this.registerKiosk();
       
