@@ -28,6 +28,7 @@
     "start:kiosk": "npm run start --workspace=app/kiosk",
     "start:panel": "node app/panel/dist/index.js",
     "start:agent": "npm run start --workspace=app/agent",
+    "start": "node scripts/start-all.js",
     "provision": "npm run provision --workspace=app/gateway",
     "config-test": "npm run config-test --workspace=app/gateway",
     "migrate": "tsx scripts/migrate.ts",
