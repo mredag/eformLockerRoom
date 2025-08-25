@@ -28,6 +28,13 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     const requestId = (request as any).id || 'unknown';
 
     try {
+      fastify.log.info({
+        requestId,
+        route: '/api/lockers',
+        query: query,
+        message: '🔍 Locker API request received'
+      });
+
       // Validate required kioskId parameter
       if (!query.kioskId) {
         fastify.log.warn({
@@ -41,7 +48,23 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         });
       }
 
+      fastify.log.info({
+        requestId,
+        kioskId: query.kioskId,
+        status: query.status,
+        message: '📊 Calling lockerStateManager.getAllLockers...'
+      });
+
       const lockers = await lockerStateManager.getAllLockers(query.kioskId, query.status);
+      
+      fastify.log.info({
+        requestId,
+        kioskId: query.kioskId,
+        lockersCount: lockers ? lockers.length : 'null/undefined',
+        lockersType: typeof lockers,
+        isArray: Array.isArray(lockers),
+        message: '📊 lockerStateManager.getAllLockers result'
+      });
       
       // Add zone filtering if needed (would need kiosk heartbeat data)
       let filteredLockers = lockers;
@@ -59,10 +82,19 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         message: 'Lockers retrieved successfully'
       });
 
-      reply.send({
+      const responseData = {
         lockers: filteredLockers,
         total: filteredLockers.length
+      };
+
+      fastify.log.info({
+        requestId,
+        kioskId: query.kioskId,
+        responseData: responseData,
+        message: '📤 Sending response to client'
       });
+
+      reply.send(responseData);
     } catch (error) {
       fastify.log.error({
         requestId,

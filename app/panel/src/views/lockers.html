@@ -667,9 +667,14 @@
                 if (kioskFilter) params.append('kioskId', kioskFilter);
                 if (statusFilter) params.append('status', statusFilter);
 
+                console.log('🔍 Making API request to:', `/api/lockers?${params}`);
+                
                 const response = await fetch(`/api/lockers?${params}`, {
                     credentials: 'same-origin'
                 });
+
+                console.log('📡 API Response status:', response.status);
+                console.log('📡 API Response headers:', Object.fromEntries(response.headers.entries()));
 
                 if (!response.ok) {
                     // Enhanced error parsing: try response.json(), fallback to response.text()
@@ -704,14 +709,34 @@
                     throw new Error(message);
                 }
 
-                const data = await response.json();
+                const responseText = await response.text();
+                console.log('📄 Raw API response:', responseText);
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('📊 Parsed API data:', data);
+                } catch (parseError) {
+                    console.error('❌ Failed to parse JSON response:', parseError);
+                    console.log('Raw response was:', responseText);
+                    throw new Error('Server returned invalid JSON');
+                }
                 
                 // Validate response format
+                console.log('🔍 Validating response format...');
+                console.log('- data exists:', !!data);
+                console.log('- data.lockers exists:', !!data.lockers);
+                console.log('- data.lockers is array:', Array.isArray(data.lockers));
+                console.log('- data.lockers length:', data.lockers ? data.lockers.length : 'N/A');
+                
                 if (!data || !Array.isArray(data.lockers)) {
+                    console.error('❌ Invalid response format. Expected: {lockers: [...]}');
+                    console.error('❌ Actual response:', data);
                     throw new Error('Invalid response format from server');
                 }
                 
                 lockers = data.lockers;
+                console.log('✅ Successfully loaded', lockers.length, 'lockers');
                 
                 // Filter by zone if selected
                 if (zoneFilter && Array.isArray(lockers) && Array.isArray(kiosks)) {
