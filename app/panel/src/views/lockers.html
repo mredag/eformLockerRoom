@@ -170,7 +170,9 @@
 
         .locker-card.selected {
             border-left-color: #667eea;
-            background: #f8f9ff;
+            background: #e3f2fd;
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
         .locker-card.free {
@@ -521,13 +523,13 @@
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-primary" onclick="openSelectedLockers()" id="open-btn" disabled>
-                Seçilenleri Aç (<span id="selected-count">0</span>)
+                Select lockers first
             </button>
             <button class="btn btn-danger" onclick="blockSelectedLockers()" id="block-btn" disabled>
-                Seçilenleri Blokla
+                Select lockers first
             </button>
             <button class="btn btn-success" onclick="unblockSelectedLockers()" id="unblock-btn" disabled>
-                Bloğu Kaldır
+                Select lockers first
             </button>
             <button class="btn btn-danger" onclick="showEndOfDayModal()">
                 Gün Sonu Açma
@@ -598,6 +600,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await loadUserInfo();
             await loadData();
+            updateSelectedCount(); // Initialize button states
         });
 
         async function loadUserInfo() {
@@ -900,9 +903,23 @@
             const blockBtn = document.getElementById('block-btn');
             const unblockBtn = document.getElementById('unblock-btn');
             
-            openBtn.disabled = count === 0;
-            blockBtn.disabled = count === 0;
-            unblockBtn.disabled = count === 0;
+            if (count === 0) {
+                openBtn.innerHTML = 'Select lockers first';
+                blockBtn.innerHTML = 'Select lockers first';
+                unblockBtn.innerHTML = 'Select lockers first';
+                
+                openBtn.disabled = true;
+                blockBtn.disabled = true;
+                unblockBtn.disabled = true;
+            } else {
+                openBtn.innerHTML = `Open ${count} locker${count > 1 ? 's' : ''}`;
+                blockBtn.innerHTML = `Block ${count} locker${count > 1 ? 's' : ''}`;
+                unblockBtn.innerHTML = `Unblock ${count} locker${count > 1 ? 's' : ''}`;
+                
+                openBtn.disabled = false;
+                blockBtn.disabled = false;
+                unblockBtn.disabled = false;
+            }
         }
 
         async function openSelectedLockers() {
