@@ -1066,9 +1066,12 @@
             });
         });
         
-        // Prevent undefined register errors
-        if (typeof navigator !== 'undefined' && !navigator.serviceWorker) {
-            console.log('🔧 Service worker not available, creating stub');
+        // Prevent service worker registration errors
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker && !navigator.serviceWorker.register) {
+            navigator.serviceWorker.register = function() {
+                console.log('🔧 Service worker registration stubbed');
+                return Promise.resolve();
+            };
         }
     </script>
     
