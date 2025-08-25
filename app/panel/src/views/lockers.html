@@ -656,32 +656,81 @@
             const kioskFilter = document.getElementById('kiosk-filter').value;
             const statusFilter = document.getElementById('status-filter').value;
 
+            // Check if kioskId is required - if no kiosk filter is selected, show message
+            if (!kioskFilter) {
+                showError('Select a kiosk');
+                return;
+            }
+
             try {
                 const params = new URLSearchParams();
                 if (kioskFilter) params.append('kioskId', kioskFilter);
                 if (statusFilter) params.append('status', statusFilter);
 
-                const response = await fetch(`/api/lockers?${params}`);
-                const data = await response.json();
+                const response = await fetch(`/api/lockers?${params}`, {
+                    credentials: 'same-origin'
+                });
 
-                if (response.ok) {
-                    lockers = data.lockers;
-                    
-                    // Filter by zone if selected
-                    if (zoneFilter) {
-                        const kioskIdsInZone = kiosks
-                            .filter(k => k.zone === zoneFilter)
-                            .map(k => k.kiosk_id);
-                        lockers = lockers.filter(l => kioskIdsInZone.includes(l.kiosk_id));
+                if (!response.ok) {
+                    // Enhanced error parsing: try response.json(), fallback to response.text()
+                    let message = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        message = errorData.message || errorData.error || message;
+                    } catch {
+                        // Fallback to text if JSON parsing fails (e.g., HTML error pages)
+                        try {
+                            const textResponse = await response.text();
+                            if (textResponse && textResponse.length < 200) {
+                                message = textResponse;
+                            }
+                        } catch {
+                            // Keep original HTTP status message
+                        }
                     }
                     
-                    renderLockers();
-                    updateStats();
-                } else {
-                    showError(data.error || 'Failed to load lockers');
+                    // Handle three main error cases with clear server error messages
+                    if (response.status === 401) {
+                        // 401 session error - show "login required" message
+                        message = message.includes('login required') ? message : 'login required';
+                    } else if (response.status === 403) {
+                        // 403 permission error - show appropriate permission message
+                        message = message.includes('permission') ? message : 'permission denied';
+                    } else if (response.status >= 500) {
+                        // 500 server error - show "try again" message
+                        message = message.includes('try again') ? message : 'try again';
+                    }
+                    
+                    throw new Error(message);
                 }
+
+                const data = await response.json();
+                lockers = data.lockers;
+                
+                // Filter by zone if selected
+                if (zoneFilter) {
+                    const kioskIdsInZone = kiosks
+                        .filter(k => k.zone === zoneFilter)
+                        .map(k => k.kiosk_id);
+                    lockers = lockers.filter(l => kioskIdsInZone.includes(l.kiosk_id));
+                }
+                
+                renderLockers();
+                updateStats();
             } catch (error) {
-                showError('Network error loading lockers');
+                // Display clear error messages from server response
+                // Handle three main error cases: 401 session, 403 permission, 500 server error
+                const errorMessage = error.message;
+                
+                // Show single Refresh button on error (no exponential backoff)
+                // Show retry for 403 permission and 500 server errors, and network errors
+                // Don't show retry for "Select a kiosk" message or 401 session errors (login required)
+                const shouldShowRetry = !errorMessage.includes('Select a kiosk') && 
+                                       !errorMessage.includes('login required') &&
+                                       !errorMessage.includes('401');
+                
+                showError(errorMessage, shouldShowRetry);
+                console.error('Locker loading failed:', error);
             }
         }
 
@@ -1027,11 +1076,35 @@
             document.getElementById('locker-grid').style.display = show ? 'none' : 'grid';
         }
 
-        function showError(message) {
+        function showError(message, showRetry = false) {
             const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
+            errorDiv.innerHTML = ''; // Clear previous content
+            
+            // Add error message
+            const messageSpan = document.createElement('span');
+            messageSpan.textContent = message;
+            errorDiv.appendChild(messageSpan);
+            
+            // Add single Refresh button if showRetry is true (no exponential backoff)
+            if (showRetry) {
+                const refreshBtn = document.createElement('button');
+                refreshBtn.textContent = 'Refresh';
+                refreshBtn.className = 'btn btn-primary';
+                refreshBtn.style.marginLeft = '10px';
+                refreshBtn.onclick = () => {
+                    // Hide error message and retry loading
+                    errorDiv.style.display = 'none';
+                    loadLockers();
+                };
+                errorDiv.appendChild(refreshBtn);
+            }
+            
             errorDiv.style.display = 'block';
-            setTimeout(() => errorDiv.style.display = 'none', 5000);
+            
+            // Auto-hide after 5 seconds only if no retry button
+            if (!showRetry) {
+                setTimeout(() => errorDiv.style.display = 'none', 5000);
+            }
         }
 
         function showSuccess(message) {

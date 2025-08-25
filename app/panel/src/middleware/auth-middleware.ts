@@ -98,7 +98,10 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         reply.redirect('/login.html');
         return;
       }
-      reply.code(401).send({ error: 'Authentication required' });
+      reply.code(401).send({
+        code: 'unauthorized',
+        message: 'login required'
+      });
       return;
     }
 
@@ -114,7 +117,10 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         reply.redirect('/login.html');
         return;
       }
-      reply.code(401).send({ error: 'Invalid or expired session' });
+      reply.code(401).send({
+        code: 'unauthorized',
+        message: 'login required'
+      });
       return;
     }
 
@@ -128,10 +134,9 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
     // Check specific permission if required
     if (requiredPermission) {
       if (!PermissionService.hasPermission(session.user.role, requiredPermission)) {
-        reply.code(403).send({ 
-          error: 'Insufficient permissions',
-          required: requiredPermission,
-          userRole: session.user.role
+        reply.code(403).send({
+          code: 'forbidden',
+          message: 'Insufficient permissions'
         });
         return;
       }
@@ -143,15 +148,17 @@ export function requirePermission(permission: Permission) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user;
     if (!user) {
-      reply.code(401).send({ error: 'Authentication required' });
+      reply.code(401).send({
+        code: 'unauthorized',
+        message: 'login required'
+      });
       return;
     }
 
     if (!PermissionService.hasPermission(user.role, permission)) {
-      reply.code(403).send({ 
-        error: 'Insufficient permissions',
-        required: permission,
-        userRole: user.role
+      reply.code(403).send({
+        code: 'forbidden',
+        message: 'Insufficient permissions'
       });
       return;
     }
@@ -162,7 +169,10 @@ export function requireCsrfToken() {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const session = request.session;
     if (!session) {
-      reply.code(401).send({ error: 'Authentication required' });
+      reply.code(401).send({
+        code: 'unauthorized',
+        message: 'login required'
+      });
       return;
     }
 
@@ -171,7 +181,10 @@ export function requireCsrfToken() {
                      (request.body as any)?.csrfToken;
 
     if (!csrfToken || csrfToken !== session.csrfToken) {
-      reply.code(403).send({ error: 'Invalid CSRF token' });
+      reply.code(403).send({
+        code: 'forbidden',
+        message: 'Invalid CSRF token'
+      });
       return;
     }
   };

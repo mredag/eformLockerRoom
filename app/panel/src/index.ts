@@ -43,7 +43,7 @@ async function startPanelService() {
     const securityMiddleware = new SecurityMiddleware({
       csp: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"], // Removed 'unsafe-inline' for extension detection
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:"],
         connectSrc: ["'self'"],
@@ -51,11 +51,19 @@ async function startPanelService() {
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
+        reportUri: "/csp-report"
       },
+      reportOnly: true // Enable report-only mode for extension interference detection
     });
 
     const i18nController = new I18nController(fastify);
     const configController = new ConfigController(fastify);
+
+    // Helper function to determine secure cookie settings
+    const shouldUseSecureCookies = () => {
+      return process.env.NODE_ENV === 'production' && 
+             process.env.HTTPS_ENABLED === 'true';
+    };
 
     // Register plugins and middleware
     await fastify.register(import("@fastify/cookie"), {
@@ -64,15 +72,86 @@ async function startPanelService() {
         "eform-panel-secret-key-change-in-production",
       parseOptions: {
         httpOnly: true,
-        secure: false, // We'll set this per-cookie instead
-        sameSite: "strict",
+        secure: shouldUseSecureCookies(), // Dynamic based on HTTPS availability
+        sameSite: "lax", // Changed from "strict" for better LAN compatibility
+        path: "/" // Ensure consistent path across all routes
       },
     });
 
-    await fastify.register(import("@fastify/csrf-protection"));
+    await fastify.register(import("@fastify/csrf-protection"), {
+      cookieOpts: { signed: true },
+      sessionPlugin: '@fastify/cookie',
+      getToken: (request) => {
+        // Skip CSRF validation for GET requests
+        if (request.method === 'GET') {
+          return false;
+        }
+        // For other methods, use default token extraction
+        return request.headers['x-csrf-token'] || 
+               (request.body && request.body._csrf) ||
+               request.query._csrf;
+      }
+    });
 
     // Add security headers middleware
     fastify.addHook("onRequest", securityMiddleware.createSecurityHook());
+
+    // CSP violation reporting endpoint
+    fastify.post('/csp-report', {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            'csp-report': {
+              type: 'object',
+              properties: {
+                'blocked-uri': { type: 'string' },
+                'violated-directive': { type: 'string' },
+                'source-file': { type: 'string' },
+                'line-number': { type: 'number' },
+                'column-number': { type: 'number' },
+                'original-policy': { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }, async (request, reply) => {
+      try {
+        const report = (request.body as any)['csp-report'];
+        
+        // Log CSP violation with structured data
+        fastify.log.warn('CSP Violation Detected:', {
+          blockedUri: report['blocked-uri'],
+          violatedDirective: report['violated-directive'],
+          sourceFile: report['source-file'],
+          lineNumber: report['line-number'],
+          columnNumber: report['column-number'],
+          originalPolicy: report['original-policy'],
+          userAgent: request.headers['user-agent'],
+          timestamp: new Date().toISOString()
+        });
+
+        // Check if this looks like browser extension interference
+        const blockedUri = report['blocked-uri'] || '';
+        if (blockedUri.startsWith('chrome-extension://') || 
+            blockedUri.startsWith('moz-extension://') || 
+            blockedUri.startsWith('safari-extension://') ||
+            blockedUri.includes('extension')) {
+          
+          fastify.log.warn('Browser Extension Interference Detected:', {
+            extensionUri: blockedUri,
+            directive: report['violated-directive'],
+            recommendation: 'Consider disabling browser extensions on panel machines'
+          });
+        }
+
+        reply.code(204).send();
+      } catch (error) {
+        fastify.log.error('CSP report processing error:', error);
+        reply.code(400).send({ error: 'Invalid CSP report format' });
+      }
+    });
 
     // Enable authentication middleware
     fastify.addHook("preHandler", createAuthMiddleware({ sessionManager }));
@@ -162,10 +241,14 @@ async function startPanelService() {
           const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
           const userAgent = request.headers['user-agent'] || 'unknown';
           const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
+          
+          // Only redirect to dashboard if session is valid
           if (session) {
             return reply.redirect("/dashboard");
           }
         }
+        
+        // No valid session - show login
         return reply.redirect("/login.html");
       } catch (error) {
         fastify.log.error('Root route error:', error);
@@ -191,6 +274,11 @@ async function startPanelService() {
     // Configuration route
     fastify.get("/config", async (_request, reply) => {
       return reply.sendFile("config.html");
+    });
+
+    // CSP test route for extension interference detection
+    fastify.get("/csp-test", async (_request, reply) => {
+      return reply.sendFile("csp-test.html");
     });
 
     

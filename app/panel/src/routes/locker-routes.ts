@@ -25,7 +25,22 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       zone?: string;
     };
 
+    const requestId = (request as any).id || 'unknown';
+
     try {
+      // Validate required kioskId parameter
+      if (!query.kioskId) {
+        fastify.log.warn({
+          requestId,
+          route: '/api/lockers',
+          error: 'Missing kioskId parameter'
+        });
+        return reply.code(400).send({
+          code: 'bad_request',
+          message: 'kioskId required'
+        });
+      }
+
       const lockers = await lockerStateManager.getAllLockers(query.kioskId, query.status);
       
       // Add zone filtering if needed (would need kiosk heartbeat data)
@@ -35,13 +50,31 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         // For now, just return all lockers
       }
 
+      // Structured logging with requestId, kioskId, and locker count
+      fastify.log.info({
+        requestId,
+        kioskId: query.kioskId,
+        lockerCount: filteredLockers.length,
+        route: '/api/lockers',
+        message: 'Lockers retrieved successfully'
+      });
+
       reply.send({
         lockers: filteredLockers,
         total: filteredLockers.length
       });
     } catch (error) {
-      fastify.log.error('Failed to get lockers:', error);
-      reply.code(500).send({ error: 'Failed to retrieve lockers' });
+      fastify.log.error({
+        requestId,
+        kioskId: query.kioskId,
+        route: '/api/lockers',
+        error: error.message,
+        message: 'Failed to retrieve lockers'
+      });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 
@@ -50,18 +83,46 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
   }, async (request, reply) => {
     const { kioskId, lockerId } = request.params as { kioskId: string; lockerId: string };
+    const requestId = (request as any).id || 'unknown';
 
     try {
       const locker = await lockerStateManager.getLocker(kioskId, parseInt(lockerId));
       if (!locker) {
-        reply.code(404).send({ error: 'Locker not found' });
-        return;
+        fastify.log.warn({
+          requestId,
+          kioskId,
+          lockerId,
+          route: '/api/lockers/:kioskId/:lockerId',
+          message: 'Locker not found'
+        });
+        return reply.code(404).send({
+          code: 'not_found',
+          message: 'Locker not found'
+        });
       }
+
+      fastify.log.info({
+        requestId,
+        kioskId,
+        lockerId,
+        route: '/api/lockers/:kioskId/:lockerId',
+        message: 'Locker retrieved successfully'
+      });
 
       reply.send({ locker });
     } catch (error) {
-      fastify.log.error('Failed to get locker:', error);
-      reply.code(500).send({ error: 'Failed to retrieve locker' });
+      fastify.log.error({
+        requestId,
+        kioskId,
+        lockerId,
+        route: '/api/lockers/:kioskId/:lockerId',
+        error: error.message,
+        message: 'Failed to retrieve locker'
+      });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 
@@ -88,14 +149,18 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       // Check if locker exists
       const locker = await lockerStateManager.getLocker(kioskId, lockerId_num);
       if (!locker) {
-        reply.code(404).send({ error: 'Locker not found' });
-        return;
+        return reply.code(404).send({
+          code: 'not_found',
+          message: 'Locker not found'
+        });
       }
 
       // Skip release for VIP lockers unless override is true
       if (locker.is_vip && !override) {
-        reply.code(423).send({ error: 'VIP locker cannot be opened without override' });
-        return;
+        return reply.code(423).send({
+          code: 'locked',
+          message: 'VIP locker cannot be opened without override'
+        });
       }
 
       // Release the locker (this will open it and set to Free)
@@ -121,11 +186,17 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           message: `Locker ${lockerId} opened successfully` 
         });
       } else {
-        reply.code(400).send({ error: 'Failed to open locker' });
+        reply.code(400).send({
+          code: 'bad_request',
+          message: 'Failed to open locker'
+        });
       }
     } catch (error) {
       fastify.log.error('Failed to open locker:', error);
-      reply.code(500).send({ error: 'Failed to open locker' });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 
@@ -165,11 +236,17 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           message: `Locker ${lockerId} blocked successfully` 
         });
       } else {
-        reply.code(400).send({ error: 'Failed to block locker' });
+        reply.code(400).send({
+          code: 'bad_request',
+          message: 'Failed to block locker'
+        });
       }
     } catch (error) {
       fastify.log.error('Failed to block locker:', error);
-      reply.code(500).send({ error: 'Failed to block locker' });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 
@@ -199,11 +276,17 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           message: `Locker ${lockerId} unblocked successfully` 
         });
       } else {
-        reply.code(400).send({ error: 'Failed to unblock locker' });
+        reply.code(400).send({
+          code: 'bad_request',
+          message: 'Failed to unblock locker'
+        });
       }
     } catch (error) {
       fastify.log.error('Failed to unblock locker:', error);
-      reply.code(500).send({ error: 'Failed to unblock locker' });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 
@@ -251,14 +334,24 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           const locker = await lockerStateManager.getLocker(kioskId, lockerId);
           if (!locker) {
             failedLockers.push({ kioskId, lockerId, reason: 'not_found' });
-            results.push({ kioskId, lockerId, success: false, error: 'Locker not found' });
+            results.push({ 
+              kioskId, 
+              lockerId, 
+              success: false, 
+              error: { code: 'not_found', message: 'Locker not found' }
+            });
             continue;
           }
 
           // Skip VIP lockers if excludeVip is true
           if (locker.is_vip && excludeVip) {
             failedLockers.push({ kioskId, lockerId, reason: 'vip' });
-            results.push({ kioskId, lockerId, success: false, error: 'VIP locker excluded' });
+            results.push({ 
+              kioskId, 
+              lockerId, 
+              success: false, 
+              error: { code: 'excluded', message: 'VIP locker excluded' }
+            });
             continue;
           }
 
@@ -285,7 +378,12 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           }
         } catch (error) {
           failedLockers.push({ kioskId, lockerId, reason: 'error' });
-          results.push({ kioskId, lockerId, success: false, error: error.message });
+          results.push({ 
+            kioskId, 
+            lockerId, 
+            success: false, 
+            error: { code: 'server_error', message: error.message }
+          });
         }
       }
 
@@ -313,7 +411,10 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       });
     } catch (error) {
       fastify.log.error('Bulk open failed:', error);
-      reply.code(500).send({ error: 'Bulk open operation failed' });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 
@@ -393,7 +494,10 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         .send(csvContent);
     } catch (error) {
       fastify.log.error('End of day operation failed:', error);
-      reply.code(500).send({ error: 'End of day operation failed' });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 
@@ -416,7 +520,10 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       });
     } catch (error) {
       fastify.log.error('Failed to get kiosks:', error);
-      reply.code(500).send({ error: 'Failed to retrieve kiosks' });
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
     }
   });
 }

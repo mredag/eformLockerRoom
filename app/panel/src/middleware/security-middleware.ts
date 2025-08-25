@@ -11,6 +11,7 @@ export interface SecurityConfig {
     objectSrc: string[];
     mediaSrc: string[];
     frameSrc: string[];
+    reportUri?: string;
   };
   hsts: {
     maxAge: number;
@@ -22,6 +23,7 @@ export interface SecurityConfig {
   xContentTypeOptions: boolean;
   xXssProtection: boolean;
   permissionsPolicy: Record<string, string[]>;
+  reportOnly?: boolean;
 }
 
 const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
@@ -34,7 +36,8 @@ const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
     fontSrc: ["'self'"],
     objectSrc: ["'none'"],
     mediaSrc: ["'self'"],
-    frameSrc: ["'none'"]
+    frameSrc: ["'none'"],
+    reportUri: "/csp-report"
   },
   hsts: {
     maxAge: 31536000, // 1 year
@@ -54,7 +57,8 @@ const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
     magnetometer: [],
     accelerometer: [],
     gyroscope: []
-  }
+  },
+  reportOnly: false
 };
 
 export class SecurityMiddleware {
@@ -70,13 +74,25 @@ export class SecurityMiddleware {
   applySecurityHeaders(request: FastifyRequest, reply: FastifyReply): void {
     // Content Security Policy
     const cspDirectives = Object.entries(this.config.csp)
+      .filter(([directive]) => directive !== 'reportUri') // Exclude reportUri from directives
       .map(([directive, sources]) => {
         const directiveName = this.camelToKebab(directive);
         return `${directiveName} ${sources.join(' ')}`;
       })
       .join('; ');
     
-    reply.header('Content-Security-Policy', cspDirectives);
+    // Add report-uri if specified
+    let finalCspDirectives = cspDirectives;
+    if (this.config.csp.reportUri) {
+      finalCspDirectives += `; report-uri ${this.config.csp.reportUri}`;
+    }
+    
+    // Use report-only mode if configured
+    const cspHeaderName = this.config.reportOnly 
+      ? 'Content-Security-Policy-Report-Only' 
+      : 'Content-Security-Policy';
+    
+    reply.header(cspHeaderName, finalCspDirectives);
 
     // HTTP Strict Transport Security (HSTS)
     if (request.protocol === 'https') {
