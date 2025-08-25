@@ -213,7 +213,7 @@ export class CommandQueueManager {
   async clearPendingCommands(kioskId: string): Promise<number> {
     const result = await this.db.run(
       `UPDATE command_queue 
-       SET status = 'cancelled', completed_at = ?, last_error = 'Cleared on system restart'
+       SET status = 'cancelled', executed_at = ?, last_error = 'Cleared on system restart'
        WHERE kiosk_id = ? AND status IN ('pending', 'executing')`,
       [new Date().toISOString(), kioskId]
     );

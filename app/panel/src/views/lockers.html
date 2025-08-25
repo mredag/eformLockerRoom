@@ -959,11 +959,6 @@
             } catch (error) {
                 showError('End of day operation failed: ' + error.message);
             }
-        }eod-form');
-            form.onsubmit = async (e) => {
-                e.preventDefault();
-                await performEndOfDay();
-            };
         }
 
         async function performEndOfDay() {
