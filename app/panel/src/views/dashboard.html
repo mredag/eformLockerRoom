@@ -176,6 +176,14 @@
     </div>
 
     <script>
+        // Prevent service worker registration errors
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker && !navigator.serviceWorker.register) {
+            navigator.serviceWorker.register = function() {
+                console.log('🔧 Service worker registration stubbed');
+                return Promise.resolve();
+            };
+        }
+
         let currentUser = null;
         let csrfToken = null;
 
