@@ -68,8 +68,12 @@ export class LockerStateManager {
    */
   async getLocker(kioskId: string, lockerId: number): Promise<Locker | null> {
     if (this.dbManager) {
-      const db = this.dbManager.getConnection().getDatabase();
-      return db.prepare('SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?').get(kioskId, lockerId) || null;
+      const connection = this.dbManager.getConnection();
+      const result = await connection.get(
+        'SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?',
+        [kioskId, lockerId]
+      ) as Locker;
+      return result || null;
     } else {
       const result = await this.db.get<Locker>(
         'SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?',
@@ -113,8 +117,8 @@ export class LockerStateManager {
     query += ' ORDER BY kiosk_id, id';
 
     if (this.dbManager) {
-      const db = this.dbManager.getConnection().getDatabase();
-      return db.prepare(query).all(...params);
+      const connection = this.dbManager.getConnection();
+      return await connection.all(query, params) as Locker[];
     } else {
       return await this.db.all<Locker>(query, params);
     }
@@ -266,13 +270,14 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       
       if (this.dbManager) {
-        const db = this.dbManager.getConnection().getDatabase();
-        const result = db.prepare(
+        const connection = this.dbManager.getConnection();
+        const result = await connection.run(
           `UPDATE lockers 
            SET status = 'Free', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
-           WHERE kiosk_id = ? AND id = ? AND version = ?`
-        ).run(now, kioskId, lockerId, locker.version);
+           WHERE kiosk_id = ? AND id = ? AND version = ?`,
+          [now, kioskId, lockerId, locker.version]
+        );
 
         if (result.changes > 0) {
           // Log the release event
@@ -325,12 +330,13 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       
       if (this.dbManager) {
-        const db = this.dbManager.getConnection().getDatabase();
-        const result = db.prepare(
+        const connection = this.dbManager.getConnection();
+        const result = await connection.run(
           `UPDATE lockers 
            SET status = 'Blocked', version = version + 1, updated_at = ?
-           WHERE kiosk_id = ? AND id = ? AND version = ?`
-        ).run(now, kioskId, lockerId, locker.version);
+           WHERE kiosk_id = ? AND id = ? AND version = ?`,
+          [now, kioskId, lockerId, locker.version]
+        );
 
         if (result.changes > 0) {
           // Log the block event
@@ -378,13 +384,14 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       
       if (this.dbManager) {
-        const db = this.dbManager.getConnection().getDatabase();
-        const result = db.prepare(
+        const connection = this.dbManager.getConnection();
+        const result = await connection.run(
           `UPDATE lockers 
            SET status = 'Free', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
-           WHERE kiosk_id = ? AND id = ? AND version = ?`
-        ).run(now, kioskId, lockerId, locker.version);
+           WHERE kiosk_id = ? AND id = ? AND version = ?`,
+          [now, kioskId, lockerId, locker.version]
+        );
 
         if (result.changes > 0) {
           // Log the unblock event
@@ -632,11 +639,12 @@ export class LockerStateManager {
     staffUser?: string
   ): Promise<void> {
     if (this.dbManager) {
-      const db = this.dbManager.getConnection().getDatabase();
-      db.prepare(
+      const connection = this.dbManager.getConnection();
+      await connection.run(
         `INSERT INTO events (kiosk_id, locker_id, event_type, details, staff_user) 
-         VALUES (?, ?, ?, ?, ?)`
-      ).run(kioskId, lockerId, eventType, JSON.stringify(details), staffUser || null);
+         VALUES (?, ?, ?, ?, ?)`,
+        [kioskId, lockerId, eventType, JSON.stringify(details), staffUser || null]
+      );
     } else {
       await this.db.run(
         `INSERT INTO events (kiosk_id, locker_id, event_type, details, staff_user) 

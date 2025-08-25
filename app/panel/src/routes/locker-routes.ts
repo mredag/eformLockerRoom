@@ -66,11 +66,25 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         message: '📊 lockerStateManager.getAllLockers result'
       });
       
-      // Add zone filtering if needed (would need kiosk heartbeat data)
-      let filteredLockers = lockers;
-      if (query.zone) {
-        // This would require joining with kiosk_heartbeat table
-        // For now, just return all lockers
+      // Ensure lockers is always an array
+      let filteredLockers;
+      if (!Array.isArray(lockers)) {
+        fastify.log.warn({
+          requestId,
+          kioskId: query.kioskId,
+          lockersType: typeof lockers,
+          lockersValue: lockers,
+          message: '⚠️ lockers is not an array, converting to empty array'
+        });
+        // Convert to empty array if not an array
+        filteredLockers = [];
+      } else {
+        // Add zone filtering if needed (would need kiosk heartbeat data)
+        filteredLockers = lockers;
+        if (query.zone) {
+          // This would require joining with kiosk_heartbeat table
+          // For now, just return all lockers
+        }
       }
 
       // Structured logging with requestId, kioskId, and locker count
@@ -82,6 +96,18 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         message: 'Lockers retrieved successfully'
       });
 
+      // Final safety check: ensure filteredLockers is an array
+      if (!Array.isArray(filteredLockers)) {
+        fastify.log.error({
+          requestId,
+          kioskId: query.kioskId,
+          filteredLockersType: typeof filteredLockers,
+          filteredLockersValue: filteredLockers,
+          message: '❌ filteredLockers is still not an array, forcing empty array'
+        });
+        filteredLockers = [];
+      }
+
       const responseData = {
         lockers: filteredLockers,
         total: filteredLockers.length
@@ -91,6 +117,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         requestId,
         kioskId: query.kioskId,
         responseData: responseData,
+        filteredLockersIsArray: Array.isArray(filteredLockers),
         message: '📤 Sending response to client'
       });
 
