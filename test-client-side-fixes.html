@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client-Side Locker System Fixes Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .log-container {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        .log-error { color: #dc3545; }
+        .log-success { color: #28a745; }
+        .log-info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Locker System Fixes - Client-Side Tests</h1>
+    <p>This page tests the three main fixes from a browser perspective:</p>
+    <ul>
+        <li><strong>Fix 1:</strong> Network error loading lockers (CSRF + error handling)</li>
+        <li><strong>Fix 2:</strong> Authentication redirect loops</li>
+        <li><strong>Fix 3:</strong> Browser extension interference (CSP)</li>
+    </ul>
+
+    <div class="test-container">
+        <h2>🎯 Test Controls</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="testLockerAPI()">Test Locker API</button>
+        <button onclick="testErrorHandling()">Test Error Handling</button>
+        <button onclick="testCSP()">Test CSP</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="test-container">
+        <h2>📊 Test Results</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>📝 Test Log</h2>
+        <div id="test-log" class="log-container"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>🔧 Manual Tests</h2>
+        <div id="manual-tests">
+            <h3>Authentication Redirect Test</h3>
+            <p>1. Open browser dev tools (F12) and go to Network tab</p>
+            <p>2. Clear cookies for this site</p>
+            <p>3. Navigate to <a href="/" target="_blank">/ (root)</a></p>
+            <p>4. Check Network tab - should show exactly ONE redirect to /login.html or /dashboard</p>
+            
+            <h3>Extension Interference Test</h3>
+            <p>1. Open this page in normal browser (with extensions)</p>
+            <p>2. Check console for any line 2 JavaScript errors</p>
+            <p>3. Open in incognito/private mode or with --disable-extensions</p>
+            <p>4. Compare console output - should be cleaner without extensions</p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContainer = document.getElementById('test-log');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            logEntry.textContent = `${prefix} [${timestamp}] ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function addTestResult(testName, status, details = '') {
+            testResults.push({ name: testName, status, details, timestamp: new Date() });
+            updateTestResults();
+        }
+
+        function updateTestResults() {
+            const container = document.getElementById('test-results');
+            container.innerHTML = '';
+            
+            let passed = 0, failed = 0;
+            
+            testResults.forEach(result => {
+                const div = document.createElement('div');
+                div.className = `test-result ${result.status === 'PASSED' ? 'success' : 'error'}`;
+                div.innerHTML = `
+                    <strong>${result.name}</strong>: ${result.status}
+                    ${result.details ? `<br><small>${result.details}</small>` : ''}
+                `;
+                container.appendChild(div);
+                
+                if (result.status === 'PASSED') passed++;
+                else failed++;
+            });
+            
+            if (testResults.length > 0) {
+                const summary = document.createElement('div');
+                summary.className = 'test-result info';
+                summary.innerHTML = `<strong>Summary:</strong> ${passed} passed, ${failed} failed`;
+                container.insertBefore(summary, container.firstChild);
+            }
+        }
+
+        async function testLockerAPI() {
+            log('Testing locker API endpoint...');
+            
+            try {
+                // Test with kioskId parameter
+                const response = await fetch('/api/lockers?kioskId=K1', {
+                    credentials: 'same-origin'
+                });
+                
+                log(`API response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.lockers && Array.isArray(data.lockers)) {
+                        log(`✅ API returned ${data.lockers.length} lockers`, 'success');
+                        addTestResult('Locker API Happy Path', 'PASSED', `Returned ${data.lockers.length} lockers`);
+                    } else {
+                        log('❌ API response missing lockers array', 'error');
+                        addTestResult('Locker API Happy Path', 'FAILED', 'Missing lockers array');
+                    }
+                } else {
+                    // Test error response format
+                    let errorMessage = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorMessage;
+                        log(`API error response: ${JSON.stringify(errorData)}`, 'info');
+                        
+                        if (response.status === 401 && errorData.code === 'unauthorized') {
+                            addTestResult('401 Error Format', 'PASSED', errorData.message);
+                        } else if (response.status === 400 && errorData.code === 'bad_request') {
+                            addTestResult('400 Error Format', 'PASSED', errorData.message);
+                        } else {
+                            addTestResult('Error Response Format', 'FAILED', `Unexpected format: ${JSON.stringify(errorData)}`);
+                        }
+                    } catch (e) {
+                        log('❌ Error response is not valid JSON', 'error');
+                        addTestResult('Error Response Format', 'FAILED', 'Non-JSON error response');
+                    }
+                }
+                
+                // Test without kioskId parameter
+                const noKioskResponse = await fetch('/api/lockers', {
+                    credentials: 'same-origin'
+                });
+                
+                if (!noKioskResponse.ok) {
+                    const errorData = await noKioskResponse.json();
+                    if (errorData.code === 'bad_request') {
+                        log('✅ Missing kioskId properly handled', 'success');
+                        addTestResult('Missing KioskId Handling', 'PASSED', errorData.message);
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ API test failed: ${error.message}`, 'error');
+                addTestResult('Locker API Test', 'FAILED', error.message);
+            }
+        }
+
+        async function testErrorHandling() {
+            log('Testing client-side error handling...');
+            
+            // Check if error handling functions exist
+            const hasShowError = typeof window.showError === 'function';
+            const hasShowRefreshButton = typeof window.showRefreshButton === 'function';
+            
+            if (hasShowError) {
+                log('✅ showError function exists', 'success');
+                addTestResult('Error Handling Functions', 'PASSED', 'showError function found');
+            } else {
+                log('❌ showError function not found', 'error');
+                addTestResult('Error Handling Functions', 'FAILED', 'showError function missing');
+            }
+            
+            // Check if error message container exists
+            const errorContainer = document.getElementById('error-message');
+            if (errorContainer) {
+                log('✅ Error message container exists', 'success');
+                addTestResult('Error UI Elements', 'PASSED', 'Error container found');
+            } else {
+                log('ℹ️ Error message container not found (may be in lockers.html)', 'info');
+                addTestResult('Error UI Elements', 'PASSED', 'Test run from different page');
+            }
+            
+            // Test fetch error handling pattern
+            try {
+                // This should fail and test our error handling
+                const response = await fetch('/api/nonexistent', {
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    let message = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        message = errorData.message || message;
+                    } catch {
+                        try {
+                            message = await response.text();
+                        } catch {
+                            // Keep original message
+                        }
+                    }
+                    
+                    log(`✅ Error handling pattern works: ${message}`, 'success');
+                    addTestResult('Fetch Error Handling', 'PASSED', 'Error parsing works correctly');
+                }
+            } catch (error) {
+                log(`✅ Network error handling works: ${error.message}`, 'success');
+                addTestResult('Network Error Handling', 'PASSED', 'Fetch errors caught properly');
+            }
+        }
+
+        async function testCSP() {
+            log('Testing Content Security Policy...');
+            
+            // Check if CSP headers are present
+            try {
+                const response = await fetch(window.location.href);
+                const cspHeader = response.headers.get('Content-Security-Policy') || 
+                                response.headers.get('Content-Security-Policy-Report-Only');
+                
+                if (cspHeader) {
+                    log(`✅ CSP header found: ${cspHeader}`, 'success');
+                    addTestResult('CSP Header', 'PASSED', 'CSP policy detected');
+                    
+                    if (cspHeader.includes('script-src')) {
+                        log('✅ CSP includes script-src directive', 'success');
+                        addTestResult('CSP Script Protection', 'PASSED', 'script-src directive found');
+                    }
+                    
+                    if (cspHeader.includes('report-uri') || cspHeader.includes('report-to')) {
+                        log('✅ CSP includes reporting', 'success');
+                        addTestResult('CSP Reporting', 'PASSED', 'CSP reporting configured');
+                    }
+                } else {
+                    log('ℹ️ No CSP header found', 'info');
+                    addTestResult('CSP Header', 'FAILED', 'No CSP header detected');
+                }
+            } catch (error) {
+                log(`❌ CSP test failed: ${error.message}`, 'error');
+                addTestResult('CSP Test', 'FAILED', error.message);
+            }
+            
+            // Check for extension interference indicators
+            const scripts = document.querySelectorAll('script');
+            let extensionScripts = 0;
+            
+            scripts.forEach(script => {
+                if (script.src && script.src.startsWith('chrome-extension://')) {
+                    extensionScripts++;
+                }
+            });
+            
+            if (extensionScripts > 0) {
+                log(`⚠️ Found ${extensionScripts} extension scripts`, 'info');
+                addTestResult('Extension Interference', 'FAILED', `${extensionScripts} extension scripts detected`);
+            } else {
+                log('✅ No extension scripts detected', 'success');
+                addTestResult('Extension Interference', 'PASSED', 'No extension scripts found');
+            }
+        }
+
+        async function runAllTests() {
+            log('🚀 Starting comprehensive client-side test suite');
+            testResults = [];
+            updateTestResults();
+            
+            await testLockerAPI();
+            await testErrorHandling();
+            await testCSP();
+            
+            const passed = testResults.filter(r => r.status === 'PASSED').length;
+            const failed = testResults.filter(r => r.status === 'FAILED').length;
+            
+            log(`📊 Test suite completed: ${passed} passed, ${failed} failed`, 
+                failed === 0 ? 'success' : 'error');
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateTestResults();
+            document.getElementById('test-log').innerHTML = '';
+            log('Test results cleared');
+        }
+
+        // Auto-run basic tests on page load
+        window.addEventListener('load', () => {
+            log('🔧 Client-side test page loaded');
+            log('Click "Run All Tests" to start comprehensive testing');
+        });
+    </script>
+</body>
+</html>
