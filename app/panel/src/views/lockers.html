@@ -937,7 +937,10 @@
         async function performAction(action) {
             const reason = document.getElementById('reason').value;
             const selectedArray = Array.from(selectedLockers).map(key => {
-                const [kioskId, lockerId] = key.split('-');
+                // Split from the right to handle kiosk IDs with dashes (e.g., 'kiosk-1-1' -> kioskId='kiosk-1', lockerId='1')
+                const lastDashIndex = key.lastIndexOf('-');
+                const kioskId = key.substring(0, lastDashIndex);
+                const lockerId = key.substring(lastDashIndex + 1);
                 return { kioskId, lockerId: parseInt(lockerId) };
             });
 
