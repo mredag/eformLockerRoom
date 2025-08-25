@@ -93,7 +93,7 @@ const i18nController = new KioskI18nController(fastify);
 // Get kiosk ID from environment or config
 const KIOSK_ID = process.env.KIOSK_ID || "kiosk-1";
 const ZONE = process.env.ZONE || "main";
-const GATEWAY_URL = process.env.GATEWAY_URL || "http://localhost:3000";
+const GATEWAY_URL = process.env.GATEWAY_URL || "http://127.0.0.1:3000";
 const VERSION = process.env.npm_package_version || "1.0.0";
 const PORT = parseInt(process.env.PORT || "3002");
 
@@ -336,8 +336,8 @@ const start = async () => {
       }
     }
 
-    // Start heartbeat client (disabled for now)
-    // await heartbeatClient.start();
+    // Start heartbeat client
+    await heartbeatClient.start();
 
     await fastify.listen({ port: PORT, host: "0.0.0.0" });
     console.log(
@@ -352,7 +352,7 @@ const start = async () => {
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   console.log("Received SIGTERM, shutting down gracefully...");
-  // await heartbeatClient.stop();
+  await heartbeatClient.stop();
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);
@@ -360,7 +360,7 @@ process.on("SIGTERM", async () => {
 
 process.on("SIGINT", async () => {
   console.log("Received SIGINT, shutting down gracefully...");
-  // await heartbeatClient.stop();
+  await heartbeatClient.stop();
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);

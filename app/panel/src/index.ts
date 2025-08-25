@@ -96,6 +96,41 @@ async function startPanelService() {
       auditLogger,
     });
 
+    // Proxy heartbeat requests to Gateway service
+    fastify.register(async function (fastify) {
+      // Proxy all heartbeat routes
+      fastify.all('/api/heartbeat/*', async (request, reply) => {
+        try {
+          const gatewayUrl = process.env.GATEWAY_URL || 'http://127.0.0.1:3000';
+          const path = request.url;
+          
+          const response = await fetch(`${gatewayUrl}${path}`, {
+            method: request.method,
+            headers: {
+              'Content-Type': 'application/json',
+              ...Object.fromEntries(
+                Object.entries(request.headers).filter(([key]) => 
+                  !['host', 'connection', 'content-length'].includes(key.toLowerCase())
+                )
+              )
+            },
+            body: request.method !== 'GET' && request.method !== 'HEAD' 
+              ? JSON.stringify(request.body) 
+              : undefined
+          });
+          
+          const data = await response.json();
+          reply.code(response.status).send(data);
+        } catch (error) {
+          fastify.log.error('Heartbeat proxy error:', error);
+          reply.code(500).send({ 
+            success: false, 
+            error: 'Failed to connect to Gateway service' 
+          });
+        }
+      });
+    });
+
     // Register i18n routes
     await i18nController.registerRoutes();
 
