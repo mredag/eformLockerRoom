@@ -43,7 +43,7 @@ async function startPanelService() {
     const securityMiddleware = new SecurityMiddleware({
       csp: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"], // Removed 'unsafe-inline' for extension detection
+        scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for now, still detects extensions
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:"],
         connectSrc: ["'self'"],
@@ -98,27 +98,21 @@ async function startPanelService() {
 
     // CSP violation reporting endpoint
     fastify.post('/csp-report', {
-      schema: {
-        body: {
-          type: 'object',
-          properties: {
-            'csp-report': {
-              type: 'object',
-              properties: {
-                'blocked-uri': { type: 'string' },
-                'violated-directive': { type: 'string' },
-                'source-file': { type: 'string' },
-                'line-number': { type: 'number' },
-                'column-number': { type: 'number' },
-                'original-policy': { type: 'string' }
-              }
-            }
-          }
-        }
+      config: {
+        rawBody: true
       }
     }, async (request, reply) => {
       try {
-        const report = (request.body as any)['csp-report'];
+        // Parse CSP report from raw body
+        let report;
+        try {
+          const bodyStr = request.body ? request.body.toString() : '{}';
+          const parsed = JSON.parse(bodyStr);
+          report = parsed['csp-report'] || parsed;
+        } catch (parseError) {
+          fastify.log.warn('Failed to parse CSP report:', parseError);
+          return reply.code(400).send({ error: 'Invalid CSP report format' });
+        }
         
         // Log CSP violation with structured data
         fastify.log.warn('CSP Violation Detected:', {

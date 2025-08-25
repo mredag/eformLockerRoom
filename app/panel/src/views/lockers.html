@@ -705,10 +705,16 @@
                 }
 
                 const data = await response.json();
+                
+                // Validate response format
+                if (!data || !Array.isArray(data.lockers)) {
+                    throw new Error('Invalid response format from server');
+                }
+                
                 lockers = data.lockers;
                 
                 // Filter by zone if selected
-                if (zoneFilter) {
+                if (zoneFilter && Array.isArray(lockers) && Array.isArray(kiosks)) {
                     const kioskIdsInZone = kiosks
                         .filter(k => k.zone === zoneFilter)
                         .map(k => k.kiosk_id);
@@ -763,6 +769,12 @@
         }
 
         function updateStats() {
+            // Safety check: ensure lockers is an array
+            if (!Array.isArray(lockers)) {
+                console.warn('updateStats called but lockers is not an array:', lockers);
+                lockers = []; // Reset to empty array
+            }
+            
             const stats = {
                 total: lockers.length,
                 free: lockers.filter(l => l.status === 'Free').length,
