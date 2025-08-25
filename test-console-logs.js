@@ -5,14 +5,14 @@ const filePath = 'app/panel/src/views/lockers.html';
 const content = fs.readFileSync(filePath, 'utf8');
 
 const logPatterns = [
-  '🔓 OPEN BUTTON CLICKED',
-  '🚫 BLOCK BUTTON CLICKED', 
-  '✅ UNBLOCK BUTTON CLICKED',
-  '🎯 LOCKER CLICKED',
-  '📊 UPDATING BUTTON STATES',
-  '🔄 REFRESH BUTTON clicked',
-  '⚡ PERFORM ACTION CALLED',
-  '🔓 BULK OPEN API CALL STARTING'
+  '🔓 openSelectedLockers called',
+  '🚫 blockSelectedLockers called', 
+  '✅ unblockSelectedLockers called',
+  '🎯 toggleLocker called',
+  '📊 updateSelectedCount called',
+  '🔄 loadData called (Refresh button)',
+  '⚡ performAction called',
+  '📋 showActionModal called'
 ];
 
 console.log('🔍 Checking for console logs in lockers.html...\n');
