@@ -274,8 +274,7 @@ export interface KioskHeartbeat {
   last_seen: Date;
   zone: string;
   status: KioskStatus;
-  software_version: string; // Software version (renamed to avoid conflict)
-  version: number; // For optimistic locking
+  version: string; // Software version
   last_config_hash?: string; // For configuration sync
   offline_threshold_seconds: number;
   hardware_id?: string;

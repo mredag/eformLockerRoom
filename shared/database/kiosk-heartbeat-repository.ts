@@ -1,4 +1,3 @@
-import { BaseRepository } from './base-repository';
 import { DatabaseConnection } from './connection';
 import { KioskHeartbeat, KioskStatus } from '../types/core-entities';
 
@@ -10,9 +9,12 @@ export interface KioskFilter {
   version?: string;
 }
 
-export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
+export class KioskHeartbeatRepository {
+  protected db: DatabaseConnection;
+  protected tableName: string = 'kiosk_heartbeat';
+
   constructor(db: DatabaseConnection) {
-    super(db, 'kiosk_heartbeat');
+    this.db = db;
   }
 
   async findById(id: string | number): Promise<KioskHeartbeat | null> {
@@ -100,7 +102,7 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
     return created;
   }
 
-  async update(id: string | number, updates: Partial<KioskHeartbeat>, expectedVersion: number = 1): Promise<KioskHeartbeat> {
+  async update(id: string | number, updates: Partial<KioskHeartbeat>): Promise<KioskHeartbeat> {
     const setClause: string[] = [];
     const params: any[] = [];
 
@@ -164,7 +166,7 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
     };
 
     if (version) {
-      updates.version = parseInt(version as string) || 1;
+      updates.version = version;
     }
 
     if (configHash) {
@@ -190,17 +192,44 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
     hardwareId?: string,
     registrationSecret?: string
   ): Promise<KioskHeartbeat> {
-    return this.create({
-      kiosk_id: kioskId,
-      last_seen: new Date(),
-      zone,
-      status: 'online',
-      version: parseInt(version as string) || 1,
-      software_version: '1.0.0',
-      offline_threshold_seconds: 30,
-      hardware_id: hardwareId,
-      registration_secret: registrationSecret
-    });
+    try {
+      // Try to create new kiosk
+      return await this.create({
+        kiosk_id: kioskId,
+        last_seen: new Date(),
+        zone,
+        status: 'online',
+        version: version || '1.0.0',
+        offline_threshold_seconds: 30,
+        hardware_id: hardwareId,
+        registration_secret: registrationSecret
+      });
+    } catch (error: any) {
+      console.log('Registration error:', error.code, error.message);
+      // If kiosk already exists, update it instead
+      if (error.code === 'SQLITE_CONSTRAINT' && error.message.includes('UNIQUE constraint failed')) {
+        console.log(`Kiosk ${kioskId} already exists, updating instead...`);
+        const updateData = {
+          last_seen: new Date(),
+          zone,
+          status: 'online' as const,
+          version: version || '1.0.0',
+          offline_threshold_seconds: 30,
+          hardware_id: hardwareId,
+          registration_secret: registrationSecret,
+          updated_at: new Date()
+        };
+        
+        await this.update(kioskId, updateData);
+        const result = await this.findById(kioskId);
+        if (!result) {
+          throw new Error(`Failed to find kiosk ${kioskId} after update`);
+        }
+        console.log(`Kiosk ${kioskId} updated successfully`);
+        return result;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -336,7 +365,6 @@ export class KioskHeartbeatRepository extends BaseRepository<KioskHeartbeat> {
       zone: row.zone,
       status: row.status as KioskStatus,
       version: row.version,
-      software_version: row.software_version || '1.0.0',
       last_config_hash: row.last_config_hash,
       offline_threshold_seconds: row.offline_threshold_seconds,
       hardware_id: row.hardware_id,

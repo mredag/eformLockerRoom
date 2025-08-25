@@ -76,6 +76,7 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         request.url === '/setup' ||
         request.url === '/login.html' ||
         request.url.startsWith('/static/') ||
+        request.url.startsWith('/api/i18n/') ||
         request.url.endsWith('.css') ||
         request.url.endsWith('.js') ||
         request.url.endsWith('.ico')) {

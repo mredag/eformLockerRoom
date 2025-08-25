@@ -41,6 +41,15 @@ async function debugKioskDatabase() {
       console.error('Error details:', error);
     }
     
+    // Test 7: Check kiosk_heartbeat table
+    console.log('\n7. Checking kiosk_heartbeat table...');
+    try {
+      const heartbeats = await db.all('SELECT * FROM kiosk_heartbeat');
+      console.log('Kiosk heartbeat records:', heartbeats);
+    } catch (error) {
+      console.error('❌ Failed to query kiosk_heartbeat:', error.message);
+    }
+
     await db.close();
     console.log('\n=== Debug completed ===');
     

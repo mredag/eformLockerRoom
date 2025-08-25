@@ -12,15 +12,41 @@ class PanelI18n {
         try {
             // Load current language and messages from server
             const response = await fetch('/api/i18n/messages');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            
+            if (!data || !data.language || !data.messages) {
+                throw new Error('Invalid response format from i18n API');
+            }
             
             this.currentLanguage = data.language;
             this.messages = data.messages;
             
             this.updateUI();
             this.setupLanguageSelector();
+            
+            console.log('✅ i18n initialized successfully:', {
+                language: this.currentLanguage,
+                sections: Object.keys(this.messages)
+            });
         } catch (error) {
-            console.error('Failed to initialize i18n:', error);
+            console.error('❌ Failed to initialize i18n:', error);
+            
+            // Fallback to default messages to prevent complete failure
+            this.currentLanguage = 'tr';
+            this.messages = {
+                panel: {
+                    error: 'Hata',
+                    loading: 'Yükleniyor...',
+                    network_error: 'Ağ hatası'
+                }
+            };
+            
+            console.warn('🔄 Using fallback i18n messages');
         }
     }
 
