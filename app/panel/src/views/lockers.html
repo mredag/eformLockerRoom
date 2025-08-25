@@ -378,6 +378,14 @@
             border-radius: 8px;
             padding: 1rem;
             border-left: 4px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        }
+
+        .kiosk-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            background: #e9ecef;
         }
 
         .kiosk-card.online {
@@ -828,7 +836,7 @@
             }
 
             kioskGrid.innerHTML = kiosks.map(kiosk => `
-                <div class="kiosk-card ${kiosk.status}">
+                <div class="kiosk-card ${kiosk.status}" onclick="selectKiosk('${kiosk.kiosk_id}')">
                     <div class="kiosk-header">
                         <div class="kiosk-name">${kiosk.kiosk_id}</div>
                         <div class="kiosk-status-badge ${kiosk.status}">${kiosk.status.toUpperCase()}</div>
@@ -843,6 +851,21 @@
             `).join('');
 
             kioskStatusDiv.style.display = 'block';
+        }
+
+        function selectKiosk(kioskId) {
+            console.log('🏢 Kiosk card clicked:', kioskId);
+            
+            // Update the kiosk filter dropdown
+            const kioskFilter = document.getElementById('kiosk-filter');
+            kioskFilter.value = kioskId;
+            
+            // Clear any selected lockers since we're changing kiosk
+            selectedLockers.clear();
+            updateSelectedCount();
+            
+            // Load lockers for the selected kiosk
+            loadLockers();
         }
 
         function updateFilters() {
@@ -884,20 +907,23 @@
 
         function toggleLocker(kioskId, lockerId) {
             const key = kioskId + '-' + lockerId;
+            console.log('🎯 Locker clicked:', key);
             
             if (selectedLockers.has(key)) {
                 selectedLockers.delete(key);
+                console.log('➖ Locker deselected:', key);
             } else {
                 selectedLockers.add(key);
+                console.log('➕ Locker selected:', key);
             }
             
+            console.log('📊 Total selected:', selectedLockers.size, Array.from(selectedLockers));
             updateSelectedCount();
             renderLockers();
         }
 
         function updateSelectedCount() {
             const count = selectedLockers.size;
-            document.getElementById('selected-count').textContent = count;
             
             const openBtn = document.getElementById('open-btn');
             const blockBtn = document.getElementById('block-btn');
