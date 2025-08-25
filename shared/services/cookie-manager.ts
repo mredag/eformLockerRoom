@@ -16,7 +16,7 @@ export class CookieManager {
   /**
    * Set session cookie with simple clearing of old cookies
    */
-  static setSessionCookie(reply: FastifyReply, sessionId: string, options: CookieOptions = {}): void {
+  static setSessionCookie(reply: any, sessionId: string, options: CookieOptions = {}): void {
     // Simple clearing - just the main variations
     reply.clearCookie(this.COOKIE_NAME, { path: '/' });
     reply.clearCookie(this.COOKIE_NAME, { path: '/auth' });
@@ -39,7 +39,7 @@ export class CookieManager {
   /**
    * Clear session cookies (simplified)
    */
-  static clearAllSessionCookies(reply: FastifyReply): void {
+  static clearAllSessionCookies(reply: any): void {
     // Simple clearing without aggressive domain/path combinations
     reply.clearCookie(this.COOKIE_NAME, { path: '/' });
     reply.clearCookie(this.COOKIE_NAME, { path: '/auth' });

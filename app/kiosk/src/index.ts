@@ -309,8 +309,18 @@ const start = async () => {
 
     // Initialize kiosk lockers if needed (with error handling)
     try {
+      // Change working directory to project root to fix database path issues
+      const path = require('path');
+      const projectRoot = path.resolve(__dirname, '../../..');
+      process.chdir(projectRoot);
+      
+      console.log(`🔍 Initializing lockers for kiosk: ${KIOSK_ID}`);
+      console.log(`🔍 Changed working directory to: ${process.cwd()}`);
+      console.log(`🔍 Database path: ${process.env.EFORM_DB_PATH || './data/eform.db'}`);
       await lockerStateManager.initializeKioskLockers(KIOSK_ID, 30);
+      console.log(`✅ Kiosk lockers initialized successfully`);
     } catch (dbError) {
+      console.error("❌ Error initializing kiosk lockers:", dbError);
       if (
         dbError instanceof Error &&
         dbError.message.includes("no such table")

@@ -68,7 +68,10 @@ async function showStatus() {
     console.log('📊 Database Migration Status\n');
     console.log(`Applied Migrations (${status.applied.length}):`);
     status.applied.forEach(migration => {
-      console.log(`  ✅ ${migration.filename} (${migration.applied_at.toISOString()})`);
+      const appliedAt = typeof migration.applied_at === 'string' 
+        ? migration.applied_at 
+        : migration.applied_at.toISOString();
+      console.log(`  ✅ ${migration.filename} (${appliedAt})`);
     });
     
     console.log(`\nPending Migrations (${status.pending.length}):`);
