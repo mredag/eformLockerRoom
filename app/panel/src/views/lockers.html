@@ -987,6 +987,18 @@
                     const endpoint = action === 'block' ? 'block' : 'unblock';
                     const body = action === 'block' ? { reason: reason || 'Manual block' } : {};
                     
+                    // Enhanced logging for debugging API calls
+                    console.log('🔧 API Call Debug Info:', {
+                        action: action,
+                        endpoint: endpoint,
+                        kioskId: kioskId,
+                        lockerId: lockerId,
+                        reason: reason,
+                        body: body,
+                        bodyString: JSON.stringify(body),
+                        csrfToken: csrfToken ? 'present' : 'missing'
+                    });
+                    
                     const response = await fetch(`/api/lockers/${kioskId}/${lockerId}/${endpoint}`, {
                         method: 'POST',
                         headers: {
