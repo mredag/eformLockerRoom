@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSP Extension Interference Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .success { border-color: #28a745; background: #f8fff9; }
+        .warning { border-color: #ffc107; background: #fffdf5; }
+        .error { border-color: #dc3545; background: #fff5f5; }
+        .log-output {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+        button:hover { background: #0056b3; }
+        .status { font-weight: bold; }
+        .instructions {
+            background: #e9ecef;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ CSP Extension Interference Test</h1>
+        
+        <div class="instructions">
+            <h3>Test Instructions:</h3>
+            <ol>
+                <li><strong>With Extensions:</strong> Load this page normally and check console for CSP violations</li>
+                <li><strong>Without Extensions:</strong> Open in incognito mode or with <code>--disable-extensions</code></li>
+                <li><strong>Check Server Logs:</strong> Look for CSP violation reports in the panel service logs</li>
+            </ol>
+        </div>
+
+        <div class="test-section" id="csp-status">
+            <h3>CSP Configuration Status</h3>
+            <p class="status" id="csp-header-status">Checking CSP headers...</p>
+            <div class="log-output" id="csp-details"></div>
+        </div>
+
+        <div class="test-section" id="script-test">
+            <h3>Script Execution Test</h3>
+            <p class="status" id="script-status">Testing script execution...</p>
+            <button onclick="testInlineScript()">Test Inline Script</button>
+            <button onclick="testExternalScript()">Test External Script</button>
+            <div class="log-output" id="script-log"></div>
+        </div>
+
+        <div class="test-section" id="console-test">
+            <h3>Console Error Monitor</h3>
+            <p class="status">Monitoring console for JavaScript errors...</p>
+            <button onclick="clearConsoleLog()">Clear Log</button>
+            <div class="log-output" id="console-log"></div>
+        </div>
+
+        <div class="test-section" id="extension-test">
+            <h3>Extension Detection</h3>
+            <p class="status" id="extension-status">Checking for browser extensions...</p>
+            <div class="log-output" id="extension-details"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global error handler to catch CSP violations and other errors
+        window.addEventListener('error', function(e) {
+            logToConsole(`ERROR: ${e.message} at ${e.filename}:${e.lineno}:${e.colno}`, 'error');
+        });
+
+        // Security policy violation handler
+        document.addEventListener('securitypolicyviolation', function(e) {
+            logToConsole(`CSP VIOLATION: ${e.violatedDirective} - ${e.blockedURI}`, 'warning');
+        });
+
+        let consoleMessages = [];
+
+        function logToConsole(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            consoleMessages.push({ message: logEntry, type });
+            updateConsoleDisplay();
+            
+            // Also log to browser console
+            console.log(logEntry);
+        }
+
+        function updateConsoleDisplay() {
+            const consoleLog = document.getElementById('console-log');
+            consoleLog.textContent = consoleMessages.map(m => m.message).join('\n');
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+
+        function clearConsoleLog() {
+            consoleMessages = [];
+            updateConsoleDisplay();
+        }
+
+        // Check CSP headers
+        async function checkCSPHeaders() {
+            try {
+                const response = await fetch('/health');
+                const cspHeader = response.headers.get('content-security-policy-report-only');
+                const cspDetails = document.getElementById('csp-details');
+                const cspStatus = document.getElementById('csp-header-status');
+                
+                if (cspHeader) {
+                    cspStatus.textContent = '✅ CSP Report-Only header found';
+                    cspStatus.className = 'status success';
+                    cspDetails.textContent = `CSP Policy: ${cspHeader}`;
+                    
+                    // Check for specific directives
+                    if (cspHeader.includes("script-src 'self'")) {
+                        logToConsole('✅ script-src correctly set to \'self\'', 'success');
+                    }
+                    if (cspHeader.includes('report-uri /csp-report')) {
+                        logToConsole('✅ report-uri configured for /csp-report', 'success');
+                    }
+                } else {
+                    cspStatus.textContent = '❌ CSP Report-Only header not found';
+                    cspStatus.className = 'status error';
+                    cspDetails.textContent = 'No CSP header detected. Check server configuration.';
+                }
+            } catch (error) {
+                logToConsole(`Error checking CSP headers: ${error.message}`, 'error');
+            }
+        }
+
+        // Test inline script execution
+        function testInlineScript() {
+            try {
+                // This should trigger a CSP violation if script-src doesn't allow inline
+                eval('logToConsole("Inline script executed successfully", "success")');
+            } catch (error) {
+                logToConsole(`Inline script blocked: ${error.message}`, 'warning');
+            }
+        }
+
+        // Test external script loading
+        function testExternalScript() {
+            const script = document.createElement('script');
+            script.src = 'https://code.jquery.com/jquery-3.6.0.min.js';
+            script.onload = () => logToConsole('External script loaded successfully', 'success');
+            script.onerror = () => logToConsole('External script blocked by CSP', 'warning');
+            document.head.appendChild(script);
+        }
+
+        // Check for common browser extensions
+        function checkForExtensions() {
+            const extensionStatus = document.getElementById('extension-status');
+            const extensionDetails = document.getElementById('extension-details');
+            let detectedExtensions = [];
+
+            // Check for common extension indicators
+            const checks = [
+                { name: 'AdBlock', check: () => window.adblockDetected || document.querySelector('[id*="adblock"]') },
+                { name: 'Grammarly', check: () => document.querySelector('[data-gr-ext]') || window.grammarly },
+                { name: 'LastPass', check: () => document.querySelector('[data-lastpass-icon-root]') },
+                { name: 'Chrome Extensions', check: () => window.chrome && window.chrome.runtime },
+                { name: 'Extension Scripts', check: () => {
+                    const scripts = Array.from(document.scripts);
+                    return scripts.some(s => s.src && (s.src.includes('extension://') || s.src.includes('moz-extension://')));
+                }}
+            ];
+
+            checks.forEach(({ name, check }) => {
+                try {
+                    if (check()) {
+                        detectedExtensions.push(name);
+                    }
+                } catch (e) {
+                    // Extension detection failed, which is normal
+                }
+            });
+
+            if (detectedExtensions.length > 0) {
+                extensionStatus.textContent = `⚠️ ${detectedExtensions.length} potential extensions detected`;
+                extensionStatus.className = 'status warning';
+                extensionDetails.textContent = `Detected: ${detectedExtensions.join(', ')}\n\nNote: Extensions may inject scripts that violate CSP policies.`;
+            } else {
+                extensionStatus.textContent = '✅ No obvious extensions detected';
+                extensionStatus.className = 'status success';
+                extensionDetails.textContent = 'Clean environment detected. This is ideal for panel operation.';
+            }
+        }
+
+        // Initialize tests when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            logToConsole('CSP Extension Interference Test initialized', 'info');
+            checkCSPHeaders();
+            checkForExtensions();
+            
+            // Monitor for any late-loading extension scripts
+            setTimeout(() => {
+                const scripts = document.scripts.length;
+                logToConsole(`Total scripts loaded: ${scripts}`, 'info');
+            }, 2000);
+        });
+
+        // Test that should trigger line 2 error if extensions interfere
+        console.log('Line 2: This should execute without errors in clean environment');
+    </script>
+</body>
+</html>
