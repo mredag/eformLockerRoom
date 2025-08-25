@@ -75,4 +75,27 @@ const start = async () => {
   }
 };
 
+// Graceful shutdown handlers
+process.on("SIGTERM", async () => {
+  console.log("Received SIGTERM, shutting down gracefully...");
+  try {
+    await fastify.close();
+    process.exit(0);
+  } catch (err) {
+    console.error("Error during shutdown:", err);
+    process.exit(1);
+  }
+});
+
+process.on("SIGINT", async () => {
+  console.log("Received SIGINT, shutting down gracefully...");
+  try {
+    await fastify.close();
+    process.exit(0);
+  } catch (err) {
+    console.error("Error during shutdown:", err);
+    process.exit(1);
+  }
+});
+
 start();

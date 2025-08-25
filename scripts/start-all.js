@@ -66,15 +66,39 @@ console.log('\n💡 Press Ctrl+C to stop all services\n');
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down all services...');
   
-  processes.forEach(({ name, process }) => {
+  let stoppedCount = 0;
+  const totalProcesses = processes.length;
+  
+  processes.forEach(({ name, process: childProcess }) => {
     console.log(`   Stopping ${name}...`);
-    process.kill('SIGTERM');
+    
+    // Listen for process exit
+    childProcess.on('exit', (code) => {
+      stoppedCount++;
+      if (stoppedCount === totalProcesses) {
+        console.log('✅ All services stopped');
+        process.exit(0);
+      }
+    });
+    
+    // Send graceful shutdown signal
+    childProcess.kill('SIGTERM');
   });
 
+  // Fallback timeout in case processes don't respond
   setTimeout(() => {
-    console.log('✅ All services stopped');
-    process.exit(0);
-  }, 2000);
+    console.log('⚠️  Timeout reached, forcing shutdown...');
+    processes.forEach(({ name, process: childProcess }) => {
+      if (!childProcess.killed) {
+        console.log(`   Force killing ${name}...`);
+        childProcess.kill('SIGKILL');
+      }
+    });
+    setTimeout(() => {
+      console.log('✅ All services stopped (forced)');
+      process.exit(0);
+    }, 1000);
+  }, 5000);
 });
 
 // Keep the process alive

@@ -449,6 +449,17 @@ async function startPanelService() {
   }
 }
 
+// Graceful shutdown handlers
+process.on("SIGTERM", async () => {
+  console.log("Received SIGTERM, shutting down gracefully...");
+  process.exit(0);
+});
+
+process.on("SIGINT", async () => {
+  console.log("Received SIGINT, shutting down gracefully...");
+  process.exit(0);
+});
+
 // Start the application
 startPanelService().catch((err) => {
   console.error("Failed to start panel service:", err);
