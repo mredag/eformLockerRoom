@@ -34,6 +34,7 @@
     "migrate": "tsx scripts/migrate.ts",
     "migrate:status": "tsx scripts/migrate.ts status",
     "migrate:verify": "tsx scripts/migrate.ts verify",
+    "migrate:fix-duplicates": "node scripts/fix-duplicate-migrations.js",
     "validate:nodejs": "node scripts/validate-nodejs20-compatibility.js",
     "install-all": "npm install && npm install --workspaces",
     "test:hardware": "tsx scripts/validate-waveshare-hardware.js",
