@@ -335,8 +335,9 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
-   * Send a pulse to the specified relay channel (Waveshare compatible)
-   * Implements fallback: try 0x0F (write multiple coils), fall back to 0x05 (single coil) if it fails
+   * Send hardware-based timed pulse to Waveshare relay (PREFERRED METHOD)
+   * Uses built-in pulse functionality: Function 0x05 with timed pulse command
+   * Hardware automatically turns relay OFF after specified duration - NO SOFTWARE TIMING NEEDED!
    */
   private async sendPulse(channel: number, duration: number = 400, slaveAddress: number = 1): Promise<boolean> {
     if (!this.serialPort || !this.serialPort.isOpen) {
@@ -344,77 +345,124 @@ export class ModbusController extends EventEmitter {
     }
 
     try {
-      let success = false;
-      
-      // First try Write Multiple Coils (0x0F) - Waveshare preferred method
+      // FIRST: Try Waveshare hardware-based timed pulse (BEST METHOD)
       try {
-        const turnOnCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [true]);
-        await this.writeCommand(turnOnCommand);
-        await this.delay(duration);
+        return await this.sendWaveshareTimedPulse(channel, duration, slaveAddress);
+      } catch (hardwareError) {
+        console.warn(`⚠️  Hardware timed pulse failed for channel ${channel}: ${hardwareError instanceof Error ? hardwareError.message : String(hardwareError)}`);
+        console.log(`🔄 Falling back to software pulse for channel ${channel}`);
         
-        const turnOffCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [false]);
-        await this.writeCommand(turnOffCommand);
-        
-        success = true;
-        
-      } catch (multipleCoilsError) {
-        // Enhanced fallback logging with error details
-        const errorMessage = multipleCoilsError instanceof Error ? multipleCoilsError.message : String(multipleCoilsError);
-        const isTimeoutError = errorMessage.toLowerCase().includes('timeout');
-        const isCrcError = errorMessage.toLowerCase().includes('crc');
-        
-        console.warn(`⚠️  0x0F (Write Multiple Coils) failed for channel ${channel}, slave ${slaveAddress}: ${errorMessage}`);
-        
-        this.emit('warning', { 
-          channel, 
-          slaveAddress, 
-          message: 'Multiple coils (0x0F) command failed, falling back to single coil (0x05)',
-          error: errorMessage,
-          error_type: isTimeoutError ? 'timeout' : isCrcError ? 'crc' : 'unknown',
-          fallback_attempted: true
-        });
-        
-        try {
-          const turnOnCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0xFF00);
-          await this.writeCommand(turnOnCommand);
-          await this.delay(duration);
-          
-          const turnOffCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0x0000);
-          await this.writeCommand(turnOffCommand);
-          
-          success = true;
-          
-        } catch (singleCoilError) {
-          throw new Error(`Both multiple coils (0x0F) and single coil (0x05) commands failed. Multiple: ${multipleCoilsError instanceof Error ? multipleCoilsError.message : String(multipleCoilsError)}, Single: ${singleCoilError instanceof Error ? singleCoilError.message : String(singleCoilError)}`);
-        }
+        // FALLBACK: Use software-based pulse
+        return await this.sendSoftwarePulse(channel, duration, slaveAddress);
       }
-      
-      // Verify write if enabled and command was successful
-      if (success && this.config.verify_writes) {
-        try {
-          const status = await this.readRelayStatus(slaveAddress, channel - 1, 1);
-          if (status.length > 0 && status[0]) {
-            // Relay is still on, which might indicate a problem
-            this.emit('warning', { channel, slaveAddress, message: 'Relay verification shows unexpected state - relay still active' });
-          }
-        } catch (verifyError) {
-          // Don't fail the operation if verification fails, just warn
-          this.emit('warning', { 
-            channel, 
-            slaveAddress, 
-            message: 'Relay verification failed',
-            error: verifyError instanceof Error ? verifyError.message : String(verifyError)
-          });
-        }
-      }
-      
-      return success;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.emit('error', { channel, slaveAddress, operation: 'pulse', error: errorMessage });
       return false;
     }
+  }
+
+  /**
+   * Waveshare hardware timed pulse - uses built-in relay auto-close
+   * Command format: 01 05 02 00 [coil] 00 [duration] [crc]
+   * Duration is in 100ms units, hardware handles the timing
+   */
+  private async sendWaveshareTimedPulse(channel: number, duration: number, slaveAddress: number): Promise<boolean> {
+    // Convert duration from milliseconds to hardware units (100ms increments)
+    const hardwareDuration = Math.max(1, Math.round(duration / 100));
+    const coilAddress = channel - 1; // Convert to 0-based
+    
+    console.log(`🔓 Sending Waveshare timed pulse to relay ${channel} for ${hardwareDuration * 100}ms`);
+    
+    // Build Waveshare timed pulse command
+    // Format: [slave] [0x05] [0x02] [coil_high] [coil_low] [duration_high] [duration_low] [crc_low] [crc_high]
+    const command = Buffer.alloc(8);
+    command[0] = slaveAddress;           // Slave address
+    command[1] = 0x05;                   // Function: Write Single Coil
+    command[2] = 0x02;                   // Special command: Timed pulse (on-then-off)
+    command[3] = 0x00;                   // Coil address high byte
+    command[4] = coilAddress;            // Coil address low byte
+    command[5] = 0x00;                   // Duration high byte
+    command[6] = hardwareDuration;       // Duration low byte (× 100ms)
+    
+    // Calculate CRC16 for Modbus RTU
+    const crc = this.calculateCRC16(command.slice(0, 7));
+    command[7] = crc & 0xFF;             // CRC low byte
+    command[8] = (crc >> 8) & 0xFF;      // CRC high byte
+    
+    console.log(`📡 Waveshare timed pulse command: ${command.toString('hex').toUpperCase()}`);
+    
+    // Send command to hardware
+    await this.writeCommand(command);
+    
+    console.log(`✅ Hardware timed pulse sent - relay ${channel} will auto-close after ${hardwareDuration * 100}ms`);
+    console.log(`🔊 Listen for TWO clicks: open (now) + close (after ${hardwareDuration * 100}ms)`);
+    
+    return true;
+  }
+
+  /**
+   * Software-based pulse fallback (original implementation)
+   * Used only if hardware timed pulse fails
+   */
+  private async sendSoftwarePulse(channel: number, duration: number, slaveAddress: number): Promise<boolean> {
+    console.log(`🔄 Using software pulse fallback for relay ${channel}`);
+    
+    let success = false;
+    
+    // First try Write Multiple Coils (0x0F)
+    try {
+      const turnOnCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [true]);
+      await this.writeCommand(turnOnCommand);
+      await this.delay(duration);
+      
+      const turnOffCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [false]);
+      await this.writeCommand(turnOffCommand);
+      
+      success = true;
+      
+    } catch (multipleCoilsError) {
+      console.warn(`⚠️  0x0F failed for channel ${channel}, trying 0x05 fallback`);
+      
+      try {
+        const turnOnCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0xFF00);
+        await this.writeCommand(turnOnCommand);
+        await this.delay(duration);
+        
+        const turnOffCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0x0000);
+        await this.writeCommand(turnOffCommand);
+        
+        success = true;
+        
+      } catch (singleCoilError) {
+        throw new Error(`Both 0x0F and 0x05 commands failed for channel ${channel}`);
+      }
+    }
+    
+    return success;
+  }
+
+  /**
+   * Calculate CRC16 for Modbus RTU protocol
+   * Used for Waveshare timed pulse commands
+   */
+  private calculateCRC16(data: Buffer): number {
+    let crc = 0xFFFF;
+    
+    for (let i = 0; i < data.length; i++) {
+      crc ^= data[i];
+      
+      for (let j = 0; j < 8; j++) {
+        if (crc & 0x0001) {
+          crc = (crc >> 1) ^ 0xA001;
+        } else {
+          crc = crc >> 1;
+        }
+      }
+    }
+    
+    return crc;
   }
 
   /**
@@ -632,26 +680,6 @@ export class ModbusController extends EventEmitter {
     buffer.writeUInt16LE(crc, 6);
     
     return buffer;
-  }
-
-  /**
-   * Calculate CRC16 for Modbus RTU
-   */
-  private calculateCRC16(data: Buffer): number {
-    let crc = 0xFFFF;
-    
-    for (let i = 0; i < data.length; i++) {
-      crc ^= data[i];
-      for (let j = 0; j < 8; j++) {
-        if (crc & 0x0001) {
-          crc = (crc >> 1) ^ 0xA001;
-        } else {
-          crc = crc >> 1;
-        }
-      }
-    }
-    
-    return crc;
   }
 
   /**
