@@ -1,0 +1,122 @@
+name: End-to-End Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm run install-all
+        
+    - name: Setup test environment
+      run: |
+        mkdir -p logs
+        mkdir -p data
+        
+    - name: Validate test setup
+      run: node scripts/validate-e2e-setup.js
+      
+    - name: Run database migrations
+      run: npm run migrate
+      
+    - name: Start services in background
+      run: |
+        npm run start:gateway &
+        npm run start:kiosk &
+        npm run start:panel &
+        sleep 15
+      env:
+        NODE_ENV: test
+        MODBUS_PORT: /dev/null  # Mock port for CI
+        
+    - name: Run E2E tests (software only)
+      run: node scripts/e2e-admin-panel-relay-test.js
+      env:
+        NODE_ENV: test
+        LOG_LEVEL: info
+        MODBUS_PORT: /dev/null
+        
+    - name: Run service integration tests
+      run: |
+        if [ -f "scripts/validate-integration.js" ]; then
+          node scripts/validate-integration.js
+        else
+          echo "Integration tests not found, skipping"
+        fi
+      env:
+        NODE_ENV: test
+        
+    - name: Upload test reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-reports
+        path: |
+          scripts/e2e-test-report.json
+          scripts/e2e-setup-report.json
+          logs/
+        retention-days: 30
+        
+    - name: Upload screenshots
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: screenshots
+        path: logs/screenshots/
+        retention-days: 7
+
+  hardware-tests:
+    runs-on: self-hosted  # Requires self-hosted runner with hardware
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm run install-all
+        
+    - name: Run hardware validation
+      run: node scripts/e2e-hardware-validation.js
+      env:
+        NODE_ENV: test
+        MODBUS_PORT: /dev/ttyUSB0
+        
+    - name: Upload hardware test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: hardware-test-results
+        path: |
+          scripts/e2e-test-report.json
+          logs/
+        retention-days: 30
