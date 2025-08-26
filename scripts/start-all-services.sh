@@ -1,115 +1,84 @@
 #!/bin/bash
 
-# Eform Locker System - Complete Service Startup
-# This script starts all required services in the correct order
-
-echo "🚀 Eform Locker System - Service Startup"
+echo "🚀 Starting all eForm Locker services..."
 echo "========================================"
 
-# Check if we're in the project root
-if [ ! -f "package.json" ]; then
-    echo "❌ Error: Not in the project root directory"
-    echo "Please run this script from the eform-locker project root"
-    exit 1
+# Kill any existing services
+echo "🛑 Stopping existing services..."
+pkill -f "node.*panel" 2>/dev/null || true
+pkill -f "node.*gateway" 2>/dev/null || true  
+pkill -f "node.*kiosk" 2>/dev/null || true
+sleep 2
+
+# Build all services
+echo "🔨 Building services..."
+npm run build:all
+
+# Start Gateway service (port 3000)
+echo "🌐 Starting Gateway service..."
+cd ~/eform-locker
+npm run start:gateway > logs/gateway.log 2>&1 &
+GATEWAY_PID=$!
+echo "Gateway PID: $GATEWAY_PID"
+
+# Wait for Gateway to start
+sleep 3
+
+# Start Kiosk service (port 3002)  
+echo "🖥️  Starting Kiosk service..."
+npm run start:kiosk > logs/kiosk.log 2>&1 &
+KIOSK_PID=$!
+echo "Kiosk PID: $KIOSK_PID"
+
+# Wait for Kiosk to start
+sleep 3
+
+# Start Panel service (port 3001)
+echo "📊 Starting Panel service..."
+npm run start:panel > logs/panel.log 2>&1 &
+PANEL_PID=$!
+echo "Panel PID: $PANEL_PID"
+
+# Wait for all services to initialize
+echo "⏳ Waiting for services to initialize..."
+sleep 5
+
+# Check service status
+echo ""
+echo "🔍 Service Status Check:"
+echo "========================"
+
+# Check Gateway
+if curl -s http://localhost:3000/health --connect-timeout 3 > /dev/null; then
+    echo "✅ Gateway (port 3000): Running"
+else
+    echo "❌ Gateway (port 3000): Not responding"
 fi
 
-# Set database path
-export EFORM_DB_PATH="$(pwd)/data/eform.db"
-echo "📍 Database path: $EFORM_DB_PATH"
-
-# Function to check if a port is in use
-check_port() {
-    local port=$1
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
-        return 0  # Port is in use
-    else
-        return 1  # Port is free
-    fi
-}
-
-# Function to start a service in background
-start_service() {
-    local service_name=$1
-    local service_dir=$2
-    local port=$3
-    
-    echo ""
-    echo "🔄 Starting $service_name service..."
-    
-    # Check if port is already in use
-    if check_port $port; then
-        echo "⚠️  Port $port is already in use - $service_name may already be running"
-        return 0
-    fi
-    
-    # Start the service
-    cd "$service_dir"
-    npm start &
-    local pid=$!
-    cd - > /dev/null
-    
-    # Wait a moment and check if service started
-    sleep 3
-    if kill -0 $pid 2>/dev/null; then
-        echo "✅ $service_name started successfully (PID: $pid, Port: $port)"
-        return 0
-    else
-        echo "❌ Failed to start $service_name"
-        return 1
-    fi
-}
-
-# Step 1: Start Gateway Service (required by kiosk)
-echo "📡 Starting Gateway Service..."
-if ! start_service "Gateway" "app/gateway" 3000; then
-    echo "❌ Gateway service failed to start - this is required for kiosk"
-    echo "Try starting it manually:"
-    echo "  cd app/gateway"
-    echo "  npm start"
-    exit 1
+# Check Panel  
+if curl -s http://localhost:3001/health --connect-timeout 3 > /dev/null; then
+    echo "✅ Panel (port 3001): Running"
+else
+    echo "❌ Panel (port 3001): Not responding"
 fi
 
-# Step 2: Start Panel Service (optional but recommended)
-echo "🖥️  Starting Panel Service..."
-start_service "Panel" "app/panel" 3001
-
-# Step 3: Start Kiosk Service
-echo "🏪 Starting Kiosk Service..."
-if ! start_service "Kiosk" "app/kiosk" 3002; then
-    echo "❌ Kiosk service failed to start"
-    echo ""
-    echo "🔧 Troubleshooting steps:"
-    echo "1. Check if database exists: ls -la data/eform.db"
-    echo "2. Run the comprehensive fix: node scripts/final-kiosk-fix.js"
-    echo "3. Check gateway service is running: curl http://localhost:3000/health"
-    echo "4. Try starting kiosk manually:"
-    echo "   export EFORM_DB_PATH=\"$(pwd)/data/eform.db\""
-    echo "   cd app/kiosk"
-    echo "   npm start"
-    exit 1
+# Check Kiosk
+if curl -s http://localhost:3002/health --connect-timeout 3 > /dev/null; then
+    echo "✅ Kiosk (port 3002): Running"
+else
+    echo "❌ Kiosk (port 3002): Not responding"
 fi
 
-# Step 4: Start Agent Service (optional)
-echo "🤖 Starting Agent Service..."
-start_service "Agent" "app/agent" 3003
-
 echo ""
-echo "🎉 Service Startup Complete!"
-echo "=========================="
-echo "✅ Gateway: http://localhost:3000"
-echo "✅ Panel:   http://localhost:3001" 
-echo "✅ Kiosk:   http://localhost:3002"
-echo "✅ Agent:   http://localhost:3003"
+echo "🎯 All services started! PIDs:"
+echo "Gateway: $GATEWAY_PID"
+echo "Kiosk: $KIOSK_PID" 
+echo "Panel: $PANEL_PID"
 echo ""
-echo "📊 Service Status:"
-echo "Gateway: $(check_port 3000 && echo "Running" || echo "Stopped")"
-echo "Panel:   $(check_port 3001 && echo "Running" || echo "Stopped")"
-echo "Kiosk:   $(check_port 3002 && echo "Running" || echo "Stopped")"
-echo "Agent:   $(check_port 3003 && echo "Running" || echo "Stopped")"
+echo "📋 To test the system, run:"
+echo "node scripts/test-queue-vs-direct.js"
 echo ""
-echo "🛑 To stop all services:"
-echo "  pkill -f 'node.*dist/index.js'"
-echo ""
-echo "📋 To check logs:"
-echo "  Gateway: cd app/gateway && npm start"
-echo "  Kiosk:   cd app/kiosk && npm start"
+echo "📝 To view logs:"
+echo "tail -f logs/gateway.log"
+echo "tail -f logs/kiosk.log"
+echo "tail -f logs/panel.log"
