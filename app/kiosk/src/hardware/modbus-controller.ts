@@ -345,16 +345,11 @@ export class ModbusController extends EventEmitter {
     }
 
     try {
-      // FIRST: Try Waveshare hardware-based timed pulse (BEST METHOD)
-      try {
-        return await this.sendWaveshareTimedPulse(channel, duration, slaveAddress);
-      } catch (hardwareError) {
-        console.warn(`⚠️  Hardware timed pulse failed for channel ${channel}: ${hardwareError instanceof Error ? hardwareError.message : String(hardwareError)}`);
-        console.log(`🔄 Falling back to software pulse for channel ${channel}`);
-        
-        // FALLBACK: Use software-based pulse
-        return await this.sendSoftwarePulse(channel, duration, slaveAddress);
-      }
+      // SKIP Waveshare timed pulse - use WORKING software pulse method directly
+      console.log(`🔄 Using WORKING software pulse method for channel ${channel} (skipping Waveshare)`);
+      
+      // Use software-based pulse (KNOWN TO WORK from test script)
+      return await this.sendSoftwarePulse(channel, duration, slaveAddress);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -388,8 +383,7 @@ export class ModbusController extends EventEmitter {
     
     // Calculate CRC16 for Modbus RTU
     const crc = this.calculateCRC16(command.slice(0, 7));
-    command[7] = crc & 0xFF;             // CRC low byte
-    command[8] = (crc >> 8) & 0xFF;      // CRC high byte
+    command[7] = crc & 0xFF;             // CRC low byte (correct index for 8-byte buffer)
     
     console.log(`📡 Waveshare timed pulse command: ${command.toString('hex').toUpperCase()}`);
     
@@ -666,18 +660,24 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
-   * Build Modbus RTU command with CRC (legacy single coil method)
+   * Build Modbus RTU command with CRC (using WORKING test script method)
+   * This matches the exact working commands from our successful test
    */
   private buildModbusCommand(slaveId: number, functionCode: number, address: number, data: number): Buffer {
     const buffer = Buffer.alloc(8);
-    buffer.writeUInt8(slaveId, 0);
-    buffer.writeUInt8(functionCode, 1);
-    buffer.writeUInt16BE(address, 2);
-    buffer.writeUInt16BE(data, 4);
+    buffer[0] = slaveId;
+    buffer[1] = functionCode;
+    buffer[2] = (address >> 8) & 0xFF;  // Address high byte
+    buffer[3] = address & 0xFF;         // Address low byte
+    buffer[4] = (data >> 8) & 0xFF;     // Data high byte
+    buffer[5] = data & 0xFF;            // Data low byte
     
-    // Calculate CRC16
+    // Calculate CRC16 using the SAME method as working test script
     const crc = this.calculateCRC16(buffer.subarray(0, 6));
-    buffer.writeUInt16LE(crc, 6);
+    buffer[6] = crc & 0xFF;             // CRC low byte
+    buffer[7] = (crc >> 8) & 0xFF;      // CRC high byte
+    
+    console.log(`🔧 Built Modbus command: ${buffer.toString('hex').toUpperCase()}`);
     
     return buffer;
   }
