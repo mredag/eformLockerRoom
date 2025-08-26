@@ -104,6 +104,13 @@ class SimpleRelayService {
 
   async testConnection(): Promise<boolean> {
     try {
+      // If we're already connected, that's a good sign
+      if (this.isConnected) {
+        console.log('✅ Relay service already connected');
+        return true;
+      }
+      
+      // Try to establish connection
       await this.connect();
       console.log('✅ Relay service connection test passed');
       return true;
