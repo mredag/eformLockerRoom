@@ -48,6 +48,45 @@ The system includes comprehensive automation for production deployment:
 - **`backup.sh`** - Automated backup with retention policies
 - **`deployment-monitor.sh`** - Real-time deployment monitoring
 
+## 📚 Documentation
+
+**Complete documentation is available in the [`docs/`](docs/) folder:**
+
+### **Essential Documentation**
+- **[📋 Documentation Overview](docs/README.md)** - Start here for navigation
+- **[⚡ Quick Reference](docs/QUICK_REFERENCE.md)** - Essential commands and operations
+- **[🏗️ System Documentation](docs/SYSTEM_DOCUMENTATION.md)** - Complete technical guide
+- **[📡 API Reference](docs/API_REFERENCE.md)** - Comprehensive API documentation
+- **[📊 Monitoring Guide](docs/MONITORING_GUIDE.md)** - Operations and troubleshooting
+
+### **Setup & Deployment**
+- **[🚀 Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment procedures
+- **[💻 Development Setup](docs/DEVELOPMENT_ENVIRONMENT_SETUP.md)** - Local development environment
+- **[🥧 Raspberry Pi Setup](docs/RASPBERRY_PI_ENVIRONMENT_SETUP.md)** - Pi-specific configuration
+
+### **Project Information**
+- **[✅ Production Summary](docs/PRODUCTION_READY_SUMMARY.md)** - Project completion overview
+- **[🔧 Troubleshooting](docs/troubleshooting/)** - Historical issue reports and solutions
+
+## 🎯 System Overview
+
+### **Architecture**
+- **Gateway Service** (Port 3000): API coordination and admin management
+- **Kiosk Service** (Port 3002): Hardware control and RFID processing  
+- **Panel Service** (Port 3001): Web administration and direct relay control
+
+### **Hardware Integration**
+- **Raspberry Pi 4**: Main controller with Linux OS
+- **USB-RS485 Adapter**: Modbus RTU communication
+- **Waveshare Relay Cards**: Physical locker control (30 lockers)
+- **Sycreader RFID Reader**: Card-based authentication
+
+### **Key Features**
+- ✅ **Multi-User RFID Support**: Session-based card management
+- ✅ **Real-time Hardware Control**: Direct relay activation via Modbus
+- ✅ **Web Administration**: Complete locker management interface
+- ✅ **Production Ready**: Comprehensive monitoring and documentation
+
 ### 🛠️ Hardware Validation
 - **`validate-waveshare-hardware.js`** - Waveshare relay card testing
 - **`hardware-diagnostics.js`** - Complete hardware diagnostics
@@ -59,13 +98,6 @@ The system includes comprehensive automation for production deployment:
 sudo ./scripts/deploy.sh deploy package.tar.gz # Deploy with rollback
 ./scripts/health-check.sh                     # Validate deployment
 ```
-
-## 📚 Documentation
-
-- **[🍓 Raspberry Pi Deployment Guide](docs/raspberry-pi-deployment-guide.md)** - Complete production setup
-- **[🇹🇷 Turkish Setup Guide](docs/raspberry-pi-formatting-guide-tr.md)** - Türkçe kurulum rehberi
-- **[⚙️ Configuration Guide](config/README.md)** - System configuration reference
-- **[🔧 Hardware Integration](docs/waveshare-modbus-compatibility-analysis.md)** - Waveshare hardware setup
 
 ## 🚀 Features
 
