@@ -53,27 +53,45 @@ class SimpleRelayService {
       await this.connect();
     }
 
+    // Map locker ID to card and relay using the same formula as ModbusController
+    const cardId = Math.ceil(relayNumber / 16);
+    const relayId = ((relayNumber - 1) % 16) + 1;
+    const coilAddress = relayId - 1;
+    
+    console.log(`🔌 Activating locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
+    
     try {
-      // Map locker ID to card and relay using the same formula as ModbusController
-      const cardId = Math.ceil(relayNumber / 16);
-      const relayId = ((relayNumber - 1) % 16) + 1;
-      const coilAddress = relayId - 1;
-      
-      console.log(`🔌 Activating locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
-      
       // Set slave address for the correct card
       this.client.setID(cardId);
       
-      await this.client.writeCoil(coilAddress, true);
-      await new Promise(resolve => setTimeout(resolve, this.config.pulseDuration));
+      // CRITICAL: Always turn relay OFF first to ensure clean state
       await this.client.writeCoil(coilAddress, false);
+      await new Promise(resolve => setTimeout(resolve, 50)); // Small delay
       
-      console.log(`✅ Locker ${relayNumber} activated successfully (Card ${cardId}, Relay ${relayId})`);
-      return true;
+      // Turn relay ON
+      await this.client.writeCoil(coilAddress, true);
+      console.log(`🔌 Relay ${relayNumber} turned ON`);
+      
+      // Wait for pulse duration
+      await new Promise(resolve => setTimeout(resolve, this.config.pulseDuration));
+      
     } catch (error) {
-      console.error(`❌ Failed to activate locker ${relayNumber}:`, error.message);
-      return false;
+      console.error(`❌ Error during relay ${relayNumber} activation:`, error.message);
+    } finally {
+      // CRITICAL: ALWAYS turn relay OFF in finally block
+      try {
+        this.client.setID(cardId);
+        await this.client.writeCoil(coilAddress, false);
+        console.log(`🔌 Relay ${relayNumber} turned OFF (safety)`);
+      } catch (offError) {
+        console.error(`❌ CRITICAL: Failed to turn OFF relay ${relayNumber}:`, offError.message);
+        console.error(`⚠️  RELAY ${relayNumber} MAY BE STUCK ON! Manual reset required.`);
+        return false;
+      }
     }
+    
+    console.log(`✅ Locker ${relayNumber} activated successfully (Card ${cardId}, Relay ${relayId})`);
+    return true;
   }
 
   async activateMultipleRelays(relayNumbers: number[], intervalMs: number = 1000): Promise<{ success: number[], failed: number[] }> {
