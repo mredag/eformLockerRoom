@@ -556,6 +556,17 @@
             </div>
         </div>
 
+        <!-- Opening Methods Info -->
+        <div class="actions" style="background: #e3f2fd; border-left: 4px solid #2196f3;">
+            <div style="flex: 1;">
+                <strong>💡 Locker Opening Methods:</strong><br>
+                <span style="color: #666; font-size: 0.9rem;">
+                    🔓 <strong>Open:</strong> Via command queue (normal method) | 
+                    ⚡ <strong>Direct:</strong> Hardware activation (like relay page, always works)
+                </span>
+            </div>
+        </div>
+
         <!-- Actions -->
         <div class="actions">
             <button class="btn btn-primary" onclick="openSelectedLockers()" id="open-btn" disabled>
@@ -828,8 +839,12 @@
                     </div>
                     <div class="locker-actions" onclick="event.stopPropagation()">
                         <button class="btn btn-sm btn-primary" onclick="openSingleLocker('${locker.kiosk_id}', ${locker.id})" 
-                                title="Open this locker">
+                                title="Open via command queue">
                             🔓 Open
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="directOpenLocker(${locker.id})" 
+                                title="Direct hardware activation (like relay page)">
+                            ⚡ Direct
                         </button>
                         ${locker.status === 'Blocked' ? 
                             `<button class="btn btn-sm btn-success" onclick="unblockSingleLocker('${locker.kiosk_id}', ${locker.id})" 
@@ -1392,6 +1407,41 @@
                 window.location.href = '/login.html';
             } catch (error) {
                 window.location.href = '/login.html';
+            }
+        }
+
+        // Direct relay activation (bypasses command queue)
+        async function directOpenLocker(lockerId) {
+            try {
+                console.log(`⚡ Direct opening locker ${lockerId} via relay activation`);
+                
+                const response = await fetch('/api/relay/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        relay_number: lockerId,
+                        staff_user: 'admin',
+                        reason: 'Direct locker activation from lockers page'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showSuccess(`⚡ Locker ${lockerId} activated directly! You should hear the relay click.`);
+                    console.log(`✅ Direct relay activation successful for locker ${lockerId}`);
+                    
+                    // Refresh after a short delay
+                    setTimeout(() => {
+                        loadLockers();
+                    }, 1000);
+                } else {
+                    showError(`❌ Direct activation failed: ${data.error}`);
+                }
+                
+            } catch (error) {
+                showError(`❌ Direct activation error: ${error.message}`);
+                console.error('❌ Direct activation error:', error);
             }
         }
 
