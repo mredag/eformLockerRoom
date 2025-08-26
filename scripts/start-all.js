@@ -5,6 +5,13 @@ const path = require('path');
 
 console.log('🚀 Starting eForm Locker System...\n');
 
+// Set absolute database path to ensure all services use the same database
+const projectRoot = process.cwd();
+const dbPath = path.join(projectRoot, 'data', 'eform.db');
+process.env.EFORM_DB_PATH = dbPath;
+
+console.log(`🗄️  Database path: ${dbPath}\n`);
+
 const services = [
   { name: 'Gateway', command: 'npm', args: ['run', 'start:gateway'], port: 3000 },
   { name: 'Panel', command: 'npm', args: ['run', 'start:panel'], port: 3003 },
@@ -20,7 +27,8 @@ function startService(service) {
   const proc = spawn(service.command, service.args, {
     stdio: ['inherit', 'pipe', 'pipe'],
     shell: true,
-    cwd: process.cwd()
+    cwd: process.cwd(),
+    env: { ...process.env, EFORM_DB_PATH: process.env.EFORM_DB_PATH }
   });
 
   // Add service name prefix to output
