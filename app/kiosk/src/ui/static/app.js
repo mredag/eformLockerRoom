@@ -17,6 +17,7 @@ class KioskApp {
     
     init() {
         this.setupEventListeners();
+        this.setupRfidKeyboardListener(); // Add RFID keyboard capture
         this.startClock();
         this.loadKioskInfo();
         this.checkPinLockout();
@@ -68,6 +69,87 @@ class KioskApp {
                 this.startPolling();
             }
         });
+    }
+    
+    setupRfidKeyboardListener() {
+        let rfidBuffer = '';
+        let rfidTimeout = null;
+        
+        console.log('🔧 Setting up RFID keyboard listener...');
+        
+        // Listen for keyboard events (RFID reader input)
+        document.addEventListener('keydown', (event) => {
+            // Only capture RFID input on main screen
+            if (this.currentScreen !== 'main-screen') return;
+            
+            // Ignore if user is typing in an input field
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
+            
+            // Handle Enter key (end of RFID scan)
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                
+                if (rfidBuffer.length > 0) {
+                    console.log(`🔍 RFID Card Detected: ${rfidBuffer}`);
+                    this.handleRfidCardInput(rfidBuffer.trim());
+                    rfidBuffer = '';
+                }
+                
+                if (rfidTimeout) {
+                    clearTimeout(rfidTimeout);
+                    rfidTimeout = null;
+                }
+                return;
+            }
+            
+            // Handle numeric input (RFID card data)
+            if (event.key >= '0' && event.key <= '9') {
+                event.preventDefault();
+                rfidBuffer += event.key;
+                
+                // Clear buffer after 2 seconds if no Enter received
+                if (rfidTimeout) {
+                    clearTimeout(rfidTimeout);
+                }
+                
+                rfidTimeout = setTimeout(() => {
+                    console.log('⏰ RFID input timeout - clearing buffer');
+                    rfidBuffer = '';
+                    rfidTimeout = null;
+                }, 2000);
+                
+                return;
+            }
+            
+            // Handle other characters that might be in RFID data
+            if (event.key.length === 1 && /[A-Za-z0-9]/.test(event.key)) {
+                event.preventDefault();
+                rfidBuffer += event.key;
+                
+                // Reset timeout
+                if (rfidTimeout) {
+                    clearTimeout(rfidTimeout);
+                }
+                
+                rfidTimeout = setTimeout(() => {
+                    console.log('⏰ RFID input timeout - clearing buffer');
+                    rfidBuffer = '';
+                    rfidTimeout = null;
+                }, 2000);
+            }
+        });
+        
+        console.log('✅ RFID keyboard listener ready');
+    }
+    
+    async handleRfidCardInput(cardId) {
+        console.log(`🎯 Processing RFID card: ${cardId}`);
+        
+        // Show visual feedback
+        this.showStatusMessage('card_detected', { card: cardId }, 'info');
+        
+        // Process the card
+        await this.handleCardScanned(cardId);
     }
     
     setupPinKeypad() {
