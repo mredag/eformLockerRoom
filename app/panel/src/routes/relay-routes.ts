@@ -54,17 +54,24 @@ class SimpleRelayService {
     }
 
     try {
-      const coilAddress = relayNumber - 1;
-      console.log(`🔌 Activating relay ${relayNumber} (coil ${coilAddress})`);
+      // Map locker ID to card and relay using the same formula as ModbusController
+      const cardId = Math.ceil(relayNumber / 16);
+      const relayId = ((relayNumber - 1) % 16) + 1;
+      const coilAddress = relayId - 1;
+      
+      console.log(`🔌 Activating locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
+      
+      // Set slave address for the correct card
+      this.client.setID(cardId);
       
       await this.client.writeCoil(coilAddress, true);
       await new Promise(resolve => setTimeout(resolve, this.config.pulseDuration));
       await this.client.writeCoil(coilAddress, false);
       
-      console.log(`✅ Relay ${relayNumber} activated successfully`);
+      console.log(`✅ Locker ${relayNumber} activated successfully (Card ${cardId}, Relay ${relayId})`);
       return true;
     } catch (error) {
-      console.error(`❌ Failed to activate relay ${relayNumber}:`, error.message);
+      console.error(`❌ Failed to activate locker ${relayNumber}:`, error.message);
       return false;
     }
   }
