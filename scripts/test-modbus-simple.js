@@ -70,7 +70,7 @@ try {
   console.log('');
   console.log('🔌 Testing Modbus communication...');
   
-  // Import the ModbusController from the bundled index.js
+  // Import the ModbusController from the bundled kiosk
   const { ModbusController } = require('../app/kiosk/dist/index.js');
   
   const controller = new ModbusController({

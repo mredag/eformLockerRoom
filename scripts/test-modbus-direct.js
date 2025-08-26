@@ -1,55 +1,60 @@
 #!/usr/bin/env node
 
 /**
- * Test Relay Activation Script
- * Tests individual relay activation using proper ModbusController interface
+ * Direct ModbusController Test Script
+ * Tests relay activation by importing ModbusController directly from source
  */
 
-const { ModbusController } = require('../app/kiosk/dist/index.js');
+const path = require('path');
 
-async function testRelayActivation() {
-  console.log('🔧 Testing Individual Relay Activation');
+// Set up environment before any imports
+process.env.NODE_ENV = 'test';
+process.env.EFORM_DB_PATH = path.join(process.cwd(), 'data', 'eform.db');
+
+async function testModbusController() {
+  console.log('🔧 Direct ModbusController Test');
   console.log('=' .repeat(50));
   
-  // Create controller with proper configuration
-  const controller = new ModbusController({
-    port: '/dev/ttyUSB0',
-    baudrate: 9600,
-    timeout_ms: 2000,
-    pulse_duration_ms: 400,
-    burst_duration_seconds: 10,
-    burst_interval_ms: 2000,
-    command_interval_ms: 300,
-    use_multiple_coils: true,
-    verify_writes: false,
-    max_retries: 2,
-    test_mode: true  // Important: Enable test mode to avoid queue processor
-  });
-
   try {
+    // Import ModbusController directly from compiled source
+    const { ModbusController } = await import('../app/kiosk/src/hardware/modbus-controller.js');
+    
+    console.log('✅ ModbusController imported successfully');
+    
+    // Create controller with test configuration
+    const controller = new ModbusController({
+      port: '/dev/ttyUSB0',
+      baudrate: 9600,
+      timeout_ms: 2000,
+      pulse_duration_ms: 400,
+      burst_duration_seconds: 10,
+      burst_interval_ms: 2000,
+      command_interval_ms: 300,
+      use_multiple_coils: true,
+      verify_writes: false,
+      max_retries: 2,
+      test_mode: true
+    });
+
     console.log('📡 Initializing Modbus connection...');
     await controller.initialize();
     console.log('✅ Connection established successfully');
     
-    // Test relay 1 on slave address 1
-    console.log('\n🔌 Testing Relay 1 (3 second activation)...');
-    const result = await controller.openLocker(1, 1);
+    // Test relay 1
+    console.log('\n🔌 Testing Relay 1...');
+    const result = await controller.openLocker(1);
     
     if (result) {
-      console.log('✅ Relay activation successful!');
-      console.log('   - Relay 1 was activated for 400ms pulse');
-      console.log('   - Command completed without errors');
+      console.log('✅ Relay 1 activation successful!');
     } else {
-      console.log('❌ Relay activation failed');
-      console.log('   - Check hardware connections');
-      console.log('   - Verify relay card address settings');
+      console.log('❌ Relay 1 activation failed');
     }
     
     // Test multiple relays
     console.log('\n🔌 Testing Multiple Relays (1-3)...');
     for (let relay = 1; relay <= 3; relay++) {
       console.log(`   Testing relay ${relay}...`);
-      const success = await controller.openLocker(relay, 1);
+      const success = await controller.openLocker(relay);
       console.log(`   ${success ? '✅' : '❌'} Relay ${relay}: ${success ? 'SUCCESS' : 'FAILED'}`);
       
       // Wait between tests
@@ -64,6 +69,10 @@ async function testRelayActivation() {
     console.log(`   Failed Commands: ${health.failed_commands}`);
     console.log(`   Error Rate: ${health.error_rate_percent.toFixed(2)}%`);
     
+    console.log('\n🔌 Closing connection...');
+    await controller.close();
+    console.log('✅ Test completed successfully');
+    
   } catch (error) {
     console.error('❌ Test failed:', error.message);
     
@@ -75,18 +84,15 @@ async function testRelayActivation() {
       console.log('   - Try different USB-RS485 converter');
     }
     
-    if (error.message.includes('port')) {
+    if (error.message.includes('port') || error.message.includes('ENOENT')) {
       console.log('\n🔍 Port Troubleshooting:');
       console.log('   - Check USB connection');
-      console.log('   - Verify /dev/ttyUSB0 exists');
-      console.log('   - Check port permissions');
-      console.log('   - Try: sudo chmod 666 /dev/ttyUSB0');
+      console.log('   - Verify /dev/ttyUSB0 exists: ls -la /dev/ttyUSB*');
+      console.log('   - Check port permissions: sudo chmod 666 /dev/ttyUSB0');
+      console.log('   - Check if port is in use: sudo lsof /dev/ttyUSB0');
     }
     
-  } finally {
-    console.log('\n🔌 Closing connection...');
-    await controller.close();
-    console.log('✅ Connection closed');
+    process.exit(1);
   }
 }
 
@@ -97,7 +103,7 @@ process.on('unhandledRejection', (error) => {
 });
 
 // Run the test
-testRelayActivation().catch(error => {
+testModbusController().catch(error => {
   console.error('Test execution failed:', error);
   process.exit(1);
 });

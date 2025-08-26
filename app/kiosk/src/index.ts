@@ -506,3 +506,6 @@ process.on("SIGINT", async () => {
 });
 
 start();
+
+// Export ModbusController for external use (testing, etc.)
+export { ModbusController };
