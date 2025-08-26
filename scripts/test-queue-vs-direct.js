@@ -61,7 +61,7 @@ async function testQueueVsDirect() {
   
   try {
     console.log("   Sending queue-based locker opening request...");
-    const curlCmd = `curl -s -X POST ${GATEWAY_URL}/api/admin/lockers/kiosk-1/${TEST_LOCKER_ID}/open \\
+    const curlCmd = `curl -s -X POST ${GATEWAY_URL}/api/admin/lockers/${TEST_LOCKER_ID}/open \\
       -H "Content-Type: application/json" \\
       -d '{"staff_user": "test-admin", "reason": "Testing queue system after ModbusController fix"}' \\
       --connect-timeout 10`;
