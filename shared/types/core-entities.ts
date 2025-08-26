@@ -129,6 +129,9 @@ export enum EventType {
   VIP_TRANSFER_REJECTED = 'vip_transfer_rejected',
   VIP_TRANSFER_COMPLETED = 'vip_transfer_completed',
   
+  // Command events
+  COMMAND_FAILED = 'command_failed',
+  
   // Configuration events
   CONFIG_PACKAGE_CREATED = 'config_package_created',
   CONFIG_DEPLOYMENT_INITIATED = 'config_deployment_initiated',
