@@ -418,7 +418,46 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
-   * Perform burst opening (10 seconds with 2-second intervals)
+   * Send close relay command (turn OFF only)
+   * Used to ensure relay is closed after burst operations
+   */
+  private async sendCloseRelay(channel: number, slaveAddress: number = 1): Promise<boolean> {
+    if (!this.serialPort || !this.serialPort.isOpen) {
+      throw new Error('Modbus port not connected');
+    }
+
+    try {
+      let success = false;
+      
+      // First try Write Multiple Coils (0x0F) to turn OFF
+      try {
+        const turnOffCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [false]);
+        await this.writeCommand(turnOffCommand);
+        success = true;
+        
+      } catch (multipleCoilsError) {
+        // Fallback to single coil command (0x05)
+        try {
+          const turnOffCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0x0000);
+          await this.writeCommand(turnOffCommand);
+          success = true;
+          
+        } catch (singleCoilError) {
+          throw new Error(`Failed to close relay ${channel}: Multiple coils (0x0F) failed: ${multipleCoilsError instanceof Error ? multipleCoilsError.message : String(multipleCoilsError)}, Single coil (0x05) failed: ${singleCoilError instanceof Error ? singleCoilError.message : String(singleCoilError)}`);
+        }
+      }
+      
+      return success;
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.emit('error', { channel, slaveAddress, operation: 'close', error: errorMessage });
+      return false;
+    }
+  }
+
+  /**
+   * Perform burst opening (2 seconds with 100ms intervals, then ensure relay closes)
    */
   private async performBurstOpening(channel: number, slaveAddress: number = 1): Promise<boolean> {
     const startTime = Date.now();
@@ -443,6 +482,15 @@ export class ModbusController extends EventEmitter {
         
         // Wait for burst interval before next pulse
         await this.delay(this.config.burst_interval_ms);
+      }
+
+      // Ensure relay is closed after burst by sending a close command
+      try {
+        await this.delay(100); // Small delay before closing
+        await this.sendCloseRelay(channel, slaveAddress);
+      } catch (closeError) {
+        // Log but don't fail the operation if close fails
+        console.warn(`Warning: Failed to close relay ${channel} after burst:`, closeError);
       }
 
       return success;
