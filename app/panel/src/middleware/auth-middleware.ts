@@ -77,9 +77,7 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         request.url === '/login.html' ||
         request.url.startsWith('/static/') ||
         request.url.startsWith('/api/i18n/') ||
-        request.url === '/api/relay/test' ||
-        request.url === '/api/relay/status' ||
-        request.url === '/api/relay/activate' ||
+        request.url.startsWith('/api/relay/') ||  // Allow all relay API routes
         request.url.endsWith('.css') ||
         request.url.endsWith('.js') ||
         request.url.endsWith('.ico')) {
