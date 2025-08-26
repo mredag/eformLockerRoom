@@ -17,7 +17,14 @@ export class DatabaseConnection {
       // Use in-memory database for tests for speed and reliability
       return ':memory:';
     }
-    return dbPath;
+    
+    // Resolve to absolute path to prevent different CWDs from pointing to different files
+    if (dbPath === ':memory:') {
+      return dbPath;
+    }
+    
+    const path = require('path');
+    return path.resolve(dbPath);
   }
 
   private async ensureDirectoryExists(): Promise<void> {
@@ -46,7 +53,8 @@ export class DatabaseConnection {
           reject(err);
           return;
         }
-        console.log('Connected to SQLite database');
+        console.log('🗄️  Connected to SQLite database');
+        console.log(`📍 Absolute database path: ${this.dbPath}`);
         
         try {
           await this.initializePragmas();
@@ -69,18 +77,24 @@ export class DatabaseConnection {
       if (this.dbPath === ':memory:') {
         await this.execPragma('PRAGMA foreign_keys = ON');
         await this.execPragma('PRAGMA synchronous = NORMAL');
+        await this.execPragma('PRAGMA busy_timeout = 5000');
       } else {
-        // For file databases, use full pragma set
+        // For file databases, use consistent pragma set across all services
         await this.execPragma('PRAGMA journal_mode = WAL');
         await this.execPragma('PRAGMA synchronous = NORMAL');
         await this.execPragma('PRAGMA cache_size = 1000');
         await this.execPragma('PRAGMA temp_store = memory');
         await this.execPragma('PRAGMA foreign_keys = ON');
-        await this.execPragma('PRAGMA busy_timeout = 30000');
+        await this.execPragma('PRAGMA busy_timeout = 5000');
       }
       
       this.isInitialized = true;
-      console.log('Database pragmas initialized');
+      console.log('🔧 Database PRAGMAs initialized:');
+      console.log('   - journal_mode = WAL');
+      console.log('   - synchronous = NORMAL');
+      console.log('   - foreign_keys = ON');
+      console.log('   - busy_timeout = 5000');
+      console.log(`   - Database: ${this.dbPath}`);
     } catch (error) {
       console.error('Error initializing database pragmas:', error);
       throw error;

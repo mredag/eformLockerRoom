@@ -2,6 +2,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { DatabaseConnection } from '../database/connection';
 import { Command, CommandType, CommandStatus, CommandPayload } from '../types/core-entities';
 
+/**
+ * CommandQueueManager handles the complete command lifecycle:
+ * 
+ * COMMAND LIFECYCLE:
+ * 1. pending → Command created and waiting to be processed by kiosk
+ * 2. executing → Kiosk has picked up the command and is processing it
+ * 3. completed → Command successfully executed by kiosk
+ * 4. failed → Command failed after max retries (kiosk updates error_message)
+ * 5. cancelled → Command cancelled by admin or system
+ * 
+ * RESPONSIBILITIES:
+ * - Admin Panel: Enqueues commands with UUID v4 command_id
+ * - Kiosk Service: Updates status and error_message during processing
+ * - Both: Use shared SQLite database with WAL mode and busy_timeout=5000
+ */
 export class CommandQueueManager {
   private db: DatabaseConnection;
 
@@ -67,28 +82,37 @@ export class CommandQueueManager {
   }
 
   /**
-   * Mark command as executing
+   * Mark command as executing (atomic update of status and executed_at)
    */
   async markCommandExecuting(commandId: string): Promise<boolean> {
+    const now = new Date().toISOString();
+    
+    // Atomic update: set status and executed_at in single transaction
     const result = await this.db.run(
       `UPDATE command_queue 
-       SET status = 'executing', executed_at = ? 
+       SET status = 'executing', 
+           executed_at = ? 
        WHERE command_id = ? AND status = 'pending'`,
-      [new Date().toISOString(), commandId]
+      [now, commandId]
     );
 
     return result.changes > 0;
   }
 
   /**
-   * Mark command as completed
+   * Mark command as completed (atomic update of status, completed_at, and duration_ms)
    */
   async markCommandCompleted(commandId: string): Promise<boolean> {
+    const now = new Date().toISOString();
+    
+    // Atomic update: calculate duration and set completion fields in single transaction
     const result = await this.db.run(
       `UPDATE command_queue 
-       SET status = 'completed', completed_at = ? 
+       SET status = 'completed', 
+           completed_at = ?,
+           duration_ms = CAST((julianday(?) - julianday(executed_at)) * 86400000 AS INTEGER)
        WHERE command_id = ?`,
-      [new Date().toISOString(), commandId]
+      [now, now, commandId]
     );
 
     if (result.changes > 0) {
@@ -294,5 +318,22 @@ export class CommandQueueManager {
       completed_at: row.completed_at ? new Date(row.completed_at) : undefined,
       version: row.version || 1
     };
+  }
+
+  /**
+   * Find stale executing commands (older than threshold)
+   */
+  async findStaleExecutingCommands(thresholdMs: number): Promise<Command[]> {
+    const cutoffTime = new Date(Date.now() - thresholdMs);
+    
+    const commands = await this.db.all<any>(
+      `SELECT * FROM command_queue 
+       WHERE status = 'executing' 
+       AND executed_at < ?
+       ORDER BY executed_at ASC`,
+      [cutoffTime.toISOString()]
+    );
+
+    return commands.map(row => this.mapRowToCommand(row));
   }
 }

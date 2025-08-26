@@ -45,12 +45,16 @@ export class HeartbeatManager {
     this.isRunning = true;
     console.log('Starting heartbeat manager...');
 
-    // Start periodic cleanup of offline kiosks
+    // Recover stale executing commands on startup
+    await this.recoverStaleCommands();
+
+    // Start periodic cleanup of offline kiosks and stale commands
     this.cleanupTimer = setInterval(async () => {
       try {
         await this.markOfflineKiosks();
+        await this.recoverStaleCommands();
       } catch (error) {
-        console.error('Error during offline kiosk cleanup:', error);
+        console.error('Error during cleanup:', error);
       }
     }, this.config.cleanupIntervalMs);
 
@@ -382,6 +386,49 @@ export class HeartbeatManager {
     } catch (error) {
       console.error('Error cleaning up old commands:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Recover stale executing commands (older than 120 seconds)
+   * Move them back to pending or mark as failed
+   */
+  private async recoverStaleCommands(): Promise<void> {
+    try {
+      const staleThresholdMs = 120 * 1000; // 120 seconds
+      const staleCommands = await this.commandQueue.findStaleExecutingCommands(staleThresholdMs);
+      
+      if (staleCommands.length > 0) {
+        console.log(`Found ${staleCommands.length} stale executing commands, recovering...`);
+        
+        for (const command of staleCommands) {
+          const staleDurationMs = Date.now() - command.executed_at!.getTime();
+          
+          // Mark as failed if it's been executing for too long
+          await this.commandQueue.markCommandFailed(
+            command.command_id,
+            `Command timed out after ${Math.round(staleDurationMs / 1000)}s (stale command recovery)`
+          );
+          
+          console.log(`Recovered stale command ${command.command_id} (${command.command_type}) after ${Math.round(staleDurationMs / 1000)}s`);
+          
+          // Log recovery event
+          if (this.eventLogger) {
+            await this.eventLogger.logEvent(
+              command.kiosk_id,
+              EventType.COMMAND_FAILED,
+              {
+                command_id: command.command_id,
+                command_type: command.command_type,
+                recovery_reason: 'stale_command_timeout',
+                stale_duration_ms: staleDurationMs
+              }
+            );
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error recovering stale commands:', error);
     }
   }
 }

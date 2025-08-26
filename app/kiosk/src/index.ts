@@ -109,6 +109,20 @@ const heartbeatClient = new HeartbeatClient({
   retryDelayMs: 5000,
 });
 
+// Command execution tracking for idempotency
+const executedCommands = new Map<string, { result: any; timestamp: number }>();
+const COMMAND_CACHE_TTL = 300000; // 5 minutes
+
+// Cleanup old command cache entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [commandId, entry] of executedCommands.entries()) {
+    if (now - entry.timestamp > COMMAND_CACHE_TTL) {
+      executedCommands.delete(commandId);
+    }
+  }
+}, 60000); // Cleanup every minute
+
 // QR Code endpoints
 fastify.get("/lock/:id", async (request, reply) => {
   const { id } = request.params as { id: string };
@@ -149,38 +163,121 @@ rfidHandler.on("card_scanned", async (scanEvent: any) => {
 // Register command handlers for heartbeat client
 heartbeatClient.registerCommandHandler("open_locker", async (command) => {
   try {
+    // Idempotency check - return cached result if command already executed
+    const cachedResult = executedCommands.get(command.command_id);
+    if (cachedResult) {
+      fastify.log.info({
+        action: 'open_locker_command_duplicate',
+        command_id: command.command_id,
+        kiosk_id: KIOSK_ID,
+        message: 'Returning cached result for duplicate command'
+      });
+      return cachedResult.result;
+    }
+
     const { locker_id, staff_user, reason, force } =
       command.payload.open_locker || {};
 
     if (!locker_id) {
-      return { success: false, error: "Missing locker_id in command payload" };
+      const errorResult = { success: false, error: "Missing locker_id in command payload" };
+      executedCommands.set(command.command_id, { result: errorResult, timestamp: Date.now() });
+      
+      fastify.log.error({
+        action: 'open_locker_command_failed',
+        command_id: command.command_id,
+        error: 'Missing locker_id in command payload'
+      });
+      return errorResult;
     }
+
+    // Log command execution start
+    fastify.log.info({
+      action: 'open_locker_command_start',
+      command_id: command.command_id,
+      kiosk_id: KIOSK_ID,
+      locker_id,
+      staff_user,
+      reason,
+      force
+    });
 
     // Fetch locker to check VIP status
     const locker = await lockerStateManager.getLocker(KIOSK_ID, locker_id);
     if (!locker) {
+      fastify.log.error({
+        action: 'open_locker_command_failed',
+        command_id: command.command_id,
+        kiosk_id: KIOSK_ID,
+        locker_id,
+        staff_user,
+        error: 'Locker not found'
+      });
       return { success: false, error: "Locker not found" };
     }
 
-    // Execute locker opening
+    // Execute locker opening - this will now use correct cardId/relayId mapping
     const success = await modbusController.openLocker(locker_id);
 
     if (success) {
-      // Skip release for VIP lockers unless force is true
+      // Database update only occurs after successful relay pulse
       if (locker.is_vip && !force) {
-        return { success: true, message: "VIP locker opened without release" };
+        // Skip release for VIP lockers unless force is true
+        fastify.log.info({
+          action: 'open_locker_command_success',
+          command_id: command.command_id,
+          kiosk_id: KIOSK_ID,
+          locker_id,
+          staff_user,
+          reason,
+          message: 'VIP locker opened without release'
+        });
+        const result = { success: true, message: "VIP locker opened without release" };
+        executedCommands.set(command.command_id, { result, timestamp: Date.now() });
+        return result;
       } else {
         // Release locker ownership for non-VIP or forced operations
         await lockerStateManager.releaseLocker(KIOSK_ID, locker_id);
-        return { success: true };
+        
+        fastify.log.info({
+          action: 'open_locker_command_success',
+          command_id: command.command_id,
+          kiosk_id: KIOSK_ID,
+          locker_id,
+          staff_user,
+          reason,
+          message: 'Locker opened and released successfully'
+        });
+        const result = { success: true };
+        executedCommands.set(command.command_id, { result, timestamp: Date.now() });
+        return result;
       }
     } else {
-      return { success: false, error: "Failed to open locker hardware" };
+      fastify.log.error({
+        action: 'open_locker_command_failed',
+        command_id: command.command_id,
+        kiosk_id: KIOSK_ID,
+        locker_id,
+        staff_user,
+        reason,
+        error: 'Failed to open locker hardware'
+      });
+      const result = { success: false, error: "Failed to open locker hardware" };
+      executedCommands.set(command.command_id, { result, timestamp: Date.now() });
+      return result;
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const { staff_user } = command.payload.open_locker || {};
+    fastify.log.error({
+      action: 'open_locker_command_error',
+      command_id: command.command_id,
+      kiosk_id: KIOSK_ID,
+      staff_user: staff_user || 'unknown',
+      error: errorMessage
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: errorMessage,
     };
   }
 });
@@ -191,11 +288,31 @@ heartbeatClient.registerCommandHandler("bulk_open", async (command) => {
       command.payload.bulk_open || {};
 
     if (!locker_ids || !Array.isArray(locker_ids)) {
+      fastify.log.error({
+        action: 'bulk_open_command_failed',
+        command_id: command.command_id,
+        error: 'Missing or invalid locker_ids in command payload'
+      });
       return {
         success: false,
         error: "Missing or invalid locker_ids in command payload",
       };
     }
+
+    // Clamp interval_ms to safe range (100-5000ms)
+    const clampedInterval = Math.max(100, Math.min(interval_ms || 1000, 5000));
+    
+    // Log bulk command execution start
+    fastify.log.info({
+      action: 'bulk_open_command_start',
+      command_id: command.command_id,
+      kiosk_id: KIOSK_ID,
+      locker_ids,
+      staff_user,
+      exclude_vip,
+      interval_ms: clampedInterval,
+      original_interval_ms: interval_ms
+    });
 
     let successCount = 0;
     const failedLockers: number[] = [];
@@ -203,9 +320,9 @@ heartbeatClient.registerCommandHandler("bulk_open", async (command) => {
 
     for (const lockerId of locker_ids) {
       try {
-        // Add interval between operations
-        if (interval_ms && successCount > 0) {
-          await new Promise((resolve) => setTimeout(resolve, interval_ms));
+        // Add clamped interval between operations
+        if (successCount > 0) {
+          await new Promise((resolve) => setTimeout(resolve, clampedInterval));
         }
 
         // Fetch locker to check VIP status
@@ -224,7 +341,7 @@ heartbeatClient.registerCommandHandler("bulk_open", async (command) => {
         const success = await modbusController.openLocker(lockerId);
 
         if (success) {
-          // Skip release for VIP lockers
+          // Database update only occurs after successful relay pulse
           if (!locker.is_vip) {
             await lockerStateManager.releaseLocker(KIOSK_ID, lockerId);
           }
@@ -245,14 +362,36 @@ heartbeatClient.registerCommandHandler("bulk_open", async (command) => {
       errorMessages.push(`VIP lockers skipped: ${vipSkipped.join(", ")}`);
     }
 
+    // Log bulk command completion
+    fastify.log.info({
+      action: 'bulk_open_command_complete',
+      command_id: command.command_id,
+      kiosk_id: KIOSK_ID,
+      staff_user,
+      total_requested: locker_ids.length,
+      successful_opens: successCount,
+      failed_lockers: failedLockers,
+      vip_skipped: vipSkipped,
+      error_messages: errorMessages
+    });
+
     return {
       success: true,
       error: errorMessages.length > 0 ? errorMessages.join("; ") : undefined,
     };
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const { staff_user } = command.payload.bulk_open || {};
+    fastify.log.error({
+      action: 'bulk_open_command_error',
+      command_id: command.command_id,
+      kiosk_id: KIOSK_ID,
+      staff_user: staff_user || 'unknown',
+      error: errorMessage
+    });
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: errorMessage,
     };
   }
 });

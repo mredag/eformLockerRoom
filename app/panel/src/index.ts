@@ -557,9 +557,9 @@ async function startPanelService() {
     });
 
     // Start the server
-    const port = parseInt(process.env.PANEL_PORT || "3001");
+    const port = parseInt(process.env.PANEL_PORT || "3003");
     await fastify.listen({ port, host: "0.0.0.0" });
-    console.log(`Panel server listening on port ${port}`);
+    console.log(`🎛️  Admin Panel: http://localhost:${port}`);
   } catch (err) {
     console.error("Failed to start panel service:", err);
     process.exit(1);

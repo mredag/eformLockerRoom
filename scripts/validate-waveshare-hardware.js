@@ -54,7 +54,9 @@ class WaveshareValidator {
         port.manufacturer?.toLowerCase().includes('ftdi') ||
         port.manufacturer?.toLowerCase().includes('prolific') ||
         port.manufacturer?.toLowerCase().includes('ch340') ||
-        port.path.includes('ttyUSB')
+        port.manufacturer?.toLowerCase().includes('wch.cn') ||
+        port.path.includes('ttyUSB') ||
+        port.path.includes('COM8')
       );
 
       if (rs485Ports.length > 0) {
@@ -83,10 +85,22 @@ class WaveshareValidator {
     
     try {
       const ports = await SerialPort.list();
-      const testPort = ports.find(p => p.path.includes('ttyUSB')) || ports[0];
+      // Auto-detect RS-485 port
+      const testPort = ports.find(p => 
+        p.manufacturer?.toLowerCase().includes('ftdi') ||
+        p.manufacturer?.toLowerCase().includes('prolific') ||
+        p.manufacturer?.toLowerCase().includes('ch340') ||
+        p.manufacturer?.toLowerCase().includes('wch.cn') ||
+        p.path.includes('ttyUSB') ||
+        p.path.includes('COM8')
+      );
       
       if (!testPort) {
-        console.log('❌ No test port available');
+        console.log('❌ No RS-485 port detected');
+        console.log('   Available ports:');
+        ports.forEach(port => {
+          console.log(`   - ${port.path} (${port.manufacturer || 'Unknown'})`);
+        });
         return;
       }
 
@@ -107,7 +121,7 @@ class WaveshareValidator {
       await controller.initialize();
       
       // Test basic communication with address 1
-      const testResult = await controller.sendPulse(1, 200, 1);
+      const testResult = await controller.openLocker(1, 1);
       
       await controller.close();
       
@@ -126,10 +140,17 @@ class WaveshareValidator {
     
     try {
       const ports = await SerialPort.list();
-      const testPort = ports.find(p => p.path.includes('ttyUSB')) || ports[0];
+      const testPort = ports.find(p => 
+        p.manufacturer?.toLowerCase().includes('ftdi') ||
+        p.manufacturer?.toLowerCase().includes('prolific') ||
+        p.manufacturer?.toLowerCase().includes('ch340') ||
+        p.manufacturer?.toLowerCase().includes('wch.cn') ||
+        p.path.includes('ttyUSB') ||
+        p.path.includes('COM8')
+      );
       
       if (!testPort) {
-        console.log('❌ No test port available');
+        console.log('❌ No RS-485 port available');
         return;
       }
 
@@ -176,10 +197,17 @@ class WaveshareValidator {
     
     try {
       const ports = await SerialPort.list();
-      const testPort = ports.find(p => p.path.includes('ttyUSB')) || ports[0];
+      const testPort = ports.find(p => 
+        p.manufacturer?.toLowerCase().includes('ftdi') ||
+        p.manufacturer?.toLowerCase().includes('prolific') ||
+        p.manufacturer?.toLowerCase().includes('ch340') ||
+        p.manufacturer?.toLowerCase().includes('wch.cn') ||
+        p.path.includes('ttyUSB') ||
+        p.path.includes('COM8')
+      );
       
       if (!testPort) {
-        console.log('❌ No test port available');
+        console.log('❌ No RS-485 port available');
         return;
       }
 
@@ -260,10 +288,17 @@ class WaveshareValidator {
     
     try {
       const ports = await SerialPort.list();
-      const testPort = ports.find(p => p.path.includes('ttyUSB')) || ports[0];
+      const testPort = ports.find(p => 
+        p.manufacturer?.toLowerCase().includes('ftdi') ||
+        p.manufacturer?.toLowerCase().includes('prolific') ||
+        p.manufacturer?.toLowerCase().includes('ch340') ||
+        p.manufacturer?.toLowerCase().includes('wch.cn') ||
+        p.path.includes('ttyUSB') ||
+        p.path.includes('COM8')
+      );
       
       if (!testPort) {
-        console.log('❌ No test port available');
+        console.log('❌ No RS-485 port available');
         return;
       }
 
@@ -324,10 +359,17 @@ class WaveshareValidator {
     
     try {
       const ports = await SerialPort.list();
-      const testPort = ports.find(p => p.path.includes('ttyUSB')) || ports[0];
+      const testPort = ports.find(p => 
+        p.manufacturer?.toLowerCase().includes('ftdi') ||
+        p.manufacturer?.toLowerCase().includes('prolific') ||
+        p.manufacturer?.toLowerCase().includes('ch340') ||
+        p.manufacturer?.toLowerCase().includes('wch.cn') ||
+        p.path.includes('ttyUSB') ||
+        p.path.includes('COM8')
+      );
       
       if (!testPort) {
-        console.log('❌ No test port available');
+        console.log('❌ No RS-485 port available');
         return;
       }
 

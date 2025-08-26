@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { DatabaseManager } from '../../../../shared/database/database-manager';
 import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
 import { EventRepository } from '../../../../shared/database/event-repository';
+import { CommandQueueManager } from '../../../../shared/services/command-queue-manager';
 import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
 import { Permission } from '../services/permission-service';
 import { User } from '../services/auth-service';
@@ -10,10 +11,96 @@ interface LockerRouteOptions extends FastifyPluginOptions {
   dbManager: DatabaseManager;
 }
 
+// Per-locker command lock to prevent concurrent operations with TTL fail-safe
+const lockerCommandLocks = new Map<string, { locked: boolean; timestamp: number }>();
+const LOCK_TTL_MS = 90 * 1000; // 90 seconds fail-safe
+
+function getLockerLockKey(kioskId: string, lockerId: number): string {
+  return `${kioskId}:${lockerId}`;
+}
+
+function isLockerLocked(kioskId: string, lockerId: number): boolean {
+  const key = getLockerLockKey(kioskId, lockerId);
+  const lockInfo = lockerCommandLocks.get(key);
+  
+  if (!lockInfo) return false;
+  
+  // Check if lock has expired (TTL fail-safe)
+  if (Date.now() - lockInfo.timestamp > LOCK_TTL_MS) {
+    lockerCommandLocks.delete(key);
+    return false;
+  }
+  
+  return lockInfo.locked;
+}
+
+function lockLocker(kioskId: string, lockerId: number): void {
+  const key = getLockerLockKey(kioskId, lockerId);
+  lockerCommandLocks.set(key, { locked: true, timestamp: Date.now() });
+}
+
+function unlockLocker(kioskId: string, lockerId: number): void {
+  lockerCommandLocks.delete(getLockerLockKey(kioskId, lockerId));
+}
+
 export async function lockerRoutes(fastify: FastifyInstance, options: LockerRouteOptions) {
   const { dbManager } = options;
   const lockerStateManager = new LockerStateManager(dbManager);
   const eventRepository = new EventRepository(dbManager);
+  const commandQueue = new CommandQueueManager();
+
+  // Validation helper functions
+  async function validateKioskExists(kioskId: string): Promise<boolean> {
+    try {
+      const { KioskHeartbeatRepository } = await import('../../../../shared/database/kiosk-heartbeat-repository.js');
+      const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
+      const kiosk = await heartbeatRepo.findById(kioskId);
+      return kiosk !== null;
+    } catch (error) {
+      fastify.log.error('Error validating kiosk existence:', error);
+      return false;
+    }
+  }
+
+  function validateLockerId(lockerId: number): { valid: boolean; error?: string } {
+    if (!Number.isInteger(lockerId)) {
+      return { valid: false, error: 'Locker ID must be an integer' };
+    }
+    if (lockerId < 1) {
+      return { valid: false, error: 'Locker ID must be a positive number' };
+    }
+    if (lockerId > 32) {
+      return { valid: false, error: 'Locker ID must be between 1 and 32' };
+    }
+    return { valid: true };
+  }
+
+  function validateIntervalMs(intervalMs: number): { valid: boolean; error?: string } {
+    if (!Number.isInteger(intervalMs)) {
+      return { valid: false, error: 'Interval must be an integer' };
+    }
+    if (intervalMs < 100) {
+      return { valid: false, error: 'Interval must be at least 100ms' };
+    }
+    if (intervalMs > 5000) {
+      return { valid: false, error: 'Interval must be at most 5000ms' };
+    }
+    return { valid: true };
+  }
+
+  // Idempotency check - prevent duplicate commands for same locker
+  async function checkDuplicateCommand(kioskId: string, lockerId: number): Promise<boolean> {
+    try {
+      const pendingCommands = await commandQueue.getPendingCommands(kioskId);
+      return pendingCommands.some(cmd => 
+        (cmd.command_type === 'open_locker' && cmd.payload.locker_id === lockerId) ||
+        (cmd.command_type === 'bulk_open' && cmd.payload.locker_ids?.includes(lockerId))
+      );
+    } catch (error) {
+      fastify.log.error('Error checking duplicate commands:', error);
+      return false;
+    }
+  }
 
   // Get all lockers with filtering
   fastify.get('/', {
@@ -189,6 +276,14 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
   fastify.post('/:kioskId/:lockerId/open', {
     preHandler: [requirePermission(Permission.OPEN_LOCKER), requireCsrfToken()],
     schema: {
+      params: {
+        type: 'object',
+        required: ['kioskId', 'lockerId'],
+        properties: {
+          kioskId: { type: 'string', minLength: 1 },
+          lockerId: { type: 'string', pattern: '^[0-9]+$' }
+        }
+      },
       body: {
         type: 'object',
         properties: {
@@ -201,60 +296,112 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     const { kioskId, lockerId } = request.params as { kioskId: string; lockerId: string };
     const { reason, override } = request.body as { reason?: string; override?: boolean };
     const user = (request as any).user as User;
+    const requestId = (request as any).id || 'unknown';
 
     try {
       const lockerId_num = parseInt(lockerId);
       
-      // Check if locker exists
-      const locker = await lockerStateManager.getLocker(kioskId, lockerId_num);
-      if (!locker) {
-        return reply.code(404).send({
-          code: 'not_found',
-          message: 'Locker not found'
+      // Validate kioskId exists and is accessible to the staff user
+      const kioskExists = await validateKioskExists(kioskId);
+      if (!kioskExists) {
+        return reply.code(400).send({
+          code: 'bad_request',
+          message: 'Invalid kiosk ID - kiosk not found or not accessible'
         });
       }
 
-      // Skip release for VIP lockers unless override is true
-      if (locker.is_vip && !override) {
-        return reply.code(423).send({
-          code: 'locked',
-          message: 'VIP locker cannot be opened without override'
+      // Validate lockerId is numeric and within valid range
+      const lockerValidation = validateLockerId(lockerId_num);
+      if (!lockerValidation.valid) {
+        return reply.code(400).send({
+          code: 'bad_request',
+          message: lockerValidation.error
         });
       }
 
-      // Release the locker (this will open it and set to Free)
-      const success = await lockerStateManager.releaseLocker(kioskId, lockerId_num);
-      
-      if (success) {
-        // Log the staff operation
-        await eventRepository.logEvent({
+      // Add idempotency check to reject duplicate open commands for same locker
+      const hasDuplicateCommand = await checkDuplicateCommand(kioskId, lockerId_num);
+      if (hasDuplicateCommand) {
+        return reply.code(409).send({
+          code: 'conflict',
+          message: 'Duplicate command - locker already has a pending open operation'
+        });
+      }
+
+      // Check per-locker command lock
+      if (isLockerLocked(kioskId, lockerId_num)) {
+        return reply.code(409).send({
+          code: 'conflict',
+          message: 'Locker operation already in progress'
+        });
+      }
+
+      // Lock the locker for this operation
+      lockLocker(kioskId, lockerId_num);
+
+      try {
+        // Check if locker exists and is accessible
+        const locker = await lockerStateManager.getLocker(kioskId, lockerId_num);
+        if (!locker) {
+          return reply.code(404).send({
+            code: 'not_found',
+            message: 'Locker not found'
+          });
+        }
+
+        // Skip release for VIP lockers unless override is true
+        if (locker.is_vip && !override) {
+          return reply.code(423).send({
+            code: 'locked',
+            message: 'VIP locker cannot be opened without override'
+          });
+        }
+
+        // Enqueue 'open_locker' command instead of direct database update
+        const commandId = await commandQueue.enqueueCommand(kioskId, 'open_locker', {
+          locker_id: lockerId_num,
+          staff_user: user.username,
+          reason: reason || 'Manual open',
+          force: override || false
+        });
+
+        // Log with required fields: command_id, kiosk_id, locker_id, staff_user, reason, req_id
+        fastify.log.info({
+          command_id: commandId,
           kiosk_id: kioskId,
           locker_id: lockerId_num,
-          event_type: 'staff_open',
           staff_user: user.username,
-          details: {
-            reason: reason || 'Manual staff open',
-            override: override || false,
-            previous_status: locker.status,
-            is_vip: locker.is_vip
-          }
+          reason: reason || 'Manual open',
+          req_id: requestId,
+          message: 'Single locker open command enqueued'
         });
 
-        reply.send({ 
-          success: true, 
-          message: `Locker ${lockerId} opened successfully` 
+        // Return 202 with command_id only (no internal fields)
+        return reply.code(202).send({
+          command_id: commandId
         });
-      } else {
-        reply.code(400).send({
-          code: 'bad_request',
-          message: 'Failed to open locker'
-        });
+
+      } finally {
+        // Always unlock the locker after operation
+        unlockLocker(kioskId, lockerId_num);
       }
+
     } catch (error) {
-      fastify.log.error('Failed to open locker:', error);
-      reply.code(500).send({
+      fastify.log.error({
+        requestId,
+        kioskId,
+        lockerId,
+        staffUser: user.username,
+        error: error.message,
+        message: 'Failed to queue locker open command'
+      });
+      
+      // Ensure locker is unlocked on error
+      unlockLocker(kioskId, parseInt(lockerId));
+      
+      return reply.code(500).send({
         code: 'server_error',
-        message: 'try again'
+        message: 'Failed to queue open command'
       });
     }
   });
@@ -355,124 +502,178 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     schema: {
       body: {
         type: 'object',
+        required: ['kioskId', 'lockerIds'],
         properties: {
-          lockers: {
-            type: 'array',
-            items: {
-              type: 'object',
-              required: ['kioskId', 'lockerId'],
-              properties: {
-                kioskId: { type: 'string' },
-                lockerId: { type: 'number' }
-              }
-            }
+          kioskId: { type: 'string', minLength: 1 },
+          lockerIds: { 
+            type: 'array', 
+            items: { type: 'number', minimum: 1 },
+            minItems: 1,
+            maxItems: 100
           },
-          intervalMs: { type: 'number', default: 300 },
           reason: { type: 'string', default: 'Bulk open operation' },
-          excludeVip: { type: 'boolean', default: true }
+          exclude_vip: { type: 'boolean', default: true },
+          interval_ms: { type: 'number', default: 1000, minimum: 100, maximum: 5000 }
         }
       }
     }
   }, async (request, reply) => {
-    const { lockers, intervalMs = 300, reason, excludeVip = true } = request.body as {
-      lockers: Array<{ kioskId: string; lockerId: number }>;
-      intervalMs?: number;
+    const { kioskId, lockerIds, reason, exclude_vip = true, interval_ms = 1000 } = request.body as {
+      kioskId: string;
+      lockerIds: number[];
       reason?: string;
-      excludeVip?: boolean;
+      exclude_vip?: boolean;
+      interval_ms?: number;
     };
     const user = (request as any).user as User;
+    const requestId = (request as any).id || 'unknown';
 
     try {
-      const results = [];
-      let successCount = 0;
-      const failedLockers = [];
+      // Validate kioskId exists and is accessible to the staff user
+      const kioskExists = await validateKioskExists(kioskId);
+      if (!kioskExists) {
+        return reply.code(400).send({
+          code: 'bad_request',
+          message: 'Invalid kiosk ID - kiosk not found or not accessible'
+        });
+      }
 
-      for (const { kioskId, lockerId } of lockers) {
+      // Validate intervalMs is between 100-5000ms for bulk operations
+      const intervalValidation = validateIntervalMs(interval_ms);
+      if (!intervalValidation.valid) {
+        return reply.code(400).send({
+          code: 'bad_request',
+          message: intervalValidation.error
+        });
+      }
+
+      // Filter invalid locker IDs and remove duplicates from lockerIds array
+      const uniqueLockerIds = [...new Set(lockerIds)].filter(id => {
+        const validation = validateLockerId(id);
+        return validation.valid;
+      });
+      
+      if (uniqueLockerIds.length === 0) {
+        return reply.code(400).send({
+          code: 'bad_request',
+          message: 'No valid locker IDs provided - locker IDs must be integers between 1 and 32'
+        });
+      }
+
+      // Check for any invalid locker IDs and provide clear error message
+      const invalidLockerIds = lockerIds.filter(id => {
+        const validation = validateLockerId(id);
+        return !validation.valid;
+      });
+      
+      if (invalidLockerIds.length > 0) {
+        return reply.code(400).send({
+          code: 'bad_request',
+          message: `Invalid locker IDs: ${invalidLockerIds.join(', ')} - locker IDs must be integers between 1 and 32`
+        });
+      }
+
+      // Add idempotency check to reject duplicate open commands for any of the lockers
+      const duplicateLockers: number[] = [];
+      for (const lockerId of uniqueLockerIds) {
+        const hasDuplicateCommand = await checkDuplicateCommand(kioskId, lockerId);
+        if (hasDuplicateCommand) {
+          duplicateLockers.push(lockerId);
+        }
+      }
+      
+      if (duplicateLockers.length > 0) {
+        return reply.code(409).send({
+          code: 'conflict',
+          message: `Duplicate commands - lockers ${duplicateLockers.join(', ')} already have pending open operations`
+        });
+      }
+
+      // When exclude_vip is true, filter out VIP lockers from the operation
+      const validLockerIds: number[] = [];
+      const lockedLockers: number[] = [];
+      
+      for (const lockerId of uniqueLockerIds) {
         try {
-          // Fetch locker to check VIP status
+          // Check per-locker command locks and reject if any selected locker has pending command
+          if (isLockerLocked(kioskId, lockerId)) {
+            lockedLockers.push(lockerId);
+            continue;
+          }
+
           const locker = await lockerStateManager.getLocker(kioskId, lockerId);
           if (!locker) {
-            failedLockers.push({ kioskId, lockerId, reason: 'not_found' });
-            results.push({ 
-              kioskId, 
-              lockerId, 
-              success: false, 
-              error: { code: 'not_found', message: 'Locker not found' }
-            });
+            // Skip invalid lockers
             continue;
           }
 
-          // Skip VIP lockers if excludeVip is true
-          if (locker.is_vip && excludeVip) {
-            failedLockers.push({ kioskId, lockerId, reason: 'vip' });
-            results.push({ 
-              kioskId, 
-              lockerId, 
-              success: false, 
-              error: { code: 'excluded', message: 'VIP locker excluded' }
-            });
+          // Filter out VIP lockers if exclude_vip is true
+          if (exclude_vip && locker.is_vip) {
             continue;
           }
 
-          const success = await lockerStateManager.releaseLocker(kioskId, lockerId);
-          
-          if (success) {
-            successCount++;
-            await eventRepository.logEvent({
-              kiosk_id: kioskId,
-              locker_id: lockerId,
-              event_type: 'staff_open',
-              staff_user: user.username,
-              details: { reason, bulk_operation: true, is_vip: locker.is_vip }
-            });
-          } else {
-            failedLockers.push({ kioskId, lockerId, reason: 'release_failed' });
-          }
-
-          results.push({ kioskId, lockerId, success });
-
-          // Wait between operations
-          if (intervalMs > 0) {
-            await new Promise(resolve => setTimeout(resolve, intervalMs));
-          }
+          validLockerIds.push(lockerId);
         } catch (error) {
-          failedLockers.push({ kioskId, lockerId, reason: 'error' });
-          results.push({ 
-            kioskId, 
-            lockerId, 
-            success: false, 
-            error: { code: 'server_error', message: error.message }
-          });
+          // Skip invalid lockers
+          continue;
         }
       }
 
-      // Log bulk operation summary
-      await eventRepository.logEvent({
-        kiosk_id: 'bulk',
-        event_type: 'bulk_open',
+      // Reject if any selected locker has pending command
+      if (lockedLockers.length > 0) {
+        return reply.code(409).send({
+          code: 'conflict',
+          message: `Lockers ${lockedLockers.join(', ')} have pending operations`
+        });
+      }
+
+      if (validLockerIds.length === 0) {
+        const message = exclude_vip ? 'No valid non-VIP lockers found' : 'No valid lockers found';
+        return reply.code(400).send({
+          code: 'bad_request',
+          message
+        });
+      }
+
+      // Enqueue 'bulk_open' command with locker_ids, staff_user, reason, exclude_vip, interval_ms
+      const commandId = await commandQueue.enqueueCommand(kioskId, 'bulk_open', {
+        locker_ids: validLockerIds,
         staff_user: user.username,
-        details: {
-          total_count: lockers.length,
-          success_count: successCount,
-          failed_lockers: failedLockers,
-          reason,
-          exclude_vip: excludeVip
-        }
+        reason: reason || 'Bulk open operation',
+        exclude_vip,
+        interval_ms
       });
 
-      reply.send({
-        success: true,
-        totalCount: lockers.length,
-        successCount,
-        failedCount: failedLockers.length,
-        failedLockers,
-        results
+      // Log staff_user, reason, and command_id when enqueuing bulk command
+      fastify.log.info({
+        command_id: commandId,
+        kiosk_id: kioskId,
+        locker_ids: validLockerIds,
+        staff_user: user.username,
+        reason: reason || 'Bulk open operation',
+        req_id: requestId,
+        processed_count: validLockerIds.length,
+        message: 'Bulk open command enqueued'
       });
+
+      // Return 202 Accepted with command_id and processed locker count for status polling
+      return reply.code(202).send({
+        command_id: commandId,
+        processed: validLockerIds.length
+      });
+
     } catch (error) {
-      fastify.log.error('Bulk open failed:', error);
-      reply.code(500).send({
+      fastify.log.error({
+        kiosk_id: kioskId,
+        staff_user: user.username,
+        req_id: requestId,
+        error: error.message,
+        message: 'Failed to queue bulk open command'
+      });
+      
+      return reply.code(500).send({
         code: 'server_error',
-        message: 'try again'
+        message: 'Failed to queue bulk open command'
       });
     }
   });
@@ -556,6 +757,74 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       reply.code(500).send({
         code: 'server_error',
         message: 'try again'
+      });
+    }
+  });
+
+  // Get command status by ID
+  fastify.get('/commands/:id', {
+    preHandler: [requirePermission(Permission.VIEW_LOCKERS)],
+    schema: {
+      params: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string', minLength: 1 }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const requestId = (request as any).id || 'unknown';
+
+    try {
+      const command = await commandQueue.getCommand(id);
+      
+      if (!command) {
+        return reply.code(404).send({
+          code: 'not_found',
+          message: 'Command not found'
+        });
+      }
+
+      fastify.log.info({
+        requestId,
+        commandId: id,
+        status: command.status,
+        message: 'Command status retrieved'
+      });
+
+      // Extract locker information from payload
+      let lockerInfo = {};
+      if (command.payload.locker_id) {
+        lockerInfo = { locker_id: command.payload.locker_id };
+      } else if (command.payload.locker_ids) {
+        lockerInfo = { locker_ids: command.payload.locker_ids };
+      }
+
+      return reply.send({
+        command_id: command.command_id,
+        status: command.status,
+        command_type: command.command_type,
+        created_at: command.created_at,
+        executed_at: command.executed_at,
+        completed_at: command.completed_at,
+        last_error: command.last_error,
+        retry_count: command.retry_count,
+        ...lockerInfo
+      });
+
+    } catch (error) {
+      fastify.log.error({
+        requestId,
+        commandId: id,
+        error: error.message,
+        message: 'Failed to retrieve command status'
+      });
+      
+      return reply.code(500).send({
+        code: 'server_error',
+        message: 'Failed to retrieve command status'
       });
     }
   });

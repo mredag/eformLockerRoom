@@ -989,7 +989,12 @@
 
             try {
                 if (action === 'open') {
-                    await performBulkOpen(selectedArray, reason);
+                    // Use single locker API for single selections, bulk API for multiple
+                    if (selectedArray.length === 1) {
+                        await performSingleOpen(selectedArray[0], reason);
+                    } else {
+                        await performBulkOpen(selectedArray, reason);
+                    }
                 } else {
                     await performIndividualActions(action, selectedArray, reason);
                 }
@@ -1003,25 +1008,153 @@
             }
         }
 
-        async function performBulkOpen(lockers, reason) {
-            const response = await fetch('/api/lockers/bulk/open', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': csrfToken
-                },
-                body: JSON.stringify({
-                    lockers,
-                    reason: reason || 'Bulk open operation'
-                })
-            });
+        async function pollCommand(command_id, onDone) {
+            for (let i = 0; i < 40; i++) {
+                const r = await fetch(`/api/lockers/commands/${command_id}`, { credentials: 'include' });
+                const s = await r.json();
+                if (s.status === 'completed') return onDone('ok');
+                if (s.status === 'failed') return onDone('fail');
+                await new Promise(res => setTimeout(res, 1000));
+            }
+            onDone('timeout');
+        }
 
-            const data = await response.json();
+        async function performSingleOpen(locker, reason) {
+            const { kioskId, lockerId } = locker;
             
-            if (response.ok) {
-                showSuccess(`Bulk open completed: ${data.successCount}/${data.totalCount} successful`);
-            } else {
-                throw new Error(data.error);
+            try {
+                const response = await fetch(`/api/lockers/${kioskId}/${lockerId}/open`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        reason: reason || 'Manual open',
+                        override: false
+                    })
+                });
+
+                if (!response.ok) {
+                    let errorMessage = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorMessage;
+                    } catch {
+                        // Keep HTTP status if JSON parsing fails
+                    }
+                    
+                    // Handle specific error responses with clear error messages
+                    if (response.status === 400) {
+                        throw new Error(errorMessage);
+                    } else if (response.status === 401) {
+                        throw new Error('Login required');
+                    } else if (response.status === 409) {
+                        throw new Error(errorMessage); // Conflict - duplicate command or locker locked
+                    } else if (response.status >= 500) {
+                        throw new Error('Server error - please try again');
+                    } else {
+                        throw new Error(errorMessage);
+                    }
+                }
+
+                const data = await response.json();
+                
+                // Handle 202 Accepted response with command_id for status polling
+                if (response.status === 202) {
+                    showSuccess(`Locker ${lockerId} open command queued`);
+                    
+                    console.log(`Single locker open queued - Command ID: ${data.command_id}, Locker: ${kioskId}-${lockerId}`);
+                    
+                    // Poll command status and refresh when done
+                    pollCommand(data.command_id, (result) => {
+                        if (result === 'ok') {
+                            showSuccess(`Locker ${lockerId} opened successfully`);
+                        } else if (result === 'fail') {
+                            showError(`Locker ${lockerId} open failed`);
+                        } else if (result === 'timeout') {
+                            showError(`Locker ${lockerId} open timed out`);
+                        }
+                        loadLockers();
+                    });
+                } else {
+                    // Fallback for other success responses
+                    showSuccess(`Locker ${lockerId} opened successfully`);
+                }
+            } catch (error) {
+                // Add error handling for 400/401/500 responses with specific error messages
+                console.error('Single locker open failed:', error);
+                throw error;
+            }
+        }
+
+        async function performBulkOpen(lockers, reason) {
+            // Get the selected kiosk ID
+            const kioskId = document.getElementById('kiosk-filter').value;
+            if (!kioskId) {
+                throw new Error('Select a kiosk first');
+            }
+
+            // Extract locker IDs from the lockers array
+            const lockerIds = lockers.map(locker => locker.lockerId);
+            
+            // Default interval for bulk operations (1000ms)
+            const interval_ms = 1000;
+            
+            try {
+                // Modify performBulkOpen() to POST to /api/lockers/bulk/open route
+                const response = await fetch('/api/lockers/bulk/open', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    credentials: 'same-origin',
+                    // Send kioskId, lockerIds, reason, exclude_vip, interval_ms in request body (snake_case)
+                    body: JSON.stringify({
+                        kioskId,
+                        lockerIds,
+                        reason: reason || 'Bulk open operation',
+                        exclude_vip: true,
+                        interval_ms
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Handle 202 Accepted response with command_id for status polling
+                if (response.status === 202) {
+                    const processedCount = data.processed || lockerIds.length;
+                    showSuccess(`Bulk open command queued for ${processedCount} lockers`);
+                    
+                    console.log(`Bulk open queued - Command ID: ${data.command_id}, Processed: ${processedCount}, Estimated completion: ${processedCount * interval_ms + 2000}ms`);
+                    
+                    // Use polling for bulk operations (reuse single locker polling pattern)
+                    pollCommand(data.command_id, (result) => {
+                        if (result === 'ok') {
+                            showSuccess(`Bulk open completed: ${processedCount} lockers processed successfully`);
+                        } else if (result === 'fail') {
+                            showError(`Bulk open failed for some lockers`);
+                        } else if (result === 'timeout') {
+                            showError(`Bulk open timed out - some lockers may not have opened`);
+                        }
+                        loadLockers();
+                    });
+                } else {
+                    // Fallback for other success responses
+                    const processedCount = data.processed || lockerIds.length;
+                    showSuccess(`Bulk open completed: ${processedCount} lockers processed`);
+                }
+            } catch (error) {
+                // Handle bulk operation errors and show appropriate user feedback
+                console.error('Bulk open failed:', error);
+                throw error;
             }
         }
 

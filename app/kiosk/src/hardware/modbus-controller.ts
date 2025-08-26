@@ -101,6 +101,7 @@ export class ModbusController extends EventEmitter {
   private commandQueue: RelayCommand[] = [];
   private isProcessingQueue = false;
   private relayStatus = new Map<number, RelayStatus>();
+  private lockerMutexes = new Map<number, Mutex>(); // Per-locker concurrency guards
   private health: ModbusHealth;
   private lastCommandTime = 0;
   private connectionRetryCount = 0;
@@ -216,11 +217,29 @@ export class ModbusController extends EventEmitter {
 
   /**
    * Open a locker with the specified ID with retry logic
+   * Maps locker_id to cardId and relayId using the correct formulas
    * Returns true if successful, false if failed
    */
   async openLocker(lockerId: number, slaveAddress?: number): Promise<boolean> {
-    const commandId = `open_${lockerId}_${Date.now()}`;
-    const maxRetries = this.config.max_retries || 2;
+    // Get or create per-locker mutex to prevent concurrent operations on same locker
+    if (!this.lockerMutexes.has(lockerId)) {
+      this.lockerMutexes.set(lockerId, new Mutex());
+    }
+    const lockerMutex = this.lockerMutexes.get(lockerId)!;
+    
+    // Acquire per-locker lock
+    await lockerMutex.acquire();
+    
+    try {
+      const commandId = `open_${lockerId}_${Date.now()}`;
+      const maxRetries = this.config.max_retries || 2;
+      
+      // Map locker_id to cardId and relayId using the specified formulas
+      const cardId = Math.ceil(lockerId / 16);
+      const relayId = ((lockerId - 1) % 16) + 1;
+      
+      // Use cardId as slaveAddress if not provided
+      const targetSlaveAddress = slaveAddress || cardId;
     
     try {
       // First attempt with single pulse
@@ -228,12 +247,12 @@ export class ModbusController extends EventEmitter {
       for (let attempt = 0; attempt <= maxRetries && !pulseSuccess; attempt++) {
         pulseSuccess = await this.executeCommand({
           command_id: `${commandId}_pulse_${attempt}`,
-          channel: lockerId,
+          channel: relayId, // Use mapped relayId instead of lockerId
           operation: 'pulse',
           duration_ms: this.config.pulse_duration_ms,
           created_at: new Date(),
           retry_count: attempt
-        }, slaveAddress);
+        }, targetSlaveAddress);
         
         if (!pulseSuccess && attempt < maxRetries) {
           await this.delay(this.calculateRetryDelay(attempt));
@@ -249,22 +268,31 @@ export class ModbusController extends EventEmitter {
       for (let attempt = 0; attempt <= maxRetries && !burstSuccess; attempt++) {
         burstSuccess = await this.executeCommand({
           command_id: `${commandId}_burst_${attempt}`,
-          channel: lockerId,
+          channel: relayId, // Use mapped relayId instead of lockerId
           operation: 'burst',
           created_at: new Date(),
           retry_count: attempt
-        }, slaveAddress);
+        }, targetSlaveAddress);
         
         if (!burstSuccess && attempt < maxRetries) {
           await this.delay(this.calculateRetryDelay(attempt));
         }
       }
 
-      return burstSuccess;
+        return burstSuccess;
 
-    } catch (error) {
-      this.emit('error', { lockerId, error: error instanceof Error ? error.message : String(error) });
-      return false;
+      } catch (error) {
+        this.emit('error', { 
+          lockerId, 
+          cardId, 
+          relayId, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+        return false;
+      }
+    } finally {
+      // Always release the per-locker mutex
+      lockerMutex.release();
     }
   }
 
@@ -308,6 +336,7 @@ export class ModbusController extends EventEmitter {
 
   /**
    * Send a pulse to the specified relay channel (Waveshare compatible)
+   * Implements fallback: try 0x0F (write multiple coils), fall back to 0x05 (single coil) if it fails
    */
   private async sendPulse(channel: number, duration: number = 400, slaveAddress: number = 1): Promise<boolean> {
     if (!this.serialPort || !this.serialPort.isOpen) {
@@ -315,40 +344,75 @@ export class ModbusController extends EventEmitter {
     }
 
     try {
-      const useMultipleCoils = this.config.use_multiple_coils ?? true;
+      let success = false;
       
-      if (useMultipleCoils) {
-        // Use Write Multiple Coils (0x0F) - Waveshare preferred method
+      // First try Write Multiple Coils (0x0F) - Waveshare preferred method
+      try {
         const turnOnCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [true]);
         await this.writeCommand(turnOnCommand);
         await this.delay(duration);
         
         const turnOffCommand = this.buildWriteMultipleCoilsCommand(slaveAddress, channel - 1, 1, [false]);
         await this.writeCommand(turnOffCommand);
-      } else {
-        // Use Write Single Coil (0x05) - fallback method
-        const turnOnCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0xFF00);
-        await this.writeCommand(turnOnCommand);
-        await this.delay(duration);
         
-        const turnOffCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0x0000);
-        await this.writeCommand(turnOffCommand);
-      }
-      
-      // Verify write if enabled
-      if (this.config.verify_writes) {
-        const status = await this.readRelayStatus(slaveAddress, channel - 1, 1);
-        if (status.length > 0 && status[0]) {
-          // Relay is still on, which might indicate a problem
-          this.emit('warning', { channel, message: 'Relay verification shows unexpected state' });
+        success = true;
+        
+      } catch (multipleCoilsError) {
+        // Enhanced fallback logging with error details
+        const errorMessage = multipleCoilsError instanceof Error ? multipleCoilsError.message : String(multipleCoilsError);
+        const isTimeoutError = errorMessage.toLowerCase().includes('timeout');
+        const isCrcError = errorMessage.toLowerCase().includes('crc');
+        
+        console.warn(`⚠️  0x0F (Write Multiple Coils) failed for channel ${channel}, slave ${slaveAddress}: ${errorMessage}`);
+        
+        this.emit('warning', { 
+          channel, 
+          slaveAddress, 
+          message: 'Multiple coils (0x0F) command failed, falling back to single coil (0x05)',
+          error: errorMessage,
+          error_type: isTimeoutError ? 'timeout' : isCrcError ? 'crc' : 'unknown',
+          fallback_attempted: true
+        });
+        
+        try {
+          const turnOnCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0xFF00);
+          await this.writeCommand(turnOnCommand);
+          await this.delay(duration);
+          
+          const turnOffCommand = this.buildModbusCommand(slaveAddress, 0x05, channel - 1, 0x0000);
+          await this.writeCommand(turnOffCommand);
+          
+          success = true;
+          
+        } catch (singleCoilError) {
+          throw new Error(`Both multiple coils (0x0F) and single coil (0x05) commands failed. Multiple: ${multipleCoilsError instanceof Error ? multipleCoilsError.message : String(multipleCoilsError)}, Single: ${singleCoilError instanceof Error ? singleCoilError.message : String(singleCoilError)}`);
         }
       }
       
-      return true;
+      // Verify write if enabled and command was successful
+      if (success && this.config.verify_writes) {
+        try {
+          const status = await this.readRelayStatus(slaveAddress, channel - 1, 1);
+          if (status.length > 0 && status[0]) {
+            // Relay is still on, which might indicate a problem
+            this.emit('warning', { channel, slaveAddress, message: 'Relay verification shows unexpected state - relay still active' });
+          }
+        } catch (verifyError) {
+          // Don't fail the operation if verification fails, just warn
+          this.emit('warning', { 
+            channel, 
+            slaveAddress, 
+            message: 'Relay verification failed',
+            error: verifyError instanceof Error ? verifyError.message : String(verifyError)
+          });
+        }
+      }
+      
+      return success;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.emit('error', { channel, operation: 'pulse', error: errorMessage });
+      this.emit('error', { channel, slaveAddress, operation: 'pulse', error: errorMessage });
       return false;
     }
   }
