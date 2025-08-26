@@ -145,6 +145,61 @@ fastify.post(
   }
 );
 
+// Admin API endpoint for direct locker opening
+fastify.post("/api/locker/open", async (request, reply) => {
+  try {
+    const { locker_id, staff_user, reason } = request.body as {
+      locker_id: number;
+      staff_user: string;
+      reason?: string;
+    };
+
+    if (!locker_id || !staff_user) {
+      return reply.status(400).send({
+        success: false,
+        error: "locker_id and staff_user are required"
+      });
+    }
+
+    if (locker_id < 1 || locker_id > 30) {
+      return reply.status(400).send({
+        success: false,
+        error: "Invalid locker_id. Must be between 1 and 30."
+      });
+    }
+
+    console.log(`🔓 Direct locker opening: ${locker_id} by ${staff_user}`);
+
+    // Use ModbusController to open the locker
+    const success = await modbusController.openLocker(locker_id);
+
+    if (success) {
+      return reply.send({
+        success: true,
+        message: `Locker ${locker_id} opened successfully`,
+        locker_id,
+        staff_user,
+        reason: reason || 'Direct API access',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      return reply.status(500).send({
+        success: false,
+        error: `Failed to open locker ${locker_id}`,
+        locker_id,
+        staff_user
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Direct locker open error:', error);
+    return reply.status(500).send({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Health check endpoint
 fastify.get("/health", async (request, reply) => {
   return {

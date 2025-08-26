@@ -12,6 +12,7 @@ import { DatabaseManager } from "../../../shared/database/database-manager.js";
 import { provisioningRoutes } from "./routes/provisioning.js";
 import { configurationRoutes } from "./routes/configuration.js";
 import { heartbeatRoutes } from "./routes/heartbeat.js";
+import { registerAdminRoutes } from "./routes/admin.js";
 import { mkdirSync } from "fs";
 
 const fastify = Fastify({
@@ -41,6 +42,11 @@ async function initializeDatabase() {
 fastify.register(provisioningRoutes, { prefix: "/api/provisioning" });
 fastify.register(configurationRoutes, { prefix: "/api/configuration" });
 fastify.register(heartbeatRoutes, { prefix: "/api/heartbeat" });
+
+// Register admin routes
+fastify.register(async function (fastify) {
+  await registerAdminRoutes(fastify);
+});
 
 // Health check endpoint
 fastify.get("/health", async () => {
