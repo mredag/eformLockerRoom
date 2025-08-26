@@ -200,6 +200,66 @@ fastify.post("/api/locker/open", async (request, reply) => {
   }
 });
 
+// EMERGENCY: Close locker endpoint to prevent hardware damage
+fastify.post('/api/locker/close', async (request, reply) => {
+  try {
+    const { locker_id, staff_user, reason } = request.body as {
+      locker_id: number;
+      staff_user: string;
+      reason?: string;
+    };
+
+    if (!locker_id || !staff_user) {
+      return reply.status(400).send({
+        success: false,
+        error: "locker_id and staff_user are required"
+      });
+    }
+
+    if (locker_id < 1 || locker_id > 30) {
+      return reply.status(400).send({
+        success: false,
+        error: "Invalid locker_id. Must be between 1 and 30."
+      });
+    }
+
+    console.log(`🔒 Emergency close locker: ${locker_id} by ${staff_user}`);
+
+    // Map locker_id to cardId and relayId
+    const cardId = Math.ceil(locker_id / 16);
+    const relayId = ((locker_id - 1) % 16) + 1;
+    const targetSlaveAddress = cardId;
+
+    // Force close the relay
+    const success = await modbusController.sendCloseRelay(relayId, targetSlaveAddress);
+
+    if (success) {
+      return reply.send({
+        success: true,
+        message: `Locker ${locker_id} closed successfully`,
+        locker_id,
+        staff_user,
+        reason: reason || 'Emergency close',
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      return reply.status(500).send({
+        success: false,
+        error: `Failed to close locker ${locker_id}`,
+        locker_id,
+        staff_user
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Emergency close error:', error);
+    return reply.status(500).send({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Health check endpoint
 fastify.get("/health", async (request, reply) => {
   return {

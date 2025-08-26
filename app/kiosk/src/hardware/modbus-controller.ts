@@ -420,8 +420,9 @@ export class ModbusController extends EventEmitter {
   /**
    * Send close relay command (turn OFF only)
    * Used to ensure relay is closed after burst operations
+   * Made public for emergency close API access
    */
-  private async sendCloseRelay(channel: number, slaveAddress: number = 1): Promise<boolean> {
+  async sendCloseRelay(channel: number, slaveAddress: number = 1): Promise<boolean> {
     if (!this.serialPort || !this.serialPort.isOpen) {
       throw new Error('Modbus port not connected');
     }
