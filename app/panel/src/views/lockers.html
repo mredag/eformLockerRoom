@@ -239,6 +239,34 @@
             margin-bottom: 0.25rem;
         }
 
+        .locker-actions {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-sm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn-sm:active {
+            transform: translateY(0);
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -798,6 +826,22 @@
                         ${locker.reserved_at ? `<div>Reserved: ${new Date(locker.reserved_at).toLocaleString()}</div>` : ''}
                         ${locker.owned_at ? `<div>Owned: ${new Date(locker.owned_at).toLocaleString()}</div>` : ''}
                     </div>
+                    <div class="locker-actions" onclick="event.stopPropagation()">
+                        <button class="btn btn-sm btn-primary" onclick="openSingleLocker('${locker.kiosk_id}', ${locker.id})" 
+                                title="Open this locker">
+                            🔓 Open
+                        </button>
+                        ${locker.status === 'Blocked' ? 
+                            `<button class="btn btn-sm btn-success" onclick="unblockSingleLocker('${locker.kiosk_id}', ${locker.id})" 
+                                     title="Unblock this locker">
+                                ✅ Unblock
+                             </button>` : 
+                            `<button class="btn btn-sm btn-danger" onclick="blockSingleLocker('${locker.kiosk_id}', ${locker.id})" 
+                                     title="Block this locker">
+                                ❌ Block
+                             </button>`
+                        }
+                    </div>
                 </div>
             `).join('');
 
@@ -1348,6 +1392,112 @@
                 window.location.href = '/login.html';
             } catch (error) {
                 window.location.href = '/login.html';
+            }
+        }
+
+        // Individual locker operations
+        async function openSingleLocker(kioskId, lockerId) {
+            const reason = prompt('Enter reason for opening this locker:', 'Manual admin open');
+            if (!reason) return;
+
+            try {
+                showLoading(true);
+                console.log(`🔓 Opening single locker: ${kioskId}-${lockerId}`);
+
+                const response = await fetch(`/api/lockers/${kioskId}/${lockerId}/open`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({
+                        reason: reason,
+                        force: false
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(`Locker ${kioskId}-${lockerId} opening command sent! You should hear the relay click.`);
+                    console.log(`✅ Locker open command sent - Command ID: ${data.command_id}`);
+                    
+                    // Refresh the locker data after a short delay
+                    setTimeout(() => {
+                        loadLockers();
+                    }, 2000);
+                } else {
+                    showError(`Failed to open locker: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError(`Network error opening locker: ${error.message}`);
+                console.error('❌ Open locker error:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function blockSingleLocker(kioskId, lockerId) {
+            const reason = prompt('Enter reason for blocking this locker:', 'Manual admin block');
+            if (!reason) return;
+
+            try {
+                showLoading(true);
+                console.log(`❌ Blocking single locker: ${kioskId}-${lockerId}`);
+
+                const response = await fetch(`/api/lockers/${kioskId}/${lockerId}/block`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({
+                        reason: reason
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(`Locker ${kioskId}-${lockerId} blocked successfully`);
+                    loadLockers(); // Refresh the display
+                } else {
+                    showError(`Failed to block locker: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError(`Network error blocking locker: ${error.message}`);
+                console.error('❌ Block locker error:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function unblockSingleLocker(kioskId, lockerId) {
+            try {
+                showLoading(true);
+                console.log(`✅ Unblocking single locker: ${kioskId}-${lockerId}`);
+
+                const response = await fetch(`/api/lockers/${kioskId}/${lockerId}/unblock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showSuccess(`Locker ${kioskId}-${lockerId} unblocked successfully`);
+                    loadLockers(); // Refresh the display
+                } else {
+                    showError(`Failed to unblock locker: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                showError(`Network error unblocking locker: ${error.message}`);
+                console.error('❌ Unblock locker error:', error);
+            } finally {
+                showLoading(false);
             }
         }
 
