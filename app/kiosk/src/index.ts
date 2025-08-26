@@ -446,6 +446,18 @@ const start = async () => {
     // Register i18n routes
     await i18nController.registerRoutes();
 
+    // Initialize ModbusController (CRITICAL: This was missing!)
+    try {
+      console.log(`🔧 Initializing ModbusController on port: ${modbusConfig.port}`);
+      await modbusController.initialize();
+      console.log(`✅ ModbusController initialized successfully`);
+    } catch (modbusError) {
+      console.error("❌ Error initializing ModbusController:", modbusError);
+      console.error("❌ Hardware relay control will not work!");
+      console.error("Check USB-RS485 connection and relay card power");
+      // Don't exit - allow service to start for other functionality
+    }
+
     // Initialize kiosk lockers if needed (with error handling)
     try {
       // Change working directory to project root to fix database path issues
@@ -492,6 +504,7 @@ const start = async () => {
 process.on("SIGTERM", async () => {
   console.log("Received SIGTERM, shutting down gracefully...");
   await heartbeatClient.stop();
+  await modbusController.close();
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);
@@ -500,6 +513,7 @@ process.on("SIGTERM", async () => {
 process.on("SIGINT", async () => {
   console.log("Received SIGINT, shutting down gracefully...");
   await heartbeatClient.stop();
+  await modbusController.close();
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);
