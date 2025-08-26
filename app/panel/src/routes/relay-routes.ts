@@ -60,6 +60,8 @@ class SimpleRelayService {
     
     console.log(`🔌 Activating locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
     
+    let relayTurnedOn = false;
+    
     try {
       // Set slave address for the correct card
       this.client.setID(cardId);
@@ -70,6 +72,7 @@ class SimpleRelayService {
       
       // Turn relay ON
       await this.client.writeCoil(coilAddress, true);
+      relayTurnedOn = true;
       console.log(`🔌 Relay ${relayNumber} turned ON`);
       
       // Wait for pulse duration
@@ -78,15 +81,17 @@ class SimpleRelayService {
     } catch (error) {
       console.error(`❌ Error during relay ${relayNumber} activation:`, error.message);
     } finally {
-      // CRITICAL: ALWAYS turn relay OFF in finally block
-      try {
-        this.client.setID(cardId);
-        await this.client.writeCoil(coilAddress, false);
-        console.log(`🔌 Relay ${relayNumber} turned OFF (safety)`);
-      } catch (offError) {
-        console.error(`❌ CRITICAL: Failed to turn OFF relay ${relayNumber}:`, offError.message);
-        console.error(`⚠️  RELAY ${relayNumber} MAY BE STUCK ON! Manual reset required.`);
-        return false;
+      // CRITICAL: ALWAYS turn relay OFF in finally block (only if we turned it on)
+      if (relayTurnedOn) {
+        try {
+          this.client.setID(cardId);
+          await this.client.writeCoil(coilAddress, false);
+          console.log(`🔌 Relay ${relayNumber} turned OFF (safety)`);
+        } catch (offError) {
+          console.error(`❌ CRITICAL: Failed to turn OFF relay ${relayNumber}:`, offError.message);
+          console.error(`⚠️  RELAY ${relayNumber} MAY BE STUCK ON! Manual reset required.`);
+          return false;
+        }
       }
     }
     
