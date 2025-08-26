@@ -27,6 +27,12 @@ class SimpleRelayService {
     if (this.isConnected) return;
 
     try {
+      // Check if Kiosk service is using the port
+      const kioskRunning = await this.isKioskServiceRunning();
+      if (kioskRunning) {
+        throw new Error(`Port ${this.config.port} is in use by Kiosk service. Direct relay control disabled. Use queue-based commands instead.`);
+      }
+      
       await this.client.connectRTUBuffered(this.config.port, { 
         baudRate: this.config.baudRate 
       });
@@ -37,6 +43,18 @@ class SimpleRelayService {
     } catch (error) {
       console.error('❌ Failed to connect to relay hardware:', error.message);
       throw new Error(`Relay connection failed: ${error.message}`);
+    }
+  }
+
+  private async isKioskServiceRunning(): Promise<boolean> {
+    try {
+      const response = await fetch('http://localhost:3002/health', { 
+        method: 'GET',
+        signal: AbortSignal.timeout(1000)
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
     }
   }
 
@@ -277,15 +295,25 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
         return reply.status(500).send({
           success: false,
           error: `Failed to activate relay ${relay_number}`,
-          relay_number
+          relay_number,
+          suggestion: 'Try using queue-based locker opening instead of direct relay activation'
         });
       }
       
     } catch (error) {
       console.error('❌ Single relay activation error:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const isPortConflict = errorMessage.includes('Resource temporarily unavailable') || 
+                            errorMessage.includes('Cannot lock port') ||
+                            errorMessage.includes('in use by Kiosk service');
+      
       return reply.status(500).send({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        suggestion: isPortConflict ? 
+          'Port conflict detected. Use queue-based locker opening from the Lockers page instead.' :
+          'Check hardware connections and try again.'
       });
     }
   });
