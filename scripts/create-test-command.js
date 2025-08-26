@@ -20,10 +20,12 @@ async function createTestCommand() {
       const commandId = uuidv4();
       const now = new Date().toISOString();
       const payload = JSON.stringify({
-        locker_id: 1,
-        staff_user: 'test-user',
-        reason: 'Hardware test',
-        force: false
+        open_locker: {
+          locker_id: 1,
+          staff_user: 'test-user',
+          reason: 'Hardware test',
+          force: false
+        }
       });
       
       db.run(

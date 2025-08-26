@@ -359,10 +359,12 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
 
         // Enqueue 'open_locker' command instead of direct database update
         const commandId = await commandQueue.enqueueCommand(kioskId, 'open_locker', {
-          locker_id: lockerId_num,
-          staff_user: user.username,
-          reason: reason || 'Manual open',
-          force: override || false
+          open_locker: {
+            locker_id: lockerId_num,
+            staff_user: user.username,
+            reason: reason || 'Manual open',
+            force: override || false
+          }
         });
 
         // Log with required fields: command_id, kiosk_id, locker_id, staff_user, reason, req_id
@@ -637,11 +639,13 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
 
       // Enqueue 'bulk_open' command with locker_ids, staff_user, reason, exclude_vip, interval_ms
       const commandId = await commandQueue.enqueueCommand(kioskId, 'bulk_open', {
-        locker_ids: validLockerIds,
-        staff_user: user.username,
-        reason: reason || 'Bulk open operation',
-        exclude_vip,
-        interval_ms
+        bulk_open: {
+          locker_ids: validLockerIds,
+          staff_user: user.username,
+          reason: reason || 'Bulk open operation',
+          exclude_vip,
+          interval_ms
+        }
       });
 
       // Log staff_user, reason, and command_id when enqueuing bulk command
