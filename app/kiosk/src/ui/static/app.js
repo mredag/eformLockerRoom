@@ -11,6 +11,7 @@ class KioskApp {
         this.lockoutEndTime = null;
         this.availableLockers = [];
         this.allLockers = [];
+        this.currentSessionId = null; // Track current RFID session
         
         this.init();
     }
@@ -478,6 +479,7 @@ class KioskApp {
             
             if (result.action === 'show_lockers') {
                 this.availableLockers = result.lockers;
+                this.currentSessionId = result.session_id; // Store session ID
                 this.renderLockerGrid();
                 this.showScreen('locker-selection-screen');
             } else if (result.action === 'open_locker') {
@@ -585,7 +587,8 @@ class KioskApp {
                 },
                 body: JSON.stringify({
                     locker_id: lockerId,
-                    kiosk_id: this.kioskId
+                    kiosk_id: this.kioskId,
+                    session_id: this.currentSessionId // Include session ID
                 })
             });
             
@@ -594,6 +597,7 @@ class KioskApp {
             
             if (result.success) {
                 this.showStatusMessage('opening', { id: lockerId }, 'info');
+                this.currentSessionId = null; // Clear session after use
                 this.showScreen('main-screen');
             } else {
                 this.showStatusMessage(result.error || 'error_unknown', {}, 'error');

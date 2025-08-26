@@ -16,6 +16,10 @@ export class UiController {
   private pinAttempts: Map<string, { count: number; lockoutEnd?: number }> = new Map();
   private readonly maxAttempts = 5;
   private readonly lockoutMinutes = 5;
+  
+  // Session management for RFID card selection
+  private cardSessions: Map<string, { cardId: string; timestamp: number }> = new Map();
+  private readonly sessionTimeoutMs = 5 * 60 * 1000; // 5 minutes
 
   constructor(
     lockerStateManager: LockerStateManager,
@@ -132,6 +136,9 @@ export class UiController {
           return { error: 'failed_open' };
         }
       } else {
+        // Create a session for this card selection
+        const sessionId = this.createCardSession(kiosk_id, card_id);
+        
         // Get available lockers for selection
         const availableLockers = await this.lockerStateManager.getAvailableLockers(kiosk_id);
         
@@ -141,6 +148,7 @@ export class UiController {
 
         return {
           action: 'show_lockers',
+          session_id: sessionId,
           lockers: availableLockers.map(locker => ({
             id: locker.id,
             status: locker.status
@@ -204,16 +212,26 @@ export class UiController {
 
   private async selectLocker(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { locker_id, kiosk_id } = request.body as { locker_id: number; kiosk_id: string };
+      const { locker_id, kiosk_id, session_id } = request.body as { 
+        locker_id: number; 
+        kiosk_id: string; 
+        session_id?: string 
+      };
       
       if (!locker_id || !kiosk_id) {
         reply.code(400);
         return { error: 'locker_id and kiosk_id are required' };
       }
 
-      // TODO: Get the current card ID from session or context
-      // For now, we'll use a placeholder
-      const cardId = 'temp-card-id';
+      // Get card ID from session
+      const cardId = this.getCardFromSession(session_id);
+      
+      if (!cardId) {
+        reply.code(400);
+        return { error: 'Invalid or expired session. Please scan your card again.' };
+      }
+
+      console.log(`🎯 Selecting locker ${locker_id} for card ${cardId} on kiosk ${kiosk_id}`);
 
       // Assign and open the locker
       const assigned = await this.lockerStateManager.assignLocker(kiosk_id, locker_id, 'rfid', cardId);
@@ -227,6 +245,11 @@ export class UiController {
       if (opened) {
         // Update status to Owned after successful opening
         await this.lockerStateManager.confirmOwnership(kiosk_id, locker_id);
+        
+        // Clear the session after successful selection
+        this.clearCardSession(session_id);
+        
+        console.log(`✅ Locker ${locker_id} successfully assigned to card ${cardId}`);
         return { success: true, locker_id };
       } else {
         // Release the locker if opening failed
@@ -364,5 +387,72 @@ export class UiController {
     };
     
     console.log('Master Action Event:', JSON.stringify(logEntry));
+  }
+
+  private createCardSession(kioskId: string, cardId: string): string {
+    // Clean up expired sessions first
+    this.cleanupExpiredSessions();
+    
+    // Create unique session ID
+    const sessionId = `${kioskId}-${cardId}-${Date.now()}`;
+    
+    // Store session
+    this.cardSessions.set(sessionId, {
+      cardId: cardId,
+      timestamp: Date.now()
+    });
+    
+    console.log(`🔑 Created session ${sessionId} for card ${cardId}`);
+    return sessionId;
+  }
+
+  private getCardFromSession(sessionId?: string): string | null {
+    if (!sessionId) {
+      console.log('❌ No session ID provided');
+      return null;
+    }
+    
+    const session = this.cardSessions.get(sessionId);
+    
+    if (!session) {
+      console.log(`❌ Session ${sessionId} not found`);
+      return null;
+    }
+    
+    // Check if session has expired
+    if (Date.now() - session.timestamp > this.sessionTimeoutMs) {
+      console.log(`⏰ Session ${sessionId} expired`);
+      this.cardSessions.delete(sessionId);
+      return null;
+    }
+    
+    console.log(`✅ Retrieved card ${session.cardId} from session ${sessionId}`);
+    return session.cardId;
+  }
+
+  private clearCardSession(sessionId?: string): void {
+    if (sessionId && this.cardSessions.has(sessionId)) {
+      this.cardSessions.delete(sessionId);
+      console.log(`🗑️ Cleared session ${sessionId}`);
+    }
+  }
+
+  private cleanupExpiredSessions(): void {
+    const now = Date.now();
+    const expiredSessions: string[] = [];
+    
+    for (const [sessionId, session] of this.cardSessions.entries()) {
+      if (now - session.timestamp > this.sessionTimeoutMs) {
+        expiredSessions.push(sessionId);
+      }
+    }
+    
+    expiredSessions.forEach(sessionId => {
+      this.cardSessions.delete(sessionId);
+    });
+    
+    if (expiredSessions.length > 0) {
+      console.log(`🧹 Cleaned up ${expiredSessions.length} expired sessions`);
+    }
   }
 }
