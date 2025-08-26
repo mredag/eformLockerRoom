@@ -7,7 +7,7 @@ console.log('🚀 Starting eForm Locker System...\n');
 
 const services = [
   { name: 'Gateway', command: 'npm', args: ['run', 'start:gateway'], port: 3000 },
-  { name: 'Panel', command: 'npm', args: ['run', 'start:panel'], port: 3001 },
+  { name: 'Panel', command: 'npm', args: ['run', 'start:panel'], port: 3003 },
   { name: 'Kiosk', command: 'npm', args: ['run', 'start:kiosk'], port: 3002 }
 ];
 
@@ -58,7 +58,7 @@ services.forEach(service => {
 console.log('\n✅ All services started!');
 console.log('📊 Access points:');
 console.log('   • Gateway: http://localhost:3000');
-console.log('   • Panel:   http://localhost:3001');
+console.log('   • Panel:   http://localhost:3003');
 console.log('   • Kiosk:   http://localhost:3002');
 console.log('\n💡 Press Ctrl+C to stop all services\n');
 
