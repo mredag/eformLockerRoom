@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔌 Röle Kontrolü - Eform Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .nav {
+            background: #f8f9fa;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .nav a {
+            color: #495057;
+            text-decoration: none;
+            margin-right: 2rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav a:hover {
+            color: #667eea;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .status-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .status-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+
+        .status-item.connected {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+
+        .status-item.disconnected {
+            border-color: #dc3545;
+            background: #fff8f8;
+        }
+
+        .control-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 0.5rem;
+        }
+
+        .test-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .test-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .test-card h3 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .test-card p {
+            color: #666;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            margin: 0.25rem;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .relay-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .relay-button {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .relay-button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .relay-button.active {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+
+        .bulk-controls {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .bulk-form {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .log-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+
+        .log-output {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        @media (max-width: 768px) {
+            .bulk-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .relay-grid {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔌 Röle Kontrolü</h1>
+            <p>Donanım röle kartlarını doğrudan kontrol edin</p>
+        </div>
+
+        <div class="nav">
+            <a href="/dashboard">🏠 Ana Sayfa</a>
+            <a href="/lockers">🔒 Kilitler</a>
+            <a href="/vip">⭐ VIP</a>
+            <a href="/relay" style="color: #667eea;">🔌 Röle Kontrolü</a>
+            <a href="/config">⚙️ Ayarlar</a>
+        </div>
+
+        <div class="content">
+            <!-- Status Section -->
+            <div class="status-section">
+                <h2 class="section-title">📊 Sistem Durumu</h2>
+                <div class="status-grid">
+                    <div class="status-item" id="connection-status">
+                        <h4>Bağlantı</h4>
+                        <p id="connection-text">Kontrol ediliyor...</p>
+                    </div>
+                    <div class="status-item">
+                        <h4>Port</h4>
+                        <p id="port-text">/dev/ttyUSB0</p>
+                    </div>
+                    <div class="status-item">
+                        <h4>Baud Rate</h4>
+                        <p id="baudrate-text">9600</p>
+                    </div>
+                    <div class="status-item">
+                        <h4>Son Test</h4>
+                        <p id="last-test-text">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Controls -->
+            <div class="control-section">
+                <h2 class="section-title">🧪 Hızlı Testler</h2>
+                <div class="test-controls">
+                    <div class="test-card">
+                        <h3>🔗 Bağlantı Testi</h3>
+                        <p>Modbus bağlantısını test edin</p>
+                        <button class="btn btn-primary" onclick="testConnection()">Bağlantıyı Test Et</button>
+                    </div>
+                    <div class="test-card">
+                        <h3>🔌 Tek Röle Testi</h3>
+                        <p>Röle 1'i test edin</p>
+                        <button class="btn btn-success" onclick="testSingleRelay()">Röle 1 Test</button>
+                    </div>
+                    <div class="test-card">
+                        <h3>🎯 Sıralı Test</h3>
+                        <p>Röle 1-3 sıralı test</p>
+                        <button class="btn btn-warning" onclick="testSequence()">Sıralı Test</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Relay Controls -->
+            <div class="control-section">
+                <h2 class="section-title">🎛️ Tekil Röle Kontrolü</h2>
+                <div class="relay-grid" id="relay-grid">
+                    <!-- Relay buttons will be generated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Bulk Controls -->
+            <div class="control-section">
+                <h2 class="section-title">📦 Toplu Röle Kontrolü</h2>
+                <div class="bulk-controls">
+                    <div class="bulk-form">
+                        <div class="form-group">
+                            <label for="relay-range">Röle Aralığı (örn: 1,2,3 veya 1-5)</label>
+                            <input type="text" id="relay-range" placeholder="1,2,3 veya 1-5" value="1,2,3">
+                        </div>
+                        <div class="form-group">
+                            <label for="interval">Aralık (ms)</label>
+                            <input type="number" id="interval" min="100" max="5000" value="1000">
+                        </div>
+                        <button class="btn btn-primary" onclick="activateBulkRelays()">Toplu Aktivasyon</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Log Section -->
+            <div class="control-section">
+                <h2 class="section-title">📝 İşlem Günlüğü</h2>
+                <div class="log-section">
+                    <div class="log-output" id="log-output">Röle kontrolü hazır. Test başlatmak için yukarıdaki butonları kullanın.\n</div>
+                    <button class="btn btn-danger" onclick="clearLog()" style="margin-top: 1rem;">Günlüğü Temizle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedRelays = new Set();
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            generateRelayGrid();
+            checkStatus();
+        });
+
+        function generateRelayGrid() {
+            const grid = document.getElementById('relay-grid');
+            grid.innerHTML = '';
+            
+            for (let i = 1; i <= 30; i++) {
+                const button = document.createElement('div');
+                button.className = 'relay-button';
+                button.innerHTML = `<div>Röle ${i}</div>`;
+                button.onclick = () => toggleRelay(i, button);
+                grid.appendChild(button);
+            }
+        }
+
+        function toggleRelay(relayNumber, button) {
+            if (selectedRelays.has(relayNumber)) {
+                selectedRelays.delete(relayNumber);
+                button.classList.remove('active');
+            } else {
+                selectedRelays.add(relayNumber);
+                button.classList.add('active');
+            }
+            
+            // Update relay range input
+            const rangeInput = document.getElementById('relay-range');
+            rangeInput.value = Array.from(selectedRelays).sort((a, b) => a - b).join(',');
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/relay/status');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('connection-status');
+                const textElement = document.getElementById('connection-text');
+                
+                if (data.success && data.status.connected) {
+                    statusElement.className = 'status-item connected';
+                    textElement.textContent = '✅ Bağlı';
+                } else {
+                    statusElement.className = 'status-item disconnected';
+                    textElement.textContent = '❌ Bağlantısız';
+                }
+                
+                if (data.status && data.status.config) {
+                    document.getElementById('port-text').textContent = data.status.config.port;
+                    document.getElementById('baudrate-text').textContent = data.status.config.baudRate;
+                }
+                
+            } catch (error) {
+                log('❌ Durum kontrolü hatası: ' + error.message, 'error');
+            }
+        }
+
+        async function testConnection() {
+            log('🔗 Bağlantı testi başlatılıyor...', 'info');
+            
+            try {
+                const response = await fetch('/api/relay/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test_type: 'connection' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('✅ Bağlantı testi başarılı!', 'success');
+                    document.getElementById('last-test-text').textContent = 'Bağlantı ✅';
+                } else {
+                    log('❌ Bağlantı testi başarısız: ' + data.message, 'error');
+                }
+                
+                checkStatus();
+            } catch (error) {
+                log('❌ Bağlantı testi hatası: ' + error.message, 'error');
+            }
+        }
+
+        async function testSingleRelay() {
+            log('🔌 Tek röle testi başlatılıyor (Röle 1)...', 'info');
+            
+            try {
+                const response = await fetch('/api/relay/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        test_type: 'single',
+                        relay_numbers: [1]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('✅ Röle 1 testi başarılı! Röle tıklamasını duydunuz mu?', 'success');
+                    document.getElementById('last-test-text').textContent = 'Röle 1 ✅';
+                } else {
+                    log('❌ Röle 1 testi başarısız: ' + data.message, 'error');
+                }
+                
+            } catch (error) {
+                log('❌ Röle testi hatası: ' + error.message, 'error');
+            }
+        }
+
+        async function testSequence() {
+            log('🎯 Sıralı test başlatılıyor (Röle 1-3)...', 'info');
+            
+            try {
+                const response = await fetch('/api/relay/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        test_type: 'sequence',
+                        relay_numbers: [1, 2, 3]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('✅ Sıralı test başarılı! 3 röle tıklamasını duydunuz mu?', 'success');
+                    log(`📊 Sonuçlar: ${data.results.success.length} başarılı, ${data.results.failed.length} başarısız`, 'info');
+                    document.getElementById('last-test-text').textContent = 'Sıralı ✅';
+                } else {
+                    log('❌ Sıralı test başarısız: ' + data.message, 'error');
+                }
+                
+            } catch (error) {
+                log('❌ Sıralı test hatası: ' + error.message, 'error');
+            }
+        }
+
+        async function activateBulkRelays() {
+            const rangeInput = document.getElementById('relay-range').value;
+            const interval = parseInt(document.getElementById('interval').value);
+            
+            if (!rangeInput.trim()) {
+                log('❌ Lütfen röle aralığı girin', 'error');
+                return;
+            }
+            
+            const relayNumbers = parseRelayRange(rangeInput);
+            if (relayNumbers.length === 0) {
+                log('❌ Geçersiz röle aralığı', 'error');
+                return;
+            }
+            
+            log(`📦 Toplu aktivasyon başlatılıyor: ${relayNumbers.join(', ')} (${interval}ms aralık)`, 'info');
+            
+            try {
+                const response = await fetch('/api/relay/activate-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        relay_numbers: relayNumbers,
+                        interval_ms: interval,
+                        staff_user: 'admin',
+                        reason: 'Manuel test'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    log(`✅ Toplu aktivasyon tamamlandı!`, 'success');
+                    log(`📊 ${data.results.success.length} başarılı, ${data.results.failed.length} başarısız`, 'info');
+                    
+                    if (data.results.failed.length > 0) {
+                        log(`❌ Başarısız röleler: ${data.results.failed.join(', ')}`, 'warning');
+                    }
+                } else {
+                    log('❌ Toplu aktivasyon başarısız: ' + data.message, 'error');
+                }
+                
+            } catch (error) {
+                log('❌ Toplu aktivasyon hatası: ' + error.message, 'error');
+            }
+        }
+
+        function parseRelayRange(input) {
+            const relays = [];
+            const parts = input.split(',');
+            
+            for (const part of parts) {
+                const trimmed = part.trim();
+                
+                if (trimmed.includes('-')) {
+                    // Range like "1-5"
+                    const [start, end] = trimmed.split('-').map(n => parseInt(n.trim()));
+                    if (start && end && start <= end && start >= 1 && end <= 30) {
+                        for (let i = start; i <= end; i++) {
+                            relays.push(i);
+                        }
+                    }
+                } else {
+                    // Single number
+                    const num = parseInt(trimmed);
+                    if (num >= 1 && num <= 30) {
+                        relays.push(num);
+                    }
+                }
+            }
+            
+            // Remove duplicates and sort
+            return [...new Set(relays)].sort((a, b) => a - b);
+        }
+
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+            
+            logOutput.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log-output').textContent = 'Günlük temizlendi.\n';
+        }
+
+        // Auto-refresh status every 30 seconds
+        setInterval(checkStatus, 30000);
+    </script>
+</body>
+</html>

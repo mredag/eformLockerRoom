@@ -178,6 +178,10 @@ async function startPanelService() {
       auditLogger,
     });
 
+    // Register relay control routes
+    const { registerRelayRoutes } = await import('./routes/relay-routes.js');
+    await registerRelayRoutes(fastify);
+
     // Proxy heartbeat requests to Gateway service
     fastify.register(async function (fastify) {
       // Proxy all heartbeat routes
@@ -272,6 +276,11 @@ async function startPanelService() {
     // Lockers route
     fastify.get("/lockers", async (_request, reply) => {
       return reply.sendFile("lockers.html");
+    });
+
+    // Relay control route
+    fastify.get("/relay", async (_request, reply) => {
+      return reply.sendFile("relay.html");
     });
 
     // Configuration route
