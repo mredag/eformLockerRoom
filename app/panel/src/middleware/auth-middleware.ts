@@ -79,6 +79,7 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         request.url.startsWith('/api/i18n/') ||
         request.url === '/api/relay/test' ||
         request.url === '/api/relay/status' ||
+        request.url === '/api/relay/activate' ||
         request.url.endsWith('.css') ||
         request.url.endsWith('.js') ||
         request.url.endsWith('.ico')) {
