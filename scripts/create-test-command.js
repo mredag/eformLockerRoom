@@ -8,7 +8,7 @@ console.log('========================');
 
 async function createTestCommand() {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database('./data/eform_locker.db', (err) => {
+    const db = new sqlite3.Database('./data/eform.db', (err) => {
       if (err) {
         console.error('❌ Error opening database:', err.message);
         reject(err);
