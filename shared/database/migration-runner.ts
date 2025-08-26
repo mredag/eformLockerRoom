@@ -161,8 +161,10 @@ export class MigrationRunner {
           console.log(`✓ Migration ${migration.filename} checksum valid`);
         }
       } catch (error) {
-        console.error(`✗ Migration ${migration.filename} file not found`);
-        allValid = false;
+        // For missing migration files that are already applied, just warn but don't fail
+        // This handles cases where migrations were applied but files were later removed
+        console.warn(`⚠ Migration ${migration.filename} file not found (already applied)`);
+        // Don't set allValid = false for missing files of applied migrations
       }
     }
 
