@@ -4,7 +4,133 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { getRelayService } from '../../../shared/services/relay-service.js';
+
+// Direct ModbusRTU implementation to avoid build complexity
+const ModbusRTU = require('modbus-serial');
+
+class SimpleRelayService {
+  private client: any;
+  private isConnected: boolean = false;
+  private config = {
+    port: '/dev/ttyUSB0',
+    baudRate: 9600,
+    slaveId: 1,
+    timeout: 2000,
+    pulseDuration: 400
+  };
+
+  constructor() {
+    this.client = new ModbusRTU();
+  }
+
+  async connect(): Promise<void> {
+    if (this.isConnected) return;
+
+    try {
+      await this.client.connectRTUBuffered(this.config.port, { 
+        baudRate: this.config.baudRate 
+      });
+      this.client.setID(this.config.slaveId);
+      this.client.setTimeout(this.config.timeout);
+      this.isConnected = true;
+      console.log(`✅ Relay service connected to ${this.config.port}`);
+    } catch (error) {
+      console.error('❌ Failed to connect to relay hardware:', error.message);
+      throw new Error(`Relay connection failed: ${error.message}`);
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.isConnected && this.client) {
+      this.client.close();
+      this.isConnected = false;
+      console.log('🔌 Relay service disconnected');
+    }
+  }
+
+  async activateRelay(relayNumber: number): Promise<boolean> {
+    if (!this.isConnected) {
+      await this.connect();
+    }
+
+    try {
+      const coilAddress = relayNumber - 1;
+      console.log(`🔌 Activating relay ${relayNumber} (coil ${coilAddress})`);
+      
+      await this.client.writeCoil(coilAddress, true);
+      await new Promise(resolve => setTimeout(resolve, this.config.pulseDuration));
+      await this.client.writeCoil(coilAddress, false);
+      
+      console.log(`✅ Relay ${relayNumber} activated successfully`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to activate relay ${relayNumber}:`, error.message);
+      return false;
+    }
+  }
+
+  async activateMultipleRelays(relayNumbers: number[], intervalMs: number = 1000): Promise<{ success: number[], failed: number[] }> {
+    const results = { success: [], failed: [] };
+    
+    if (!this.isConnected) {
+      await this.connect();
+    }
+
+    console.log(`🔌 Activating ${relayNumbers.length} relays with ${intervalMs}ms intervals`);
+    
+    for (let i = 0; i < relayNumbers.length; i++) {
+      const relayNumber = relayNumbers[i];
+      
+      try {
+        const success = await this.activateRelay(relayNumber);
+        if (success) {
+          results.success.push(relayNumber);
+        } else {
+          results.failed.push(relayNumber);
+        }
+        
+        if (i < relayNumbers.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+      } catch (error) {
+        console.error(`❌ Error activating relay ${relayNumber}:`, error.message);
+        results.failed.push(relayNumber);
+      }
+    }
+    
+    console.log(`✅ Bulk activation complete: ${results.success.length} success, ${results.failed.length} failed`);
+    return results;
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      await this.connect();
+      console.log('✅ Relay service connection test passed');
+      return true;
+    } catch (error) {
+      console.error('❌ Relay service connection test failed:', error.message);
+      return false;
+    }
+  }
+
+  getConfig() {
+    return { ...this.config };
+  }
+
+  isReady(): boolean {
+    return this.isConnected;
+  }
+}
+
+// Singleton instance
+let relayService: SimpleRelayService | null = null;
+
+function getRelayService(): SimpleRelayService {
+  if (!relayService) {
+    relayService = new SimpleRelayService();
+  }
+  return relayService;
+}
 
 interface RelayActivationRequest {
   Body: {
