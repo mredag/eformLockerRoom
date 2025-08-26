@@ -179,8 +179,13 @@ async function startPanelService() {
     });
 
     // Register relay control routes
-    const { registerRelayRoutes } = await import('./routes/relay-routes.js');
-    await registerRelayRoutes(fastify);
+    try {
+      const { registerRelayRoutes } = await import('./routes/relay-routes');
+      await registerRelayRoutes(fastify);
+      console.log('✅ Relay routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register relay routes:', error);
+    }
 
     // Proxy heartbeat requests to Gateway service
     fastify.register(async function (fastify) {

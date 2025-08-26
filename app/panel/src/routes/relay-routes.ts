@@ -30,7 +30,9 @@ class SimpleRelayService {
       // Check if Kiosk service is using the port first
       const kioskRunning = await this.isKioskServiceRunning();
       if (kioskRunning) {
-        throw new Error(`Port ${this.config.port} is in use by Kiosk service. Direct relay control disabled. Use queue-based commands instead.`);
+        console.log('🔄 Kiosk service detected - using Gateway API instead of direct hardware');
+        this.isConnected = true; // Mark as "connected" but we'll use API calls
+        return;
       }
 
       // Use SerialPort directly (same as working Kiosk method)
@@ -138,17 +140,55 @@ class SimpleRelayService {
     });
   }
 
+  // Use Gateway API when Kiosk service is running
+  private async activateRelayViaAPI(relayNumber: number): Promise<boolean> {
+    try {
+      console.log(`🌐 Using Gateway API for relay ${relayNumber} (Kiosk service active)`);
+      
+      const gatewayUrl = process.env.GATEWAY_URL || 'http://127.0.0.1:3000';
+      const response = await fetch(`${gatewayUrl}/api/admin/lockers/${relayNumber}/open`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          staff_user: 'panel-direct',
+          reason: 'Direct relay activation via Panel'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Gateway API success for relay ${relayNumber}:`, data.message);
+        return true;
+      } else {
+        const error = await response.text();
+        console.error(`❌ Gateway API failed for relay ${relayNumber}:`, error);
+        return false;
+      }
+    } catch (error) {
+      console.error(`❌ Gateway API error for relay ${relayNumber}:`, error.message);
+      return false;
+    }
+  }
+
   async activateRelay(relayNumber: number): Promise<boolean> {
     if (!this.isConnected) {
       await this.connect();
     }
 
-    // Map locker ID to card and relay using the same formula as ModbusController
+    // Check if we should use API instead of direct hardware
+    const kioskRunning = await this.isKioskServiceRunning();
+    if (kioskRunning) {
+      return await this.activateRelayViaAPI(relayNumber);
+    }
+
+    // Direct hardware access (when Kiosk service is not running)
     const cardId = Math.ceil(relayNumber / 16);
     const relayId = ((relayNumber - 1) % 16) + 1;
     const coilAddress = relayId - 1;
     
-    console.log(`🔌 Activating locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
+    console.log(`🔌 Direct hardware activation: locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
     console.log(`🔄 Using WORKING software pulse method (same as Kiosk fix)`);
     
     try {
