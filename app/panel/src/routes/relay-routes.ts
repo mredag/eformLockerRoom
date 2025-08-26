@@ -5,47 +5,58 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
-// Direct ModbusRTU implementation to avoid build complexity
-const ModbusRTU = require('modbus-serial');
+// Use SerialPort with working commands (same as Kiosk fix)
+const { SerialPort } = require('serialport');
 
 class SimpleRelayService {
-  private client: any;
+  private serialPort: any;
   private isConnected: boolean = false;
   private config = {
     port: '/dev/ttyUSB0',
     baudRate: 9600,
     slaveId: 1,
     timeout: 2000,
-    pulseDuration: 400
+    pulseDuration: 500
   };
 
   constructor() {
-    this.client = new ModbusRTU();
+    this.serialPort = null;
   }
 
   async connect(): Promise<void> {
     if (this.isConnected) return;
 
     try {
-      // Try to connect to the port first
-      await this.client.connectRTUBuffered(this.config.port, { 
-        baudRate: this.config.baudRate 
+      // Check if Kiosk service is using the port first
+      const kioskRunning = await this.isKioskServiceRunning();
+      if (kioskRunning) {
+        throw new Error(`Port ${this.config.port} is in use by Kiosk service. Direct relay control disabled. Use queue-based commands instead.`);
+      }
+
+      // Use SerialPort directly (same as working Kiosk method)
+      this.serialPort = new SerialPort({
+        path: this.config.port,
+        baudRate: this.config.baudRate,
+        dataBits: 8,
+        parity: 'none',
+        stopBits: 1,
+        autoOpen: false
       });
-      this.client.setID(this.config.slaveId);
-      this.client.setTimeout(this.config.timeout);
+
+      await new Promise<void>((resolve, reject) => {
+        this.serialPort.open((err: any) => {
+          if (err) {
+            reject(new Error(`Failed to open relay port: ${err.message}`));
+          } else {
+            resolve();
+          }
+        });
+      });
+
       this.isConnected = true;
       console.log(`✅ Relay service connected to ${this.config.port}`);
     } catch (error) {
       console.error('❌ Failed to connect to relay hardware:', error.message);
-      
-      // Check if this might be due to Kiosk service using the port
-      const kioskRunning = await this.isKioskServiceRunning();
-      if (kioskRunning && (error.message.includes('Resource temporarily unavailable') || 
-                          error.message.includes('Cannot lock port') ||
-                          error.message.includes('EBUSY'))) {
-        throw new Error(`Port ${this.config.port} is in use by Kiosk service. Direct relay control disabled. Use queue-based commands instead.`);
-      }
-      
       throw new Error(`Relay connection failed: ${error.message}`);
     }
   }
@@ -69,11 +80,62 @@ class SimpleRelayService {
   }
 
   async disconnect(): Promise<void> {
-    if (this.isConnected && this.client) {
-      this.client.close();
+    if (this.isConnected && this.serialPort) {
+      this.serialPort.close();
       this.isConnected = false;
       console.log('🔌 Relay service disconnected');
     }
+  }
+
+  // CRC16 calculation (same as working Kiosk method)
+  private calculateCRC16(data: Buffer): number {
+    let crc = 0xFFFF;
+    
+    for (let i = 0; i < data.length; i++) {
+      crc ^= data[i];
+      
+      for (let j = 0; j < 8; j++) {
+        if (crc & 0x0001) {
+          crc = (crc >> 1) ^ 0xA001;
+        } else {
+          crc = crc >> 1;
+        }
+      }
+    }
+    
+    return crc;
+  }
+
+  // Build basic ON/OFF command (same as working Kiosk method)
+  private buildModbusCommand(slaveId: number, functionCode: number, startAddress: number, value: number): Buffer {
+    const buffer = Buffer.alloc(8);
+    
+    buffer[0] = slaveId;
+    buffer[1] = functionCode;
+    buffer[2] = (startAddress >> 8) & 0xFF;  // Start address high
+    buffer[3] = startAddress & 0xFF;         // Start address low
+    buffer[4] = (value >> 8) & 0xFF;         // Value high
+    buffer[5] = value & 0xFF;                // Value low
+    
+    // Calculate CRC16 using the SAME method as working Kiosk
+    const crc = this.calculateCRC16(buffer.subarray(0, 6));
+    buffer[6] = crc & 0xFF;                  // CRC low byte
+    buffer[7] = (crc >> 8) & 0xFF;           // CRC high byte
+    
+    return buffer;
+  }
+
+  // Send command to hardware
+  private async writeCommand(command: Buffer): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.serialPort.write(command, (err: any) => {
+        if (err) {
+          reject(new Error(`Write failed: ${err.message}`));
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   async activateRelay(relayNumber: number): Promise<boolean> {
@@ -87,40 +149,28 @@ class SimpleRelayService {
     const coilAddress = relayId - 1;
     
     console.log(`🔌 Activating locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
-    
-    let relayTurnedOn = false;
+    console.log(`🔄 Using WORKING software pulse method (same as Kiosk fix)`);
     
     try {
-      // Set slave address for the correct card
-      this.client.setID(cardId);
+      // Use the SAME working method as Kiosk: basic ON/OFF commands (0x05)
+      const turnOnCommand = this.buildModbusCommand(cardId, 0x05, coilAddress, 0xFF00);
+      console.log(`📡 ON command: ${turnOnCommand.toString('hex').toUpperCase()}`);
       
-      // CRITICAL: Always turn relay OFF first to ensure clean state
-      await this.client.writeCoil(coilAddress, false);
-      await new Promise(resolve => setTimeout(resolve, 50)); // Small delay
-      
-      // Turn relay ON
-      await this.client.writeCoil(coilAddress, true);
-      relayTurnedOn = true;
+      await this.writeCommand(turnOnCommand);
       console.log(`🔌 Relay ${relayNumber} turned ON`);
       
       // Wait for pulse duration
       await new Promise(resolve => setTimeout(resolve, this.config.pulseDuration));
       
+      const turnOffCommand = this.buildModbusCommand(cardId, 0x05, coilAddress, 0x0000);
+      console.log(`📡 OFF command: ${turnOffCommand.toString('hex').toUpperCase()}`);
+      
+      await this.writeCommand(turnOffCommand);
+      console.log(`🔌 Relay ${relayNumber} turned OFF (safety)`);
+      
     } catch (error) {
       console.error(`❌ Error during relay ${relayNumber} activation:`, error.message);
-    } finally {
-      // CRITICAL: ALWAYS turn relay OFF in finally block (only if we turned it on)
-      if (relayTurnedOn) {
-        try {
-          this.client.setID(cardId);
-          await this.client.writeCoil(coilAddress, false);
-          console.log(`🔌 Relay ${relayNumber} turned OFF (safety)`);
-        } catch (offError) {
-          console.error(`❌ CRITICAL: Failed to turn OFF relay ${relayNumber}:`, offError.message);
-          console.error(`⚠️  RELAY ${relayNumber} MAY BE STUCK ON! Manual reset required.`);
-          return false;
-        }
-      }
+      return false;
     }
     
     console.log(`✅ Locker ${relayNumber} activated successfully (Card ${cardId}, Relay ${relayId})`);
