@@ -27,12 +27,7 @@ class SimpleRelayService {
     if (this.isConnected) return;
 
     try {
-      // Check if Kiosk service is using the port
-      const kioskRunning = await this.isKioskServiceRunning();
-      if (kioskRunning) {
-        throw new Error(`Port ${this.config.port} is in use by Kiosk service. Direct relay control disabled. Use queue-based commands instead.`);
-      }
-      
+      // Try to connect to the port first
       await this.client.connectRTUBuffered(this.config.port, { 
         baudRate: this.config.baudRate 
       });
@@ -42,6 +37,15 @@ class SimpleRelayService {
       console.log(`✅ Relay service connected to ${this.config.port}`);
     } catch (error) {
       console.error('❌ Failed to connect to relay hardware:', error.message);
+      
+      // Check if this might be due to Kiosk service using the port
+      const kioskRunning = await this.isKioskServiceRunning();
+      if (kioskRunning && (error.message.includes('Resource temporarily unavailable') || 
+                          error.message.includes('Cannot lock port') ||
+                          error.message.includes('EBUSY'))) {
+        throw new Error(`Port ${this.config.port} is in use by Kiosk service. Direct relay control disabled. Use queue-based commands instead.`);
+      }
+      
       throw new Error(`Relay connection failed: ${error.message}`);
     }
   }
@@ -52,10 +56,16 @@ class SimpleRelayService {
         method: 'GET',
         signal: AbortSignal.timeout(1000)
       });
-      return response.ok;
+      
+      if (response.ok) {
+        console.log('🔍 Kiosk service detected - port conflict likely');
+        return true;
+      }
     } catch (error) {
-      return false;
+      // Kiosk not responding, probably not running
     }
+    
+    return false;
   }
 
   async disconnect(): Promise<void> {
