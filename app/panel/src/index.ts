@@ -1,3 +1,12 @@
+// Ensure EFORM_DB_PATH is set before any database imports
+if (!process.env.EFORM_DB_PATH) {
+  const path = require('path');
+  // Resolve to project root from app/panel/src/
+  const projectRoot = path.resolve(__dirname, '../../..');
+  process.env.EFORM_DB_PATH = path.join(projectRoot, 'data', 'eform.db');
+  console.log(`🔧 Panel: Set EFORM_DB_PATH to ${process.env.EFORM_DB_PATH}`);
+}
+
 import Fastify from "fastify";
 import { DatabaseManager } from "../../../shared/database/database-manager";
 import { AuthService } from "./services/auth-service";

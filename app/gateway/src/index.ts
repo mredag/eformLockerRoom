@@ -1,3 +1,12 @@
+// Ensure EFORM_DB_PATH is set before any database imports
+if (!process.env.EFORM_DB_PATH) {
+  const path = require('path');
+  // Resolve to project root from app/gateway/src/
+  const projectRoot = path.resolve(__dirname, '../../..');
+  process.env.EFORM_DB_PATH = path.join(projectRoot, 'data', 'eform.db');
+  console.log(`🔧 Gateway: Set EFORM_DB_PATH to ${process.env.EFORM_DB_PATH}`);
+}
+
 import Fastify from "fastify";
 import { DatabaseManager } from "../../../shared/database/database-manager.js";
 import { provisioningRoutes } from "./routes/provisioning.js";
@@ -9,9 +18,13 @@ const fastify = Fastify({
   logger: true,
 });
 
-// Ensure data directory exists
+// Ensure project root data directory exists (not local ./data)
 try {
-  mkdirSync("./data", { recursive: true });
+  const path = require('path');
+  const projectRoot = path.resolve(__dirname, '../../..');
+  const dataDir = path.join(projectRoot, 'data');
+  mkdirSync(dataDir, { recursive: true });
+  console.log(`📁 Gateway: Ensured data directory exists at ${dataDir}`);
 } catch (error) {
   // Directory might already exist
 }
