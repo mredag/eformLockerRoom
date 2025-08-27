@@ -1038,11 +1038,26 @@ class SimpleKioskApp {
      */
     getStatusText(status) {
         switch (status) {
+            // Normalized UI status values
             case 'available': return 'BOŞ';
             case 'occupied': return 'DOLU';
             case 'disabled': return 'KAPALI';
             case 'opening': return 'AÇILIYOR';
             case 'error': return 'HATA';
+            
+            // Fallback for database status values (should not occur with normalization)
+            case 'Free':
+            case 'Boş': return 'BOŞ';
+            case 'Dolu':
+            case 'Occupied': return 'DOLU';
+            case 'Engelli':
+            case 'Disabled':
+            case 'Blocked': return 'KAPALI';
+            case 'Açılıyor':
+            case 'Opening': return 'AÇILIYOR';
+            case 'Hata':
+            case 'Error': return 'HATA';
+            
             default: return 'BİLİNMİYOR';
         }
     }

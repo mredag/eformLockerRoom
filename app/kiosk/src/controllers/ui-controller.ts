@@ -286,7 +286,7 @@ export class UiController {
       return {
         lockers: lockers.map(locker => ({
           id: locker.id,
-          status: locker.status,
+          status: this.normalizeStatusForUI(locker.status),
           displayName: `Dolap ${locker.id}`,
           is_vip: locker.is_vip
         })),
@@ -314,7 +314,7 @@ export class UiController {
       
       return lockers.map(locker => ({
         id: locker.id,
-        status: locker.status,
+        status: this.normalizeStatusForUI(locker.status),
         is_vip: locker.is_vip,
         owner_type: locker.owner_type,
         owned_at: locker.owned_at
@@ -1243,6 +1243,33 @@ export class UiController {
         error: 'server_error',
         message: 'Donanım durumu alınamadı'
       };
+    }
+  }
+
+  /**
+   * Normalize database status values to UI-friendly status values
+   */
+  private normalizeStatusForUI(dbStatus: string): string {
+    switch (dbStatus) {
+      case 'Free':
+      case 'Boş':
+        return 'available';
+      case 'Dolu':
+      case 'Occupied':
+        return 'occupied';
+      case 'Engelli':
+      case 'Disabled':
+      case 'Blocked':
+        return 'disabled';
+      case 'Açılıyor':
+      case 'Opening':
+        return 'opening';
+      case 'Hata':
+      case 'Error':
+        return 'error';
+      default:
+        console.warn(`Unknown status: ${dbStatus}, defaulting to 'error'`);
+        return 'error';
     }
   }
 
