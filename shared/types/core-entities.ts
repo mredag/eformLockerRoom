@@ -7,7 +7,7 @@
 // LOCKER ENTITIES
 // ============================================================================
 
-export type LockerStatus = 'Boş' | 'Dolu' | 'Açılıyor' | 'Hata' | 'Engelli';
+export type LockerStatus = 'Free' | 'Owned' | 'Opening' | 'Error' | 'Blocked';
 export type OwnerType = 'rfid' | 'device' | 'vip';
 
 export interface Locker {
