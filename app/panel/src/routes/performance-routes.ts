@@ -19,7 +19,8 @@ interface LockerStatsQuery {
 
 export async function performanceRoutes(fastify: FastifyInstance) {
   const dbManager = DatabaseManager.getInstance();
-  const db = dbManager.getConnection();
+  const dbConnection = dbManager.getConnection();
+  const db = dbConnection.getDatabase();
   const performanceMonitor = new PerformanceMonitor(db);
   
   // Initialize performance monitoring
