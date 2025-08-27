@@ -12,6 +12,27 @@ class KioskApp {
         this.availableLockers = [];
         this.allLockers = [];
         this.currentSessionId = null; // Track current RFID session
+        this.sessionCountdownTimer = null; // Track countdown timer
+        this.sessionTimeoutSeconds = 20; // Default session timeout
+        
+        // Connection monitoring - Task 8
+        this.connectionStatus = 'online';
+        this.lastUpdateTime = new Date();
+        this.connectionCheckInterval = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
+        
+        // WebSocket connection for real-time updates - Task 12
+        this.websocket = null;
+        this.wsReconnectAttempts = 0;
+        this.maxWsReconnectAttempts = 10;
+        this.wsReconnectDelay = 1000; // Start with 1 second
+        this.wsMaxReconnectDelay = 30000; // Max 30 seconds
+        
+        // Audio feedback system
+        this.audioContext = null;
+        this.audioEnabled = true;
+        this.initAudioSystem();
         
         this.init();
     }
@@ -23,16 +44,565 @@ class KioskApp {
         this.loadKioskInfo();
         this.checkPinLockout();
         
+        // Initialize background grid for always-visible locker status
+        this.renderBackgroundGrid();
+        
         // Show main screen initially
         this.showScreen('main-screen');
         
+        // Check for active session on startup
+        this.checkActiveSession();
+        
         // Start polling for RFID events and locker updates
         this.startPolling();
+        
+        // Initialize connection monitoring - Task 8
+        this.initConnectionMonitoring();
+        
+        // Initialize WebSocket connection for real-time updates - Task 12
+        this.initWebSocketConnection();
+        
+        // Setup cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            this.cleanup();
+        });
+    }
+
+    /**
+     * Initialize audio feedback system
+     */
+    initAudioSystem() {
+        try {
+            // Initialize Web Audio API
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('🔊 Audio system initialized');
+        } catch (error) {
+            console.warn('⚠️ Audio system not available:', error);
+            this.audioEnabled = false;
+        }
+    }
+
+    /**
+     * Play audio feedback based on type
+     */
+    playAudioFeedback(type, volume = 0.7) {
+        if (!this.audioEnabled || !this.audioContext) return;
+
+        try {
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            // Set volume
+            gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.5);
+            
+            // Set frequency and duration based on feedback type
+            switch (type) {
+                case 'success':
+                    // Pleasant ascending tone
+                    oscillator.frequency.setValueAtTime(523, this.audioContext.currentTime); // C5
+                    oscillator.frequency.exponentialRampToValueAtTime(659, this.audioContext.currentTime + 0.1); // E5
+                    oscillator.frequency.exponentialRampToValueAtTime(784, this.audioContext.currentTime + 0.2); // G5
+                    oscillator.type = 'sine';
+                    break;
+                case 'error':
+                    // Lower warning tone
+                    oscillator.frequency.setValueAtTime(220, this.audioContext.currentTime); // A3
+                    oscillator.frequency.exponentialRampToValueAtTime(196, this.audioContext.currentTime + 0.3); // G3
+                    oscillator.type = 'square';
+                    break;
+                case 'warning':
+                    // Medium warning tone
+                    oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime); // A4
+                    oscillator.frequency.exponentialRampToValueAtTime(392, this.audioContext.currentTime + 0.2); // G4
+                    oscillator.type = 'triangle';
+                    break;
+                case 'info':
+                default:
+                    // Simple notification tone
+                    oscillator.frequency.setValueAtTime(523, this.audioContext.currentTime); // C5
+                    oscillator.type = 'sine';
+                    break;
+            }
+            
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + 0.5);
+            
+        } catch (error) {
+            console.warn('⚠️ Failed to play audio feedback:', error);
+        }
+    }
+
+    /**
+     * Initialize connection monitoring - Task 8
+     */
+    initConnectionMonitoring() {
+        // Check connection status every 10 seconds
+        this.connectionCheckInterval = setInterval(() => {
+            this.checkConnectionStatus();
+        }, 10000);
+        
+        // Initial connection check
+        this.checkConnectionStatus();
+    }
+
+    /**
+     * Check connection status by pinging health endpoint
+     */
+    async checkConnectionStatus() {
+        try {
+            const response = await fetch('/health', {
+                method: 'GET',
+                timeout: 5000
+            });
+            
+            if (response.ok) {
+                this.handleConnectionRestored();
+            } else {
+                this.handleConnectionLost();
+            }
+        } catch (error) {
+            console.warn('⚠️ Connection check failed:', error);
+            this.handleConnectionLost();
+        }
+    }
+
+    /**
+     * Handle connection lost
+     */
+    handleConnectionLost() {
+        if (this.connectionStatus === 'online') {
+            console.warn('🔌 Connection lost');
+            this.connectionStatus = 'offline';
+            this.reconnectAttempts = 0;
+            
+            // Show offline status
+            if (window.i18n) {
+                window.i18n.showConnectionStatus('offline');
+            }
+            
+            // Start reconnection attempts
+            this.startReconnectionAttempts();
+        }
+    }
+
+    /**
+     * Handle connection restored
+     */
+    handleConnectionRestored() {
+        if (this.connectionStatus !== 'online') {
+            console.log('🔌 Connection restored');
+            this.connectionStatus = 'online';
+            this.reconnectAttempts = 0;
+            this.lastUpdateTime = new Date();
+            
+            // Show reconnected status
+            if (window.i18n) {
+                window.i18n.showConnectionStatus('online');
+                window.i18n.updateLastUpdateTime(this.lastUpdateTime);
+            }
+            
+            // Refresh data after reconnection
+            this.loadAllLockers();
+        }
+    }
+
+    /**
+     * Start reconnection attempts
+     */
+    startReconnectionAttempts() {
+        if (this.connectionStatus === 'offline' && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.connectionStatus = 'reconnecting';
+            this.reconnectAttempts++;
+            
+            // Show reconnecting status
+            if (window.i18n) {
+                window.i18n.showConnectionStatus('reconnecting');
+            }
+            
+            // Try to reconnect after delay
+            setTimeout(() => {
+                this.checkConnectionStatus();
+            }, 2000 * this.reconnectAttempts); // Exponential backoff
+        }
+    }
+
+    /**
+     * Show error with recovery suggestion - Task 8
+     */
+    showErrorWithRecovery(errorType, duration = 5000) {
+        if (window.i18n) {
+            const errorInfo = window.i18n.getErrorWithRecovery(errorType);
+            window.i18n.showError(errorType, errorInfo.recovery, duration);
+            
+            // Play error audio feedback
+            this.playAudioFeedback('error');
+        }
+    }
+
+    /**
+     * Initialize WebSocket connection for real-time updates - Task 12
+     */
+    initWebSocketConnection() {
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsPort = 8080; // Default WebSocket port
+        const wsUrl = `${wsProtocol}//${window.location.hostname}:${wsPort}`;
+        
+        console.log('🔌 Initializing WebSocket connection to:', wsUrl);
+        
+        try {
+            this.websocket = new WebSocket(wsUrl);
+            
+            this.websocket.onopen = () => {
+                console.log('✅ WebSocket connected');
+                this.wsReconnectAttempts = 0;
+                this.wsReconnectDelay = 1000; // Reset delay
+                
+                // Update connection status
+                this.handleWebSocketConnected();
+            };
+            
+            this.websocket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    this.handleWebSocketMessage(message);
+                } catch (error) {
+                    console.error('🚨 Failed to parse WebSocket message:', error);
+                }
+            };
+            
+            this.websocket.onclose = (event) => {
+                console.warn('🔌 WebSocket connection closed:', event.code, event.reason);
+                this.handleWebSocketDisconnected();
+            };
+            
+            this.websocket.onerror = (error) => {
+                console.error('🚨 WebSocket error:', error);
+                this.handleWebSocketError();
+            };
+            
+        } catch (error) {
+            console.error('🚨 Failed to create WebSocket connection:', error);
+            this.scheduleWebSocketReconnect();
+        }
+    }
+
+    /**
+     * Handle WebSocket connection established
+     */
+    handleWebSocketConnected() {
+        if (window.i18n) {
+            window.i18n.showConnectionStatus('online');
+            window.i18n.updateLastUpdateTime(new Date());
+        }
+    }
+
+    /**
+     * Handle WebSocket connection lost
+     */
+    handleWebSocketDisconnected() {
+        this.websocket = null;
+        
+        if (window.i18n) {
+            window.i18n.showConnectionStatus('offline');
+        }
+        
+        // Schedule reconnection
+        this.scheduleWebSocketReconnect();
+    }
+
+    /**
+     * Handle WebSocket error
+     */
+    handleWebSocketError() {
+        if (this.websocket) {
+            this.websocket.close();
+        }
+    }
+
+    /**
+     * Schedule WebSocket reconnection with exponential backoff
+     */
+    scheduleWebSocketReconnect() {
+        if (this.wsReconnectAttempts >= this.maxWsReconnectAttempts) {
+            console.error('🚨 Max WebSocket reconnection attempts reached');
+            if (window.i18n) {
+                window.i18n.showConnectionStatus('offline');
+            }
+            return;
+        }
+        
+        this.wsReconnectAttempts++;
+        
+        if (window.i18n) {
+            window.i18n.showConnectionStatus('reconnecting');
+        }
+        
+        console.log(`🔄 Scheduling WebSocket reconnection attempt ${this.wsReconnectAttempts} in ${this.wsReconnectDelay}ms`);
+        
+        setTimeout(() => {
+            this.initWebSocketConnection();
+        }, this.wsReconnectDelay);
+        
+        // Exponential backoff with jitter
+        this.wsReconnectDelay = Math.min(
+            this.wsReconnectDelay * 2 + Math.random() * 1000,
+            this.wsMaxReconnectDelay
+        );
+    }
+
+    /**
+     * Handle incoming WebSocket messages
+     */
+    handleWebSocketMessage(message) {
+        console.log('📨 WebSocket message received:', message.type);
+        
+        switch (message.type) {
+            case 'state_update':
+                this.handleLockerStateUpdate(message.data);
+                break;
+            case 'connection_status':
+                this.handleConnectionStatusUpdate(message.data);
+                break;
+            case 'heartbeat':
+                // Respond to heartbeat if needed
+                if (message.data.ping && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                    this.websocket.send(JSON.stringify({
+                        type: 'ping',
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+                break;
+            case 'error':
+                console.error('🚨 WebSocket server error:', message.data);
+                this.showErrorWithRecovery('service_error');
+                break;
+            default:
+                console.log('📨 Unknown WebSocket message type:', message.type);
+        }
+    }
+
+    /**
+     * Handle real-time locker state updates
+     */
+    handleLockerStateUpdate(update) {
+        console.log('🔄 Locker state update:', update);
+        
+        // Update last update time
+        this.lastUpdateTime = new Date(update.lastChanged);
+        if (window.i18n) {
+            window.i18n.updateLastUpdateTime(this.lastUpdateTime);
+        }
+        
+        // Update background grid immediately
+        this.renderBackgroundGrid();
+        
+        // Update current screen if relevant
+        if (this.currentScreen === 'locker-selection-screen') {
+            this.loadAvailableLockers();
+        } else if (this.currentScreen === 'master-locker-screen') {
+            this.loadAllLockers();
+        }
+        
+        // Show visual feedback for state changes if locker is visible
+        this.showLockerStateChangeAnimation(update);
+    }
+
+    /**
+     * Handle connection status updates
+     */
+    handleConnectionStatusUpdate(status) {
+        console.log('🔌 Connection status update:', status);
+        
+        if (window.i18n) {
+            window.i18n.showConnectionStatus(status.status);
+            window.i18n.updateLastUpdateTime(new Date(status.lastUpdate));
+        }
+    }
+
+    /**
+     * Show visual animation for locker state changes
+     */
+    showLockerStateChangeAnimation(update) {
+        // Find the locker tile in the background grid
+        const lockerTile = document.querySelector(`[data-locker-id="${update.lockerId}"]`);
+        if (lockerTile) {
+            // Add a brief highlight animation
+            lockerTile.classList.add('state-changed');
+            setTimeout(() => {
+                lockerTile.classList.remove('state-changed');
+            }, 1000);
+        }
+    }
+
+    /**
+     * Memory optimization for Raspberry Pi
+     */
+    optimizeMemoryUsage() {
+        // Clear old locker data to prevent memory leaks
+        if (this.allLockers.length > 100) {
+            this.allLockers = this.allLockers.slice(-50); // Keep only recent 50
+        }
+        
+        // Clear old session data
+        const sessionKeys = Object.keys(localStorage).filter(key => key.startsWith('session-'));
+        if (sessionKeys.length > 10) {
+            sessionKeys.slice(0, -5).forEach(key => localStorage.removeItem(key));
+        }
+        
+        // Force garbage collection if available (development/testing)
+        if (window.performanceTracker) {
+            const stats = window.performanceTracker.getStats();
+            if (stats.memory && stats.memory.usagePercent > 85) {
+                console.log('🧹 High memory usage detected, optimizing...');
+                window.performanceTracker.forceGarbageCollection();
+            }
+        }
+    }
+
+    /**
+     * Cleanup method for intervals and timers
+     */
+    cleanup() {
+        if (this.connectionCheckInterval) {
+            clearInterval(this.connectionCheckInterval);
+            this.connectionCheckInterval = null;
+        }
+        
+        if (this.sessionCountdownTimer) {
+            clearInterval(this.sessionCountdownTimer);
+            this.sessionCountdownTimer = null;
+        }
+        
+        // Close WebSocket connection
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+        }
+        
+        // Memory cleanup
+        this.optimizeMemoryUsage();
+        
+        // Clear large arrays
+        this.allLockers = [];
+        this.availableLockers = [];
+    }
+
+    /**
+     * Enhanced transition effects with 200-300ms duration
+     */
+    applyTransition(element, transitionType, duration = 300) {
+        if (!element) return Promise.resolve();
+
+        return new Promise((resolve) => {
+            element.style.transition = `all ${duration}ms ease-in-out`;
+            
+            switch (transitionType) {
+                case 'fade-out':
+                    element.style.opacity = '0';
+                    break;
+                case 'fade-in':
+                    element.style.opacity = '1';
+                    break;
+                case 'scale-up':
+                    element.style.transform = 'scale(1.05)';
+                    break;
+                case 'scale-down':
+                    element.style.transform = 'scale(0.95)';
+                    break;
+                case 'scale-normal':
+                    element.style.transform = 'scale(1)';
+                    break;
+                case 'blur-remove':
+                    element.classList.remove('blurred');
+                    break;
+                case 'blur-add':
+                    element.classList.add('blurred');
+                    break;
+            }
+            
+            setTimeout(resolve, duration);
+        });
+    }
+
+    /**
+     * Enhanced big feedback with smooth animations
+     */
+    async showBigFeedbackEnhanced(message, type = 'info', duration = 3000) {
+        const bigFeedback = document.getElementById('big-feedback');
+        const feedbackMessage = bigFeedback?.querySelector('.feedback-message');
+        const feedbackIcon = bigFeedback?.querySelector('.feedback-icon');
+        
+        if (!bigFeedback || !feedbackMessage) return;
+        
+        feedbackMessage.textContent = message;
+        
+        // Set icon based on type with enhanced styling
+        if (feedbackIcon) {
+            let iconHtml = '';
+            let iconColor = '';
+            
+            switch (type) {
+                case 'success':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.12 0 4.07.74 5.61 1.98"/></svg>';
+                    iconColor = '#10b981';
+                    break;
+                case 'opening':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>';
+                    iconColor = '#f59e0b';
+                    feedbackIcon.style.animation = 'spin 1s linear infinite';
+                    break;
+                case 'warning':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+                    iconColor = '#f59e0b';
+                    break;
+                case 'error':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+                    iconColor = '#dc2626';
+                    break;
+                default:
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+                    iconColor = '#2563eb';
+            }
+            
+            feedbackIcon.innerHTML = iconHtml;
+            feedbackIcon.style.background = iconColor;
+            feedbackIcon.style.color = 'white';
+        }
+        
+        // Show with fade and scale animation
+        bigFeedback.style.opacity = '0';
+        bigFeedback.style.transform = 'scale(0.9)';
+        bigFeedback.classList.remove('hidden');
+        
+        // Animate in
+        await this.applyTransition(bigFeedback, 'fade-in', 200);
+        await this.applyTransition(bigFeedback, 'scale-normal', 200);
+        
+        // Auto-hide after duration
+        setTimeout(async () => {
+            await this.applyTransition(bigFeedback, 'fade-out', 200);
+            await this.applyTransition(bigFeedback, 'scale-down', 200);
+            bigFeedback.classList.add('hidden');
+            
+            // Clear icon animation
+            if (feedbackIcon) {
+                feedbackIcon.style.animation = '';
+            }
+        }, duration);
     }
     
     setupEventListeners() {
         // Navigation buttons
         document.getElementById('back-to-main')?.addEventListener('click', () => {
+            // Cancel active session if any
+            if (this.currentSessionId) {
+                this.cancelCurrentSession('Kullanıcı geri tuşuna bastı');
+            }
+            this.endSessionMode();
             this.showScreen('main-screen');
         });
         
@@ -260,6 +830,9 @@ class KioskApp {
             this.hideLoading();
             this.updatePinStatus('error_network', {}, true);
             this.clearPin();
+            
+            // Show enhanced error with recovery - Task 8
+            this.showErrorWithRecovery('network_error');
         }
     }
     
@@ -391,6 +964,8 @@ class KioskApp {
             }
         } catch (error) {
             console.error('Failed to load kiosk info:', error);
+            // Show service unavailable error - Task 8
+            this.showErrorWithRecovery('service_unavailable');
         }
     }
     
@@ -400,6 +975,15 @@ class KioskApp {
         this.pollingInterval = setInterval(() => {
             this.pollForUpdates();
         }, 2000); // Poll every 2 seconds
+        
+        // Start memory optimization timer for Raspberry Pi
+        if (this.memoryOptimizationInterval) {
+            clearInterval(this.memoryOptimizationInterval);
+        }
+        
+        this.memoryOptimizationInterval = setInterval(() => {
+            this.optimizeMemoryUsage();
+        }, 60000); // Optimize memory every minute
     }
     
     stopPolling() {
@@ -407,12 +991,20 @@ class KioskApp {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
         }
+        
+        if (this.memoryOptimizationInterval) {
+            clearInterval(this.memoryOptimizationInterval);
+            this.memoryOptimizationInterval = null;
+        }
     }
     
     async pollForUpdates() {
         try {
             // Check for RFID events
             await this.checkRfidEvents();
+            
+            // Always update background grid for real-time state visualization
+            await this.renderBackgroundGrid();
             
             // Update locker status if on relevant screens
             if (this.currentScreen === 'locker-selection-screen') {
@@ -422,6 +1014,7 @@ class KioskApp {
             }
         } catch (error) {
             console.error('Polling error:', error);
+            // Connection monitoring will handle this
         }
     }
     
@@ -437,6 +1030,8 @@ class KioskApp {
             }
         } catch (error) {
             console.error('RFID event check error:', error);
+            // Show hardware error if RFID system fails - Task 8
+            this.showErrorWithRecovery('hardware_disconnected');
         }
     }
     
@@ -477,20 +1072,76 @@ class KioskApp {
             const result = await response.json();
             this.hideLoading();
             
+            // Play audio feedback if provided
+            if (result.audio) {
+                this.playAudioFeedback(result.audio.type, result.audio.volume);
+            }
+            
             if (result.action === 'show_lockers') {
                 this.availableLockers = result.lockers;
-                this.currentSessionId = result.session_id; // Store session ID
+                this.currentSessionId = result.session_id;
+                this.sessionTimeoutSeconds = result.timeout_seconds || 20;
+                
+                // Update last update time - Task 8
+                this.lastUpdateTime = new Date();
+                if (window.i18n) {
+                    window.i18n.updateLastUpdateTime(this.lastUpdateTime);
+                }
+                
+                // Apply smooth transitions
+                if (result.transitions) {
+                    const frontOverlay = document.getElementById('front-overlay');
+                    const backgroundGrid = document.getElementById('background-grid');
+                    
+                    if (result.transitions.overlay_fade && frontOverlay) {
+                        await this.applyTransition(frontOverlay, 'fade-out', result.transitions.overlay_fade.duration);
+                    }
+                    
+                    if (result.transitions.blur_remove && backgroundGrid) {
+                        await this.applyTransition(backgroundGrid, 'blur-remove', result.transitions.blur_remove.duration);
+                    }
+                }
+                
+                // Show session UI with countdown
+                this.startSessionMode(result.message || 'Kart okundu. Seçim için dokunun');
                 this.renderLockerGrid();
                 this.showScreen('locker-selection-screen');
+                
             } else if (result.action === 'open_locker') {
-                this.showStatusMessage('opening', { id: result.locker_id }, 'info');
+                // Show enhanced feedback sequence
+                if (result.feedback && result.feedback.length > 0) {
+                    for (let i = 0; i < result.feedback.length; i++) {
+                        const feedback = result.feedback[i];
+                        await this.showBigFeedbackEnhanced(feedback.message, feedback.type, feedback.duration);
+                        
+                        // Wait between feedback messages
+                        if (i < result.feedback.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, feedback.duration));
+                        }
+                    }
+                } else {
+                    // Fallback to original behavior
+                    await this.showBigFeedbackEnhanced('Dolap açılıyor', 'opening', 1500);
+                    await this.showBigFeedbackEnhanced(result.message || 'Dolap açıldı', 'success', 3000);
+                }
+                
             } else if (result.error) {
-                this.showStatusMessage(result.error, {}, 'error');
+                // Show enhanced error feedback
+                if (result.feedback && result.feedback.length > 0) {
+                    const feedback = result.feedback[0];
+                    await this.showBigFeedbackEnhanced(feedback.message, feedback.type, feedback.duration);
+                } else {
+                    this.showStatusMessage(result.error, {}, 'error');
+                }
             }
         } catch (error) {
             console.error('Card handling error:', error);
             this.hideLoading();
-            this.showStatusMessage('error_network', {}, 'error');
+            this.playAudioFeedback('error');
+            
+            // Show enhanced network error with recovery - Task 8
+            this.showErrorWithRecovery('network_error');
+            await this.showBigFeedbackEnhanced(window.i18n ? window.i18n.get('network_error') : 'Ağ hatası', 'error', 3000);
         }
     }
     
@@ -501,9 +1152,26 @@ class KioskApp {
                 const lockers = await response.json();
                 this.availableLockers = lockers;
                 this.renderLockerGrid();
+                
+                // Update last update time - Task 8
+                this.lastUpdateTime = new Date();
+                if (window.i18n) {
+                    window.i18n.updateLastUpdateTime(this.lastUpdateTime);
+                }
+            } else {
+                // Handle specific HTTP error codes - Task 8
+                if (response.status === 503) {
+                    this.showErrorWithRecovery('service_unavailable');
+                } else if (response.status >= 500) {
+                    this.showErrorWithRecovery('system_error');
+                } else {
+                    this.showErrorWithRecovery('general_error');
+                }
             }
         } catch (error) {
             console.error('Failed to load available lockers:', error);
+            // Show network error for connection failures - Task 8
+            this.showErrorWithRecovery('network_error');
         }
     }
     
@@ -514,19 +1182,73 @@ class KioskApp {
                 const lockers = await response.json();
                 this.allLockers = lockers;
                 this.renderMasterLockerGrid();
+                
+                // Update last update time - Task 8
+                this.lastUpdateTime = new Date();
+                if (window.i18n) {
+                    window.i18n.updateLastUpdateTime(this.lastUpdateTime);
+                }
+            } else {
+                // Handle specific HTTP error codes - Task 8
+                if (response.status === 503) {
+                    this.showErrorWithRecovery('service_unavailable');
+                } else if (response.status >= 500) {
+                    this.showErrorWithRecovery('system_error');
+                } else {
+                    this.showErrorWithRecovery('general_error');
+                }
             }
         } catch (error) {
             console.error('Failed to load all lockers:', error);
+            // Show network error for connection failures - Task 8
+            this.showErrorWithRecovery('network_error');
         }
     }
     
     renderLockerGrid() {
-        const grid = document.getElementById('locker-grid');
+        const startTime = performance.now();
+        
+        try {
+            const grid = document.getElementById('locker-grid');
+            if (!grid) return;
+            
+            if (this.availableLockers.length === 0) {
+                grid.innerHTML = '';
+                const noLockersMsg = document.createElement('div');
+                noLockersMsg.className = 'no-lockers-message';
+                noLockersMsg.textContent = window.i18n.get('no_lockers');
+                grid.appendChild(noLockersMsg);
+                return;
+            }
+            
+            // Use efficient update method instead of full re-render
+            this.updateGridTiles(grid, this.availableLockers, true);
+            
+            // Also update the interactive grid
+            this.renderInteractiveGrid();
+            
+            // Track performance
+            if (window.performanceTracker) {
+                window.performanceTracker.trackUIRender(startTime, true);
+            }
+        } catch (error) {
+            // Track error
+            if (window.performanceTracker) {
+                window.performanceTracker.trackUIRender(startTime, false, error.message);
+            }
+            throw error;
+        }
+    }
+    
+    /**
+     * Render the interactive grid for session mode
+     */
+    renderInteractiveGrid() {
+        const grid = document.getElementById('interactive-locker-grid');
         if (!grid) return;
         
-        grid.innerHTML = '';
-        
         if (this.availableLockers.length === 0) {
+            grid.innerHTML = '';
             const noLockersMsg = document.createElement('div');
             noLockersMsg.className = 'no-lockers-message';
             noLockersMsg.textContent = window.i18n.get('no_lockers');
@@ -534,9 +1256,225 @@ class KioskApp {
             return;
         }
         
-        this.availableLockers.forEach(locker => {
-            const btn = this.createLockerButton(locker, true);
-            grid.appendChild(btn);
+        // Use efficient update method instead of full re-render
+        this.updateGridTiles(grid, this.availableLockers, true);
+    }
+    
+    /**
+     * Render the always-visible background grid
+     */
+    async renderBackgroundGrid() {
+        const startTime = performance.now();
+        
+        try {
+            const grid = document.getElementById('background-locker-grid');
+            if (!grid) return;
+            
+            // Load all lockers for background display
+            const response = await fetch(`/api/lockers/all?kiosk_id=${this.kioskId}`);
+            if (!response.ok) return;
+            
+            const allLockers = await response.json();
+            
+            // Update existing tiles instead of full re-render for better performance
+            this.updateGridTiles(grid, allLockers, false);
+            
+            console.log(`🔄 Background grid updated with ${allLockers.length} lockers`);
+            
+            // Track successful state update performance
+            if (window.performanceTracker) {
+                window.performanceTracker.trackStateUpdate(startTime, true);
+            }
+        } catch (error) {
+            console.error('Failed to render background grid:', error);
+            
+            // Track failed state update performance
+            if (window.performanceTracker) {
+                window.performanceTracker.trackStateUpdate(startTime, false, error.message);
+            }
+        }
+    }
+    
+    /**
+     * Update grid tiles efficiently without full re-render
+     */
+    updateGridTiles(grid, lockers, isSelectable) {
+        const existingTiles = grid.querySelectorAll('.locker-tile');
+        const existingTileMap = new Map();
+        
+        // Map existing tiles by locker ID
+        existingTiles.forEach(tile => {
+            const lockerId = tile.getAttribute('data-locker-id');
+            if (lockerId) {
+                existingTileMap.set(parseInt(lockerId), tile);
+            }
+        });
+        
+        // Update or create tiles
+        lockers.forEach(locker => {
+            const existingTile = existingTileMap.get(locker.id);
+            
+            if (existingTile) {
+                // Update existing tile if state changed
+                const currentState = existingTile.getAttribute('data-state');
+                const newState = this.getLockerState(locker.status);
+                
+                if (currentState !== newState) {
+                    this.updateTileState(existingTile, locker, isSelectable);
+                }
+                
+                // Update display name if changed
+                const displayNameEl = existingTile.querySelector('.tile-display-name');
+                const newDisplayName = locker.displayName || `Dolap ${locker.id}`;
+                if (displayNameEl && displayNameEl.textContent !== newDisplayName) {
+                    displayNameEl.textContent = newDisplayName;
+                    displayNameEl.title = newDisplayName;
+                }
+                
+                existingTileMap.delete(locker.id);
+            } else {
+                // Create new tile
+                const newTile = this.createLockerButton(locker, isSelectable);
+                grid.appendChild(newTile);
+            }
+        });
+        
+        // Remove tiles for lockers that no longer exist
+        existingTileMap.forEach(tile => {
+            tile.remove();
+        });
+    }
+    
+    /**
+     * Get consistent state name from locker status
+     */
+    getLockerState(status) {
+        const stateMap = {
+            'Free': 'bos',
+            'Occupied': 'dolu', 
+            'Opening': 'aciliyor',
+            'Error': 'hata',
+            'Disabled': 'engelli'
+        };
+        return stateMap[status] || 'hata';
+    }
+    
+    /**
+     * Update individual tile state with smooth animation
+     */
+    updateTileState(tile, locker, isSelectable) {
+        const newState = this.getLockerState(locker.status);
+        const oldState = tile.getAttribute('data-state');
+        
+        if (oldState === newState) return;
+        
+        // Remove old state class and add new one
+        tile.classList.remove(`state-${oldState}`);
+        tile.classList.add(`state-${newState}`);
+        tile.setAttribute('data-state', newState);
+        
+        // Update icon
+        const iconEl = tile.querySelector('.tile-icon');
+        if (iconEl) {
+            iconEl.classList.remove('spinner');
+            
+            switch (newState) {
+                case 'bos':
+                    iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 12l2 2 4-4"/>
+                    </svg>`;
+                    break;
+                case 'dolu':
+                    iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>`;
+                    break;
+                case 'aciliyor':
+                    iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                    </svg>`;
+                    iconEl.classList.add('spinner');
+                    break;
+                case 'hata':
+                    iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>`;
+                    break;
+                case 'engelli':
+                    iconEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>`;
+                    break;
+            }
+        }
+        
+        // Update cursor and click handlers
+        if (isSelectable && newState === 'bos') {
+            tile.style.cursor = 'pointer';
+            // Re-add click handler if needed
+            tile.onclick = () => this.selectLocker(locker.id);
+        } else if (!isSelectable) {
+            tile.style.cursor = 'pointer';
+            tile.onclick = () => this.masterOpenLocker(locker.id);
+        } else {
+            tile.style.cursor = 'not-allowed';
+            tile.onclick = null;
+        }
+        
+        // Add subtle animation to indicate state change
+        tile.style.transform = 'scale(1.05)';
+        setTimeout(() => {
+            tile.style.transform = 'scale(1)';
+        }, 200);
+        
+        console.log(`🔄 Updated locker ${locker.id} state: ${oldState} → ${newState}`);
+    }
+    
+    /**
+     * Handle real-time locker state update
+     * This method can be called from WebSocket events or polling
+     */
+    updateLockerStateRealtime(lockerId, newStatus, displayName = null) {
+        const newState = this.getLockerState(newStatus);
+        
+        // Update all grids that might contain this locker
+        const grids = [
+            document.getElementById('background-locker-grid'),
+            document.getElementById('locker-grid'),
+            document.getElementById('interactive-locker-grid'),
+            document.getElementById('master-locker-grid')
+        ];
+        
+        grids.forEach(grid => {
+            if (!grid) return;
+            
+            const tile = grid.querySelector(`[data-locker-id="${lockerId}"]`);
+            if (tile) {
+                const mockLocker = {
+                    id: lockerId,
+                    status: newStatus,
+                    displayName: displayName
+                };
+                
+                // Determine if this grid is selectable
+                const isSelectable = grid.id === 'locker-grid' || grid.id === 'interactive-locker-grid';
+                
+                this.updateTileState(tile, mockLocker, isSelectable);
+            }
+        });
+        
+        console.log(`🔄 Real-time update: Locker ${lockerId} → ${newState}`);
+    }
+    
+    /**
+     * Batch update multiple locker states for efficiency
+     */
+    updateMultipleLockerStates(updates) {
+        updates.forEach(update => {
+            this.updateLockerStateRealtime(update.lockerId, update.status, update.displayName);
         });
     }
     
@@ -544,39 +1482,108 @@ class KioskApp {
         const grid = document.getElementById('master-locker-grid');
         if (!grid) return;
         
-        grid.innerHTML = '';
-        
-        this.allLockers.forEach(locker => {
-            const btn = this.createLockerButton(locker, false);
-            grid.appendChild(btn);
-        });
+        // Use efficient update method instead of full re-render
+        this.updateGridTiles(grid, this.allLockers, false);
     }
     
     createLockerButton(locker, isSelectable) {
         const btn = document.createElement('button');
-        btn.className = `locker-btn ${locker.status.toLowerCase()}`;
         
-        if (isSelectable && locker.status === 'Free') {
+        // Map locker status to consistent state names
+        const stateMap = {
+            'Free': 'bos',
+            'Occupied': 'dolu', 
+            'Opening': 'aciliyor',
+            'Error': 'hata',
+            'Disabled': 'engelli'
+        };
+        
+        const state = stateMap[locker.status] || 'hata';
+        btn.className = `locker-tile state-${state}`;
+        btn.setAttribute('data-locker-id', locker.id);
+        btn.setAttribute('data-state', state);
+        
+        // Add click handlers based on selectability and state
+        if (isSelectable && state === 'bos') {
             btn.addEventListener('click', () => this.selectLocker(locker.id));
+            btn.style.cursor = 'pointer';
         } else if (!isSelectable) {
             btn.addEventListener('click', () => this.masterOpenLocker(locker.id));
+            btn.style.cursor = 'pointer';
+        } else {
+            btn.style.cursor = 'not-allowed';
         }
         
-        const number = document.createElement('div');
-        number.className = 'locker-number';
-        number.textContent = locker.id;
+        // Create tile icon based on state
+        const icon = document.createElement('div');
+        icon.className = 'tile-icon';
         
-        const status = document.createElement('div');
-        status.className = 'locker-status';
-        status.textContent = window.i18n.get(`status_${locker.status.toLowerCase()}`);
+        switch (state) {
+            case 'bos':
+                icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12l2 2 4-4"/>
+                </svg>`;
+                break;
+            case 'dolu':
+                icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>`;
+                break;
+            case 'aciliyor':
+                icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                </svg>`;
+                icon.classList.add('spinner');
+                break;
+            case 'hata':
+                icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>`;
+                break;
+            case 'engelli':
+                icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>`;
+                break;
+        }
         
-        btn.appendChild(number);
-        btn.appendChild(status);
+        // Create display name (use custom name or fallback to "Dolap [id]")
+        const displayName = document.createElement('div');
+        displayName.className = 'tile-display-name';
+        displayName.textContent = locker.displayName || `Dolap ${locker.id}`;
+        displayName.title = locker.displayName || `Dolap ${locker.id}`; // Tooltip for truncated names
+        
+        // Create relay number (small, bottom-left)
+        const relayNumber = document.createElement('div');
+        relayNumber.className = 'tile-relay-number';
+        relayNumber.textContent = `#${locker.id}`;
+        
+        // Assemble tile
+        btn.appendChild(icon);
+        btn.appendChild(displayName);
+        btn.appendChild(relayNumber);
+        
+        // Add interaction effects for selectable tiles
+        if (isSelectable && state === 'bos') {
+            btn.addEventListener('mouseenter', () => {
+                btn.style.outline = '3px solid rgba(16, 185, 129, 0.5)';
+                btn.style.outlineOffset = '2px';
+            });
+            
+            btn.addEventListener('mouseleave', () => {
+                btn.style.outline = 'none';
+                btn.style.outlineOffset = '0';
+            });
+        }
         
         return btn;
     }
     
     async selectLocker(lockerId) {
+        const startTime = performance.now();
         this.showLoading('Assigning locker...');
         
         try {
@@ -588,24 +1595,337 @@ class KioskApp {
                 body: JSON.stringify({
                     locker_id: lockerId,
                     kiosk_id: this.kioskId,
-                    session_id: this.currentSessionId // Include session ID
+                    session_id: this.currentSessionId
                 })
             });
             
             const result = await response.json();
             this.hideLoading();
             
+            // Play audio feedback if provided
+            if (result.audio) {
+                this.playAudioFeedback(result.audio.type, result.audio.volume);
+            }
+            
             if (result.success) {
-                this.showStatusMessage('opening', { id: lockerId }, 'info');
-                this.currentSessionId = null; // Clear session after use
-                this.showScreen('main-screen');
+                // Track successful locker selection performance
+                if (window.performanceTracker) {
+                    window.performanceTracker.trackLockerSelection(startTime, true);
+                }
+                
+                // End session mode
+                this.endSessionMode();
+                
+                // Show enhanced feedback sequence
+                if (result.feedback && result.feedback.length > 0) {
+                    for (let i = 0; i < result.feedback.length; i++) {
+                        const feedback = result.feedback[i];
+                        await this.showBigFeedbackEnhanced(feedback.message, feedback.type, feedback.duration);
+                        
+                        // Wait between feedback messages
+                        if (i < result.feedback.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, feedback.duration));
+                        }
+                    }
+                } else {
+                    // Fallback to original behavior
+                    await this.showBigFeedbackEnhanced('Dolap açılıyor', 'opening', 1500);
+                    await this.showBigFeedbackEnhanced(result.message || `Dolap ${lockerId} açıldı`, 'success', 3000);
+                }
+                
+                // Apply return to idle transition
+                if (result.transitions && result.transitions.return_to_idle) {
+                    await this.applyTransition(document.getElementById('main-screen'), 'fade-in', 300);
+                }
+                
+                // Return to main screen
+                setTimeout(() => {
+                    this.showScreen('main-screen');
+                }, 1000);
+                
             } else {
-                this.showStatusMessage(result.error || 'error_unknown', {}, 'error');
+                // Track failed locker selection performance
+                if (window.performanceTracker) {
+                    window.performanceTracker.trackLockerSelection(startTime, false, result.error || 'Selection failed');
+                }
+                
+                // Show enhanced error feedback with recovery suggestions - Task 8
+                if (result.feedback && result.feedback.length > 0) {
+                    const feedback = result.feedback[0];
+                    await this.showBigFeedbackEnhanced(feedback.message, feedback.type, feedback.duration);
+                } else {
+                    // Handle specific error types
+                    const errorType = result.error || 'general_error';
+                    if (errorType.includes('busy') || errorType.includes('occupied') || errorType.includes('dolu')) {
+                        this.showErrorWithRecovery('locker_busy');
+                        await this.showBigFeedbackEnhanced(window.i18n ? window.i18n.get('locker_busy') : 'Dolap dolu', 'error', 3000);
+                    } else {
+                        this.showErrorWithRecovery('general_error');
+                        this.showStatusMessage(errorType, {}, 'error');
+                    }
+                }
             }
         } catch (error) {
             console.error('Locker selection error:', error);
             this.hideLoading();
-            this.showStatusMessage('error_network', {}, 'error');
+            this.playAudioFeedback('error');
+            
+            // Track network error performance
+            if (window.performanceTracker) {
+                window.performanceTracker.trackLockerSelection(startTime, false, error.message);
+            }
+            
+            // Show enhanced network error with recovery - Task 8
+            this.showErrorWithRecovery('network_error');
+            await this.showBigFeedbackEnhanced(window.i18n ? window.i18n.get('network_error') : 'Ağ hatası', 'error', 3000);
+        }
+    }
+
+    /**
+     * Start session mode with countdown timer
+     */
+    startSessionMode(message) {
+        const startTime = performance.now();
+        console.log('🔑 Starting session mode:', message);
+        
+        try {
+            // Hide front overlay and remove blur from background
+            const frontOverlay = document.getElementById('front-overlay');
+            const backgroundGrid = document.getElementById('background-grid');
+            const sessionCountdown = document.getElementById('session-countdown');
+            
+            if (frontOverlay) frontOverlay.classList.add('hidden');
+            if (backgroundGrid) backgroundGrid.classList.remove('blurred');
+            if (sessionCountdown) sessionCountdown.classList.remove('hidden');
+            
+            // Start countdown timer
+            this.startCountdownTimer();
+            
+            // Show status message
+            this.showStatusMessage('card_detected', { message }, 'info', 2000);
+            
+            // Track successful session start performance
+            if (window.performanceTracker) {
+                window.performanceTracker.trackSessionStart(startTime, true);
+            }
+        } catch (error) {
+            // Track failed session start performance
+            if (window.performanceTracker) {
+                window.performanceTracker.trackSessionStart(startTime, false, error.message);
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * End session mode and return to idle
+     */
+    endSessionMode() {
+        console.log('🔚 Ending session mode');
+        
+        // Clear session data
+        this.currentSessionId = null;
+        this.stopCountdownTimer();
+        
+        // Show front overlay and blur background
+        const frontOverlay = document.getElementById('front-overlay');
+        const backgroundGrid = document.getElementById('background-grid');
+        const sessionCountdown = document.getElementById('session-countdown');
+        
+        if (frontOverlay) frontOverlay.classList.remove('hidden');
+        if (backgroundGrid) backgroundGrid.classList.add('blurred');
+        if (sessionCountdown) sessionCountdown.classList.add('hidden');
+    }
+
+    /**
+     * Start countdown timer display
+     */
+    startCountdownTimer() {
+        let remainingSeconds = this.sessionTimeoutSeconds;
+        const countdownElement = document.getElementById('countdown-timer');
+        
+        if (!countdownElement) return;
+        
+        // Update initial display
+        countdownElement.textContent = remainingSeconds;
+        
+        // Clear any existing timer
+        this.stopCountdownTimer();
+        
+        // Start new timer
+        this.sessionCountdownTimer = setInterval(() => {
+            remainingSeconds--;
+            countdownElement.textContent = remainingSeconds;
+            
+            // Change color when time is running out
+            const badge = countdownElement.closest('.countdown-badge');
+            if (badge) {
+                if (remainingSeconds <= 5) {
+                    badge.style.background = '#dc2626'; // Red
+                    badge.style.animation = 'pulse-countdown 0.5s infinite';
+                } else if (remainingSeconds <= 10) {
+                    badge.style.background = '#f59e0b'; // Orange
+                }
+            }
+            
+            // Handle timeout
+            if (remainingSeconds <= 0) {
+                this.handleSessionTimeout();
+            }
+        }, 1000);
+    }
+
+    /**
+     * Stop countdown timer
+     */
+    stopCountdownTimer() {
+        if (this.sessionCountdownTimer) {
+            clearInterval(this.sessionCountdownTimer);
+            this.sessionCountdownTimer = null;
+        }
+        
+        // Reset countdown display
+        const countdownElement = document.getElementById('countdown-timer');
+        const badge = countdownElement?.closest('.countdown-badge');
+        if (badge) {
+            badge.style.background = '#dc2626';
+            badge.style.animation = 'pulse-countdown 1s infinite';
+        }
+    }
+
+    /**
+     * Handle session timeout with enhanced feedback
+     */
+    async handleSessionTimeout() {
+        console.log('⏰ Session timeout');
+        
+        // Play warning audio
+        this.playAudioFeedback('warning');
+        
+        // Show timeout message with enhanced feedback
+        await this.showBigFeedbackEnhanced('Oturum zaman aşımı', 'warning', 3000);
+        
+        // End session mode
+        this.endSessionMode();
+        
+        // Return to main screen with smooth transition
+        setTimeout(() => {
+            this.showScreen('main-screen');
+        }, 1000);
+    }
+
+    /**
+     * Show big feedback message
+     */
+    showBigFeedback(message, type = 'info') {
+        const bigFeedback = document.getElementById('big-feedback');
+        const feedbackMessage = bigFeedback?.querySelector('.feedback-message');
+        const feedbackIcon = bigFeedback?.querySelector('.feedback-icon');
+        
+        if (!bigFeedback || !feedbackMessage) return;
+        
+        feedbackMessage.textContent = message;
+        
+        // Set icon based on type
+        if (feedbackIcon) {
+            let iconHtml = '';
+            let iconColor = '';
+            
+            switch (type) {
+                case 'success':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c2.12 0 4.07.74 5.61 1.98"/></svg>';
+                    iconColor = '#10b981';
+                    break;
+                case 'opening':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>';
+                    iconColor = '#f59e0b';
+                    feedbackIcon.style.animation = 'spin 1s linear infinite';
+                    break;
+                case 'warning':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+                    iconColor = '#f59e0b';
+                    break;
+                case 'error':
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+                    iconColor = '#dc2626';
+                    break;
+                default:
+                    iconHtml = '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+                    iconColor = '#2563eb';
+            }
+            
+            feedbackIcon.innerHTML = iconHtml;
+            feedbackIcon.style.background = iconColor;
+            feedbackIcon.style.color = 'white';
+        }
+        
+        bigFeedback.classList.remove('hidden');
+    }
+
+    /**
+     * Hide big feedback message
+     */
+    hideBigFeedback() {
+        const bigFeedback = document.getElementById('big-feedback');
+        const feedbackIcon = bigFeedback?.querySelector('.feedback-icon');
+        
+        if (bigFeedback) {
+            bigFeedback.classList.add('hidden');
+        }
+        
+        // Clear icon animation
+        if (feedbackIcon) {
+            feedbackIcon.style.animation = '';
+        }
+    }
+
+    /**
+     * Cancel current session
+     */
+    async cancelCurrentSession(reason = 'Manuel iptal') {
+        if (!this.currentSessionId) return;
+        
+        try {
+            const response = await fetch('/api/session/cancel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    kiosk_id: this.kioskId,
+                    reason: reason
+                })
+            });
+            
+            const result = await response.json();
+            console.log('Session cancellation result:', result);
+        } catch (error) {
+            console.error('Error cancelling session:', error);
+        }
+    }
+
+    /**
+     * Check for active session on page load/refresh
+     */
+    async checkActiveSession() {
+        try {
+            const response = await fetch(`/api/session/status?kiosk_id=${this.kioskId}`);
+            const result = await response.json();
+            
+            if (result.has_session && result.remaining_seconds > 0) {
+                // Resume active session
+                this.currentSessionId = result.session_id;
+                this.sessionTimeoutSeconds = result.remaining_seconds;
+                
+                // Load available lockers
+                await this.loadAvailableLockers();
+                
+                // Start session mode
+                this.startSessionMode(result.message || 'Oturum devam ediyor');
+                this.showScreen('locker-selection-screen');
+            }
+        } catch (error) {
+            console.error('Error checking active session:', error);
         }
     }
     

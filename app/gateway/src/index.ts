@@ -88,6 +88,10 @@ const start = async () => {
 
     await fastify.listen({ port, host });
     console.log(`Eform Gateway Service started on port ${port}`);
+    
+    // Note: WebSocket server is initialized by the Kiosk service on port 8080
+    // Gateway service coordinates but doesn't host the WebSocket server
+    console.log(`🔌 WebSocket coordination: Kiosk services handle real-time updates on port 8080`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

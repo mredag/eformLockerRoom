@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dolap İsimlendirme - Eform Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: #f0f0f0;
+        }
+
+        .main-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: #667eea;
+            color: white;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .section-content {
+            padding: 1.5rem;
+        }
+
+        .kiosk-selector {
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group select, .form-group input {
+            width: 100%;
+            max-width: 300px;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .locker-naming-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .locker-naming-card {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s;
+        }
+
+        .locker-naming-card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .locker-naming-card.editing {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+
+        .locker-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .locker-id {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1rem;
+        }
+
+        .relay-number {
+            font-size: 0.8rem;
+            color: #666;
+            background: #e9ecef;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+        }
+
+        .current-name {
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+
+        .current-name.default {
+            color: #666;
+            font-style: italic;
+        }
+
+        .name-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .name-input.invalid {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .name-input.valid {
+            border-color: #28a745;
+            background: #f8fff8;
+        }
+
+        .validation-message {
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .validation-message.error {
+            color: #dc3545;
+        }
+
+        .validation-message.success {
+            color: #28a745;
+        }
+
+        .validation-message.suggestion {
+            color: #ffc107;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .preset-suggestions {
+            margin-top: 1rem;
+        }
+
+        .preset-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .preset-chip {
+            background: #e9ecef;
+            color: #495057;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .preset-chip:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .audit-section {
+            margin-top: 2rem;
+        }
+
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .audit-table th,
+        .audit-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .audit-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .audit-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #fcc;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #363;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #cfc;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .bulk-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .character-count {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: right;
+            margin-top: 0.25rem;
+        }
+
+        .character-count.warning {
+            color: #ffc107;
+        }
+
+        .character-count.error {
+            color: #dc3545;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem;
+            }
+            
+            .locker-naming-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .bulk-actions {
+                flex-direction: column;
+            }
+            
+            .bulk-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dolap İsimlendirme</h1>
+        <div class="nav-links">
+            <a href="/dashboard">Ana Sayfa</a>
+            <a href="/lockers">Dolaplar</a>
+            <a href="/locker-naming" style="background: #f0f0f0;">İsimlendirme</a>
+            <a href="/performance">Performans</a>
+            <a href="#" onclick="logout()">Çıkış</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="error-message" class="error-message" style="display: none;"></div>
+        <div id="success-message" class="success-message" style="display: none;"></div>
+
+        <!-- Kiosk Selection -->
+        <div class="section">
+            <div class="section-header">
+                Kiosk Seçimi
+            </div>
+            <div class="section-content">
+                <div class="form-group">
+                    <label for="kiosk-select">Kiosk Seçin</label>
+                    <select id="kiosk-select">
+                        <option value="">Kiosk seçin...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="section" id="stats-section" style="display: none;">
+            <div class="section-header">
+                İstatistikler
+            </div>
+            <div class="section-content">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-total">-</div>
+                        <div class="stat-label">Toplam Dolap</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-named">-</div>
+                        <div class="stat-label">İsimlendirilmiş</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="stat-default">-</div>
+                        <div class="stat-label">Varsayılan İsim</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div class="section" id="bulk-actions-section" style="display: none;">
+            <div class="section-header">
+                Toplu İşlemler
+            </div>
+            <div class="section-content">
+                <div class="bulk-actions">
+                    <button class="btn btn-primary" onclick="showBulkEditModal()">
+                        📝 Toplu Düzenleme
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportPrintableMap()">
+                        🖨️ Yazdırılabilir Harita
+                    </button>
+                    <button class="btn btn-secondary" onclick="showAuditHistory()">
+                        📋 Değişiklik Geçmişi
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preset Suggestions -->
+        <div class="section" id="presets-section" style="display: none;">
+            <div class="section-header">
+                Önerilen İsimler
+            </div>
+            <div class="section-content">
+                <div class="preset-suggestions">
+                    <p>Hızlı isimlendirme için aşağıdaki önerileri kullanabilirsiniz:</p>
+                    <div class="preset-chips" id="preset-chips"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Locker Naming Grid -->
+        <div class="section" id="naming-section" style="display: none;">
+            <div class="section-header">
+                Dolap İsimlendirme
+            </div>
+            <div class="section-content">
+                <div id="loading" class="loading">Dolaplar yükleniyor...</div>
+                <div class="locker-naming-grid" id="locker-naming-grid" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Edit Modal -->
+    <div id="bulk-edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Toplu Düzenleme</h2>
+                <span class="close" onclick="closeBulkEditModal()">&times;</span>
+            </div>
+            <div id="bulk-edit-content">
+                <p>CSV formatında dolap isimlerini toplu olarak güncelleyebilirsiniz:</p>
+                <textarea id="bulk-edit-textarea" rows="10" style="width: 100%; font-family: monospace; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;" placeholder="Dolap ID,Yeni İsim
+1,Kapı A1
+2,Kapı A2
+3,Dolap 101"></textarea>
+                <div style="margin-top: 1rem;">
+                    <button class="btn btn-primary" onclick="applyBulkEdit()">Uygula</button>
+                    <button class="btn btn-secondary" onclick="closeBulkEditModal()">İptal</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit History Modal -->
+    <div id="audit-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Değişiklik Geçmişi</h2>
+                <span class="close" onclick="closeAuditModal()">&times;</span>
+            </div>
+            <div id="audit-content">
+                <div class="loading">Geçmiş yükleniyor...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let csrfToken = null;
+        let selectedKioskId = null;
+        let lockers = [];
+        let presets = [];
+        let editingLockerId = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUserInfo();
+            await loadKiosks();
+            await loadPresets();
+        });
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/auth/me');
+                const data = await response.json();
+
+                if (response.ok && data.user) {
+                    currentUser = data.user;
+                    csrfToken = data.csrfToken;
+                } else {
+                    window.location.href = '/login.html';
+                }
+            } catch (error) {
+                showError('Failed to load user information');
+            }
+        }
+
+        async function loadKiosks() {
+            try {
+                const response = await fetch('/api/lockers/kiosks');
+                const data = await response.json();
+
+                if (response.ok) {
+                    const kioskSelect = document.getElementById('kiosk-select');
+                    kioskSelect.innerHTML = '<option value="">Kiosk seçin...</option>';
+                    
+                    data.kiosks.forEach(kiosk => {
+                        const option = document.createElement('option');
+                        option.value = kiosk.kiosk_id;
+                        option.textContent = `${kiosk.kiosk_id} (${kiosk.zone || 'Bilinmeyen Bölge'})`;
+                        kioskSelect.appendChild(option);
+                    });
+
+                    kioskSelect.addEventListener('change', handleKioskChange);
+                } else {
+                    showError('Failed to load kiosks');
+                }
+            } catch (error) {
+                showError('Network error loading kiosks');
+            }
+        }
+
+        async function loadPresets() {
+            try {
+                const response = await fetch('/api/locker-naming/presets');
+                const data = await response.json();
+
+                if (response.ok) {
+                    presets = data.presets;
+                    renderPresets();
+                }
+            } catch (error) {
+                console.error('Failed to load presets:', error);
+            }
+        }
+
+        function renderPresets() {
+            const presetsContainer = document.getElementById('preset-chips');
+            presetsContainer.innerHTML = '';
+
+            presets.forEach(preset => {
+                const chip = document.createElement('button');
+                chip.className = 'preset-chip';
+                chip.textContent = preset;
+                chip.onclick = () => applyPresetToSelected(preset);
+                presetsContainer.appendChild(chip);
+            });
+        }
+
+        async function handleKioskChange() {
+            const kioskSelect = document.getElementById('kiosk-select');
+            selectedKioskId = kioskSelect.value;
+
+            if (selectedKioskId) {
+                document.getElementById('stats-section').style.display = 'block';
+                document.getElementById('bulk-actions-section').style.display = 'block';
+                document.getElementById('presets-section').style.display = 'block';
+                document.getElementById('naming-section').style.display = 'block';
+                
+                await loadLockers();
+            } else {
+                document.getElementById('stats-section').style.display = 'none';
+                document.getElementById('bulk-actions-section').style.display = 'none';
+                document.getElementById('presets-section').style.display = 'none';
+                document.getElementById('naming-section').style.display = 'none';
+            }
+        }
+
+        async function loadLockers() {
+            if (!selectedKioskId) return;
+
+            try {
+                showLoading(true);
+                
+                const response = await fetch(`/api/lockers?kioskId=${selectedKioskId}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    lockers = data.lockers || [];
+                    renderLockers();
+                    updateStats();
+                } else {
+                    showError('Failed to load lockers');
+                }
+            } catch (error) {
+                showError('Network error loading lockers');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderLockers() {
+            const grid = document.getElementById('locker-naming-grid');
+            grid.innerHTML = '';
+
+            lockers.forEach(locker => {
+                const card = createLockerNamingCard(locker);
+                grid.appendChild(card);
+            });
+        }
+
+        function createLockerNamingCard(locker) {
+            const card = document.createElement('div');
+            card.className = 'locker-naming-card';
+            card.id = `locker-card-${locker.id}`;
+
+            const isDefault = !locker.display_name || locker.display_name === `Dolap ${locker.id}`;
+            const displayName = locker.display_name || `Dolap ${locker.id}`;
+
+            card.innerHTML = `
+                <div class="locker-card-header">
+                    <div class="locker-id">Dolap ${locker.id}</div>
+                    <div class="relay-number">Röle ${locker.id}</div>
+                </div>
+                <div class="current-name ${isDefault ? 'default' : ''}" id="current-name-${locker.id}">
+                    ${displayName}
+                </div>
+                <div class="name-input-container" id="input-container-${locker.id}" style="display: none;">
+                    <input type="text" class="name-input" id="name-input-${locker.id}" 
+                           maxlength="20" placeholder="Dolap ismi girin..." 
+                           oninput="validateNameInput(${locker.id})" 
+                           onkeypress="handleNameInputKeypress(event, ${locker.id})">
+                    <div class="character-count" id="char-count-${locker.id}">0/20</div>
+                    <div class="validation-message" id="validation-${locker.id}"></div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-sm btn-primary" id="edit-btn-${locker.id}" 
+                            onclick="startEditing(${locker.id})">Düzenle</button>
+                    <button class="btn btn-sm btn-success" id="save-btn-${locker.id}" 
+                            onclick="saveName(${locker.id})" style="display: none;">Kaydet</button>
+                    <button class="btn btn-sm btn-secondary" id="cancel-btn-${locker.id}" 
+                            onclick="cancelEditing(${locker.id})" style="display: none;">İptal</button>
+                    ${!isDefault ? `<button class="btn btn-sm btn-danger" onclick="clearName(${locker.id})">Temizle</button>` : ''}
+                </div>
+            `;
+
+            return card;
+        }
+
+        function startEditing(lockerId) {
+            if (editingLockerId && editingLockerId !== lockerId) {
+                cancelEditing(editingLockerId);
+            }
+
+            editingLockerId = lockerId;
+            const card = document.getElementById(`locker-card-${lockerId}`);
+            card.classList.add('editing');
+
+            const currentName = document.getElementById(`current-name-${lockerId}`);
+            const inputContainer = document.getElementById(`input-container-${lockerId}`);
+            const nameInput = document.getElementById(`name-input-${lockerId}`);
+            
+            const editBtn = document.getElementById(`edit-btn-${lockerId}`);
+            const saveBtn = document.getElementById(`save-btn-${lockerId}`);
+            const cancelBtn = document.getElementById(`cancel-btn-${lockerId}`);
+
+            // Get current name, excluding default names
+            const locker = lockers.find(l => l.id === lockerId);
+            const currentDisplayName = locker.display_name && locker.display_name !== `Dolap ${lockerId}` 
+                ? locker.display_name : '';
+
+            nameInput.value = currentDisplayName;
+            updateCharacterCount(lockerId);
+
+            currentName.style.display = 'none';
+            inputContainer.style.display = 'block';
+            editBtn.style.display = 'none';
+            saveBtn.style.display = 'inline-block';
+            cancelBtn.style.display = 'inline-block';
+
+            nameInput.focus();
+        }
+
+        function cancelEditing(lockerId) {
+            editingLockerId = null;
+            const card = document.getElementById(`locker-card-${lockerId}`);
+            card.classList.remove('editing');
+
+            const currentName = document.getElementById(`current-name-${lockerId}`);
+            const inputContainer = document.getElementById(`input-container-${lockerId}`);
+            
+            const editBtn = document.getElementById(`edit-btn-${lockerId}`);
+            const saveBtn = document.getElementById(`save-btn-${lockerId}`);
+            const cancelBtn = document.getElementById(`cancel-btn-${lockerId}`);
+
+            currentName.style.display = 'block';
+            inputContainer.style.display = 'none';
+            editBtn.style.display = 'inline-block';
+            saveBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+
+            // Clear validation messages
+            document.getElementById(`validation-${lockerId}`).textContent = '';
+        }
+
+        async function saveName(lockerId) {
+            const nameInput = document.getElementById(`name-input-${lockerId}`);
+            const newName = nameInput.value.trim();
+
+            if (!newName) {
+                showError('Dolap ismi boş olamaz');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locker-naming/${selectedKioskId}/${lockerId}/name`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ displayName: newName })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Update locker in local array
+                    const locker = lockers.find(l => l.id === lockerId);
+                    if (locker) {
+                        locker.display_name = data.displayName;
+                    }
+
+                    // Update UI
+                    const currentNameEl = document.getElementById(`current-name-${lockerId}`);
+                    currentNameEl.textContent = data.displayName;
+                    currentNameEl.classList.remove('default');
+
+                    cancelEditing(lockerId);
+                    updateStats();
+                    showSuccess('Dolap ismi başarıyla güncellendi');
+
+                    // Refresh the card to show clear button if needed
+                    const card = document.getElementById(`locker-card-${lockerId}`);
+                    const newCard = createLockerNamingCard(locker);
+                    card.replaceWith(newCard);
+                } else {
+                    if (data.suggestions) {
+                        showValidationMessage(lockerId, data.message, 'error');
+                        data.suggestions.forEach(suggestion => {
+                            showValidationMessage(lockerId, `Öneri: ${suggestion}`, 'suggestion');
+                        });
+                    } else {
+                        showError(data.message || 'Failed to update locker name');
+                    }
+                }
+            } catch (error) {
+                showError('Network error updating locker name');
+            }
+        }
+
+        async function clearName(lockerId) {
+            if (!confirm('Bu dolabın ismini temizlemek istediğinizden emin misiniz?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/locker-naming/${selectedKioskId}/${lockerId}/name`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-Token': csrfToken
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Update locker in local array
+                    const locker = lockers.find(l => l.id === lockerId);
+                    if (locker) {
+                        locker.display_name = data.displayName;
+                    }
+
+                    // Refresh the card
+                    const card = document.getElementById(`locker-card-${lockerId}`);
+                    const newCard = createLockerNamingCard(locker);
+                    card.replaceWith(newCard);
+
+                    updateStats();
+                    showSuccess('Dolap ismi temizlendi');
+                } else {
+                    showError(data.message || 'Failed to clear locker name');
+                }
+            } catch (error) {
+                showError('Network error clearing locker name');
+            }
+        }
+
+        async function validateNameInput(lockerId) {
+            const nameInput = document.getElementById(`name-input-${lockerId}`);
+            const name = nameInput.value;
+
+            updateCharacterCount(lockerId);
+
+            if (!name.trim()) {
+                clearValidationMessage(lockerId);
+                nameInput.classList.remove('valid', 'invalid');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/locker-naming/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name })
+                });
+
+                const validation = await response.json();
+
+                if (validation.isValid) {
+                    nameInput.classList.remove('invalid');
+                    nameInput.classList.add('valid');
+                    showValidationMessage(lockerId, 'Geçerli isim', 'success');
+                } else {
+                    nameInput.classList.remove('valid');
+                    nameInput.classList.add('invalid');
+                    showValidationMessage(lockerId, validation.errors.join(', '), 'error');
+                    
+                    if (validation.suggestions) {
+                        validation.suggestions.forEach(suggestion => {
+                            showValidationMessage(lockerId, `Öneri: ${suggestion}`, 'suggestion');
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Validation error:', error);
+            }
+        }
+
+        function updateCharacterCount(lockerId) {
+            const nameInput = document.getElementById(`name-input-${lockerId}`);
+            const charCount = document.getElementById(`char-count-${lockerId}`);
+            const length = nameInput.value.length;
+
+            charCount.textContent = `${length}/20`;
+            charCount.classList.remove('warning', 'error');
+
+            if (length > 15) {
+                charCount.classList.add('warning');
+            }
+            if (length > 20) {
+                charCount.classList.add('error');
+            }
+        }
+
+        function showValidationMessage(lockerId, message, type) {
+            const validationEl = document.getElementById(`validation-${lockerId}`);
+            validationEl.textContent = message;
+            validationEl.className = `validation-message ${type}`;
+        }
+
+        function clearValidationMessage(lockerId) {
+            const validationEl = document.getElementById(`validation-${lockerId}`);
+            validationEl.textContent = '';
+            validationEl.className = 'validation-message';
+        }
+
+        function handleNameInputKeypress(event, lockerId) {
+            if (event.key === 'Enter') {
+                saveName(lockerId);
+            } else if (event.key === 'Escape') {
+                cancelEditing(lockerId);
+            }
+        }
+
+        function applyPresetToSelected(preset) {
+            if (editingLockerId) {
+                const nameInput = document.getElementById(`name-input-${editingLockerId}`);
+                nameInput.value = preset;
+                validateNameInput(editingLockerId);
+            } else {
+                showError('Önce bir dolap düzenlemeye başlayın');
+            }
+        }
+
+        function updateStats() {
+            const total = lockers.length;
+            const named = lockers.filter(l => l.display_name && l.display_name !== `Dolap ${l.id}`).length;
+            const defaultNamed = total - named;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-named').textContent = named;
+            document.getElementById('stat-default').textContent = defaultNamed;
+        }
+
+        function showBulkEditModal() {
+            document.getElementById('bulk-edit-modal').style.display = 'block';
+        }
+
+        function closeBulkEditModal() {
+            document.getElementById('bulk-edit-modal').style.display = 'none';
+        }
+
+        async function applyBulkEdit() {
+            const textarea = document.getElementById('bulk-edit-textarea');
+            const csvData = textarea.value.trim();
+
+            if (!csvData) {
+                showError('CSV verisi boş olamaz');
+                return;
+            }
+
+            try {
+                // Parse CSV data
+                const lines = csvData.split('\n').filter(line => line.trim());
+                const nameMapping = {};
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line.toLowerCase().includes('dolap id') || line.toLowerCase().includes('locker id')) {
+                        continue; // Skip header
+                    }
+
+                    const [lockerId, name] = line.split(',').map(s => s.trim());
+                    if (lockerId && name) {
+                        nameMapping[lockerId] = name;
+                    }
+                }
+
+                if (Object.keys(nameMapping).length === 0) {
+                    showError('Geçerli CSV verisi bulunamadı');
+                    return;
+                }
+
+                const response = await fetch(`/api/locker-naming/${selectedKioskId}/bulk-update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify({ nameMapping })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    closeBulkEditModal();
+                    await loadLockers(); // Reload to get updated data
+                    showSuccess(`${data.results.success} dolap ismi güncellendi`);
+                    
+                    if (data.results.failed.length > 0) {
+                        console.warn('Failed updates:', data.results.failed);
+                    }
+                } else {
+                    showError(data.message || 'Toplu güncelleme başarısız');
+                }
+            } catch (error) {
+                showError('Toplu güncelleme sırasında hata oluştu');
+            }
+        }
+
+        async function exportPrintableMap() {
+            if (!selectedKioskId) {
+                showError('Önce bir kiosk seçin');
+                return;
+            }
+
+            try {
+                const url = `/api/locker-naming/${selectedKioskId}/printable-map`;
+                window.open(url, '_blank');
+            } catch (error) {
+                showError('Harita oluşturulamadı');
+            }
+        }
+
+        async function showAuditHistory() {
+            if (!selectedKioskId) {
+                showError('Önce bir kiosk seçin');
+                return;
+            }
+
+            document.getElementById('audit-modal').style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/locker-naming/${selectedKioskId}/audit`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    renderAuditHistory(data.auditHistory);
+                } else {
+                    document.getElementById('audit-content').innerHTML = 
+                        '<div class="error-message">Geçmiş yüklenemedi</div>';
+                }
+            } catch (error) {
+                document.getElementById('audit-content').innerHTML = 
+                    '<div class="error-message">Ağ hatası</div>';
+            }
+        }
+
+        function renderAuditHistory(auditHistory) {
+            const content = document.getElementById('audit-content');
+            
+            if (auditHistory.length === 0) {
+                content.innerHTML = '<p>Henüz değişiklik kaydı bulunmuyor.</p>';
+                return;
+            }
+
+            let html = `
+                <table class="audit-table">
+                    <thead>
+                        <tr>
+                            <th>Dolap</th>
+                            <th>Eski İsim</th>
+                            <th>Yeni İsim</th>
+                            <th>Değiştiren</th>
+                            <th>Tarih</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            auditHistory.forEach(entry => {
+                html += `
+                    <tr>
+                        <td>Dolap ${entry.locker_id}</td>
+                        <td>${entry.old_name || 'Varsayılan'}</td>
+                        <td>${entry.new_name || 'Varsayılan'}</td>
+                        <td>${entry.changed_by}</td>
+                        <td>${new Date(entry.changed_at).toLocaleString('tr-TR')}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        }
+
+        function closeAuditModal() {
+            document.getElementById('audit-modal').style.display = 'none';
+        }
+
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            const grid = document.getElementById('locker-naming-grid');
+            
+            if (show) {
+                loading.style.display = 'block';
+                grid.style.display = 'none';
+            } else {
+                loading.style.display = 'none';
+                grid.style.display = 'grid';
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+            
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('success-message');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+            
+            setTimeout(() => {
+                successEl.style.display = 'none';
+            }, 3000);
+        }
+
+        function logout() {
+            if (confirm('Çıkış yapmak istediğinizden emin misiniz?')) {
+                window.location.href = '/auth/logout';
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const bulkModal = document.getElementById('bulk-edit-modal');
+            const auditModal = document.getElementById('audit-modal');
+            
+            if (event.target === bulkModal) {
+                closeBulkEditModal();
+            }
+            if (event.target === auditModal) {
+                closeAuditModal();
+            }
+        }
+    </script>
+</body>
+</html>

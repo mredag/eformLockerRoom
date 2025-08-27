@@ -111,7 +111,7 @@ describe('LockerRepository', () => {
       });
 
       const updated = await repository.updateLocker('kiosk-1', 1, {
-        status: 'Reserved',
+        status: 'Dolu',
         owner_type: 'rfid',
         owner_key: 'card-123',
         reserved_at: new Date()
@@ -133,13 +133,13 @@ describe('LockerRepository', () => {
 
       // Update with wrong version
       await expect(
-        repository.updateLocker('kiosk-1', 1, { status: 'Reserved' }, 999)
+        repository.updateLocker('kiosk-1', 1, { status: 'Dolu' }, 999)
       ).rejects.toThrow(OptimisticLockError);
     });
 
     it('should throw error for non-existent locker', async () => {
       await expect(
-        repository.updateLocker('kiosk-1', 999, { status: 'Reserved' }, 1)
+        repository.updateLocker('kiosk-1', 999, { status: 'Dolu' }, 1)
       ).rejects.toThrow('Locker with id kiosk-1:999 not found');
     });
   });
@@ -230,7 +230,7 @@ describe('LockerRepository', () => {
   describe('getStatsByKiosk', () => {
     beforeEach(async () => {
       // Create test lockers with different statuses
-      const statuses: LockerStatus[] = ['Free', 'Reserved', 'Owned', 'Blocked'];
+      const statuses: LockerStatus[] = ['Boş', 'Dolu', 'Açılıyor', 'Engelli'];
       for (let i = 0; i < statuses.length; i++) {
         await repository.create({
           kiosk_id: 'kiosk-1',

@@ -184,7 +184,7 @@ export class LockerRepository extends BaseRepository<Locker> {
   async findAvailable(kioskId: string): Promise<Locker[]> {
     return this.findAll({
       kiosk_id: kioskId,
-      status: 'Free',
+      status: 'Boş',
       is_vip: false
     });
   }
@@ -292,6 +292,9 @@ export class LockerRepository extends BaseRepository<Locker> {
       owned_at: row.owned_at ? new Date(row.owned_at) : undefined,
       version: row.version,
       is_vip: Boolean(row.is_vip),
+      display_name: row.display_name,
+      name_updated_at: row.name_updated_at ? new Date(row.name_updated_at) : undefined,
+      name_updated_by: row.name_updated_by,
       created_at: new Date(row.created_at),
       updated_at: new Date(row.updated_at)
     };
@@ -308,6 +311,9 @@ export class LockerRepository extends BaseRepository<Locker> {
     if (entity.reserved_at !== undefined) row.reserved_at = entity.reserved_at?.toISOString();
     if (entity.owned_at !== undefined) row.owned_at = entity.owned_at?.toISOString();
     if (entity.is_vip !== undefined) row.is_vip = entity.is_vip ? 1 : 0;
+    if (entity.display_name !== undefined) row.display_name = entity.display_name;
+    if (entity.name_updated_at !== undefined) row.name_updated_at = entity.name_updated_at?.toISOString();
+    if (entity.name_updated_by !== undefined) row.name_updated_by = entity.name_updated_by;
 
     return row;
   }

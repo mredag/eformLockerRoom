@@ -7,7 +7,7 @@
 // LOCKER ENTITIES
 // ============================================================================
 
-export type LockerStatus = 'Free' | 'Reserved' | 'Owned' | 'Opening' | 'Blocked';
+export type LockerStatus = 'Boş' | 'Dolu' | 'Açılıyor' | 'Hata' | 'Engelli';
 export type OwnerType = 'rfid' | 'device' | 'vip';
 
 export interface Locker {
@@ -20,6 +20,9 @@ export interface Locker {
   owned_at?: Date;
   version: number; // For optimistic locking
   is_vip: boolean;
+  display_name?: string; // Custom display name (max 20 chars, Turkish support)
+  name_updated_at?: Date; // When display name was last updated
+  name_updated_by?: string; // Who updated the display name
   created_at: Date;
   updated_at: Date;
 }
@@ -555,6 +558,32 @@ export interface ExtendedSystemConfig extends SystemConfig {
   // Internationalization
   DEFAULT_LANGUAGE: SupportedLanguage;
   SUPPORTED_LANGUAGES: SupportedLanguage[];
+}
+
+// ============================================================================
+// WEBSOCKET ENTITIES
+// ============================================================================
+
+export interface WebSocketMessage {
+  type: 'state_update' | 'connection_status' | 'heartbeat' | 'error';
+  timestamp: Date;
+  data: any;
+}
+
+export interface LockerStateUpdate {
+  kioskId: string;
+  lockerId: number;
+  displayName: string;
+  state: LockerStatus;
+  lastChanged: Date;
+  ownerKey?: string;
+  ownerType?: OwnerType;
+}
+
+export interface ConnectionStatus {
+  status: 'online' | 'offline' | 'reconnecting';
+  lastUpdate: Date;
+  connectedClients: number;
 }
 
 // ============================================================================

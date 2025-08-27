@@ -1,23 +1,31 @@
 import { DatabaseConnection } from '../database/connection';
-import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition } from '../types/core-entities';
+import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition, LockerStateUpdate } from '../types/core-entities';
+import { webSocketService } from './websocket-service';
+import { LockerNamingService } from './locker-naming-service';
 
 export class LockerStateManager {
   private db: DatabaseConnection;
   private dbManager: any;
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly RESERVE_TIMEOUT_SECONDS = 90;
+  private namingService: LockerNamingService;
 
-  // Define valid state transitions
+  // Define valid state transitions using Turkish state names
   private readonly STATE_TRANSITIONS: LockerStateTransition[] = [
-    { from: 'Free', to: 'Reserved', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
-    { from: 'Reserved', to: 'Owned', trigger: 'confirm_opening', conditions: ['same_owner'] },
-    { from: 'Reserved', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
-    { from: 'Reserved', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
-    { from: 'Owned', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
-    { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Reserved', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Owned', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Blocked', to: 'Free', trigger: 'staff_unblock', conditions: ['staff_action'] }
+    { from: 'Boş', to: 'Dolu', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
+    { from: 'Dolu', to: 'Açılıyor', trigger: 'confirm_opening', conditions: ['same_owner'] },
+    { from: 'Dolu', to: 'Boş', trigger: 'timeout', conditions: ['expired_90_seconds'] },
+    { from: 'Dolu', to: 'Boş', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Açılıyor', to: 'Boş', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Boş', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Dolu', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Açılıyor', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Hata', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Engelli', to: 'Boş', trigger: 'staff_unblock', conditions: ['staff_action'] },
+    { from: 'Boş', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Dolu', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Açılıyor', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Hata', to: 'Boş', trigger: 'error_resolved', conditions: ['system_recovery'] }
   ];
 
   constructor(dbManager?: any) {
@@ -27,7 +35,31 @@ export class LockerStateManager {
     } else {
       this.db = DatabaseConnection.getInstance();
     }
+    this.namingService = new LockerNamingService(dbManager);
     this.startCleanupTimer();
+  }
+
+  /**
+   * Broadcast locker state update via WebSocket
+   */
+  private async broadcastStateUpdate(kioskId: string, lockerId: number, newState: LockerStatus, ownerKey?: string, ownerType?: OwnerType): Promise<void> {
+    try {
+      const displayName = await this.namingService.getDisplayName(kioskId, lockerId);
+      
+      const update: LockerStateUpdate = {
+        kioskId,
+        lockerId,
+        displayName,
+        state: newState,
+        lastChanged: new Date(),
+        ownerKey,
+        ownerType
+      };
+
+      webSocketService.broadcastStateUpdate(update);
+    } catch (error) {
+      console.error('Error broadcasting state update:', error);
+    }
   }
 
   /**
@@ -125,13 +157,13 @@ export class LockerStateManager {
   }
 
   /**
-   * Get available (Free) lockers, excluding Blocked, Reserved, and VIP lockers
-   * As per requirements 1.3, 1.4, 1.5 - filters out Blocked and Reserved lockers
+   * Get available (Boş) lockers, excluding Engelli, Dolu, and VIP lockers
+   * As per requirements 1.3, 1.4, 1.5 - filters out Engelli and Dolu lockers
    */
   async getAvailableLockers(kioskId: string): Promise<Locker[]> {
     return await this.db.all<Locker>(
       `SELECT * FROM lockers 
-       WHERE kiosk_id = ? AND status = 'Free' AND is_vip = 0 
+       WHERE kiosk_id = ? AND status = 'Boş' AND is_vip = 0 
        ORDER BY id`,
       [kioskId]
     );
@@ -143,13 +175,13 @@ export class LockerStateManager {
   async findLockerByOwner(ownerKey: string, ownerType: OwnerType): Promise<Locker | null> {
     const result = await this.db.get<Locker>(
       'SELECT * FROM lockers WHERE owner_key = ? AND owner_type = ? AND status IN (?, ?)',
-      [ownerKey, ownerType, 'Reserved', 'Owned']
+      [ownerKey, ownerType, 'Dolu', 'Açılıyor']
     );
     return result || null;
   }
 
   /**
-   * Assign locker to owner (Free -> Reserved transition)
+   * Assign locker to owner (Boş -> Dolu transition)
    * Enforces "one card, one locker" rule
    */
   async assignLocker(
@@ -164,7 +196,7 @@ export class LockerStateManager {
     }
 
     // Validate state transition
-    if (!this.isValidTransition(locker.status, 'Reserved', 'assign')) {
+    if (!this.isValidTransition(locker.status, 'Dolu', 'assign')) {
       return false;
     }
 
@@ -183,9 +215,9 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Reserved', owner_type = ?, owner_key = ?, 
+         SET status = 'Dolu', owner_type = ?, owner_key = ?, 
              reserved_at = ?, version = version + 1, updated_at = ?
-         WHERE kiosk_id = ? AND id = ? AND version = ? AND status = 'Free'`,
+         WHERE kiosk_id = ? AND id = ? AND version = ? AND status = 'Boş'`,
         [
           ownerType, 
           ownerKey, 
@@ -202,11 +234,14 @@ export class LockerStateManager {
         return false;
       }
 
+      // Broadcast state update
+      await this.broadcastStateUpdate(kioskId, lockerId, 'Dolu', ownerKey, ownerType);
+
       // Log the assignment event
       await this.logEvent(kioskId, lockerId, EventType.RFID_ASSIGN, {
         owner_type: ownerType,
         owner_key: ownerKey,
-        previous_status: 'Free'
+        previous_status: 'Boş'
       });
 
       return true;
@@ -217,18 +252,18 @@ export class LockerStateManager {
   }
 
   /**
-   * Confirm locker ownership (Reserved -> Owned)
+   * Confirm locker ownership (Dolu -> Açılıyor)
    */
   async confirmOwnership(kioskId: string, lockerId: number): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
-    if (!locker || locker.status !== 'Reserved') {
+    if (!locker || locker.status !== 'Dolu') {
       return false;
     }
 
     try {
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Owned', owned_at = ?, version = version + 1, updated_at = ?
+         SET status = 'Açılıyor', owned_at = ?, version = version + 1, updated_at = ?
          WHERE kiosk_id = ? AND id = ? AND version = ?`,
         [
           new Date().toISOString(),
@@ -239,7 +274,13 @@ export class LockerStateManager {
         ]
       );
 
-      return result.changes > 0;
+      if (result.changes > 0) {
+        // Broadcast state update
+        await this.broadcastStateUpdate(kioskId, lockerId, 'Açılıyor', locker.owner_key, locker.owner_type);
+        return true;
+      }
+
+      return false;
     } catch (error) {
       console.error('Error confirming ownership:', error);
       return false;
@@ -247,7 +288,7 @@ export class LockerStateManager {
   }
 
   /**
-   * Release locker (Owned/Reserved -> Free transition)
+   * Release locker (Açılıyor/Dolu -> Boş transition)
    * Immediate ownership removal as per requirements
    */
   async releaseLocker(kioskId: string, lockerId: number, ownerKey?: string): Promise<boolean> {
@@ -257,7 +298,7 @@ export class LockerStateManager {
     }
 
     // Allow release from any status for staff operations
-    if (locker.status === 'Free') {
+    if (locker.status === 'Boş') {
       return true; // Already free
     }
 
@@ -273,13 +314,16 @@ export class LockerStateManager {
         const connection = this.dbManager.getConnection();
         const result = await connection.run(
           `UPDATE lockers 
-           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
+          // Broadcast state update
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          
           // Log the release event
           const eventType = locker.owner_type === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE;
           await this.logEvent(kioskId, lockerId, eventType, {
@@ -292,13 +336,16 @@ export class LockerStateManager {
       } else {
         const result = await this.db.run(
           `UPDATE lockers 
-           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
-           WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Reserved', 'Owned')`,
+           WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Dolu', 'Açılıyor')`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
+          // Broadcast state update
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          
           // Log the release event
           const eventType = locker.owner_type === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE;
           await this.logEvent(kioskId, lockerId, eventType, {
@@ -318,7 +365,7 @@ export class LockerStateManager {
   }
 
   /**
-   * Block locker (any status -> Blocked)
+   * Block locker (any status -> Engelli)
    */
   async blockLocker(kioskId: string, lockerId: number, staffUser?: string, reason?: string): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
@@ -333,12 +380,15 @@ export class LockerStateManager {
         const connection = this.dbManager.getConnection();
         const result = await connection.run(
           `UPDATE lockers 
-           SET status = 'Blocked', version = version + 1, updated_at = ?
+           SET status = 'Engelli', version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
+          // Broadcast state update
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Engelli');
+          
           // Log the block event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_BLOCK, {
             reason: reason || 'Manual block',
@@ -349,12 +399,15 @@ export class LockerStateManager {
       } else {
         const result = await this.db.run(
           `UPDATE lockers 
-           SET status = 'Blocked', version = version + 1, updated_at = ?
+           SET status = 'Engelli', version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
+          // Broadcast state update
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Engelli');
+          
           // Log the block event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_BLOCK, {
             reason: reason || 'Manual block',
@@ -372,11 +425,11 @@ export class LockerStateManager {
   }
 
   /**
-   * Unblock locker (Blocked -> Free)
+   * Unblock locker (Engelli -> Boş)
    */
   async unblockLocker(kioskId: string, lockerId: number, staffUser?: string): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
-    if (!locker || locker.status !== 'Blocked') {
+    if (!locker || locker.status !== 'Engelli') {
       return false;
     }
 
@@ -387,32 +440,38 @@ export class LockerStateManager {
         const connection = this.dbManager.getConnection();
         const result = await connection.run(
           `UPDATE lockers 
-           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
+          // Broadcast state update
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          
           // Log the unblock event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_UNBLOCK, {
-            previous_status: 'Blocked'
+            previous_status: 'Engelli'
           }, staffUser);
           return true;
         }
       } else {
         const result = await this.db.run(
           `UPDATE lockers 
-           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
+          // Broadcast state update
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          
           // Log the unblock event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_UNBLOCK, {
-            previous_status: 'Blocked'
+            previous_status: 'Engelli'
           }, staffUser);
           return true;
         }
@@ -426,7 +485,7 @@ export class LockerStateManager {
   }
 
   /**
-   * Clean up expired reservations (Reserved > 90 seconds -> Free)
+   * Clean up expired reservations (Dolu > 90 seconds -> Boş)
    * Automatic timeout transition as per state machine
    */
   async cleanupExpiredReservations(): Promise<number> {
@@ -436,7 +495,7 @@ export class LockerStateManager {
       // First, get the expired reservations for logging
       const expiredLockers = await this.db.all<Locker>(
         `SELECT * FROM lockers 
-         WHERE status = 'Reserved' AND reserved_at < ?`,
+         WHERE status = 'Dolu' AND reserved_at < ?`,
         [expiredThreshold.toISOString()]
       );
 
@@ -445,22 +504,25 @@ export class LockerStateManager {
         return 0;
       }
 
-      // Update expired reservations to Free status
+      // Update expired reservations to Boş status
       const now = new Date().toISOString();
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Free', owner_type = NULL, owner_key = NULL, 
+         SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
              reserved_at = NULL, version = version + 1, updated_at = ?
-         WHERE status = 'Reserved' AND reserved_at < ?`,
+         WHERE status = 'Dolu' AND reserved_at < ?`,
         [now, expiredThreshold.toISOString()]
       );
 
-      // Log cleanup events for each expired locker
+      // Log cleanup events and broadcast updates for each expired locker
       for (const locker of expiredLockers) {
+        // Broadcast state update
+        await this.broadcastStateUpdate(locker.kiosk_id, locker.id, 'Boş');
+        
         await this.logEvent(locker.kiosk_id, locker.id, EventType.RFID_RELEASE, {
           owner_type: locker.owner_type,
           owner_key: locker.owner_key,
-          previous_status: 'Reserved',
+          previous_status: 'Dolu',
           reason: 'timeout_cleanup',
           timeout_seconds: this.RESERVE_TIMEOUT_SECONDS
         });
@@ -492,7 +554,7 @@ export class LockerStateManager {
     for (let i = 1; i <= lockerCount; i++) {
       await this.db.run(
         `INSERT INTO lockers (kiosk_id, id, status, version) 
-         VALUES (?, ?, 'Free', 1)`,
+         VALUES (?, ?, 'Boş', 1)`,
         [kioskId, i]
       );
     }
@@ -505,19 +567,21 @@ export class LockerStateManager {
    */
   async getKioskStats(kioskId: string): Promise<{
     total: number;
-    free: number;
-    reserved: number;
-    owned: number;
-    blocked: number;
+    bos: number;
+    dolu: number;
+    aciliyor: number;
+    hata: number;
+    engelli: number;
     vip: number;
   }> {
     const stats = await this.db.get<any>(
       `SELECT 
          COUNT(*) as total,
-         SUM(CASE WHEN status = 'Free' THEN 1 ELSE 0 END) as free,
-         SUM(CASE WHEN status = 'Reserved' THEN 1 ELSE 0 END) as reserved,
-         SUM(CASE WHEN status = 'Owned' THEN 1 ELSE 0 END) as owned,
-         SUM(CASE WHEN status = 'Blocked' THEN 1 ELSE 0 END) as blocked,
+         SUM(CASE WHEN status = 'Boş' THEN 1 ELSE 0 END) as bos,
+         SUM(CASE WHEN status = 'Dolu' THEN 1 ELSE 0 END) as dolu,
+         SUM(CASE WHEN status = 'Açılıyor' THEN 1 ELSE 0 END) as aciliyor,
+         SUM(CASE WHEN status = 'Hata' THEN 1 ELSE 0 END) as hata,
+         SUM(CASE WHEN status = 'Engelli' THEN 1 ELSE 0 END) as engelli,
          SUM(CASE WHEN is_vip = 1 THEN 1 ELSE 0 END) as vip
        FROM lockers WHERE kiosk_id = ?`,
       [kioskId]
@@ -525,10 +589,11 @@ export class LockerStateManager {
 
     return {
       total: stats.total || 0,
-      free: stats.free || 0,
-      reserved: stats.reserved || 0,
-      owned: stats.owned || 0,
-      blocked: stats.blocked || 0,
+      bos: stats.bos || 0,
+      dolu: stats.dolu || 0,
+      aciliyor: stats.aciliyor || 0,
+      hata: stats.hata || 0,
+      engelli: stats.engelli || 0,
       vip: stats.vip || 0
     };
   }
@@ -620,12 +685,148 @@ export class LockerStateManager {
   }
 
   /**
+   * Set locker to error state (any status -> Hata)
+   */
+  async setLockerError(kioskId: string, lockerId: number, errorReason: string, staffUser?: string): Promise<boolean> {
+    const locker = await this.getLocker(kioskId, lockerId);
+    if (!locker) {
+      return false;
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const result = await this.db.run(
+        `UPDATE lockers 
+         SET status = 'Hata', version = version + 1, updated_at = ?
+         WHERE kiosk_id = ? AND id = ? AND version = ?`,
+        [now, kioskId, lockerId, locker.version]
+      );
+
+      if (result.changes > 0) {
+        // Broadcast state update
+        await this.broadcastStateUpdate(kioskId, lockerId, 'Hata');
+        
+        // Log the error event
+        await this.logEvent(kioskId, lockerId, EventType.COMMAND_FAILED, {
+          error_reason: errorReason,
+          previous_status: locker.status
+        }, staffUser);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error setting locker error state:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Resolve locker error (Hata -> Boş)
+   */
+  async resolveLockerError(kioskId: string, lockerId: number, staffUser?: string): Promise<boolean> {
+    const locker = await this.getLocker(kioskId, lockerId);
+    if (!locker || locker.status !== 'Hata') {
+      return false;
+    }
+
+    try {
+      const now = new Date().toISOString();
+      const result = await this.db.run(
+        `UPDATE lockers 
+         SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
+             reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
+         WHERE kiosk_id = ? AND id = ? AND version = ?`,
+        [now, kioskId, lockerId, locker.version]
+      );
+
+      if (result.changes > 0) {
+        // Broadcast state update
+        await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+        
+        // Log the resolution event
+        await this.logEvent(kioskId, lockerId, EventType.STAFF_OPEN, {
+          previous_status: 'Hata',
+          reason: 'error_resolved'
+        }, staffUser);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error resolving locker error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get enhanced locker data with display names
+   */
+  async getEnhancedLocker(kioskId: string, lockerId: number): Promise<Locker & { displayName: string } | null> {
+    const locker = await this.getLocker(kioskId, lockerId);
+    if (!locker) {
+      return null;
+    }
+
+    const displayName = await this.namingService.getDisplayName(kioskId, lockerId);
+    
+    return {
+      ...locker,
+      displayName
+    };
+  }
+
+  /**
+   * Get all enhanced lockers with display names
+   */
+  async getEnhancedKioskLockers(kioskId: string): Promise<Array<Locker & { displayName: string }>> {
+    const lockers = await this.getKioskLockers(kioskId);
+    
+    const enhancedLockers = await Promise.all(
+      lockers.map(async (locker) => {
+        const displayName = await this.namingService.getDisplayName(kioskId, locker.id);
+        return {
+          ...locker,
+          displayName
+        };
+      })
+    );
+
+    return enhancedLockers;
+  }
+
+  /**
+   * Initialize WebSocket service
+   */
+  public initializeWebSocket(port: number = 8080): void {
+    try {
+      webSocketService.initialize(port);
+      console.log(`🚀 WebSocket service initialized for real-time state updates`);
+    } catch (error) {
+      console.error('🚨 Failed to initialize WebSocket service:', error);
+    }
+  }
+
+  /**
+   * Get WebSocket connection status
+   */
+  public getWebSocketStatus(): { connected: boolean; clientCount: number } {
+    const status = webSocketService.getConnectionStatus();
+    return {
+      connected: status.status === 'online',
+      clientCount: status.connectedClients
+    };
+  }
+
+  /**
    * Cleanup and shutdown
    */
   async shutdown(): Promise<void> {
     this.stopCleanupTimer();
     // Perform final cleanup
     await this.cleanupExpiredReservations();
+    // Shutdown WebSocket service
+    webSocketService.shutdown();
   }
 
   /**

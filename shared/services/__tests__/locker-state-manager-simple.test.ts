@@ -64,7 +64,7 @@ describe('LockerStateManager - Simple Tests', () => {
   });
 
   it('should get possible next states', () => {
-    const nextStates = stateManager.getPossibleNextStates('Free');
+    const nextStates = stateManager.getPossibleNextStates('Boş');
     expect(nextStates).toContain('Reserved');
     expect(nextStates).toContain('Blocked');
   });

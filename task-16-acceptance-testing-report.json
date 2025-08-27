@@ -1,0 +1,247 @@
+{
+  "timestamp": "2025-08-27T03:34:35.492Z",
+  "summary": {
+    "passed": 47,
+    "failed": 0,
+    "warnings": 0,
+    "successRate": "100.0%"
+  },
+  "details": [
+    {
+      "status": "PASS",
+      "description": "Always-visible background grid with blur effect",
+      "details": "Background grid structure found in HTML"
+    },
+    {
+      "status": "PASS",
+      "description": "Front overlay with Turkish prompt text",
+      "details": "Front overlay structure and Turkish text found"
+    },
+    {
+      "status": "PASS",
+      "description": "Always-on legend with state colors",
+      "details": "Legend bar with Turkish state names found"
+    },
+    {
+      "status": "PASS",
+      "description": "Session countdown badge display",
+      "details": "Session countdown structure found"
+    },
+    {
+      "status": "PASS",
+      "description": "Distinct visual states for all locker conditions",
+      "details": "All required state classes found in HTML"
+    },
+    {
+      "status": "PASS",
+      "description": "Correct tile specifications (120x120px, 12px gaps, 56px touch targets)",
+      "details": "Tile size specifications found in CSS"
+    },
+    {
+      "status": "PASS",
+      "description": "Smooth animations with 200-300ms duration",
+      "details": "Animation timing specifications found"
+    },
+    {
+      "status": "PASS",
+      "description": "Performance optimizations for Raspberry Pi",
+      "details": "Performance optimization CSS rules found"
+    },
+    {
+      "status": "PASS",
+      "description": "Correct state colors (green for Boş, red for Dolu)",
+      "details": "State-specific color definitions found"
+    },
+    {
+      "status": "PASS",
+      "description": "One-session-per-kiosk rule implementation",
+      "details": "Session management logic found"
+    },
+    {
+      "status": "PASS",
+      "description": "Real-time grid updates without page reload",
+      "details": "Real-time update functionality found"
+    },
+    {
+      "status": "PASS",
+      "description": "Audio feedback system implementation",
+      "details": "Audio feedback functionality found"
+    },
+    {
+      "status": "PASS",
+      "description": "Display names prominent with small relay numbers",
+      "details": "Locker display name and relay number elements found"
+    },
+    {
+      "status": "PASS",
+      "description": "State chips with consistent Turkish state names",
+      "details": "All required state chip classes found"
+    },
+    {
+      "status": "PASS",
+      "description": "Filtering controls for State, Kiosk, and Name search",
+      "details": "Filter control elements found"
+    },
+    {
+      "status": "PASS",
+      "description": "Sorting options for Name, Relay, State, Last Changed",
+      "details": "Sorting control elements found"
+    },
+    {
+      "status": "PASS",
+      "description": "Bulk action buttons (Open, Release, Refresh)",
+      "details": "Bulk action functions found"
+    },
+    {
+      "status": "PASS",
+      "description": "Toast notification system for operation feedback",
+      "details": "Toast notification system found"
+    },
+    {
+      "status": "PASS",
+      "description": "Links to command details by command_id",
+      "details": "Command tracking functionality found"
+    },
+    {
+      "status": "PASS",
+      "description": "20-second countdown timer implementation",
+      "details": "Countdown timer with 20-second default found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish session state messages",
+      "details": "Turkish language session messages found"
+    },
+    {
+      "status": "PASS",
+      "description": "One-session-per-kiosk rule enforcement",
+      "details": "Session limit enforcement found"
+    },
+    {
+      "status": "PASS",
+      "description": "Session cleanup and timeout handling",
+      "details": "Session cleanup mechanisms found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish character validation with 20 character limit",
+      "details": "Turkish character validation and length limit found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish character support in validation",
+      "details": "Turkish character set found in regex"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish preset examples (Kapı A1, Dolap 101)",
+      "details": "Turkish preset examples found"
+    },
+    {
+      "status": "PASS",
+      "description": "Audit logging for name changes",
+      "details": "Audit logging functionality found"
+    },
+    {
+      "status": "PASS",
+      "description": "Printable map generation for installers",
+      "details": "Printable map functionality found"
+    },
+    {
+      "status": "PASS",
+      "description": "Real-time state broadcasting via WebSocket",
+      "details": "WebSocket state broadcasting found"
+    },
+    {
+      "status": "PASS",
+      "description": "Connection status monitoring",
+      "details": "Connection monitoring functionality found"
+    },
+    {
+      "status": "PASS",
+      "description": "Automatic state broadcasting on changes",
+      "details": "State update broadcasting found"
+    },
+    {
+      "status": "PASS",
+      "description": "Last update timestamp tracking",
+      "details": "Timestamp tracking found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish hardware disconnected message",
+      "details": "Hardware error message in Turkish found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish locker busy message",
+      "details": "Locker busy message in Turkish found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish session timeout message",
+      "details": "Session timeout message in Turkish found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish general error message",
+      "details": "General error message in Turkish found"
+    },
+    {
+      "status": "PASS",
+      "description": "Turkish recovery suggestions",
+      "details": "Recovery suggestions in Turkish found"
+    },
+    {
+      "status": "PASS",
+      "description": "30fps frame rate cap for Raspberry Pi",
+      "details": "Frame rate optimization found"
+    },
+    {
+      "status": "PASS",
+      "description": "Performance metrics tracking implementation",
+      "details": "UI Performance tracking class and methods found"
+    },
+    {
+      "status": "PASS",
+      "description": "GPU acceleration optimizations",
+      "details": "Hardware acceleration CSS properties found"
+    },
+    {
+      "status": "PASS",
+      "description": "Minimum 56px touch targets for accessibility",
+      "details": "Accessibility touch target sizes found"
+    },
+    {
+      "status": "PASS",
+      "description": "High contrast color scheme for visibility",
+      "details": "High contrast colors found"
+    },
+    {
+      "status": "PASS",
+      "description": "Keyboard navigation focus styles",
+      "details": "Focus styling found"
+    },
+    {
+      "status": "PASS",
+      "description": "Reduced motion accessibility support",
+      "details": "Reduced motion media query found"
+    },
+    {
+      "status": "PASS",
+      "description": "Consistent state names across all interfaces",
+      "details": "All files use the same Turkish state names"
+    },
+    {
+      "status": "PASS",
+      "description": "Comprehensive Turkish error message catalog",
+      "details": "All required error messages found"
+    },
+    {
+      "status": "PASS",
+      "description": "Recovery suggestions for error scenarios",
+      "details": "Recovery suggestion messages found"
+    }
+  ],
+  "overallStatus": "PASSED"
+}

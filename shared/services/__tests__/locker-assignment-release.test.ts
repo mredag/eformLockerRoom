@@ -74,7 +74,7 @@ class MockDatabase {
     return { changes: 0 };
   }
 
-  createLocker(kioskId: string, id: number, status: LockerStatus = 'Free', isVip: boolean = false) {
+  createLocker(kioskId: string, id: number, status: LockerStatus = 'Boş', isVip: boolean = false) {
     const key = `${kioskId}:${id}`;
     this.lockers.set(key, {
       kiosk_id: kioskId,
@@ -119,9 +119,9 @@ describe('Locker Assignment and Release Logic', () => {
   describe('assignLocker method with ownership validation', () => {
     beforeEach(() => {
       mockDb.clear();
-      mockDb.createLocker('kiosk-1', 1, 'Free', false);
-      mockDb.createLocker('kiosk-1', 2, 'Free', true); // VIP locker
-      mockDb.createLocker('kiosk-1', 3, 'Owned', false);
+      mockDb.createLocker('kiosk-1', 1, 'Boş', false);
+      mockDb.createLocker('kiosk-1', 2, 'Boş', true); // VIP locker
+      mockDb.createLocker('kiosk-1', 3, 'Açılıyor', false);
     });
 
     it('should assign Free locker successfully', async () => {
@@ -154,7 +154,7 @@ describe('Locker Assignment and Release Logic', () => {
       expect(result1).toBe(true);
 
       // Add another free locker
-      mockDb.createLocker('kiosk-1', 4, 'Free', false);
+      mockDb.createLocker('kiosk-1', 4, 'Boş', false);
 
       // Second assignment with same card should fail
       const result2 = await stateManager.assignLocker('kiosk-1', 4, 'rfid', 'card-123');
@@ -165,8 +165,8 @@ describe('Locker Assignment and Release Logic', () => {
   describe('releaseLocker with immediate ownership removal', () => {
     beforeEach(() => {
       mockDb.clear();
-      mockDb.createLocker('kiosk-1', 1, 'Reserved', false);
-      mockDb.createLocker('kiosk-1', 2, 'Owned', false);
+      mockDb.createLocker('kiosk-1', 1, 'Dolu', false);
+      mockDb.createLocker('kiosk-1', 2, 'Açılıyor', false);
       
       // Set up ownership
       const locker1 = (mockDb as any).lockers.get('kiosk-1:1');
@@ -219,12 +219,12 @@ describe('Locker Assignment and Release Logic', () => {
   describe('getAvailableLockers filtering', () => {
     beforeEach(() => {
       mockDb.clear();
-      mockDb.createLocker('kiosk-1', 1, 'Free', false);      // Available
-      mockDb.createLocker('kiosk-1', 2, 'Reserved', false);  // Not available
-      mockDb.createLocker('kiosk-1', 3, 'Owned', false);     // Not available
-      mockDb.createLocker('kiosk-1', 4, 'Blocked', false);   // Not available
-      mockDb.createLocker('kiosk-1', 5, 'Free', true);       // Not available (VIP)
-      mockDb.createLocker('kiosk-1', 6, 'Free', false);      // Available
+      mockDb.createLocker('kiosk-1', 1, 'Boş', false);      // Available
+      mockDb.createLocker('kiosk-1', 2, 'Dolu', false);  // Not available
+      mockDb.createLocker('kiosk-1', 3, 'Açılıyor', false);     // Not available
+      mockDb.createLocker('kiosk-1', 4, 'Engelli', false);   // Not available
+      mockDb.createLocker('kiosk-1', 5, 'Boş', true);       // Not available (VIP)
+      mockDb.createLocker('kiosk-1', 6, 'Boş', false);      // Available
     });
 
     it('should return only Free, non-VIP lockers', async () => {
@@ -252,7 +252,7 @@ describe('Locker Assignment and Release Logic', () => {
   describe('Ownership validation methods', () => {
     beforeEach(() => {
       mockDb.clear();
-      mockDb.createLocker('kiosk-1', 1, 'Owned', false);
+      mockDb.createLocker('kiosk-1', 1, 'Açılıyor', false);
       
       const locker = (mockDb as any).lockers.get('kiosk-1:1');
       if (locker) {

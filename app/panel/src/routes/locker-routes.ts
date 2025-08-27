@@ -498,6 +498,55 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     }
   });
 
+  // Release locker
+  fastify.post('/:kioskId/:lockerId/release', {
+    preHandler: [requirePermission(Permission.OPEN_LOCKER), requireCsrfToken()],
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          reason: { type: 'string' }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    const { kioskId, lockerId } = request.params as { kioskId: string; lockerId: string };
+    const { reason } = request.body as { reason?: string };
+    const user = (request as any).user as User;
+
+    try {
+      const lockerId_num = parseInt(lockerId);
+      
+      const success = await lockerStateManager.releaseLocker(kioskId, lockerId_num);
+      
+      if (success) {
+        await eventRepository.logEvent({
+          kiosk_id: kioskId,
+          locker_id: lockerId_num,
+          event_type: 'staff_release',
+          staff_user: user.username,
+          details: { reason: reason || 'Manual release' }
+        });
+
+        reply.send({ 
+          success: true, 
+          message: `Locker ${lockerId} released successfully` 
+        });
+      } else {
+        reply.code(400).send({
+          code: 'bad_request',
+          message: 'Failed to release locker'
+        });
+      }
+    } catch (error) {
+      fastify.log.error('Failed to release locker:', error);
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'try again'
+      });
+    }
+  });
+
   // Bulk operations
   fastify.post('/bulk/open', {
     preHandler: [requirePermission(Permission.BULK_OPEN), requireCsrfToken()],

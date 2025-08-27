@@ -82,13 +82,13 @@ describe('LockerStateManager', () => {
     });
 
     it('should get possible next states', () => {
-      const freeStates = stateManager.getPossibleNextStates('Free');
-      expect(freeStates).toContain('Reserved');
-      expect(freeStates).toContain('Blocked');
+      const freeStates = stateManager.getPossibleNextStates('Boş');
+      expect(freeStates).toContain('Dolu');
+      expect(freeStates).toContain('Engelli');
 
-      const reservedStates = stateManager.getPossibleNextStates('Reserved');
-      expect(reservedStates).toContain('Owned');
-      expect(reservedStates).toContain('Free');
+      const reservedStates = stateManager.getPossibleNextStates('Dolu');
+      expect(reservedStates).toContain('Açılıyor');
+      expect(reservedStates).toContain('Boş');
       expect(reservedStates).toContain('Blocked');
     });
   });
@@ -378,19 +378,19 @@ describe('LockerStateManager', () => {
 
     it('should force state transition for staff operations', async () => {
       const result = await stateManager.forceStateTransition(
-        'kiosk-1', 1, 'Free', 'staff-user', 'maintenance'
+        'kiosk-1', 1, 'Boş', 'staff-user', 'maintenance'
       );
       
       expect(result).toBe(true);
 
       const locker = await stateManager.getLocker('kiosk-1', 1);
-      expect(locker?.status).toBe('Free');
+      expect(locker?.status).toBe('Boş');
       expect(locker?.version).toBe(2);
     });
 
     it('should log forced transition event', async () => {
       await stateManager.forceStateTransition(
-        'kiosk-1', 1, 'Free', 'staff-user', 'maintenance'
+        'kiosk-1', 1, 'Boş', 'staff-user', 'maintenance'
       );
 
       const events = await db.all(

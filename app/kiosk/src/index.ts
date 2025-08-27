@@ -85,7 +85,6 @@ const rfidUserFlow = new RfidUserFlow(
 const qrHandler = new QrHandler(lockerStateManager, modbusController);
 const uiController = new UiController(
   lockerStateManager,
-  rfidUserFlow,
   modbusController
 );
 const i18nController = new KioskI18nController(fastify);
@@ -602,6 +601,16 @@ const start = async () => {
       }
     }
 
+    // Initialize WebSocket server for real-time state broadcasting
+    try {
+      const wsPort = parseInt(process.env.WEBSOCKET_PORT || "8080");
+      lockerStateManager.initializeWebSocket(wsPort);
+      console.log(`🔌 WebSocket server initialized on port ${wsPort}`);
+    } catch (wsError) {
+      console.error("❌ Error initializing WebSocket server:", wsError);
+      console.error("Real-time updates will not work!");
+    }
+
     // Start heartbeat client
     await heartbeatClient.start();
 
@@ -620,6 +629,7 @@ process.on("SIGTERM", async () => {
   console.log("Received SIGTERM, shutting down gracefully...");
   await heartbeatClient.stop();
   await modbusController.close();
+  uiController.shutdown(); // Shutdown session manager
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);
@@ -629,6 +639,7 @@ process.on("SIGINT", async () => {
   console.log("Received SIGINT, shutting down gracefully...");
   await heartbeatClient.stop();
   await modbusController.close();
+  uiController.shutdown(); // Shutdown session manager
   await lockerStateManager.shutdown();
   await fastify.close();
   process.exit(0);
