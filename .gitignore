@@ -109,3 +109,18 @@ Thumbs.db
 .kiro/settings/
 .kiro/cache/
 .kiro/logs/
+
+# Cleanup artifacts
+*.tmp
+*.bak
+*-old.*
+*-backup.*
+
+# Development summaries
+task-*-summary.md
+*-incident-report.md
+*-fix-summary.md
+
+# Test artifacts
+test-*.html
+validate-*.md
