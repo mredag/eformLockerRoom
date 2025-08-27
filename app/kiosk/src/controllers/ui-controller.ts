@@ -281,16 +281,33 @@ export class UiController {
         };
       }
 
-      // Create a temporary session for this request
-      // Note: This will be replaced by the actual card scan session
+      // Create a proper session for locker selection
+      const sessionId = `temp-${Date.now()}`;
+      const availableLockersList = lockers.map(locker => ({
+        id: locker.id,
+        status: this.normalizeStatusForUI(locker.status),
+        displayName: `Dolap ${locker.id}`,
+        is_vip: locker.is_vip
+      }));
+      
+      // Create session data matching RfidSession interface
+      const sessionData = {
+        id: sessionId,
+        kioskId,
+        cardId: 'manual', // Use 'manual' instead of null for manual selection
+        startTime: new Date(),
+        timeoutSeconds: 30,
+        status: 'active' as const,
+        availableLockers: availableLockersList.map(l => l.id)
+      };
+      
+      // Store the session manually in session manager
+      // Using the internal sessions Map directly since createSession expects cardId
+      (this.sessionManager as any).sessions.set(sessionId, sessionData);
+      
       return {
-        lockers: lockers.map(locker => ({
-          id: locker.id,
-          status: this.normalizeStatusForUI(locker.status),
-          displayName: `Dolap ${locker.id}`,
-          is_vip: locker.is_vip
-        })),
-        sessionId: `temp-${Date.now()}`,
+        lockers: availableLockersList,
+        sessionId,
         timeoutSeconds: 30,
         message: 'Dolap seçin'
       };
