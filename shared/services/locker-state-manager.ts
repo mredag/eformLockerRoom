@@ -10,8 +10,9 @@ export class LockerStateManager {
   private readonly RESERVE_TIMEOUT_SECONDS = 90;
   private namingService: LockerNamingService;
 
-  // Define valid state transitions using Turkish state names
+  // Define valid state transitions supporting both Turkish and English state names
   private readonly STATE_TRANSITIONS: LockerStateTransition[] = [
+    // Turkish status transitions
     { from: 'Boş', to: 'Dolu', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
     { from: 'Dolu', to: 'Açılıyor', trigger: 'confirm_opening', conditions: ['same_owner'] },
     { from: 'Dolu', to: 'Boş', trigger: 'timeout', conditions: ['expired_90_seconds'] },
@@ -25,7 +26,23 @@ export class LockerStateManager {
     { from: 'Boş', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
     { from: 'Dolu', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
     { from: 'Açılıyor', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
-    { from: 'Hata', to: 'Boş', trigger: 'error_resolved', conditions: ['system_recovery'] }
+    { from: 'Hata', to: 'Boş', trigger: 'error_resolved', conditions: ['system_recovery'] },
+    
+    // English status transitions (for database compatibility)
+    { from: 'Free', to: 'Dolu', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
+    { from: 'Occupied', to: 'Açılıyor', trigger: 'confirm_opening', conditions: ['same_owner'] },
+    { from: 'Occupied', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
+    { from: 'Occupied', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Occupied', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Opening', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Error', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Blocked', to: 'Free', trigger: 'staff_unblock', conditions: ['staff_action'] },
+    { from: 'Free', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Occupied', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Opening', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Error', to: 'Free', trigger: 'error_resolved', conditions: ['system_recovery'] }
   ];
 
   constructor(dbManager?: any) {
@@ -332,7 +349,7 @@ export class LockerStateManager {
         `UPDATE lockers 
          SET status = 'Dolu', owner_type = ?, owner_key = ?, 
              reserved_at = ?, version = version + 1, updated_at = ?
-         WHERE kiosk_id = ? AND id = ? AND version = ? AND status = 'Boş'`,
+         WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Boş', 'Free')`,
         [
           ownerType, 
           ownerKey, 
