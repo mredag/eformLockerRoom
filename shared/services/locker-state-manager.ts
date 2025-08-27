@@ -928,6 +928,25 @@ export class LockerStateManager {
   }
 
   /**
+   * Get available lockers with display names
+   */
+  async getEnhancedAvailableLockers(kioskId: string): Promise<Array<Locker & { displayName: string }>> {
+    const lockers = await this.getAvailableLockers(kioskId);
+    
+    const enhancedLockers = await Promise.all(
+      lockers.map(async (locker) => {
+        const displayName = await this.namingService.getDisplayName(kioskId, locker.id);
+        return {
+          ...locker,
+          displayName
+        };
+      })
+    );
+
+    return enhancedLockers;
+  }
+
+  /**
    * Initialize WebSocket service
    */
   public initializeWebSocket(port: number = 8080): void {

@@ -213,7 +213,7 @@ export class UiController {
         }
       } else {
         // Requirement 2.3: Show available lockers for selection
-        const availableLockers = await this.lockerStateManager.getAvailableLockers(kiosk_id);
+        const availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id);
         
         if (availableLockers.length === 0) {
           console.log(`⚠️ No available lockers for kiosk ${kiosk_id}`);
@@ -247,7 +247,7 @@ export class UiController {
           lockers: availableLockers.map(locker => ({
             id: locker.id,
             status: locker.status,
-            display_name: `Dolap ${locker.id}`
+            display_name: locker.displayName
           }))
         };
       }
@@ -270,7 +270,7 @@ export class UiController {
         return { error: 'kioskId is required' };
       }
 
-      const lockers = await this.lockerStateManager.getAvailableLockers(kioskId);
+      const lockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId);
       
       if (lockers.length === 0) {
         return {
@@ -286,7 +286,7 @@ export class UiController {
       const availableLockersList = lockers.map(locker => ({
         id: locker.id,
         status: this.normalizeStatusForUI(locker.status),
-        displayName: `Dolap ${locker.id}`,
+        displayName: locker.displayName,
         is_vip: locker.is_vip
       }));
       
@@ -327,11 +327,12 @@ export class UiController {
         return { error: 'kiosk_id is required' };
       }
 
-      const lockers = await this.lockerStateManager.getKioskLockers(kiosk_id);
+      const lockers = await this.lockerStateManager.getEnhancedKioskLockers(kiosk_id);
       
       return lockers.map(locker => ({
         id: locker.id,
         status: this.normalizeStatusForUI(locker.status),
+        displayName: locker.displayName,
         is_vip: locker.is_vip,
         owner_type: locker.owner_type,
         owned_at: locker.owned_at
@@ -900,7 +901,7 @@ export class UiController {
       }
 
       // Refresh available lockers for retry
-      const availableLockers = await this.lockerStateManager.getAvailableLockers(kiosk_id);
+      const availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id);
       
       if (availableLockers.length === 0) {
         return { 
@@ -923,7 +924,7 @@ export class UiController {
         lockers: availableLockers.map(locker => ({
           id: locker.id,
           status: locker.status,
-          display_name: `Dolap ${locker.id}`
+          display_name: locker.displayName
         }))
       };
     } catch (error) {
