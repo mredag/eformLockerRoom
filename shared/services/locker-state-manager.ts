@@ -290,7 +290,7 @@ export class LockerStateManager {
   async findLockerByOwner(ownerKey: string, ownerType: OwnerType): Promise<Locker | null> {
     const result = await this.db.get<Locker>(
       'SELECT * FROM lockers WHERE owner_key = ? AND owner_type = ? AND status IN (?, ?)',
-      [ownerKey, ownerType, 'Occupied', 'Opening']
+      [ownerKey, ownerType, 'Dolu', 'Açılıyor']
     );
     return result || null;
   }
