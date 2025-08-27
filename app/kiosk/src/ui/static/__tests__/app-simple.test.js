@@ -160,7 +160,7 @@ class SimpleKioskAppTest {
       const result = await response.json();
       
       if (result.action === 'open_locker') {
-        this.showLoadingState('Dolap açıldı - Eşyalarınızı alın');
+        this.showLoadingState('Test Locker açıldı - Eşyalarınızı alın');
         setTimeout(() => this.showIdleState(), 3000);
       } else if (result.action === 'show_lockers') {
         this.state.selectedCard = cardId;
@@ -334,7 +334,7 @@ describe('SimpleKioskApp', () => {
         })
       });
 
-      expect(app.elements.loadingText.textContent).toBe('Dolap açıldı - Eşyalarınızı alın');
+      expect(app.elements.loadingText.textContent).toContain('açıldı - Eşyalarınızı alın');
     });
 
     test('should handle new card assignment', async () => {

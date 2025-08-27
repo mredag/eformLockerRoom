@@ -570,7 +570,8 @@ class SimpleKioskApp {
             const result = await response.json();
             
             if (result.success) {
-                this.showLoadingState('Dolap açıldı - Eşyalarınızı alın');
+                const lockerName = this.getLockerDisplayName(lockerId);
+                this.showLoadingState(`${lockerName} açıldı - Eşyalarınızı alın`);
                 setTimeout(() => {
                     this.showIdleState();
                 }, 3000);
@@ -947,7 +948,8 @@ class SimpleKioskApp {
             
             if (result.success) {
                 this.endSession();
-                this.showLoadingState('Dolap açıldı - Eşyalarınızı yerleştirin');
+                const lockerName = this.getLockerDisplayName(lockerId);
+                this.showLoadingState(`${lockerName} açıldı - Eşyalarınızı yerleştirin`);
                 setTimeout(() => {
                     this.showIdleState();
                 }, 3000);
@@ -1060,6 +1062,18 @@ class SimpleKioskApp {
             
             default: return 'BİLİNMİYOR';
         }
+    }
+
+    /**
+     * Get locker display name by ID
+     */
+    getLockerDisplayName(lockerId) {
+        if (!this.state.availableLockers) {
+            return `Dolap ${lockerId}`;
+        }
+        
+        const locker = this.state.availableLockers.find(l => l.id === lockerId);
+        return locker ? (locker.displayName || `Dolap ${lockerId}`) : `Dolap ${lockerId}`;
     }
 
     /**

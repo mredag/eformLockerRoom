@@ -1175,6 +1175,18 @@ class KioskApp {
             this.showErrorWithRecovery('network_error');
         }
     }
+
+    /**
+     * Get locker display name by ID
+     */
+    getLockerDisplayName(lockerId) {
+        if (!this.availableLockers) {
+            return `Dolap ${lockerId}`;
+        }
+        
+        const locker = this.availableLockers.find(l => l.id === lockerId);
+        return locker ? (locker.displayName || `Dolap ${lockerId}`) : `Dolap ${lockerId}`;
+    }
     
     async loadAllLockers() {
         try {
@@ -1634,8 +1646,9 @@ class KioskApp {
                     }
                 } else {
                     // Fallback to original behavior
-                    await this.showBigFeedbackEnhanced('Dolap açılıyor', 'opening', 1500);
-                    await this.showBigFeedbackEnhanced(result.message || `Dolap ${lockerId} açıldı`, 'success', 3000);
+                    const lockerName = this.getLockerDisplayName(lockerId);
+                    await this.showBigFeedbackEnhanced(`${lockerName} açılıyor`, 'opening', 1500);
+                    await this.showBigFeedbackEnhanced(result.message || `${lockerName} açıldı`, 'success', 3000);
                 }
                 
                 // Apply return to idle transition
