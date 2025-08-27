@@ -199,7 +199,9 @@ async function startPanelService() {
       console.error('❌ Failed to register relay routes:', error);
     }
 
-    // Register performance monitoring routes
+    // Register performance monitoring routes - TEMPORARILY DISABLED
+    // TODO: Fix database connection issue in PerformanceMonitor
+    /*
     try {
       const { performanceRoutes } = await import('./routes/performance-routes');
       await fastify.register(performanceRoutes);
@@ -207,6 +209,8 @@ async function startPanelService() {
     } catch (error) {
       console.error('❌ Failed to register performance routes:', error);
     }
+    */
+    console.log('⚠️ Performance monitoring routes temporarily disabled - will fix database connection issue')
 
     // Proxy heartbeat requests to Gateway service
     fastify.register(async function (fastify) {
