@@ -12,7 +12,7 @@ sleep 2
 
 # Build all services
 echo "🔨 Building services..."
-npm run build:all
+npm run build
 
 # Start Gateway service (port 3000)
 echo "🌐 Starting Gateway service..."

@@ -24,7 +24,7 @@ mkdir -p logs
 
 # Build all services
 echo "🔨 Building services..."
-npm run build:all
+npm run build
 
 echo ""
 echo "🌐 Starting Gateway service (port 3000)..."

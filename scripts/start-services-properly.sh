@@ -12,7 +12,7 @@ sleep 3
 
 # Build all services
 echo "🔨 Building all services..."
-npm run build:all
+npm run build
 
 # Create logs directory
 mkdir -p logs
