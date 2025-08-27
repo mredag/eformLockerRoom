@@ -52,7 +52,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
   // Validation helper functions
   async function validateKioskExists(kioskId: string): Promise<boolean> {
     try {
-      const { KioskHeartbeatRepository } = await import('../../../../shared/database/kiosk-heartbeat-repository.js');
+      const { KioskHeartbeatRepository } = require('../../../../shared/database/kiosk-heartbeat-repository');
       const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
       const kiosk = await heartbeatRepo.findById(kioskId);
       return kiosk !== null;
@@ -887,9 +887,9 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
   }, async (request, reply) => {
     try {
-      const { KioskHeartbeatRepository } = await import('../../../../shared/database/kiosk-heartbeat-repository.js');
-      const heartbeatRepo = new KioskHeartbeatRepository(dbManager);
-      const kiosks = await heartbeatRepo.getAllKiosks();
+      const { KioskHeartbeatRepository } = require('../../../../shared/database/kiosk-heartbeat-repository');
+      const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
+      const kiosks = await heartbeatRepo.findAll();
       
       reply.send({
         kiosks: kiosks.map(kiosk => ({
