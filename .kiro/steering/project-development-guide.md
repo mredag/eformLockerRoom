@@ -9,6 +9,7 @@ This is a **distributed eForm Locker System** with hardware relay control:
 - **Gateway** (Port 3000): Main API coordinator, handles admin requests
 - **Kiosk** (Port 3002): Hardware control service, manages Modbus communication
 - **Panel** (Port 3001): Admin web interface, direct relay control
+- **Agent** (Optional): Background task processing and automation
 
 ### **Hardware Setup**
 
@@ -25,6 +26,9 @@ This is a **distributed eForm Locker System** with hardware relay control:
 - **✅ Web Administration**: Complete locker management and monitoring
 - **✅ Fault Tolerance**: Automatic service recovery and health monitoring
 - **✅ Production Ready**: Full documentation and monitoring tools
+- **✅ Clean Codebase**: Repository optimized with consistent English status names
+- **✅ Performance Monitoring**: Real-time system monitoring and health checks
+- **✅ Locker Naming**: Custom display names with Turkish character support
 
 ## 🚀 **Quick Development Commands**
 
@@ -89,6 +93,27 @@ rm logs/*.log
 ```
 
 ## 🎯 **Latest System Features (August 2025)**
+
+### **✅ Repository Cleanup (August 2025)**
+
+**RECENTLY COMPLETED:**
+
+- **Repository Optimization**: Removed 105 unnecessary files and outdated artifacts
+- **Status Normalization**: All database status values now use English consistently
+- **Code Cleanup**: Eliminated Turkish/English mixing in backend code
+- **Documentation Consolidation**: Streamlined and organized documentation
+- **Script Optimization**: Kept only essential operational scripts
+
+**Current Repository Structure**:
+```
+eform-locker-system/
+├── app/          # 4 core services (Gateway, Kiosk, Panel, Agent)
+├── shared/       # Common utilities and types
+├── scripts/      # 60 essential operational scripts
+├── docs/         # 7 essential documentation files
+├── tests/        # Integration tests
+└── migrations/   # Database migrations
+```
 
 ### **� RFIbD Session Management**
 
@@ -299,18 +324,19 @@ npm run lint  # if available
 - `scripts/test-basic-relay-control.js` - Test basic relay ON/OFF
 - `scripts/test-relays-1-8.js` - Test multiple relays
 - `scripts/emergency-close-relay.js` - Emergency relay shutdown
-
-### **API Testing**
-
-- `scripts/test-services-quick.js` - Quick service health check
-- `scripts/test-command-processing.js` - Test command queue
-- `scripts/debug-hardware-communication.js` - Debug Modbus issues
+- `scripts/emergency-relay-reset.js` - Reset stuck relays
 
 ### **Service Management**
 
 - `scripts/start-all-clean.sh` - Clean start all services
-- `scripts/start-services-properly.sh` - Alternative startup
-- `scripts/emergency-relay-reset.js` - Reset stuck relays
+- `scripts/production-startup.js` - Production service startup
+- `scripts/health-check-kiosk.sh` - Health monitoring
+
+### **Deployment & Testing**
+
+- `scripts/deploy-kiosk-ui.sh` - Deploy UI updates
+- `scripts/validate-deployment.sh` - Validate deployment
+- `scripts/run-e2e-admin-panel-tests.js` - E2E testing
 
 ## 🔍 **Debugging Tips**
 
@@ -459,11 +485,41 @@ sqlite3 data/eform.db "PRAGMA integrity_check;"
 
 ## 📚 **Documentation Files**
 
-- `SYSTEM_DOCUMENTATION.md` - Complete system documentation
-- `API_REFERENCE.md` - Comprehensive API documentation
-- `MONITORING_GUIDE.md` - Monitoring and troubleshooting guide
-- `PROJECT_COMPLETE_SUMMARY.md` - Project achievement summary
+- `docs/DEPLOYMENT_README.md` - Deployment and setup guide
+- `docs/performance-monitoring-guide.md` - Performance monitoring
+- `docs/kiosk-troubleshooting-guide.md` - Troubleshooting guide
+- `docs/pi-configuration-guide.md` - Pi configuration
+- `docs/rollback-procedures.md` - Rollback procedures
+- `REPOSITORY_CLEANUP_COMPLETE.md` - Repository cleanup summary
+- `engelli-cleanup-completion-summary.md` - Status normalization summary
 
 ---
 
-**Remember**: When in doubt, use the working test scripts to verify hardware functionality before debugging software issues! The system is now production-ready with full multi-user RFID support.
+## 🔄 **Data Consistency & Status Management**
+
+### **Database Status Values (English)**
+- `Free` - Available for assignment
+- `Owned` - Assigned to RFID card
+- `Opening` - Confirmed ownership, opening in progress  
+- `Error` - Hardware or system errors
+- `Blocked` - Administratively blocked
+
+### **UI Display Mapping (Turkish)**
+- Database `Free` → UI displays `Boş`
+- Database `Owned` → UI displays `Dolu`
+- Database `Opening` → UI displays `Açılıyor`
+- Database `Error` → UI displays `Hata`
+- Database `Blocked` → UI displays `Engelli`
+
+### **CSS Classes (Turkish-based)**
+- `.state-bos` - Green (available)
+- `.state-dolu` - Red (occupied)
+- `.state-aciliyor` - Orange (opening)
+- `.state-hata` - Gray (error)
+- `.state-engelli` - Red/Pink (blocked)
+
+**Architecture**: Database (English) → API (English) → UI Display (Turkish)
+
+---
+
+**Remember**: When in doubt, use the working test scripts to verify hardware functionality before debugging software issues! The system is now production-ready with full multi-user RFID support and clean, consistent data architecture.

@@ -55,14 +55,18 @@ User can execute: `ssh pi@pi-eform-locker "command"`
 ### **Common Pi Commands**
 ```bash
 # Deploy latest changes
-git pull origin main && npm run build:all
+git pull origin main && npm run build:gateway && npm run build:kiosk && npm run build:panel
 
-# Restart services
+# Restart services (clean)
+./scripts/start-all-clean.sh
+
+# Restart services (manual)
 sudo pkill -f "node.*" && sleep 3
 npm run start:gateway & npm run start:kiosk & npm run start:panel &
 
 # Test system
-node scripts/test-queue-vs-direct.js
+node scripts/test-basic-relay-control.js
+node scripts/test-relays-1-8.js
 ```
 
 ## 🎯 **Key System Information**
@@ -71,6 +75,9 @@ node scripts/test-queue-vs-direct.js
 - **Auto-Close**: Relays automatically close after activation
 - **Queue-based**: Preferred method for locker control
 - **Remote Control**: Full API access from any network device
+- **Data Consistency**: Database uses English, UI displays Turkish
+- **Repository**: Recently cleaned and optimized (105 files removed)
+- **Status**: Production-ready with full monitoring and documentation
 
 ## 🚫 **Terminal Management**
 **IMPORTANT**: Services like `npm run start` block the terminal. Use these strategies:
@@ -98,3 +105,26 @@ node scripts/test-queue-vs-direct.js
 - **Deploy**: Push to main, then pull on Pi
 - **Debug**: Check service logs and hardware connections
 - **Start Services**: Guide user to use new terminal/background processes
+
+## 🎯 **Current Project Status (August 2025)**
+
+### **✅ Recently Completed**
+- Repository cleanup (105 files removed)
+- Status normalization (English database, Turkish UI)
+- Code consistency improvements
+- Documentation consolidation
+- Performance monitoring implementation
+
+### **✅ Production Features**
+- Multi-user RFID session management
+- Real-time hardware control via Modbus RTU
+- Web administration with Turkish interface
+- Automatic service recovery and health monitoring
+- Custom locker naming with Turkish character support
+
+### **🔧 Essential Scripts Available**
+- `scripts/test-basic-relay-control.js` - Hardware testing
+- `scripts/emergency-relay-reset.js` - Emergency controls
+- `scripts/start-all-clean.sh` - Service management
+- `scripts/health-check-kiosk.sh` - Health monitoring
+- `scripts/deploy-kiosk-ui.sh` - Deployment utilities
