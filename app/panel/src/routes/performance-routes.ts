@@ -7,6 +7,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { Database } from 'sqlite3';
 import { PerformanceMonitor } from '../../../../shared/services/performance-monitor';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
 
 interface PerformanceRouteParams {
   kioskId: string;
@@ -17,7 +18,8 @@ interface LockerStatsQuery {
 }
 
 export async function performanceRoutes(fastify: FastifyInstance) {
-  const db = fastify.sqlite as Database;
+  const dbManager = DatabaseManager.getInstance();
+  const db = dbManager.getConnection();
   const performanceMonitor = new PerformanceMonitor(db);
   
   // Initialize performance monitoring
