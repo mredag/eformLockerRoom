@@ -160,8 +160,9 @@ class UIPerformanceTracker {
 
       await Promise.all(promises);
       
-      // Only log successful batches occasionally
-      if (reportsToSend.length >= this.reportBatchSize) {
+      // Reduce console logging to avoid spam
+      // Only log large batches occasionally
+      if (reportsToSend.length >= this.reportBatchSize * 2) {
         console.log(`📊 Reported ${reportsToSend.length} UI performance events`);
       }
     } catch (error) {
@@ -191,12 +192,9 @@ class UIPerformanceTracker {
    * Get panel URL for reporting
    */
   getPanelUrl() {
-    // Try to determine panel URL from current location
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    
-    // Default to port 3001 for panel service
-    return `${protocol}//${hostname}:3001`;
+    // Use same origin to avoid CSP issues
+    // The kiosk service should proxy performance requests to panel
+    return window.location.origin;
   }
 
   /**

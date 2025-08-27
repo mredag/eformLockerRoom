@@ -11,6 +11,7 @@ class KioskApp {
         this.lockoutEndTime = null;
         this.availableLockers = [];
         this.allLockers = [];
+        this.lastGridSize = 0; // Track grid size to reduce logging
         this.currentSessionId = null; // Track current RFID session
         this.sessionCountdownTimer = null; // Track countdown timer
         this.sessionTimeoutSeconds = 20; // Default session timeout
@@ -1279,7 +1280,11 @@ class KioskApp {
             // Update existing tiles instead of full re-render for better performance
             this.updateGridTiles(grid, allLockers, false);
             
-            console.log(`🔄 Background grid updated with ${allLockers.length} lockers`);
+            // Reduced logging to avoid console spam
+            if (allLockers.length !== this.lastGridSize) {
+                console.log(`🔄 Background grid updated with ${allLockers.length} lockers`);
+                this.lastGridSize = allLockers.length;
+            }
             
             // Track successful state update performance
             if (window.performanceTracker) {

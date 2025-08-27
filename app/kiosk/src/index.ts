@@ -269,6 +269,38 @@ fastify.get("/health", async (request, reply) => {
   };
 });
 
+// Performance tracking proxy endpoint to avoid CSP issues
+fastify.post("/api/performance/ui-event", async (request, reply) => {
+  try {
+    // Proxy performance events to panel service
+    const panelUrl = process.env.PANEL_URL || "http://127.0.0.1:3001";
+    
+    const response = await fetch(`${panelUrl}/api/performance/ui-event`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(request.body)
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return reply.send(result);
+    } else {
+      return reply.status(response.status).send({ 
+        success: false, 
+        error: 'Failed to proxy performance event' 
+      });
+    }
+  } catch (error) {
+    // Silently handle errors to avoid console spam
+    return reply.status(500).send({ 
+      success: false, 
+      error: 'Performance tracking unavailable' 
+    });
+  }
+});
+
 // Initialize RFID handler
 rfidHandler.on("card_scanned", async (scanEvent: any) => {
   await rfidUserFlow.handleCardScanned(scanEvent);
