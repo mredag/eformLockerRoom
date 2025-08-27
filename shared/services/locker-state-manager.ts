@@ -52,7 +52,7 @@ export class LockerStateManager {
     } else {
       this.db = DatabaseConnection.getInstance();
     }
-    this.namingService = new LockerNamingService(dbManager);
+    this.namingService = new LockerNamingService(this.db);
     this.startCleanupTimer();
   }
 
