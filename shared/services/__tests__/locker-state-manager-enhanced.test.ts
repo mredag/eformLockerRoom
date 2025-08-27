@@ -57,7 +57,7 @@ describe('LockerStateManager - Enhanced Features', () => {
       const transitions = stateManager.getValidTransitions();
       
       // Check that Turkish states are used
-      const turkishStates = ['Boş', 'Dolu', 'Açılıyor', 'Hata', 'Engelli'];
+      const turkishStates = ['Free', 'Owned', 'Opening', 'Error', 'Blocked'];
       const transitionStates = transitions.flatMap(t => [t.from, t.to]);
       
       turkishStates.forEach(state => {
@@ -66,18 +66,18 @@ describe('LockerStateManager - Enhanced Features', () => {
     });
 
     it('should get possible next states for Boş', () => {
-      const nextStates = stateManager.getPossibleNextStates('Boş');
-      expect(nextStates).toContain('Dolu');
-      expect(nextStates).toContain('Engelli');
-      expect(nextStates).toContain('Hata');
+      const nextStates = stateManager.getPossibleNextStates('Free');
+      expect(nextStates).toContain('Owned');
+      expect(nextStates).toContain('Blocked');
+      expect(nextStates).toContain('Error');
     });
 
     it('should get possible next states for Dolu', () => {
-      const nextStates = stateManager.getPossibleNextStates('Dolu');
-      expect(nextStates).toContain('Açılıyor');
-      expect(nextStates).toContain('Boş');
-      expect(nextStates).toContain('Engelli');
-      expect(nextStates).toContain('Hata');
+      const nextStates = stateManager.getPossibleNextStates('Owned');
+      expect(nextStates).toContain('Opening');
+      expect(nextStates).toContain('Free');
+      expect(nextStates).toContain('Blocked');
+      expect(nextStates).toContain('Error');
     });
   });
 
@@ -98,7 +98,7 @@ describe('LockerStateManager - Enhanced Features', () => {
       mockDb.get.mockResolvedValue({
         id: 1,
         kiosk_id: 'kiosk-1',
-        status: 'Boş',
+        status: 'Free',
         version: 1,
         is_vip: false
       });
@@ -111,7 +111,7 @@ describe('LockerStateManager - Enhanced Features', () => {
         kioskId: 'kiosk-1',
         lockerId: 1,
         displayName: 'Dolap 1',
-        state: 'Dolu',
+        state: 'Owned',
         lastChanged: expect.any(Date),
         ownerKey: 'card123',
         ownerType: 'rfid'
@@ -124,7 +124,7 @@ describe('LockerStateManager - Enhanced Features', () => {
       mockDb.get.mockResolvedValue({
         id: 1,
         kiosk_id: 'kiosk-1',
-        status: 'Boş',
+        status: 'Free',
         version: 1
       });
 
@@ -133,7 +133,7 @@ describe('LockerStateManager - Enhanced Features', () => {
       expect(enhancedLocker).toEqual({
         id: 1,
         kiosk_id: 'kiosk-1',
-        status: 'Boş',
+        status: 'Free',
         version: 1,
         displayName: 'Dolap 1'
       });
@@ -143,8 +143,8 @@ describe('LockerStateManager - Enhanced Features', () => {
 
     it('should get enhanced kiosk lockers with display names', async () => {
       mockDb.all.mockResolvedValue([
-        { id: 1, kiosk_id: 'kiosk-1', status: 'Boş', version: 1 },
-        { id: 2, kiosk_id: 'kiosk-1', status: 'Dolu', version: 1 }
+        { id: 1, kiosk_id: 'kiosk-1', status: 'Free', version: 1 },
+        { id: 2, kiosk_id: 'kiosk-1', status: 'Owned', version: 1 }
       ]);
 
       mockNamingService.getDisplayName
@@ -164,7 +164,7 @@ describe('LockerStateManager - Enhanced Features', () => {
       mockDb.get.mockResolvedValue({
         id: 1,
         kiosk_id: 'kiosk-1',
-        status: 'Boş',
+        status: 'Free',
         version: 1
       });
       
@@ -177,7 +177,7 @@ describe('LockerStateManager - Enhanced Features', () => {
         kioskId: 'kiosk-1',
         lockerId: 1,
         displayName: 'Dolap 1',
-        state: 'Hata',
+        state: 'Error',
         lastChanged: expect.any(Date)
       });
     });
@@ -186,7 +186,7 @@ describe('LockerStateManager - Enhanced Features', () => {
       mockDb.get.mockResolvedValue({
         id: 1,
         kiosk_id: 'kiosk-1',
-        status: 'Hata',
+        status: 'Error',
         version: 1
       });
       
@@ -199,7 +199,7 @@ describe('LockerStateManager - Enhanced Features', () => {
         kioskId: 'kiosk-1',
         lockerId: 1,
         displayName: 'Dolap 1',
-        state: 'Boş',
+        state: 'Free',
         lastChanged: expect.any(Date)
       });
     });

@@ -61,20 +61,20 @@ describe('LockerStateManager', () => {
       
       expect(transitions).toContainEqual({
         from: 'Free',
-        to: 'Reserved',
+        to: 'Owned',
         trigger: 'assign',
         conditions: ['not_vip', 'no_existing_ownership']
       });
 
       expect(transitions).toContainEqual({
-        from: 'Reserved',
+        from: 'Owned',
         to: 'Owned',
         trigger: 'confirm_opening',
         conditions: ['same_owner']
       });
 
       expect(transitions).toContainEqual({
-        from: 'Reserved',
+        from: 'Owned',
         to: 'Free',
         trigger: 'timeout',
         conditions: ['expired_90_seconds']
@@ -82,13 +82,13 @@ describe('LockerStateManager', () => {
     });
 
     it('should get possible next states', () => {
-      const freeStates = stateManager.getPossibleNextStates('Boş');
-      expect(freeStates).toContain('Dolu');
-      expect(freeStates).toContain('Engelli');
+      const freeStates = stateManager.getPossibleNextStates('Free');
+      expect(freeStates).toContain('Owned');
+      expect(freeStates).toContain('Blocked');
 
-      const reservedStates = stateManager.getPossibleNextStates('Dolu');
-      expect(reservedStates).toContain('Açılıyor');
-      expect(reservedStates).toContain('Boş');
+      const reservedStates = stateManager.getPossibleNextStates('Owned');
+      expect(reservedStates).toContain('Opening');
+      expect(reservedStates).toContain('Free');
       expect(reservedStates).toContain('Blocked');
     });
   });
@@ -118,7 +118,7 @@ describe('LockerStateManager', () => {
       expect(result).toBe(true);
 
       const locker = await stateManager.getLocker('kiosk-1', 1);
-      expect(locker?.status).toBe('Reserved');
+      expect(locker?.status).toBe('Owned');
       expect(locker?.owner_type).toBe('rfid');
       expect(locker?.owner_key).toBe('card-123');
       expect(locker?.reserved_at).toBeInstanceOf(Date);
@@ -179,7 +179,7 @@ describe('LockerStateManager', () => {
       await db.run(`
         INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, reserved_at, version, is_vip)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, ['kiosk-1', 1, 'Reserved', 'rfid', 'card-123', new Date().toISOString(), 1, 0]);
+      `, ['kiosk-1', 1, 'Owned', 'rfid', 'card-123', new Date().toISOString(), 1, 0]);
 
       await db.run(`
         INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, owned_at, version, is_vip)
@@ -218,7 +218,7 @@ describe('LockerStateManager', () => {
       expect(result).toBe(false);
 
       const locker = await stateManager.getLocker('kiosk-1', 1);
-      expect(locker?.status).toBe('Reserved');
+      expect(locker?.status).toBe('Owned');
       expect(locker?.owner_key).toBe('card-123');
     });
 
@@ -234,7 +234,7 @@ describe('LockerStateManager', () => {
       const details = JSON.parse(events[0].details as string);
       expect(details.owner_type).toBe('rfid');
       expect(details.owner_key).toBe('card-123');
-      expect(details.previous_status).toBe('Reserved');
+      expect(details.previous_status).toBe('Owned');
     });
   });
 
@@ -243,7 +243,7 @@ describe('LockerStateManager', () => {
       // Create lockers in different states
       const lockers = [
         { id: 1, status: 'Free', is_vip: 0 },      // Available
-        { id: 2, status: 'Reserved', is_vip: 0 },  // Not available
+        { id: 2, status: 'Owned', is_vip: 0 },  // Not available
         { id: 3, status: 'Owned', is_vip: 0 },     // Not available
         { id: 4, status: 'Blocked', is_vip: 0 },   // Not available
         { id: 5, status: 'Free', is_vip: 1 },      // Not available (VIP)
@@ -281,13 +281,13 @@ describe('LockerStateManager', () => {
       await db.run(`
         INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, reserved_at, version, is_vip)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, ['kiosk-1', 1, 'Reserved', 'rfid', 'card-123', expired.toISOString(), 1, 0]);
+      `, ['kiosk-1', 1, 'Owned', 'rfid', 'card-123', expired.toISOString(), 1, 0]);
 
       // Create recent reservation (should not be cleaned up)
       await db.run(`
         INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, reserved_at, version, is_vip)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, ['kiosk-1', 2, 'Reserved', 'rfid', 'card-456', recent.toISOString(), 1, 0]);
+      `, ['kiosk-1', 2, 'Owned', 'rfid', 'card-456', recent.toISOString(), 1, 0]);
     });
 
     it('should cleanup expired reservations only', async () => {
@@ -302,7 +302,7 @@ describe('LockerStateManager', () => {
 
       // Check recent locker is still Reserved
       const recentLocker = await stateManager.getLocker('kiosk-1', 2);
-      expect(recentLocker?.status).toBe('Reserved');
+      expect(recentLocker?.status).toBe('Owned');
       expect(recentLocker?.owner_key).toBe('card-456');
     });
 
@@ -378,19 +378,19 @@ describe('LockerStateManager', () => {
 
     it('should force state transition for staff operations', async () => {
       const result = await stateManager.forceStateTransition(
-        'kiosk-1', 1, 'Boş', 'staff-user', 'maintenance'
+        'kiosk-1', 1, 'Free', 'staff-user', 'maintenance'
       );
       
       expect(result).toBe(true);
 
       const locker = await stateManager.getLocker('kiosk-1', 1);
-      expect(locker?.status).toBe('Boş');
+      expect(locker?.status).toBe('Free');
       expect(locker?.version).toBe(2);
     });
 
     it('should log forced transition event', async () => {
       await stateManager.forceStateTransition(
-        'kiosk-1', 1, 'Boş', 'staff-user', 'maintenance'
+        'kiosk-1', 1, 'Free', 'staff-user', 'maintenance'
       );
 
       const events = await db.all(

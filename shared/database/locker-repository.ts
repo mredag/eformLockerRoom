@@ -184,7 +184,7 @@ export class LockerRepository extends BaseRepository<Locker> {
   async findAvailable(kioskId: string): Promise<Locker[]> {
     return this.findAll({
       kiosk_id: kioskId,
-      status: 'Boş',
+      status: 'Free',
       is_vip: false
     });
   }
@@ -195,7 +195,7 @@ export class LockerRepository extends BaseRepository<Locker> {
   async findByOwnerKey(ownerKey: string): Promise<Locker | null> {
     const sql = `
       SELECT * FROM ${this.tableName} 
-      WHERE owner_key = ? AND status IN ('Reserved', 'Owned')
+      WHERE owner_key = ? AND status IN ('Owned', 'Owned')
       ORDER BY owned_at DESC, reserved_at DESC
       LIMIT 1
     `;
@@ -210,7 +210,7 @@ export class LockerRepository extends BaseRepository<Locker> {
   async findExpiredReserved(timeoutSeconds: number = 90): Promise<Locker[]> {
     const sql = `
       SELECT * FROM ${this.tableName} 
-      WHERE status = 'Reserved' 
+      WHERE status = 'Owned' 
       AND reserved_at < datetime('now', '-${timeoutSeconds} seconds')
     `;
     
@@ -230,7 +230,7 @@ export class LockerRepository extends BaseRepository<Locker> {
           reserved_at = NULL,
           version = version + 1,
           updated_at = CURRENT_TIMESTAMP
-      WHERE status = 'Reserved' 
+      WHERE status = 'Owned' 
       AND reserved_at < datetime('now', '-${timeoutSeconds} seconds')
     `;
     
@@ -253,7 +253,7 @@ export class LockerRepository extends BaseRepository<Locker> {
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN status = 'Free' THEN 1 ELSE 0 END) as free,
-        SUM(CASE WHEN status = 'Reserved' THEN 1 ELSE 0 END) as reserved,
+        SUM(CASE WHEN status = 'Owned' THEN 1 ELSE 0 END) as reserved,
         SUM(CASE WHEN status = 'Owned' THEN 1 ELSE 0 END) as owned,
         SUM(CASE WHEN status = 'Blocked' THEN 1 ELSE 0 END) as blocked,
         SUM(CASE WHEN is_vip = 1 THEN 1 ELSE 0 END) as vip

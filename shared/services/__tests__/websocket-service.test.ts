@@ -51,7 +51,7 @@ describe('WebSocketService', () => {
         kioskId: 'kiosk-1',
         lockerId: 1,
         displayName: 'Dolap 1',
-        state: 'Boş',
+        state: 'Free',
         lastChanged: new Date()
       };
 

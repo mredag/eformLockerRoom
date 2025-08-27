@@ -30,17 +30,17 @@ export class LockerStateManager {
     
     // English status transitions (for database compatibility)
     { from: 'Free', to: 'Owned', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
-    { from: 'Occupied', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
-    { from: 'Occupied', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
-    { from: 'Occupied', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Owned', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
+    { from: 'Owned', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
+    { from: 'Owned', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Occupied', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Owned', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
     { from: 'Opening', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
     { from: 'Error', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
     { from: 'Blocked', to: 'Free', trigger: 'staff_unblock', conditions: ['staff_action'] },
     { from: 'Free', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
-    { from: 'Occupied', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Owned', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
     { from: 'Opening', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
     { from: 'Error', to: 'Free', trigger: 'error_resolved', conditions: ['system_recovery'] }
   ];

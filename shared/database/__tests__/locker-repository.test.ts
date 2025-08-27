@@ -111,13 +111,13 @@ describe('LockerRepository', () => {
       });
 
       const updated = await repository.updateLocker('kiosk-1', 1, {
-        status: 'Dolu',
+        status: 'Owned',
         owner_type: 'rfid',
         owner_key: 'card-123',
         reserved_at: new Date()
       }, locker.version);
 
-      expect(updated.status).toBe('Reserved');
+      expect(updated.status).toBe('Owned');
       expect(updated.owner_type).toBe('rfid');
       expect(updated.owner_key).toBe('card-123');
       expect(updated.version).toBe(locker.version + 1);
@@ -133,13 +133,13 @@ describe('LockerRepository', () => {
 
       // Update with wrong version
       await expect(
-        repository.updateLocker('kiosk-1', 1, { status: 'Dolu' }, 999)
+        repository.updateLocker('kiosk-1', 1, { status: 'Owned' }, 999)
       ).rejects.toThrow(OptimisticLockError);
     });
 
     it('should throw error for non-existent locker', async () => {
       await expect(
-        repository.updateLocker('kiosk-1', 999, { status: 'Dolu' }, 1)
+        repository.updateLocker('kiosk-1', 999, { status: 'Owned' }, 1)
       ).rejects.toThrow('Locker with id kiosk-1:999 not found');
     });
   });
@@ -215,7 +215,7 @@ describe('LockerRepository', () => {
       await db.run(`
         INSERT INTO lockers (kiosk_id, id, status, owner_key, reserved_at, version)
         VALUES (?, ?, ?, ?, ?, ?)
-      `, ['kiosk-1', 1, 'Reserved', 'card-123', expiredTime.toISOString(), 1]);
+      `, ['kiosk-1', 1, 'Owned', 'card-123', expiredTime.toISOString(), 1]);
 
       const cleanedCount = await repository.cleanupExpiredReservations(90);
 
@@ -230,7 +230,7 @@ describe('LockerRepository', () => {
   describe('getStatsByKiosk', () => {
     beforeEach(async () => {
       // Create test lockers with different statuses
-      const statuses: LockerStatus[] = ['Boş', 'Dolu', 'Açılıyor', 'Engelli'];
+      const statuses: LockerStatus[] = ['Free', 'Owned', 'Opening', 'Blocked'];
       for (let i = 0; i < statuses.length; i++) {
         await repository.create({
           kiosk_id: 'kiosk-1',
