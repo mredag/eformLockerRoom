@@ -1180,12 +1180,24 @@ class KioskApp {
      * Get locker display name by ID
      */
     getLockerDisplayName(lockerId) {
-        if (!this.availableLockers) {
-            return `Dolap ${lockerId}`;
+        // First check availableLockers
+        if (this.availableLockers) {
+            const locker = this.availableLockers.find(l => l.id === lockerId);
+            if (locker) {
+                return locker.displayName || `Dolap ${lockerId}`;
+            }
         }
         
-        const locker = this.availableLockers.find(l => l.id === lockerId);
-        return locker ? (locker.displayName || `Dolap ${lockerId}`) : `Dolap ${lockerId}`;
+        // Then check allLockers (for master mode or when locker is not available)
+        if (this.allLockers) {
+            const locker = this.allLockers.find(l => l.id === lockerId);
+            if (locker) {
+                return locker.displayName || `Dolap ${lockerId}`;
+            }
+        }
+        
+        // Fallback to default naming
+        return `Dolap ${lockerId}`;
     }
     
     async loadAllLockers() {
@@ -1601,6 +1613,10 @@ class KioskApp {
     
     async selectLocker(lockerId) {
         const startTime = performance.now();
+        
+        // Store the locker name before the API call while it's still available
+        const lockerName = this.getLockerDisplayName(lockerId);
+        
         this.showLoading('Assigning locker...');
         
         try {
@@ -1645,8 +1661,7 @@ class KioskApp {
                         }
                     }
                 } else {
-                    // Fallback to original behavior
-                    const lockerName = this.getLockerDisplayName(lockerId);
+                    // Fallback to original behavior using stored locker name
                     await this.showBigFeedbackEnhanced(`${lockerName} açılıyor`, 'opening', 1500);
                     await this.showBigFeedbackEnhanced(result.message || `${lockerName} açıldı`, 'success', 3000);
                 }
