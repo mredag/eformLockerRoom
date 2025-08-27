@@ -13,24 +13,24 @@ export class LockerStateManager {
   // Define valid state transitions supporting both Turkish and English state names
   private readonly STATE_TRANSITIONS: LockerStateTransition[] = [
     // Turkish status transitions
-    { from: 'Boş', to: 'Dolu', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
-    { from: 'Dolu', to: 'Açılıyor', trigger: 'confirm_opening', conditions: ['same_owner'] },
-    { from: 'Dolu', to: 'Boş', trigger: 'timeout', conditions: ['expired_90_seconds'] },
-    { from: 'Dolu', to: 'Boş', trigger: 'release', conditions: ['same_owner'] },
-    { from: 'Açılıyor', to: 'Boş', trigger: 'release', conditions: ['same_owner'] },
-    { from: 'Boş', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Dolu', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Açılıyor', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Hata', to: 'Engelli', trigger: 'staff_block', conditions: ['staff_action'] },
-    { from: 'Engelli', to: 'Boş', trigger: 'staff_unblock', conditions: ['staff_action'] },
-    { from: 'Boş', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
-    { from: 'Dolu', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
-    { from: 'Açılıyor', to: 'Hata', trigger: 'hardware_error', conditions: ['system_error'] },
-    { from: 'Hata', to: 'Boş', trigger: 'error_resolved', conditions: ['system_recovery'] },
+    { from: 'Free', to: 'Owned', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
+    { from: 'Owned', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
+    { from: 'Owned', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
+    { from: 'Owned', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Owned', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Opening', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Error', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
+    { from: 'Blocked', to: 'Free', trigger: 'staff_unblock', conditions: ['staff_action'] },
+    { from: 'Free', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Owned', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Opening', to: 'Error', trigger: 'hardware_error', conditions: ['system_error'] },
+    { from: 'Error', to: 'Free', trigger: 'error_resolved', conditions: ['system_recovery'] },
     
     // English status transitions (for database compatibility)
-    { from: 'Free', to: 'Dolu', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
-    { from: 'Occupied', to: 'Açılıyor', trigger: 'confirm_opening', conditions: ['same_owner'] },
+    { from: 'Free', to: 'Owned', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
+    { from: 'Occupied', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
     { from: 'Occupied', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
     { from: 'Occupied', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
@@ -128,8 +128,8 @@ export class LockerStateManager {
       }
 
       // Check if transition to error state is valid
-      if (!this.isValidTransition(locker.status, 'Hata', 'hardware_error')) {
-        console.warn(`⚠️ Invalid transition from ${locker.status} to Hata for locker ${lockerId}`);
+      if (!this.isValidTransition(locker.status, 'Error', 'hardware_error')) {
+        console.warn(`⚠️ Invalid transition from ${locker.status} to Error for locker ${lockerId}`);
         return false;
       }
 
@@ -138,7 +138,7 @@ export class LockerStateManager {
       // Update locker to error state and clear ownership
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Hata', 
+         SET status = 'Error', 
              owner_type = NULL, 
              owner_key = NULL, 
              reserved_at = NULL,
@@ -154,7 +154,7 @@ export class LockerStateManager {
       }
 
       // Broadcast state update
-      await this.broadcastStateUpdate(kioskId, lockerId, 'Hata');
+      await this.broadcastStateUpdate(kioskId, lockerId, 'Error');
 
       // Log the hardware error event
       await this.logEvent(kioskId, lockerId, EventType.HARDWARE_ERROR, {
@@ -188,8 +188,8 @@ export class LockerStateManager {
       }
 
       // Check if transition from error state is valid
-      if (!this.isValidTransition(locker.status, 'Boş', 'error_resolved')) {
-        console.warn(`⚠️ Invalid transition from ${locker.status} to Boş for locker ${lockerId}`);
+      if (!this.isValidTransition(locker.status, 'Free', 'error_resolved')) {
+        console.warn(`⚠️ Invalid transition from ${locker.status} to Free for locker ${lockerId}`);
         return false;
       }
 
@@ -198,10 +198,10 @@ export class LockerStateManager {
       // Update locker to available state
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Boş', 
+         SET status = 'Free', 
              version = version + 1, 
              updated_at = ?
-         WHERE kiosk_id = ? AND id = ? AND version = ? AND status = 'Hata'`,
+         WHERE kiosk_id = ? AND id = ? AND version = ? AND status = 'Error'`,
         [now, kioskId, lockerId, locker.version]
       );
 
@@ -211,11 +211,11 @@ export class LockerStateManager {
       }
 
       // Broadcast state update
-      await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+      await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
 
       // Log the recovery event
       await this.logEvent(kioskId, lockerId, EventType.ERROR_RESOLVED, {
-        previous_status: 'Hata'
+        previous_status: 'Error'
       });
 
       console.log(`✅ Locker ${lockerId} recovered from error state`);
@@ -289,8 +289,8 @@ export class LockerStateManager {
   }
 
   /**
-   * Get available (Boş) lockers, excluding Engelli, Dolu, and VIP lockers
-   * As per requirements 1.3, 1.4, 1.5 - filters out Engelli and Dolu lockers
+   * Get available (Free) lockers, excluding Blocked, Owned, and VIP lockers
+   * As per requirements 1.3, 1.4, 1.5 - filters out Blocked and Owned lockers
    */
   async getAvailableLockers(kioskId: string): Promise<Locker[]> {
     return await this.db.all<Locker>(
@@ -307,13 +307,13 @@ export class LockerStateManager {
   async findLockerByOwner(ownerKey: string, ownerType: OwnerType): Promise<Locker | null> {
     const result = await this.db.get<Locker>(
       'SELECT * FROM lockers WHERE owner_key = ? AND owner_type = ? AND status IN (?, ?)',
-      [ownerKey, ownerType, 'Dolu', 'Açılıyor']
+      [ownerKey, ownerType, 'Owned', 'Opening']
     );
     return result || null;
   }
 
   /**
-   * Assign locker to owner (Boş -> Dolu transition)
+   * Assign locker to owner (Free -> Owned transition)
    * Enforces "one card, one locker" rule
    */
   async assignLocker(
@@ -328,7 +328,7 @@ export class LockerStateManager {
     }
 
     // Validate state transition
-    if (!this.isValidTransition(locker.status, 'Dolu', 'assign')) {
+    if (!this.isValidTransition(locker.status, 'Owned', 'assign')) {
       return false;
     }
 
@@ -347,9 +347,9 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Dolu', owner_type = ?, owner_key = ?, 
+         SET status = 'Owned', owner_type = ?, owner_key = ?, 
              reserved_at = ?, version = version + 1, updated_at = ?
-         WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Boş', 'Free')`,
+         WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Free', 'Free')`,
         [
           ownerType, 
           ownerKey, 
@@ -367,13 +367,13 @@ export class LockerStateManager {
       }
 
       // Broadcast state update
-      await this.broadcastStateUpdate(kioskId, lockerId, 'Dolu', ownerKey, ownerType);
+      await this.broadcastStateUpdate(kioskId, lockerId, 'Owned', ownerKey, ownerType);
 
       // Log the assignment event
       await this.logEvent(kioskId, lockerId, EventType.RFID_ASSIGN, {
         owner_type: ownerType,
         owner_key: ownerKey,
-        previous_status: 'Boş'
+        previous_status: 'Free'
       });
 
       return true;
@@ -384,18 +384,18 @@ export class LockerStateManager {
   }
 
   /**
-   * Confirm locker ownership (Dolu -> Açılıyor)
+   * Confirm locker ownership (Owned -> Opening)
    */
   async confirmOwnership(kioskId: string, lockerId: number): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
-    if (!locker || locker.status !== 'Dolu') {
+    if (!locker || locker.status !== 'Owned') {
       return false;
     }
 
     try {
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Açılıyor', owned_at = ?, version = version + 1, updated_at = ?
+         SET status = 'Opening', owned_at = ?, version = version + 1, updated_at = ?
          WHERE kiosk_id = ? AND id = ? AND version = ?`,
         [
           new Date().toISOString(),
@@ -408,7 +408,7 @@ export class LockerStateManager {
 
       if (result.changes > 0) {
         // Broadcast state update
-        await this.broadcastStateUpdate(kioskId, lockerId, 'Açılıyor', locker.owner_key, locker.owner_type);
+        await this.broadcastStateUpdate(kioskId, lockerId, 'Opening', locker.owner_key, locker.owner_type);
         return true;
       }
 
@@ -420,7 +420,7 @@ export class LockerStateManager {
   }
 
   /**
-   * Release locker (Açılıyor/Dolu -> Boş transition)
+   * Release locker (Opening/Owned -> Free transition)
    * Immediate ownership removal as per requirements
    */
   async releaseLocker(kioskId: string, lockerId: number, ownerKey?: string): Promise<boolean> {
@@ -430,7 +430,7 @@ export class LockerStateManager {
     }
 
     // Allow release from any status for staff operations
-    if (locker.status === 'Boş') {
+    if (locker.status === 'Free') {
       return true; // Already free
     }
 
@@ -446,7 +446,7 @@ export class LockerStateManager {
         const connection = this.dbManager.getConnection();
         const result = await connection.run(
           `UPDATE lockers 
-           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
@@ -454,7 +454,7 @@ export class LockerStateManager {
 
         if (result.changes > 0) {
           // Broadcast state update
-          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
           
           // Log the release event
           const eventType = locker.owner_type === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE;
@@ -468,15 +468,15 @@ export class LockerStateManager {
       } else {
         const result = await this.db.run(
           `UPDATE lockers 
-           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
-           WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Dolu', 'Açılıyor')`,
+           WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Owned', 'Opening')`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
           // Broadcast state update
-          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
           
           // Log the release event
           const eventType = locker.owner_type === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE;
@@ -497,7 +497,7 @@ export class LockerStateManager {
   }
 
   /**
-   * Block locker (any status -> Engelli)
+   * Block locker (any status -> Blocked)
    */
   async blockLocker(kioskId: string, lockerId: number, staffUser?: string, reason?: string): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
@@ -512,14 +512,14 @@ export class LockerStateManager {
         const connection = this.dbManager.getConnection();
         const result = await connection.run(
           `UPDATE lockers 
-           SET status = 'Engelli', version = version + 1, updated_at = ?
+           SET status = 'Blocked', version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
           // Broadcast state update
-          await this.broadcastStateUpdate(kioskId, lockerId, 'Engelli');
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Blocked');
           
           // Log the block event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_BLOCK, {
@@ -531,14 +531,14 @@ export class LockerStateManager {
       } else {
         const result = await this.db.run(
           `UPDATE lockers 
-           SET status = 'Engelli', version = version + 1, updated_at = ?
+           SET status = 'Blocked', version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
           // Broadcast state update
-          await this.broadcastStateUpdate(kioskId, lockerId, 'Engelli');
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Blocked');
           
           // Log the block event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_BLOCK, {
@@ -557,11 +557,11 @@ export class LockerStateManager {
   }
 
   /**
-   * Unblock locker (Engelli -> Boş)
+   * Unblock locker (Blocked -> Free)
    */
   async unblockLocker(kioskId: string, lockerId: number, staffUser?: string): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
-    if (!locker || locker.status !== 'Engelli') {
+    if (!locker || locker.status !== 'Blocked') {
       return false;
     }
 
@@ -572,7 +572,7 @@ export class LockerStateManager {
         const connection = this.dbManager.getConnection();
         const result = await connection.run(
           `UPDATE lockers 
-           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
@@ -580,18 +580,18 @@ export class LockerStateManager {
 
         if (result.changes > 0) {
           // Broadcast state update
-          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
           
           // Log the unblock event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_UNBLOCK, {
-            previous_status: 'Engelli'
+            previous_status: 'Blocked'
           }, staffUser);
           return true;
         }
       } else {
         const result = await this.db.run(
           `UPDATE lockers 
-           SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
+           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
@@ -599,11 +599,11 @@ export class LockerStateManager {
 
         if (result.changes > 0) {
           // Broadcast state update
-          await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+          await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
           
           // Log the unblock event
           await this.logEvent(kioskId, lockerId, EventType.STAFF_UNBLOCK, {
-            previous_status: 'Engelli'
+            previous_status: 'Blocked'
           }, staffUser);
           return true;
         }
@@ -617,7 +617,7 @@ export class LockerStateManager {
   }
 
   /**
-   * Clean up expired reservations (Dolu > 90 seconds -> Boş)
+   * Clean up expired reservations (Owned > 90 seconds -> Free)
    * Automatic timeout transition as per state machine
    */
   async cleanupExpiredReservations(): Promise<number> {
@@ -627,7 +627,7 @@ export class LockerStateManager {
       // First, get the expired reservations for logging
       const expiredLockers = await this.db.all<Locker>(
         `SELECT * FROM lockers 
-         WHERE status = 'Dolu' AND reserved_at < ?`,
+         WHERE status = 'Owned' AND reserved_at < ?`,
         [expiredThreshold.toISOString()]
       );
 
@@ -640,21 +640,21 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
+         SET status = 'Free', owner_type = NULL, owner_key = NULL, 
              reserved_at = NULL, version = version + 1, updated_at = ?
-         WHERE status = 'Dolu' AND reserved_at < ?`,
+         WHERE status = 'Owned' AND reserved_at < ?`,
         [now, expiredThreshold.toISOString()]
       );
 
       // Log cleanup events and broadcast updates for each expired locker
       for (const locker of expiredLockers) {
         // Broadcast state update
-        await this.broadcastStateUpdate(locker.kiosk_id, locker.id, 'Boş');
+        await this.broadcastStateUpdate(locker.kiosk_id, locker.id, 'Free');
         
         await this.logEvent(locker.kiosk_id, locker.id, EventType.RFID_RELEASE, {
           owner_type: locker.owner_type,
           owner_key: locker.owner_key,
-          previous_status: 'Dolu',
+          previous_status: 'Owned',
           reason: 'timeout_cleanup',
           timeout_seconds: this.RESERVE_TIMEOUT_SECONDS
         });
@@ -686,7 +686,7 @@ export class LockerStateManager {
     for (let i = 1; i <= lockerCount; i++) {
       await this.db.run(
         `INSERT INTO lockers (kiosk_id, id, status, version) 
-         VALUES (?, ?, 'Boş', 1)`,
+         VALUES (?, ?, 'Free', 1)`,
         [kioskId, i]
       );
     }
@@ -709,11 +709,11 @@ export class LockerStateManager {
     const stats = await this.db.get<any>(
       `SELECT 
          COUNT(*) as total,
-         SUM(CASE WHEN status = 'Boş' THEN 1 ELSE 0 END) as bos,
-         SUM(CASE WHEN status = 'Dolu' THEN 1 ELSE 0 END) as dolu,
-         SUM(CASE WHEN status = 'Açılıyor' THEN 1 ELSE 0 END) as aciliyor,
-         SUM(CASE WHEN status = 'Hata' THEN 1 ELSE 0 END) as hata,
-         SUM(CASE WHEN status = 'Engelli' THEN 1 ELSE 0 END) as engelli,
+         SUM(CASE WHEN status = 'Free' THEN 1 ELSE 0 END) as bos,
+         SUM(CASE WHEN status = 'Owned' THEN 1 ELSE 0 END) as dolu,
+         SUM(CASE WHEN status = 'Opening' THEN 1 ELSE 0 END) as aciliyor,
+         SUM(CASE WHEN status = 'Error' THEN 1 ELSE 0 END) as hata,
+         SUM(CASE WHEN status = 'Blocked' THEN 1 ELSE 0 END) as engelli,
          SUM(CASE WHEN is_vip = 1 THEN 1 ELSE 0 END) as vip
        FROM lockers WHERE kiosk_id = ?`,
       [kioskId]
@@ -817,7 +817,7 @@ export class LockerStateManager {
   }
 
   /**
-   * Set locker to error state (any status -> Hata)
+   * Set locker to error state (any status -> Error)
    */
   async setLockerError(kioskId: string, lockerId: number, errorReason: string, staffUser?: string): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
@@ -829,14 +829,14 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Hata', version = version + 1, updated_at = ?
+         SET status = 'Error', version = version + 1, updated_at = ?
          WHERE kiosk_id = ? AND id = ? AND version = ?`,
         [now, kioskId, lockerId, locker.version]
       );
 
       if (result.changes > 0) {
         // Broadcast state update
-        await this.broadcastStateUpdate(kioskId, lockerId, 'Hata');
+        await this.broadcastStateUpdate(kioskId, lockerId, 'Error');
         
         // Log the error event
         await this.logEvent(kioskId, lockerId, EventType.COMMAND_FAILED, {
@@ -854,11 +854,11 @@ export class LockerStateManager {
   }
 
   /**
-   * Resolve locker error (Hata -> Boş)
+   * Resolve locker error (Error -> Free)
    */
   async resolveLockerError(kioskId: string, lockerId: number, staffUser?: string): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
-    if (!locker || locker.status !== 'Hata') {
+    if (!locker || locker.status !== 'Error') {
       return false;
     }
 
@@ -866,7 +866,7 @@ export class LockerStateManager {
       const now = new Date().toISOString();
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Boş', owner_type = NULL, owner_key = NULL, 
+         SET status = 'Free', owner_type = NULL, owner_key = NULL, 
              reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
          WHERE kiosk_id = ? AND id = ? AND version = ?`,
         [now, kioskId, lockerId, locker.version]
@@ -874,11 +874,11 @@ export class LockerStateManager {
 
       if (result.changes > 0) {
         // Broadcast state update
-        await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+        await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
         
         // Log the resolution event
         await this.logEvent(kioskId, lockerId, EventType.STAFF_OPEN, {
-          previous_status: 'Hata',
+          previous_status: 'Error',
           reason: 'error_resolved'
         }, staffUser);
         return true;
