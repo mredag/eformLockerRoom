@@ -35,7 +35,7 @@ export class UiController {
   async registerRoutes(fastify: FastifyInstance) {
     // Serve static files
     await fastify.register(require('@fastify/static'), {
-      root: join(__dirname, '../ui/static'),
+      root: join(__dirname, 'ui/static'),
       prefix: '/static/'
     });
 
@@ -117,7 +117,7 @@ export class UiController {
 
   private async serveUI(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const htmlPath = join(__dirname, '../ui/index.html');
+      const htmlPath = join(__dirname, 'ui/index.html');
       const html = await readFile(htmlPath, 'utf-8');
       
       reply.type('text/html');
