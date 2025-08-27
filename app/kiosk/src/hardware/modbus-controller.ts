@@ -216,9 +216,10 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
-   * Open a locker with the specified ID with retry logic
+   * Open a locker with the specified ID with enhanced retry logic and error handling
    * Maps locker_id to cardId and relayId using the correct formulas
    * Returns true if successful, false if failed
+   * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6
    */
   async openLocker(lockerId: number, slaveAddress?: number): Promise<boolean> {
     // Get or create per-locker mutex to prevent concurrent operations on same locker
@@ -232,7 +233,7 @@ export class ModbusController extends EventEmitter {
     
     try {
       const commandId = `open_${lockerId}_${Date.now()}`;
-      const maxRetries = this.config.max_retries || 2;
+      const maxRetries = this.config.max_retries || 3; // Increased from 2 to 3 for better reliability
       
       // Map locker_id to cardId and relayId using the specified formulas
       const cardId = Math.ceil(lockerId / 16);
@@ -240,54 +241,129 @@ export class ModbusController extends EventEmitter {
       
       // Use cardId as slaveAddress if not provided
       const targetSlaveAddress = slaveAddress || cardId;
-    
-    try {
-      // First attempt with single pulse
-      let pulseSuccess = false;
-      for (let attempt = 0; attempt <= maxRetries && !pulseSuccess; attempt++) {
-        pulseSuccess = await this.executeCommand({
-          command_id: `${commandId}_pulse_${attempt}`,
-          channel: relayId, // Use mapped relayId instead of lockerId
-          operation: 'pulse',
-          duration_ms: this.config.pulse_duration_ms,
-          created_at: new Date(),
-          retry_count: attempt
-        }, targetSlaveAddress);
-        
-        if (!pulseSuccess && attempt < maxRetries) {
-          await this.delay(this.calculateRetryDelay(attempt));
+
+      // Log hardware communication attempt (Requirement 4.6)
+      console.log(`🔧 Hardware: Opening locker ${lockerId} (card=${cardId}, relay=${relayId}, slave=${targetSlaveAddress})`);
+      
+      // Check hardware availability before attempting operation (Requirement 4.4)
+      if (!this.isHardwareAvailable()) {
+        const errorMsg = `Hardware unavailable for locker ${lockerId}`;
+        console.error(`❌ ${errorMsg}`);
+        this.emit('hardware_unavailable', { lockerId, cardId, relayId, error: errorMsg });
+        return false;
+      }
+
+      try {
+        // Enhanced retry logic with exponential backoff (Requirement 4.2)
+        let pulseSuccess = false;
+        let lastError: Error | null = null;
+
+        for (let attempt = 0; attempt <= maxRetries && !pulseSuccess; attempt++) {
+          try {
+            console.log(`🔄 Hardware: Pulse attempt ${attempt + 1}/${maxRetries + 1} for locker ${lockerId}`);
+            
+            pulseSuccess = await this.executeCommand({
+              command_id: `${commandId}_pulse_${attempt}`,
+              channel: relayId,
+              operation: 'pulse',
+              duration_ms: this.config.pulse_duration_ms,
+              created_at: new Date(),
+              retry_count: attempt
+            }, targetSlaveAddress);
+            
+            if (pulseSuccess) {
+              console.log(`✅ Hardware: Pulse successful for locker ${lockerId} on attempt ${attempt + 1}`);
+              break;
+            }
+            
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            console.warn(`⚠️ Hardware: Pulse attempt ${attempt + 1} failed for locker ${lockerId}: ${lastError.message}`);
+          }
+          
+          // Apply exponential backoff between retries (Requirement 4.2)
+          if (attempt < maxRetries) {
+            const retryDelay = this.calculateRetryDelay(attempt);
+            console.log(`⏳ Hardware: Waiting ${retryDelay}ms before retry ${attempt + 2}`);
+            await this.delay(retryDelay);
+          }
         }
-      }
 
-      if (pulseSuccess) {
-        return true;
-      }
-
-      // If pulse fails after retries, attempt burst opening with retries
-      let burstSuccess = false;
-      for (let attempt = 0; attempt <= maxRetries && !burstSuccess; attempt++) {
-        burstSuccess = await this.executeCommand({
-          command_id: `${commandId}_burst_${attempt}`,
-          channel: relayId, // Use mapped relayId instead of lockerId
-          operation: 'burst',
-          created_at: new Date(),
-          retry_count: attempt
-        }, targetSlaveAddress);
-        
-        if (!burstSuccess && attempt < maxRetries) {
-          await this.delay(this.calculateRetryDelay(attempt));
+        if (pulseSuccess) {
+          console.log(`✅ Hardware: Locker ${lockerId} opened successfully with pulse`);
+          return true;
         }
-      }
 
-        return burstSuccess;
+        // If pulse fails after all retries, attempt burst opening with retries (Requirement 4.2)
+        console.log(`🔄 Hardware: Pulse failed for locker ${lockerId}, attempting burst opening`);
+        let burstSuccess = false;
+
+        for (let attempt = 0; attempt <= maxRetries && !burstSuccess; attempt++) {
+          try {
+            console.log(`🔄 Hardware: Burst attempt ${attempt + 1}/${maxRetries + 1} for locker ${lockerId}`);
+            
+            burstSuccess = await this.executeCommand({
+              command_id: `${commandId}_burst_${attempt}`,
+              channel: relayId,
+              operation: 'burst',
+              created_at: new Date(),
+              retry_count: attempt
+            }, targetSlaveAddress);
+            
+            if (burstSuccess) {
+              console.log(`✅ Hardware: Burst successful for locker ${lockerId} on attempt ${attempt + 1}`);
+              break;
+            }
+            
+          } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error));
+            console.warn(`⚠️ Hardware: Burst attempt ${attempt + 1} failed for locker ${lockerId}: ${lastError.message}`);
+          }
+          
+          // Apply exponential backoff between retries
+          if (attempt < maxRetries) {
+            const retryDelay = this.calculateRetryDelay(attempt);
+            console.log(`⏳ Hardware: Waiting ${retryDelay}ms before burst retry ${attempt + 2}`);
+            await this.delay(retryDelay);
+          }
+        }
+
+        if (burstSuccess) {
+          console.log(`✅ Hardware: Locker ${lockerId} opened successfully with burst`);
+          return true;
+        }
+
+        // All attempts failed - log comprehensive error (Requirement 4.6)
+        const finalError = lastError || new Error('All hardware communication attempts failed');
+        console.error(`❌ Hardware: Failed to open locker ${lockerId} after ${maxRetries + 1} pulse and ${maxRetries + 1} burst attempts`);
+        console.error(`❌ Hardware: Final error: ${finalError.message}`);
+        
+        this.emit('hardware_operation_failed', { 
+          lockerId, 
+          cardId, 
+          relayId, 
+          targetSlaveAddress,
+          totalAttempts: (maxRetries + 1) * 2, // pulse + burst attempts
+          error: finalError.message,
+          operation: 'open_locker'
+        });
+        
+        return false;
 
       } catch (error) {
+        // Catch-all error handler (Requirement 4.3)
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Hardware: Unexpected error opening locker ${lockerId}: ${errorMsg}`);
+        
         this.emit('error', { 
           lockerId, 
           cardId, 
           relayId, 
-          error: error instanceof Error ? error.message : String(error) 
+          targetSlaveAddress,
+          error: errorMsg,
+          operation: 'open_locker'
         });
+        
         return false;
       }
     } finally {
@@ -297,35 +373,101 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
-   * Execute a relay command with mutex protection
+   * Execute a relay command with enhanced mutex protection and error handling
+   * Requirements: 4.1, 4.2, 4.3, 4.6
    */
   private async executeCommand(command: RelayCommand, slaveAddress?: number): Promise<boolean> {
     await this.mutex.acquire();
     
     try {
+      // Enhanced logging for hardware communication (Requirement 4.6)
+      console.log(`🔧 Hardware: Executing ${command.operation} command ${command.command_id} on channel ${command.channel} (attempt ${command.retry_count + 1})`);
+      
+      // Check hardware availability before command execution (Requirement 4.4)
+      if (!this.isHardwareAvailable()) {
+        const errorMsg = `Hardware unavailable for command ${command.command_id}`;
+        console.error(`❌ Hardware: ${errorMsg}`);
+        this.emit('hardware_unavailable', { 
+          commandId: command.command_id,
+          channel: command.channel,
+          operation: command.operation,
+          error: errorMsg 
+        });
+        return false;
+      }
+
       // Ensure minimum interval between commands (300ms)
       const now = Date.now();
       const timeSinceLastCommand = now - this.lastCommandTime;
       if (timeSinceLastCommand < this.config.command_interval_ms) {
-        await this.delay(this.config.command_interval_ms - timeSinceLastCommand);
+        const waitTime = this.config.command_interval_ms - timeSinceLastCommand;
+        console.log(`⏳ Hardware: Waiting ${waitTime}ms for command interval`);
+        await this.delay(waitTime);
       }
 
       let success = false;
+      let operationError: Error | null = null;
       
       try {
+        const startTime = Date.now();
+        
         if (command.operation === 'pulse') {
           success = await this.sendPulse(command.channel, command.duration_ms, slaveAddress);
         } else if (command.operation === 'burst') {
           success = await this.performBurstOpening(command.channel, slaveAddress);
+        } else {
+          throw new Error(`Unknown operation: ${command.operation}`);
         }
+        
+        const duration = Date.now() - startTime;
+        
+        if (success) {
+          console.log(`✅ Hardware: Command ${command.command_id} completed successfully in ${duration}ms`);
+        } else {
+          console.warn(`⚠️ Hardware: Command ${command.command_id} failed after ${duration}ms`);
+        }
+        
       } catch (error) {
-        // Handle errors from sendPulse/performBurstOpening
+        // Enhanced error handling with detailed logging (Requirement 4.3, 4.6)
+        operationError = error instanceof Error ? error : new Error(String(error));
         success = false;
+        
+        console.error(`❌ Hardware: Command ${command.command_id} threw error: ${operationError.message}`);
+        
+        // Emit specific error event for monitoring
+        this.emit('command_error', {
+          commandId: command.command_id,
+          channel: command.channel,
+          operation: command.operation,
+          slaveAddress,
+          retryCount: command.retry_count,
+          error: operationError.message,
+          timestamp: new Date()
+        });
       }
 
+      // Update timing and status tracking
       this.lastCommandTime = Date.now();
       this.updateRelayStatus(command.channel, success);
       this.updateHealth(success);
+
+      // Log final result for monitoring (Requirement 4.6)
+      if (success) {
+        console.log(`📊 Hardware: Channel ${command.channel} operation successful (total: ${this.health.total_commands}, errors: ${this.health.failed_commands})`);
+      } else {
+        console.error(`📊 Hardware: Channel ${command.channel} operation failed (total: ${this.health.total_commands}, errors: ${this.health.failed_commands + 1})`);
+        
+        // If we have an operation error, include it in the final error event
+        if (operationError) {
+          this.emit('operation_failed', {
+            commandId: command.command_id,
+            channel: command.channel,
+            operation: command.operation,
+            error: operationError.message,
+            retryCount: command.retry_count
+          });
+        }
+      }
 
       return success;
 
@@ -890,6 +1032,65 @@ export class ModbusController extends EventEmitter {
    */
   getAllRelayStatuses(): RelayStatus[] {
     return Array.from(this.relayStatus.values());
+  }
+
+  /**
+   * Check if hardware is available for operations (Requirement 4.4)
+   */
+  isHardwareAvailable(): boolean {
+    // Check if serial port is connected
+    if (!this.serialPort || !this.serialPort.isOpen) {
+      return false;
+    }
+    
+    // Check if health status indicates hardware is operational
+    if (this.health.status === 'error' || this.health.status === 'disconnected') {
+      return false;
+    }
+    
+    // Check if error rate is too high (over 75% failure rate indicates hardware issues)
+    if (this.health.error_rate_percent > 75) {
+      return false;
+    }
+    
+    // Check if we haven't had a successful command in the last 10 minutes
+    const timeSinceLastSuccess = Date.now() - this.health.last_successful_command.getTime();
+    if (timeSinceLastSuccess > 600000 && this.health.total_commands > 0) { // 10 minutes
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Get detailed hardware status for diagnostics (Requirement 4.6)
+   */
+  getHardwareStatus(): {
+    available: boolean;
+    connected: boolean;
+    health: ModbusHealth;
+    diagnostics: {
+      portOpen: boolean;
+      errorRate: number;
+      timeSinceLastSuccess: number;
+      connectionErrors: number;
+      retryAttempts: number;
+    };
+  } {
+    const timeSinceLastSuccess = Date.now() - this.health.last_successful_command.getTime();
+    
+    return {
+      available: this.isHardwareAvailable(),
+      connected: this.serialPort?.isOpen || false,
+      health: this.getHealth(),
+      diagnostics: {
+        portOpen: this.serialPort?.isOpen || false,
+        errorRate: this.health.error_rate_percent,
+        timeSinceLastSuccess,
+        connectionErrors: this.health.connection_errors,
+        retryAttempts: this.health.retry_attempts
+      }
+    };
   }
 
   /**

@@ -96,6 +96,121 @@ export class LockerStateManager {
   }
 
   /**
+   * Handle hardware error for a locker (Requirement 4.3, 4.5)
+   * Sets locker to error state and releases any assignments
+   */
+  async handleHardwareError(kioskId: string, lockerId: number, errorDetails: string): Promise<boolean> {
+    try {
+      console.log(`🔧 Handling hardware error for locker ${lockerId}: ${errorDetails}`);
+      
+      // Get current locker state
+      const locker = await this.getLocker(kioskId, lockerId);
+      if (!locker) {
+        console.error(`❌ Locker ${lockerId} not found for hardware error handling`);
+        return false;
+      }
+
+      // Check if transition to error state is valid
+      if (!this.isValidTransition(locker.status, 'Hata', 'hardware_error')) {
+        console.warn(`⚠️ Invalid transition from ${locker.status} to Hata for locker ${lockerId}`);
+        return false;
+      }
+
+      const now = new Date().toISOString();
+      
+      // Update locker to error state and clear ownership
+      const result = await this.db.run(
+        `UPDATE lockers 
+         SET status = 'Hata', 
+             owner_type = NULL, 
+             owner_key = NULL, 
+             reserved_at = NULL,
+             version = version + 1, 
+             updated_at = ?
+         WHERE kiosk_id = ? AND id = ? AND version = ?`,
+        [now, kioskId, lockerId, locker.version]
+      );
+
+      if (result.changes === 0) {
+        console.error(`❌ Failed to update locker ${lockerId} to error state (optimistic locking failed)`);
+        return false;
+      }
+
+      // Broadcast state update
+      await this.broadcastStateUpdate(kioskId, lockerId, 'Hata');
+
+      // Log the hardware error event
+      await this.logEvent(kioskId, lockerId, EventType.HARDWARE_ERROR, {
+        error_details: errorDetails,
+        previous_status: locker.status,
+        previous_owner: locker.owner_key
+      });
+
+      console.log(`✅ Locker ${lockerId} set to error state due to hardware failure`);
+      return true;
+
+    } catch (error) {
+      console.error(`❌ Error handling hardware error for locker ${lockerId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Recover locker from error state (Requirement 4.3)
+   * Sets locker back to available state after hardware issues are resolved
+   */
+  async recoverFromHardwareError(kioskId: string, lockerId: number): Promise<boolean> {
+    try {
+      console.log(`🔧 Recovering locker ${lockerId} from hardware error`);
+      
+      // Get current locker state
+      const locker = await this.getLocker(kioskId, lockerId);
+      if (!locker) {
+        console.error(`❌ Locker ${lockerId} not found for error recovery`);
+        return false;
+      }
+
+      // Check if transition from error state is valid
+      if (!this.isValidTransition(locker.status, 'Boş', 'error_resolved')) {
+        console.warn(`⚠️ Invalid transition from ${locker.status} to Boş for locker ${lockerId}`);
+        return false;
+      }
+
+      const now = new Date().toISOString();
+      
+      // Update locker to available state
+      const result = await this.db.run(
+        `UPDATE lockers 
+         SET status = 'Boş', 
+             version = version + 1, 
+             updated_at = ?
+         WHERE kiosk_id = ? AND id = ? AND version = ? AND status = 'Hata'`,
+        [now, kioskId, lockerId, locker.version]
+      );
+
+      if (result.changes === 0) {
+        console.error(`❌ Failed to recover locker ${lockerId} from error state`);
+        return false;
+      }
+
+      // Broadcast state update
+      await this.broadcastStateUpdate(kioskId, lockerId, 'Boş');
+
+      // Log the recovery event
+      await this.logEvent(kioskId, lockerId, EventType.ERROR_RESOLVED, {
+        previous_status: 'Hata'
+      });
+
+      console.log(`✅ Locker ${lockerId} recovered from error state`);
+      return true;
+
+    } catch (error) {
+      console.error(`❌ Error recovering locker ${lockerId} from hardware error:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Get locker by kiosk and locker ID
    */
   async getLocker(kioskId: string, lockerId: number): Promise<Locker | null> {
@@ -163,7 +278,7 @@ export class LockerStateManager {
   async getAvailableLockers(kioskId: string): Promise<Locker[]> {
     return await this.db.all<Locker>(
       `SELECT * FROM lockers 
-       WHERE kiosk_id = ? AND status = 'Free' AND is_vip = 0 
+       WHERE kiosk_id = ? AND status = 'Boş' AND is_vip = 0 
        ORDER BY id`,
       [kioskId]
     );

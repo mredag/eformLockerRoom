@@ -48,7 +48,7 @@ export class SessionManager extends EventEmitter {
     super();
     
     this.config = {
-      defaultTimeoutSeconds: 20, // 20 seconds as per requirements
+      defaultTimeoutSeconds: 30, // 30 seconds as per updated requirements
       cleanupIntervalMs: 5000, // Clean up every 5 seconds
       maxSessionsPerKiosk: 1, // One session per kiosk rule
       ...config

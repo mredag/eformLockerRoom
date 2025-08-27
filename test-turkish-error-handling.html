@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turkish Error Handling Test</title>
+    <link rel="stylesheet" href="app/kiosk/src/ui/static/styles-simple.css">
+    <style>
+        body {
+            padding: 20px;
+            background: #1e293b;
+        }
+        .test-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(51, 65, 85, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            color: white;
+        }
+        .test-button {
+            display: block;
+            margin: 5px 0;
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header Bar -->
+        <header id="header" class="header">
+            <div class="header-content">
+                <div class="status-indicator" id="connection-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Bağlı</span>
+                </div>
+                <div class="session-timer" id="session-timer" style="display: none;">
+                    <span class="timer-text">Süre: </span>
+                    <span class="timer-value" id="countdown-value">30</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="main-content" class="main-content">
+            <!-- Error State -->
+            <div id="error-screen" class="screen active">
+                <div class="error-message">
+                    <!-- Error Icon -->
+                    <div class="error-icon">
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- Main Error Message -->
+                    <h2 class="error-text" id="error-text">Kart okunamadı - Tekrar deneyin</h2>
+                    
+                    <!-- Error Description -->
+                    <p class="error-description" id="error-description">RFID kartınızı okutucuya daha yakın tutun</p>
+                    
+                    <!-- Recovery Instructions -->
+                    <p class="error-recovery" id="error-recovery">Kartınızı tekrar okutun</p>
+                    
+                    <!-- Action Buttons -->
+                    <div class="error-actions">
+                        <button class="retry-button" id="retry-button">Tekrar Dene</button>
+                        <button class="return-button" id="return-button">Ana ekrana dön</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Test Controls -->
+    <div class="test-controls">
+        <h3>Error Test Controls</h3>
+        <button class="test-button" onclick="testError('CARD_READ_FAILED')">Card Read Failed</button>
+        <button class="test-button" onclick="testError('NO_LOCKERS_AVAILABLE')">No Lockers</button>
+        <button class="test-button" onclick="testError('ASSIGNMENT_FAILED')">Assignment Failed</button>
+        <button class="test-button" onclick="testError('HARDWARE_OFFLINE')">Hardware Offline</button>
+        <button class="test-button" onclick="testError('SESSION_EXPIRED')">Session Expired</button>
+        <button class="test-button" onclick="testError('NETWORK_ERROR')">Network Error</button>
+        <button class="test-button" onclick="testError('CONNECTION_LOST')">Connection Lost</button>
+        <button class="test-button" onclick="testError('SERVER_ERROR')">Server Error</button>
+        <button class="test-button" onclick="testError('UNKNOWN_ERROR')">Unknown Error</button>
+        <button class="test-button" onclick="testConnectionStatus('offline')">Set Offline</button>
+        <button class="test-button" onclick="testConnectionStatus('online')">Set Online</button>
+        <button class="test-button" onclick="testConnectionStatus('reconnecting')">Set Reconnecting</button>
+    </div>
+
+    <script>
+        // Mock SimpleKioskApp for testing
+        class MockKioskApp {
+            constructor() {
+                this.state = {
+                    mode: 'error',
+                    errorType: null,
+                    connectionStatus: 'online'
+                };
+
+                // Error message catalog (same as in main app)
+                this.errorMessages = {
+                    CARD_READ_FAILED: {
+                        message: "Kart okunamadı - Tekrar deneyin",
+                        description: "RFID kartınızı okutucuya daha yakın tutun",
+                        recovery: "Kartınızı tekrar okutun",
+                        autoRetry: true
+                    },
+                    NO_LOCKERS_AVAILABLE: {
+                        message: "Müsait dolap yok - Daha sonra deneyin",
+                        description: "Şu anda tüm dolaplar dolu",
+                        recovery: "Birkaç dakika sonra tekrar deneyin",
+                        autoRetry: false
+                    },
+                    ASSIGNMENT_FAILED: {
+                        message: "Dolap atanamadı - Farklı dolap seçin",
+                        description: "Seçilen dolap başka bir kullanıcı tarafından alındı",
+                        recovery: "Başka bir dolap seçin",
+                        autoRetry: false
+                    },
+                    HARDWARE_OFFLINE: {
+                        message: "Sistem bakımda - Görevliye başvurun",
+                        description: "Donanım bağlantısı kesildi",
+                        recovery: "Lütfen görevliye haber verin",
+                        autoRetry: false
+                    },
+                    SESSION_EXPIRED: {
+                        message: "Süre doldu - Kartınızı tekrar okutun",
+                        description: "30 saniye içinde seçim yapılmadı",
+                        recovery: "Kartınızı tekrar okutarak başlayın",
+                        autoRetry: true
+                    },
+                    NETWORK_ERROR: {
+                        message: "Bağlantı hatası - Tekrar deneyin",
+                        description: "Sunucu ile bağlantı kurulamadı",
+                        recovery: "Ağ bağlantısı kontrol ediliyor",
+                        autoRetry: true
+                    },
+                    CONNECTION_LOST: {
+                        message: "Bağlantı kesildi - Yeniden bağlanıyor",
+                        description: "İnternet bağlantısı kayboldu",
+                        recovery: "Bağlantı otomatik olarak yenileniyor",
+                        autoRetry: true
+                    },
+                    SERVER_ERROR: {
+                        message: "Sunucu hatası - Tekrar deneyin",
+                        description: "Sistem geçici olarak kullanılamıyor",
+                        recovery: "Birkaç saniye sonra tekrar deneyin",
+                        autoRetry: true
+                    },
+                    UNKNOWN_ERROR: {
+                        message: "Bilinmeyen hata - Görevliye başvurun",
+                        description: "Beklenmeyen bir sorun oluştu",
+                        recovery: "Sistemi yeniden başlatın",
+                        autoRetry: false
+                    }
+                };
+
+                this.connectionMessages = {
+                    online: "Bağlı",
+                    offline: "Çevrimdışı",
+                    reconnecting: "Yeniden bağlanıyor...",
+                    error: "Bağlantı hatası"
+                };
+
+                this.cacheElements();
+                this.setupEventListeners();
+            }
+
+            cacheElements() {
+                this.elements = {
+                    connectionStatus: document.getElementById('connection-status'),
+                    errorText: document.getElementById('error-text'),
+                    errorDescription: document.getElementById('error-description'),
+                    errorRecovery: document.getElementById('error-recovery'),
+                    returnButton: document.getElementById('return-button'),
+                    retryButton: document.getElementById('retry-button')
+                };
+            }
+
+            setupEventListeners() {
+                if (this.elements.returnButton) {
+                    this.elements.returnButton.addEventListener('click', () => {
+                        alert('Ana ekrana dönülüyor...');
+                    });
+                }
+                
+                if (this.elements.retryButton) {
+                    this.elements.retryButton.addEventListener('click', () => {
+                        alert('Tekrar deneniyor...');
+                    });
+                }
+            }
+
+            showErrorState(errorCode) {
+                const errorInfo = this.errorMessages[errorCode] || this.errorMessages.UNKNOWN_ERROR;
+                this.state.errorType = errorCode;
+                this.updateErrorDisplay(errorInfo, errorInfo.message);
+                console.log(`🚨 Error [${errorCode}]: ${errorInfo.message}`);
+            }
+
+            updateErrorDisplay(errorInfo, message) {
+                if (this.elements.errorText) {
+                    this.elements.errorText.textContent = message;
+                }
+                
+                if (this.elements.errorDescription && errorInfo.description) {
+                    this.elements.errorDescription.textContent = errorInfo.description;
+                    this.elements.errorDescription.style.display = 'block';
+                } else if (this.elements.errorDescription) {
+                    this.elements.errorDescription.style.display = 'none';
+                }
+                
+                if (this.elements.errorRecovery && errorInfo.recovery) {
+                    this.elements.errorRecovery.textContent = errorInfo.recovery;
+                    this.elements.errorRecovery.style.display = 'block';
+                } else if (this.elements.errorRecovery) {
+                    this.elements.errorRecovery.style.display = 'none';
+                }
+                
+                if (this.elements.retryButton) {
+                    if (errorInfo.autoRetry) {
+                        this.elements.retryButton.style.display = 'block';
+                        this.elements.retryButton.textContent = 'Tekrar Dene';
+                    } else {
+                        this.elements.retryButton.style.display = 'none';
+                    }
+                }
+                
+                if (this.elements.returnButton) {
+                    this.elements.returnButton.style.display = 'block';
+                    this.elements.returnButton.textContent = 'Ana ekrana dön';
+                }
+            }
+
+            updateConnectionStatus(status) {
+                const statusElement = this.elements.connectionStatus;
+                if (!statusElement) return;
+                
+                const statusDot = statusElement.querySelector('.status-dot');
+                const statusText = statusElement.querySelector('.status-text');
+                
+                if (statusDot && statusText) {
+                    this.state.connectionStatus = status;
+                    
+                    switch (status) {
+                        case 'online':
+                            statusDot.className = 'status-dot';
+                            statusText.textContent = this.connectionMessages.online;
+                            break;
+                        case 'offline':
+                            statusDot.className = 'status-dot offline';
+                            statusText.textContent = this.connectionMessages.offline;
+                            break;
+                        case 'reconnecting':
+                            statusDot.className = 'status-dot reconnecting';
+                            statusText.textContent = this.connectionMessages.reconnecting;
+                            break;
+                        case 'error':
+                            statusDot.className = 'status-dot offline';
+                            statusText.textContent = this.connectionMessages.error;
+                            break;
+                    }
+                }
+                
+                console.log(`🌐 Connection status: ${status} (${this.connectionMessages[status]})`);
+            }
+        }
+
+        // Initialize mock app
+        const mockApp = new MockKioskApp();
+
+        // Test functions
+        function testError(errorCode) {
+            mockApp.showErrorState(errorCode);
+        }
+
+        function testConnectionStatus(status) {
+            mockApp.updateConnectionStatus(status);
+        }
+
+        // Initialize with first error
+        testError('CARD_READ_FAILED');
+    </script>
+</body>
+</html>

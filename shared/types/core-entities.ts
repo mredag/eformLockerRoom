@@ -135,6 +135,10 @@ export enum EventType {
   // Command events
   COMMAND_FAILED = 'command_failed',
   
+  // Hardware events
+  HARDWARE_ERROR = 'hardware_error',
+  ERROR_RESOLVED = 'error_resolved',
+  
   // Configuration events
   CONFIG_PACKAGE_CREATED = 'config_package_created',
   CONFIG_DEPLOYMENT_INITIATED = 'config_deployment_initiated',

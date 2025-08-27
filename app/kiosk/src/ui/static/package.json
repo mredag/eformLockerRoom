@@ -1,0 +1,25 @@
+{
+  "name": "kiosk-ui-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for simplified kiosk UI",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "jsdom": "^22.0.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "*.js",
+      "!**/__tests__/**",
+      "!node_modules/**"
+    ]
+  }
+}
