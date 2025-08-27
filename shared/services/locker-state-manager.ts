@@ -278,7 +278,7 @@ export class LockerStateManager {
   async getAvailableLockers(kioskId: string): Promise<Locker[]> {
     return await this.db.all<Locker>(
       `SELECT * FROM lockers 
-       WHERE kiosk_id = ? AND status = 'Boş' AND is_vip = 0 
+       WHERE kiosk_id = ? AND status = 'Free' AND is_vip = 0 
        ORDER BY id`,
       [kioskId]
     );
@@ -290,7 +290,7 @@ export class LockerStateManager {
   async findLockerByOwner(ownerKey: string, ownerType: OwnerType): Promise<Locker | null> {
     const result = await this.db.get<Locker>(
       'SELECT * FROM lockers WHERE owner_key = ? AND owner_type = ? AND status IN (?, ?)',
-      [ownerKey, ownerType, 'Dolu', 'Açılıyor']
+      [ownerKey, ownerType, 'Occupied', 'Opening']
     );
     return result || null;
   }
