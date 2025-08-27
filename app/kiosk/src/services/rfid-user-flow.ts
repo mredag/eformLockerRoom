@@ -6,6 +6,7 @@
 
 import { EventEmitter } from 'events';
 import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { LockerNamingService } from '../../../../shared/services/locker-naming-service';
 import { ModbusController } from '../hardware/modbus-controller';
 import { Locker, RfidScanEvent } from '../../../../src/types/core-entities';
 
@@ -28,16 +29,31 @@ export class RfidUserFlow extends EventEmitter {
   private config: RfidUserFlowConfig;
   private lockerStateManager: LockerStateManager;
   private modbusController: ModbusController;
+  private lockerNamingService: LockerNamingService;
 
   constructor(
     config: RfidUserFlowConfig,
     lockerStateManager: LockerStateManager,
-    modbusController: ModbusController
+    modbusController: ModbusController,
+    lockerNamingService: LockerNamingService
   ) {
     super();
     this.config = config;
     this.lockerStateManager = lockerStateManager;
     this.modbusController = modbusController;
+    this.lockerNamingService = lockerNamingService;
+  }
+
+  /**
+   * Get the display name for a locker
+   */
+  private async getLockerDisplayName(lockerId: number): Promise<string> {
+    try {
+      return await this.lockerNamingService.getDisplayName(this.config.kiosk_id, lockerId);
+    } catch (error) {
+      console.warn(`Failed to get display name for locker ${lockerId}, using default:`, error);
+      return `Dolap ${lockerId}`;
+    }
   }
 
   /**
@@ -151,11 +167,14 @@ export class RfidUserFlow extends EventEmitter {
         };
       }
 
+      // Get locker display name
+      const lockerName = await this.getLockerDisplayName(lockerId);
+
       // Emit opening event for UI feedback
       this.emit('locker_opening', {
         card_id: cardId,
         locker_id: lockerId,
-        message: `Dolap ${lockerId} açılıyor`
+        message: `${lockerName} açılıyor`
       });
 
       // Attempt to open the locker
@@ -168,13 +187,13 @@ export class RfidUserFlow extends EventEmitter {
           this.emit('locker_opened_vip', {
             card_id: cardId,
             locker_id: lockerId,
-            message: `VIP Dolap ${lockerId} açıldı`
+            message: `VIP ${lockerName} açıldı`
           });
 
           return {
             success: true,
             action: 'open_locker',
-            message: `VIP Dolap ${lockerId} açıldı`,
+            message: `VIP ${lockerName} açıldı`,
             opened_locker: lockerId
           };
         } else {
@@ -189,13 +208,13 @@ export class RfidUserFlow extends EventEmitter {
             this.emit('locker_opened_and_released', {
               card_id: cardId,
               locker_id: lockerId,
-              message: `Dolap ${lockerId} açıldı ve bırakıldı`
+              message: `${lockerName} açıldı ve bırakıldı`
             });
 
             return {
               success: true,
               action: 'open_locker',
-              message: `Dolap ${lockerId} açıldı ve bırakıldı`,
+              message: `${lockerName} açıldı ve bırakıldı`,
               opened_locker: lockerId
             };
           } else {
@@ -205,7 +224,7 @@ export class RfidUserFlow extends EventEmitter {
             return {
               success: true,
               action: 'open_locker',
-              message: `Dolap ${lockerId} açıldı`,
+              message: `${lockerName} açıldı`,
               opened_locker: lockerId
             };
           }
@@ -253,18 +272,21 @@ export class RfidUserFlow extends EventEmitter {
         };
       }
 
+      // Get locker display name
+      const lockerName = await this.getLockerDisplayName(selectedLockerId);
+
       // Emit assignment event
       this.emit('locker_assigned', {
         card_id: cardId,
         locker_id: selectedLockerId,
-        message: `Dolap ${selectedLockerId} atandı`
+        message: `${lockerName} atandı`
       });
 
       // Emit opening event for UI feedback
       this.emit('locker_opening', {
         card_id: cardId,
         locker_id: selectedLockerId,
-        message: `Dolap ${selectedLockerId} açılıyor`
+        message: `${lockerName} açılıyor`
       });
 
       // Attempt to open the locker
@@ -281,13 +303,13 @@ export class RfidUserFlow extends EventEmitter {
           this.emit('locker_opened_and_owned', {
             card_id: cardId,
             locker_id: selectedLockerId,
-            message: `Dolap ${selectedLockerId} açıldı ve sahiplenildi`
+            message: `${lockerName} açıldı ve sahiplenildi`
           });
 
           return {
             success: true,
             action: 'open_locker',
-            message: `Dolap ${selectedLockerId} açıldı`,
+            message: `${lockerName} açıldı`,
             opened_locker: selectedLockerId
           };
         } else {
@@ -297,7 +319,7 @@ export class RfidUserFlow extends EventEmitter {
           return {
             success: true,
             action: 'open_locker',
-            message: `Dolap ${selectedLockerId} açıldı`,
+            message: `${lockerName} açıldı`,
             opened_locker: selectedLockerId
           };
         }

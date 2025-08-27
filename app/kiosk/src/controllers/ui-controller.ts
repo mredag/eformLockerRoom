@@ -2,12 +2,14 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { LockerNamingService } from '../../../../shared/services/locker-naming-service';
 import { ModbusController } from '../hardware/modbus-controller';
 import { SessionManager } from './session-manager';
 
 export class UiController {
   private lockerStateManager: LockerStateManager;
   private modbusController: ModbusController;
+  private lockerNamingService: LockerNamingService;
   private sessionManager: SessionManager;
   private masterPin: string = '1234'; // TODO: Load from config
   private pinAttempts: Map<string, { count: number; lockoutEnd?: number }> = new Map();
@@ -16,10 +18,12 @@ export class UiController {
 
   constructor(
     lockerStateManager: LockerStateManager,
-    modbusController: ModbusController
+    modbusController: ModbusController,
+    lockerNamingService: LockerNamingService
   ) {
     this.lockerStateManager = lockerStateManager;
     this.modbusController = modbusController;
+    this.lockerNamingService = lockerNamingService;
     
     // Initialize session manager with 30-second timeout (Requirement 3.1)
     this.sessionManager = new SessionManager({
@@ -30,6 +34,18 @@ export class UiController {
 
     this.setupSessionManagerEvents();
     this.setupHardwareErrorHandling();
+  }
+
+  /**
+   * Get the display name for a locker
+   */
+  private async getLockerDisplayName(kioskId: string, lockerId: number): Promise<string> {
+    try {
+      return await this.lockerNamingService.getDisplayName(kioskId, lockerId);
+    } catch (error) {
+      console.warn(`Failed to get display name for locker ${lockerId}, using default:`, error);
+      return `Dolap ${lockerId}`;
+    }
   }
 
   async registerRoutes(fastify: FastifyInstance) {
@@ -181,10 +197,11 @@ export class UiController {
           await this.lockerStateManager.releaseLocker(existingLocker.kiosk_id, existingLocker.id, card_id);
           console.log(`✅ Locker ${existingLocker.id} opened and released for card ${card_id}`);
           
+          const lockerName = await this.getLockerDisplayName(existingLocker.kiosk_id, existingLocker.id);
           return { 
             action: 'open_locker', 
             locker_id: existingLocker.id,
-            message: 'Dolap açıldı ve bırakıldı'
+            message: `${lockerName} açıldı ve bırakıldı`
           };
         } else {
           console.error(`❌ Failed to open existing locker ${existingLocker.id} for card ${card_id}`);
@@ -421,11 +438,12 @@ export class UiController {
         console.log(`✅ Locker ${locker_id} successfully opened for card ${cardId}`);
         
         // Requirement 2.6: Return to idle state after completion
+        const lockerName = await this.getLockerDisplayName(kiosk_id, locker_id);
         return { 
           success: true, 
           action: 'assignment_complete',
           locker_id,
-          message: `Dolap ${locker_id} açıldı ve atandı`
+          message: `${lockerName} açıldı ve atandı`
         };
       } else {
         // Enhanced hardware failure handling - release the assignment (Requirement 4.5)
@@ -1030,10 +1048,11 @@ export class UiController {
         
         console.log(`✅ Locker ${lockerId} successfully opened for card ${cardId}`);
         
+        const lockerName = await this.getLockerDisplayName(kioskId, lockerId);
         return { 
           success: true,
           lockerId,
-          message: `Dolap ${lockerId} açıldı ve atandı`
+          message: `${lockerName} açıldı ve atandı`
         };
       } else {
         // Enhanced hardware failure handling - release the assignment (Requirement 4.5)
@@ -1133,10 +1152,11 @@ export class UiController {
         
         console.log(`✅ Locker ${existingLocker.id} opened and released for card ${cardId}`);
         
+        const lockerName = await this.getLockerDisplayName(kioskId, existingLocker.id);
         return { 
           success: true,
           lockerId: existingLocker.id,
-          message: `Dolap ${existingLocker.id} açıldı ve serbest bırakıldı`
+          message: `${lockerName} açıldı ve serbest bırakıldı`
         };
       } else {
         console.error(`❌ Failed to open locker ${existingLocker.id} for release`);

@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { randomBytes, createHmac } from 'crypto';
 import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
+import { LockerNamingService } from '../../../../shared/services/locker-naming-service';
 import { ModbusController } from '../hardware/modbus-controller';
 import { QrResponse, QrActionToken, EventType } from '../../../../shared/types/core-entities';
 import { RateLimiter } from '../services/rate-limiter';
@@ -8,19 +9,33 @@ import { RateLimiter } from '../services/rate-limiter';
 export class QrHandler {
   private lockerStateManager: LockerStateManager;
   private modbusController: ModbusController;
+  private lockerNamingService: LockerNamingService;
   private rateLimiter: RateLimiter;
   private readonly QR_TOKEN_TTL_SECONDS = 5;
   private readonly QR_HMAC_SECRET = process.env.QR_HMAC_SECRET || 'default-secret-change-in-production';
 
-  constructor(lockerStateManager: LockerStateManager, modbusController: ModbusController) {
+  constructor(lockerStateManager: LockerStateManager, modbusController: ModbusController, lockerNamingService: LockerNamingService) {
     this.lockerStateManager = lockerStateManager;
     this.modbusController = modbusController;
+    this.lockerNamingService = lockerNamingService;
     this.rateLimiter = new RateLimiter();
     
     // Start cleanup timer for rate limiter
     setInterval(() => {
       this.rateLimiter.cleanup();
     }, 60000); // Cleanup every minute
+  }
+
+  /**
+   * Get the display name for a locker
+   */
+  private async getLockerDisplayName(kioskId: string, lockerId: number): Promise<string> {
+    try {
+      return await this.lockerNamingService.getDisplayName(kioskId, lockerId);
+    } catch (error) {
+      console.warn(`Failed to get display name for locker ${lockerId}, using default:`, error);
+      return `Dolap ${lockerId}`;
+    }
   }
 
   /**
@@ -242,10 +257,11 @@ export class QrHandler {
       // Confirm ownership (Reserved -> Owned)
       await this.lockerStateManager.confirmOwnership(kioskId, lockerId);
       
+      const lockerName = await this.getLockerDisplayName(kioskId, lockerId);
       return {
         success: true,
         action: 'assign',
-        message: `Dolap ${lockerId} açıldı`,
+        message: `${lockerName} açıldı`,
         locker_id: lockerId,
         device_id: deviceId
       };
@@ -281,12 +297,14 @@ export class QrHandler {
     // Open locker and release immediately
     const opened = await this.modbusController.openLocker(lockerId);
     if (opened) {
+      const lockerName = await this.getLockerDisplayName(kioskId, lockerId);
+      
       // Skip release for VIP lockers
       if (locker.is_vip) {
         return {
           success: true,
           action: 'release',
-          message: `VIP Dolap ${lockerId} açıldı`,
+          message: `VIP ${lockerName} açıldı`,
           locker_id: lockerId,
           device_id: deviceId
         };
@@ -297,7 +315,7 @@ export class QrHandler {
         return {
           success: true,
           action: 'release',
-          message: `Dolap ${lockerId} açıldı ve bırakıldı`,
+          message: `${lockerName} açıldı ve bırakıldı`,
           locker_id: lockerId,
           device_id: deviceId
         };

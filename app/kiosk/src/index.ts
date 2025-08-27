@@ -9,6 +9,7 @@ if (!process.env.EFORM_DB_PATH) {
 
 import Fastify from "fastify";
 import { LockerStateManager } from "../../../shared/services/locker-state-manager";
+import { LockerNamingService } from "../../../shared/services/locker-naming-service";
 import { QrHandler } from "./controllers/qr-handler";
 import { UiController } from "./controllers/ui-controller";
 import { RfidUserFlow } from "./services/rfid-user-flow";
@@ -34,6 +35,7 @@ fastify.addHook("onRequest", securityMiddleware.createSecurityHook());
 
 // Initialize services
 const lockerStateManager = new LockerStateManager();
+const lockerNamingService = new LockerNamingService(lockerStateManager.db);
 
 // Modbus configuration
 const modbusConfig = {
@@ -89,12 +91,14 @@ const rfidUserFlowConfig = {
 const rfidUserFlow = new RfidUserFlow(
   rfidUserFlowConfig,
   lockerStateManager,
-  modbusController
+  modbusController,
+  lockerNamingService
 );
-const qrHandler = new QrHandler(lockerStateManager, modbusController);
+const qrHandler = new QrHandler(lockerStateManager, modbusController, lockerNamingService);
 const uiController = new UiController(
   lockerStateManager,
-  modbusController
+  modbusController,
+  lockerNamingService
 );
 const i18nController = new KioskI18nController(fastify);
 

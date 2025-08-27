@@ -29,10 +29,17 @@ describe('RfidUserFlow VIP Locker Handling', () => {
     mockLockerStateManager = vi.mocked(new LockerStateManager());
     mockModbusController = vi.mocked(new ModbusController());
     
+    const mockLockerNamingService = {
+      getDisplayName: vi.fn().mockImplementation((kioskId: string, lockerId: number) => 
+        Promise.resolve(`Dolap ${lockerId}`)
+      )
+    } as any;
+
     rfidUserFlow = new RfidUserFlow(
       config,
       mockLockerStateManager,
-      mockModbusController
+      mockModbusController,
+      mockLockerNamingService
     );
   });
 

@@ -69,7 +69,13 @@ describe('RFID Integration Tests', () => {
       opening_timeout_ms: 5000
     };
 
-    rfidUserFlow = new RfidUserFlow(userFlowConfig, mockLockerStateManager, mockModbusController);
+    const mockLockerNamingService = {
+      getDisplayName: vi.fn().mockImplementation((kioskId: string, lockerId: number) => 
+        Promise.resolve(`Dolap ${lockerId}`)
+      )
+    } as any;
+
+    rfidUserFlow = new RfidUserFlow(userFlowConfig, mockLockerStateManager, mockModbusController, mockLockerNamingService);
 
     // Initialize RFID handler
     await rfidHandler.initialize();
