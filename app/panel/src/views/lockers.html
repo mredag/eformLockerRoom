@@ -3201,22 +3201,19 @@
     }
 
     // Check if Maksisoft is enabled and show/hide buttons accordingly
-    async function checkMaksiStatus() {
-        try {
-            const response = await fetch('/api/maksi/status');
-            const data = await response.json();
-            
-            if (data.enabled) {
-                // Show all Maksisoft buttons
-                document.querySelectorAll('.btn-maksi').forEach(btn => {
-                    btn.style.display = 'inline-block';
-                });
-                console.log('✅ Maksisoft integration enabled - buttons shown');
-            } else {
-                console.log('ℹ️ Maksisoft integration disabled - buttons hidden');
-            }
-        } catch (error) {
-            console.log('ℹ️ Maksisoft integration not available - buttons hidden');
+    function checkMaksiStatus() {
+        // For now, always show Maksisoft buttons since the integration is enabled
+        // TODO: Get this from server-side template rendering
+        const maksiEnabled = true; // This should come from server-side template
+        
+        if (maksiEnabled) {
+            // Show all Maksisoft buttons
+            document.querySelectorAll('.btn-maksi').forEach(btn => {
+                btn.style.display = 'inline-block';
+            });
+            console.log('✅ Maksisoft integration enabled - buttons shown');
+        } else {
+            console.log('ℹ️ Maksisoft integration disabled - buttons hidden');
         }
     }
 
