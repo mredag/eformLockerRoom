@@ -797,6 +797,109 @@
             max-width: 600px;
         }
 
+        /* Enhanced Maksisoft UI Styles */
+        .maksi-error-container,
+        .maksi-success-header,
+        .maksi-no-results-container {
+            text-align: center;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .maksi-error-container {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .maksi-success-header {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .maksi-no-results-container {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        .maksi-error-icon,
+        .maksi-success-icon,
+        .maksi-info-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .maksi-error-title,
+        .maksi-success-title,
+        .maksi-info-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .maksi-error-details {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            font-family: monospace;
+            background: rgba(0,0,0,0.1);
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .maksi-debug-info {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+
+        /* Button loading animation */
+        .btn-loading {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        /* Notification animations */
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
         #maksiModal .close:hover {
             color: #000;
         }
@@ -3070,16 +3173,49 @@
         'missing_rfid': 'RFID numarası gerekli'
     };
 
-    // Search Maksisoft by RFID
+    // Search Maksisoft by RFID with enhanced debugging
     async function searchMaksi(rfid) {
+        const startTime = Date.now();
+        
         try {
+            console.log('📡 Making fetch request to:', `/api/maksi/search-by-rfid?rfid=${encodeURIComponent(rfid)}`);
+            
             const response = await fetch(`/api/maksi/search-by-rfid?rfid=${encodeURIComponent(rfid)}`, {
                 headers: { 'Accept': 'application/json' }
             });
-            const data = await response.json().catch(() => ({ success: false, error: 'invalid_response' }));
-            return { ok: response.ok && data.success !== false, data: data };
+            
+            const duration = Date.now() - startTime;
+            console.log('📊 HTTP Response:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                duration: `${duration}ms`,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+            
+            let data;
+            try {
+                data = await response.json();
+                console.log('📋 Response Data:', data);
+            } catch (parseError) {
+                console.error('❌ JSON Parse Error:', parseError);
+                data = { success: false, error: 'invalid_response' };
+            }
+            
+            const result = { ok: response.ok && data.success !== false, data: data };
+            console.log('🎯 Final Result:', result);
+            
+            return result;
+            
         } catch (error) {
-            console.error('Maksisoft search error:', error);
+            const duration = Date.now() - startTime;
+            console.error('❌ Maksisoft search network error:', {
+                error: error.message,
+                name: error.name,
+                stack: error.stack,
+                duration: `${duration}ms`
+            });
+            
             return { ok: false, data: { success: false, error: 'network_error' } };
         }
     }
@@ -3165,26 +3301,68 @@
         modal.setAttribute('aria-hidden', 'true');
     }
 
-    // Handle Maksisoft button click
+    // Handle Maksisoft button click with enhanced feedback and debugging
     async function onMaksiClick(event) {
         const btn = event.target.closest('.btn-maksi');
         if (!btn) return;
 
         const preset = btn.dataset.ownerRfid || '';
+        const lockerId = btn.dataset.lockerId || 'unknown';
         let rfid = preset;
+        
+        // Enhanced debug logging
+        console.group('🔍 Maksisoft Button Click Debug');
+        console.log('📋 Button Details:', {
+            lockerId: lockerId,
+            presetRfid: preset,
+            buttonText: btn.textContent,
+            timestamp: new Date().toISOString()
+        });
         
         // If no preset RFID (empty locker), prompt user
         if (!rfid) {
             rfid = window.prompt('RFID numarası:');
-            if (!rfid) return;
+            if (!rfid) {
+                console.log('❌ User cancelled RFID input');
+                console.groupEnd();
+                return;
+            }
         }
 
+        console.log('🎯 Starting search for RFID:', rfid);
+
         const original = btn.textContent;
+        const originalDisabled = btn.disabled;
+        
+        // Enhanced loading state with progress feedback
         btn.disabled = true;
-        btn.textContent = 'Sorgulanıyor…';
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'wait';
+        
+        // Animated loading text
+        let loadingDots = 0;
+        const loadingInterval = setInterval(() => {
+            loadingDots = (loadingDots + 1) % 4;
+            btn.textContent = 'Sorgulanıyor' + '.'.repeat(loadingDots);
+        }, 500);
+        
+        // Add visual feedback to the button
+        btn.classList.add('btn-loading');
+        
+        const startTime = Date.now();
 
         try {
+            console.log('📡 Making API request to Maksisoft...');
+            
             const { ok, data } = await searchMaksi(rfid);
+            const duration = Date.now() - startTime;
+            
+            console.log('📊 API Response:', {
+                success: ok,
+                duration: `${duration}ms`,
+                data: data
+            });
+            
             const maksiBody = document.getElementById('maksiBody');
             const maksiProfileLink = document.getElementById('maksiProfileLink');
             
@@ -3192,11 +3370,33 @@
             maksiBody.innerHTML = '';
             
             if (!ok) {
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'maksi-error-message';
-                errorDiv.textContent = maksiErrorMessages[data.error] || 'Hata';
-                maksiBody.appendChild(errorDiv);
+                const errorMsg = maksiErrorMessages[data.error] || 'Bilinmeyen hata';
+                
+                // Create enhanced error display
+                const errorContainer = document.createElement('div');
+                errorContainer.className = 'maksi-error-container';
+                errorContainer.innerHTML = `
+                    <div class="maksi-error-icon">❌</div>
+                    <div class="maksi-error-title">${errorMsg}</div>
+                    <div class="maksi-debug-info">
+                        <small>⏱️ Süre: ${duration}ms</small><br>
+                        <small>🔗 RFID: ${rfid}</small><br>
+                        <small>🔧 Hata Kodu: ${data.error}</small>
+                    </div>
+                `;
+                maksiBody.appendChild(errorContainer);
                 maksiProfileLink.href = '#';
+                maksiProfileLink.style.display = 'none';
+                
+                console.error('❌ Maksisoft search failed:', {
+                    error: data.error,
+                    duration: `${duration}ms`,
+                    rfid: rfid
+                });
+                
+                // Show user-friendly error notification
+                showNotification(`Üye bilgisi alınamadı: ${errorMsg}`, 'error');
+                
                 showMaksiModal();
                 return;
             }
@@ -3204,6 +3404,18 @@
             const hits = Array.isArray(data.hits) ? data.hits : [];
             
             if (hits.length > 0) {
+                // Create success header
+                const successHeader = document.createElement('div');
+                successHeader.className = 'maksi-success-header';
+                successHeader.innerHTML = `
+                    <div class="maksi-success-icon">✅</div>
+                    <div class="maksi-success-title">${hits.length} kayıt bulundu</div>
+                    <div class="maksi-debug-info">
+                        <small>⏱️ Süre: ${duration}ms</small>
+                    </div>
+                `;
+                maksiBody.appendChild(successHeader);
+                
                 // Display member information for each hit
                 hits.forEach((user, index) => {
                     if (index > 0) {
@@ -3219,20 +3431,142 @@
                 
                 // Set profile link to open Maksisoft with the searched RFID
                 maksiProfileLink.href = `https://eformhatay.maksionline.com/ceo/index.php?page=user_search&search=${encodeURIComponent(rfid)}`;
+                maksiProfileLink.style.display = 'inline-block';
+                
+                console.log('✅ Found records:', {
+                    count: hits.length,
+                    duration: `${duration}ms`,
+                    records: hits
+                });
+                
+                showNotification(`${hits.length} üye kaydı bulundu`, 'success');
+                
             } else {
-                // No results found
-                const noResultsDiv = document.createElement('div');
-                noResultsDiv.className = 'maksi-no-results';
-                noResultsDiv.textContent = 'Kayıt bulunamadı';
-                maksiBody.appendChild(noResultsDiv);
-                maksiProfileLink.href = '#';
+                // No results found with enhanced display
+                const noResultsContainer = document.createElement('div');
+                noResultsContainer.className = 'maksi-no-results-container';
+                noResultsContainer.innerHTML = `
+                    <div class="maksi-info-icon">ℹ️</div>
+                    <div class="maksi-info-title">Kayıt bulunamadı</div>
+                    <div class="maksi-debug-info">
+                        <small>⏱️ Süre: ${duration}ms</small><br>
+                        <small>🔗 RFID: ${rfid}</small>
+                    </div>
+                `;
+                maksiBody.appendChild(noResultsContainer);
+                maksiProfileLink.href = `https://eformhatay.maksionline.com/ceo/index.php?page=user_search&search=${encodeURIComponent(rfid)}`;
+                maksiProfileLink.style.display = 'inline-block';
+                
+                console.log('ℹ️ No records found:', {
+                    rfid: rfid,
+                    duration: `${duration}ms`
+                });
+                
+                showNotification('Kayıt bulunamadı', 'warning');
             }
             
             showMaksiModal();
+            
+        } catch (error) {
+            const duration = Date.now() - startTime;
+            
+            console.error('❌ Unexpected error during Maksisoft search:', {
+                error: error.message,
+                stack: error.stack,
+                duration: `${duration}ms`,
+                rfid: rfid
+            });
+            
+            // Show detailed error in modal for debugging
+            const maksiBody = document.getElementById('maksiBody');
+            maksiBody.innerHTML = '';
+            
+            const errorContainer = document.createElement('div');
+            errorContainer.className = 'maksi-error-container';
+            errorContainer.innerHTML = `
+                <div class="maksi-error-icon">💥</div>
+                <div class="maksi-error-title">Beklenmeyen Hata</div>
+                <div class="maksi-error-details">${error.message}</div>
+                <div class="maksi-debug-info">
+                    <small>⏱️ Süre: ${duration}ms</small><br>
+                    <small>🔗 RFID: ${rfid}</small><br>
+                    <small>🔧 Geliştirici: Konsolu kontrol edin</small>
+                </div>
+            `;
+            maksiBody.appendChild(errorContainer);
+            
+            const maksiProfileLink = document.getElementById('maksiProfileLink');
+            maksiProfileLink.href = '#';
+            maksiProfileLink.style.display = 'none';
+            
+            showMaksiModal();
+            showNotification('Beklenmeyen bir hata oluştu', 'error');
+            
         } finally {
-            btn.disabled = false;
+            // Clear loading animation
+            clearInterval(loadingInterval);
+            
+            // Restore button state with smooth transition
+            btn.disabled = originalDisabled;
             btn.textContent = original;
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+            btn.classList.remove('btn-loading');
+            
+            console.log('🏁 Maksisoft search completed');
+            console.groupEnd();
         }
+    }
+
+    // Enhanced notification system for user feedback
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.maksi-notification');
+        existingNotifications.forEach(n => n.remove());
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `maksi-notification maksi-notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 10000;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        // Set background color based on type
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#17a2b8'
+        };
+        notification.style.backgroundColor = colors[type] || colors.info;
+        
+        // Set text color for warning (yellow background needs dark text)
+        if (type === 'warning') {
+            notification.style.color = '#212529';
+        }
+        
+        notification.textContent = message;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 4000);
+        
+        console.log(`📢 Notification shown: ${type} - ${message}`);
     }
 
     // Check if Maksisoft is enabled and show/hide buttons accordingly
