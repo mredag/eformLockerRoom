@@ -1,8 +1,13 @@
+// Load environment variables from .env file
+import { config } from 'dotenv';
+import path from 'path';
+
+// Load .env from project root
+const projectRoot = path.resolve(__dirname, "../../..");
+config({ path: path.join(projectRoot, '.env') });
+
 // Ensure EFORM_DB_PATH is set before any database imports
 if (!process.env.EFORM_DB_PATH) {
-  const path = require("path");
-  // Resolve to project root from app/panel/src/
-  const projectRoot = path.resolve(__dirname, "../../..");
   process.env.EFORM_DB_PATH = path.join(projectRoot, "data", "eform.db");
   console.log(`🔧 Panel: Set EFORM_DB_PATH to ${process.env.EFORM_DB_PATH}`);
 }
@@ -25,7 +30,6 @@ import { ConfigController } from "./controllers/config-controller";
 import { configManager } from "../../../shared/services/config-manager";
 import { CookieCleanupService } from "../../../shared/services/cookie-cleanup-service";
 import { webSocketService } from "../../../shared/services/websocket-service";
-import path from "path";
 
 // Main application startup function
 async function startPanelService() {
