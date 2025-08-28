@@ -101,6 +101,11 @@ export async function searchMaksiByRFID(rfid: string): Promise<{ hits: MaksiUser
       throw new Error('network_timeout');
     }
     
+    // Handle Node.js fetch errors (TypeError: fetch failed)
+    if (error.name === 'TypeError' && error.message === 'fetch failed') {
+      throw new Error('network_error');
+    }
+    
     // Handle network errors
     if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
       throw new Error('network_error');
