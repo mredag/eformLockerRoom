@@ -384,7 +384,8 @@ export class LockerStateManager {
   }
 
   /**
-   * Confirm locker ownership (Owned -> Opening)
+   * Confirm locker ownership after successful hardware operation
+   * Keeps the locker in 'Owned' status (no status change needed)
    */
   async confirmOwnership(kioskId: string, lockerId: number): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
@@ -393,9 +394,11 @@ export class LockerStateManager {
     }
 
     try {
+      // Update the owned_at timestamp to confirm successful opening
+      // but keep status as 'Owned' since the locker is successfully assigned
       const result = await this.db.run(
         `UPDATE lockers 
-         SET status = 'Opening', owned_at = ?, version = version + 1, updated_at = ?
+         SET owned_at = ?, version = version + 1, updated_at = ?
          WHERE kiosk_id = ? AND id = ? AND version = ?`,
         [
           new Date().toISOString(),
@@ -407,8 +410,8 @@ export class LockerStateManager {
       );
 
       if (result.changes > 0) {
-        // Broadcast state update
-        await this.broadcastStateUpdate(kioskId, lockerId, 'Opening', locker.owner_key, locker.owner_type);
+        // Broadcast state update - keep status as 'Owned'
+        await this.broadcastStateUpdate(kioskId, lockerId, 'Owned', locker.owner_key, locker.owner_type);
         return true;
       }
 
