@@ -228,9 +228,12 @@ async function startPanelService() {
 
     // Register relay control routes
     try {
-      const { registerRelayRoutes } = await import('./routes/relay-routes');
+      const { registerRelayRoutes, cleanupRelayService } = await import('./routes/relay-routes');
       await registerRelayRoutes(fastify);
       console.log('✅ Relay routes registered successfully');
+      
+      // Store cleanup function for shutdown
+      (global as any).cleanupRelayService = cleanupRelayService;
     } catch (error) {
       console.error('❌ Failed to register relay routes:', error);
     }
@@ -648,12 +651,24 @@ async function startPanelService() {
 process.on("SIGTERM", async () => {
   console.log("Received SIGTERM, shutting down gracefully...");
   webSocketService.shutdown();
+  
+  // Cleanup relay service
+  if ((global as any).cleanupRelayService) {
+    (global as any).cleanupRelayService();
+  }
+  
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("Received SIGINT, shutting down gracefully...");
   webSocketService.shutdown();
+  
+  // Cleanup relay service
+  if ((global as any).cleanupRelayService) {
+    (global as any).cleanupRelayService();
+  }
+  
   process.exit(0);
 });
 

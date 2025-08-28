@@ -11,6 +11,8 @@ const { SerialPort } = require('serialport');
 class SimpleRelayService {
   private serialPort: any;
   private isConnected: boolean = false;
+  private lastConnectionTime: number = 0;
+  private connectionTimeout: number = 30 * 60 * 1000; // 30 minutes
   private config = {
     port: '/dev/ttyUSB0',
     baudRate: 9600,
@@ -23,7 +25,22 @@ class SimpleRelayService {
     this.serialPort = null;
   }
 
+  private isConnectionStale(): boolean {
+    return Date.now() - this.lastConnectionTime > this.connectionTimeout;
+  }
+
+  private async refreshConnection(): Promise<void> {
+    if (this.isConnected && this.isConnectionStale()) {
+      console.log('🔄 Connection is stale, refreshing...');
+      await this.disconnect();
+      this.isConnected = false;
+    }
+  }
+
   async connect(): Promise<void> {
+    // Refresh connection if stale
+    await this.refreshConnection();
+    
     if (this.isConnected) return;
 
     try {
@@ -32,7 +49,18 @@ class SimpleRelayService {
       if (kioskRunning) {
         console.log('🔄 Kiosk service detected - using Gateway API instead of direct hardware');
         this.isConnected = true; // Mark as "connected" but we'll use API calls
+        this.lastConnectionTime = Date.now();
         return;
+      }
+
+      // Clean up any existing connection first
+      if (this.serialPort) {
+        try {
+          this.serialPort.close();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        this.serialPort = null;
       }
 
       // Use SerialPort directly (same as working Kiosk method)
@@ -45,8 +73,24 @@ class SimpleRelayService {
         autoOpen: false
       });
 
+      // Add error handlers to prevent crashes
+      this.serialPort.on('error', (err: any) => {
+        console.error('❌ Serial port error:', err.message);
+        this.isConnected = false;
+      });
+
+      this.serialPort.on('close', () => {
+        console.log('🔌 Serial port closed');
+        this.isConnected = false;
+      });
+
       await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Connection timeout'));
+        }, this.config.timeout);
+
         this.serialPort.open((err: any) => {
+          clearTimeout(timeout);
           if (err) {
             reject(new Error(`Failed to open relay port: ${err.message}`));
           } else {
@@ -56,9 +100,12 @@ class SimpleRelayService {
       });
 
       this.isConnected = true;
+      this.lastConnectionTime = Date.now();
       console.log(`✅ Relay service connected to ${this.config.port}`);
     } catch (error) {
       console.error('❌ Failed to connect to relay hardware:', error.message);
+      this.isConnected = false;
+      this.serialPort = null;
       throw new Error(`Relay connection failed: ${error.message}`);
     }
   }
@@ -82,11 +129,28 @@ class SimpleRelayService {
   }
 
   async disconnect(): Promise<void> {
-    if (this.isConnected && this.serialPort) {
-      this.serialPort.close();
-      this.isConnected = false;
-      console.log('🔌 Relay service disconnected');
+    if (this.serialPort) {
+      try {
+        await new Promise<void>((resolve) => {
+          if (this.serialPort.isOpen) {
+            this.serialPort.close((err: any) => {
+              if (err) {
+                console.warn('⚠️ Error closing serial port:', err.message);
+              }
+              resolve();
+            });
+          } else {
+            resolve();
+          }
+        });
+      } catch (error) {
+        console.warn('⚠️ Error during disconnect:', error);
+      }
+      this.serialPort = null;
     }
+    this.isConnected = false;
+    this.lastConnectionTime = 0;
+    console.log('🔌 Relay service disconnected');
   }
 
   // CRC16 calculation (same as working Kiosk method)
@@ -127,10 +191,20 @@ class SimpleRelayService {
     return buffer;
   }
 
-  // Send command to hardware
+  // Send command to hardware with timeout and retry
   private async writeCommand(command: Buffer): Promise<void> {
     return new Promise((resolve, reject) => {
+      if (!this.serialPort || !this.serialPort.isOpen) {
+        reject(new Error('Serial port not open'));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Write command timeout'));
+      }, this.config.timeout);
+
       this.serialPort.write(command, (err: any) => {
+        clearTimeout(timeout);
         if (err) {
           reject(new Error(`Write failed: ${err.message}`));
         } else {
@@ -173,25 +247,35 @@ class SimpleRelayService {
   }
 
   async activateRelay(relayNumber: number): Promise<boolean> {
-    if (!this.isConnected) {
-      await this.connect();
-    }
-
-    // Check if we should use API instead of direct hardware
-    const kioskRunning = await this.isKioskServiceRunning();
-    if (kioskRunning) {
-      return await this.activateRelayViaAPI(relayNumber);
-    }
-
-    // Direct hardware access (when Kiosk service is not running)
-    const cardId = Math.ceil(relayNumber / 16);
-    const relayId = ((relayNumber - 1) % 16) + 1;
-    const coilAddress = relayId - 1;
-    
-    console.log(`🔌 Direct hardware activation: locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
-    console.log(`🔄 Using WORKING software pulse method (same as Kiosk fix)`);
-    
     try {
+      // Always refresh connection before use
+      await this.refreshConnection();
+      
+      if (!this.isConnected) {
+        await this.connect();
+      }
+
+      // Check if we should use API instead of direct hardware
+      const kioskRunning = await this.isKioskServiceRunning();
+      if (kioskRunning) {
+        return await this.activateRelayViaAPI(relayNumber);
+      }
+
+      // Verify connection is still valid
+      if (!this.serialPort || !this.serialPort.isOpen) {
+        console.log('🔄 Serial port not open, reconnecting...');
+        await this.disconnect();
+        await this.connect();
+      }
+
+      // Direct hardware access (when Kiosk service is not running)
+      const cardId = Math.ceil(relayNumber / 16);
+      const relayId = ((relayNumber - 1) % 16) + 1;
+      const coilAddress = relayId - 1;
+      
+      console.log(`🔌 Direct hardware activation: locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
+      console.log(`🔄 Using WORKING software pulse method (same as Kiosk fix)`);
+      
       // Use the SAME working method as Kiosk: basic ON/OFF commands (0x05)
       const turnOnCommand = this.buildModbusCommand(cardId, 0x05, coilAddress, 0xFF00);
       console.log(`📡 ON command: ${turnOnCommand.toString('hex').toUpperCase()}`);
@@ -208,13 +292,28 @@ class SimpleRelayService {
       await this.writeCommand(turnOffCommand);
       console.log(`🔌 Relay ${relayNumber} turned OFF (safety)`);
       
+      console.log(`✅ Locker ${relayNumber} activated successfully (Card ${cardId}, Relay ${relayId})`);
+      return true;
+      
     } catch (error) {
       console.error(`❌ Error during relay ${relayNumber} activation:`, error.message);
+      
+      // If we get a connection error, mark as disconnected and try once more
+      if (error.message.includes('port') || error.message.includes('timeout') || error.message.includes('EBUSY')) {
+        console.log('🔄 Connection error detected, attempting reconnection...');
+        await this.disconnect();
+        
+        try {
+          await this.connect();
+          // Don't retry the actual relay activation to avoid infinite loops
+          console.log('🔄 Reconnection successful, but not retrying activation to avoid loops');
+        } catch (reconnectError) {
+          console.error('❌ Reconnection failed:', reconnectError.message);
+        }
+      }
+      
       return false;
     }
-    
-    console.log(`✅ Locker ${relayNumber} activated successfully (Card ${cardId}, Relay ${relayId})`);
-    return true;
   }
 
   async activateMultipleRelays(relayNumbers: number[], intervalMs: number = 1000): Promise<{ success: number[], failed: number[] }> {
@@ -279,12 +378,38 @@ class SimpleRelayService {
 
 // Singleton instance
 let relayService: SimpleRelayService | null = null;
+let healthCheckInterval: NodeJS.Timeout | null = null;
 
 function getRelayService(): SimpleRelayService {
   if (!relayService) {
     relayService = new SimpleRelayService();
+    
+    // Start periodic health check
+    if (!healthCheckInterval) {
+      healthCheckInterval = setInterval(async () => {
+        try {
+          if (relayService && relayService.isReady()) {
+            await relayService.refreshConnection();
+          }
+        } catch (error) {
+          console.warn('⚠️ Health check error:', error);
+        }
+      }, 5 * 60 * 1000); // Check every 5 minutes
+    }
   }
   return relayService;
+}
+
+// Cleanup function for graceful shutdown
+function cleanupRelayService(): void {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+    healthCheckInterval = null;
+  }
+  if (relayService) {
+    relayService.disconnect().catch(console.error);
+    relayService = null;
+  }
 }
 
 interface RelayActivationRequest {
@@ -380,7 +505,13 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
       
       console.log(`🔌 Single relay activation: ${relay_number} by ${staff_user || 'unknown'}`);
       
-      const success = await relayService.activateRelay(relay_number);
+      // Add timeout to prevent hanging requests
+      const activationPromise = relayService.activateRelay(relay_number);
+      const timeoutPromise = new Promise<boolean>((_, reject) => {
+        setTimeout(() => reject(new Error('Activation timeout after 10 seconds')), 10000);
+      });
+      
+      const success = await Promise.race([activationPromise, timeoutPromise]);
       
       if (success) {
         return reply.send({
@@ -406,14 +537,20 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const isPortConflict = errorMessage.includes('Resource temporarily unavailable') || 
                             errorMessage.includes('Cannot lock port') ||
-                            errorMessage.includes('in use by Kiosk service');
+                            errorMessage.includes('in use by Kiosk service') ||
+                            errorMessage.includes('timeout');
       
       return reply.status(500).send({
         success: false,
         error: errorMessage,
         suggestion: isPortConflict ? 
-          'Port conflict detected. Use queue-based locker opening from the Lockers page instead.' :
-          'Check hardware connections and try again.'
+          'Connection issue detected. Try refreshing the page or use queue-based locker opening from the Lockers page instead.' :
+          'Check hardware connections and try again.',
+        troubleshooting: {
+          timestamp: new Date().toISOString(),
+          relay_number,
+          error_type: isPortConflict ? 'connection_timeout' : 'hardware_error'
+        }
       });
     }
   });
@@ -496,3 +633,6 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
 
   console.log('✅ Relay control routes registered');
 }
+
+// Export cleanup function for graceful shutdown
+export { cleanupRelayService };
