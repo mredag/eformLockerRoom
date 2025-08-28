@@ -2029,8 +2029,8 @@
                             <button class="btn btn-sm btn-secondary btn-maksi" 
                                     data-locker-id="${locker.id}"
                                     data-owner-rfid="${escapeHtml(ownerType === 'rfid' ? ownerKey || '' : '')}"
-                                    title="Maksisoft üye bilgisi sorgula">
-                                Maksisoft
+                                    title="${ownerType === 'rfid' && ownerKey ? `Sahip bilgisi: ${ownerKey}` : 'RFID ile üye bilgisi sorgula'}">
+                                ${ownerType === 'rfid' && ownerKey ? '👤 Üye Bilgisi' : 'Maksisoft'}
                             </button>
                         </div>
                     </div>
@@ -3089,18 +3089,36 @@
         const memberInfo = document.createElement('div');
         memberInfo.className = 'maksi-member-info';
         
+        // Check if membership is expired
+        const membershipEndDate = user.membershipEndsAt;
+        const isExpired = membershipEndDate && membershipEndDate !== '-' && new Date(membershipEndDate) < new Date();
+        
         const fields = [
             { label: 'ID', value: user.id },
             { label: 'RFID', value: user.rfid },
             { label: 'Ad', value: user.fullName || '(boş)' },
             { label: 'Telefon', value: user.phone || '-' },
-            { label: 'Üyelik Bitiş', value: user.membershipEndsAt || '-' },
+            { 
+                label: 'Üyelik Bitiş', 
+                value: membershipEndDate || '-',
+                highlight: true,
+                expired: isExpired
+            },
             { label: 'Son Giriş/Çıkış', value: `${user.lastCheckAt || '-'} (${user.lastCheckStatus || '-'})` }
         ];
         
         fields.forEach(field => {
             const fieldDiv = document.createElement('div');
             fieldDiv.className = 'maksi-field';
+            
+            // Highlight membership end date
+            if (field.highlight) {
+                fieldDiv.style.backgroundColor = field.expired ? '#fff5f5' : '#f0fff4';
+                fieldDiv.style.border = field.expired ? '1px solid #fed7d7' : '1px solid #c6f6d5';
+                fieldDiv.style.borderRadius = '4px';
+                fieldDiv.style.padding = '0.75rem 0.5rem';
+                fieldDiv.style.margin = '0.25rem 0';
+            }
             
             const labelSpan = document.createElement('span');
             labelSpan.className = 'maksi-field-label';
@@ -3109,6 +3127,19 @@
             const valueSpan = document.createElement('span');
             valueSpan.className = 'maksi-field-value';
             valueSpan.textContent = field.value;
+            
+            // Style expired membership
+            if (field.highlight && field.expired) {
+                valueSpan.style.color = '#e53e3e';
+                valueSpan.style.fontWeight = 'bold';
+                labelSpan.style.color = '#e53e3e';
+                labelSpan.style.fontWeight = 'bold';
+            } else if (field.highlight) {
+                valueSpan.style.color = '#38a169';
+                valueSpan.style.fontWeight = 'bold';
+                labelSpan.style.color = '#38a169';
+                labelSpan.style.fontWeight = 'bold';
+            }
             
             fieldDiv.appendChild(labelSpan);
             fieldDiv.appendChild(valueSpan);
@@ -3140,8 +3171,13 @@
         if (!btn) return;
 
         const preset = btn.dataset.ownerRfid || '';
-        const rfid = preset || window.prompt('RFID numarası:');
-        if (!rfid) return;
+        let rfid = preset;
+        
+        // If no preset RFID (empty locker), prompt user
+        if (!rfid) {
+            rfid = window.prompt('RFID numarası:');
+            if (!rfid) return;
+        }
 
         const original = btn.textContent;
         btn.disabled = true;
