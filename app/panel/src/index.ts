@@ -24,6 +24,7 @@ import { I18nController } from "./controllers/i18n-controller";
 import { ConfigController } from "./controllers/config-controller";
 import { configManager } from "../../../shared/services/config-manager";
 import { CookieCleanupService } from "../../../shared/services/cookie-cleanup-service";
+import { webSocketService } from "../../../shared/services/websocket-service";
 import path from "path";
 
 // Main application startup function
@@ -433,6 +434,14 @@ async function startPanelService() {
       `;
     });
 
+    // Configuration endpoint for frontend
+    fastify.get("/api/config", async () => {
+      return {
+        websocketPort: parseInt(process.env.WEBSOCKET_PORT || "8080"),
+        panelPort: parseInt(process.env.PANEL_PORT || "3001")
+      };
+    });
+
     // Health check endpoint
     fastify.get("/health", async () => {
       return {
@@ -616,6 +625,15 @@ async function startPanelService() {
       }
     });
 
+    // Initialize WebSocket service for real-time updates
+    try {
+      const wsPort = parseInt(process.env.WEBSOCKET_PORT || "8080");
+      webSocketService.initialize(wsPort);
+      console.log(`🔌 WebSocket service initialized on port ${wsPort} for real-time state updates`);
+    } catch (error) {
+      console.error('❌ Failed to initialize WebSocket service:', error);
+    }
+
     // Start the server
     const port = parseInt(process.env.PANEL_PORT || "3001");
     await fastify.listen({ port, host: "0.0.0.0" });
@@ -629,11 +647,13 @@ async function startPanelService() {
 // Graceful shutdown handlers
 process.on("SIGTERM", async () => {
   console.log("Received SIGTERM, shutting down gracefully...");
+  webSocketService.shutdown();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("Received SIGINT, shutting down gracefully...");
+  webSocketService.shutdown();
   process.exit(0);
 });
 

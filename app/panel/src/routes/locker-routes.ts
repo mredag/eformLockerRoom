@@ -6,6 +6,7 @@ import { CommandQueueManager } from '../../../../shared/services/command-queue-m
 import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
 import { Permission } from '../services/permission-service';
 import { User } from '../services/auth-service';
+import { webSocketService } from '../../../../shared/services/websocket-service';
 
 interface LockerRouteOptions extends FastifyPluginOptions {
   dbManager: DatabaseManager;
@@ -41,6 +42,25 @@ function lockLocker(kioskId: string, lockerId: number): void {
 
 function unlockLocker(kioskId: string, lockerId: number): void {
   lockerCommandLocks.delete(getLockerLockKey(kioskId, lockerId));
+}
+
+// Helper function to broadcast locker state updates via WebSocket
+async function broadcastLockerUpdate(lockerStateManager: LockerStateManager, kioskId: string, lockerId: number): Promise<void> {
+  try {
+    const updatedLocker = await lockerStateManager.getLocker(kioskId, lockerId);
+    if (updatedLocker) {
+      webSocketService.broadcastStateUpdate({
+        type: 'locker_update',
+        kioskId,
+        lockerId,
+        status: updatedLocker.status,
+        ownerKey: updatedLocker.owner_key,
+        timestamp: new Date()
+      });
+    }
+  } catch (error) {
+    console.error('Failed to broadcast locker update:', error);
+  }
 }
 
 export async function lockerRoutes(fastify: FastifyInstance, options: LockerRouteOptions) {
@@ -439,6 +459,9 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           details: { reason }
         });
 
+        // Broadcast locker state update via WebSocket
+        await broadcastLockerUpdate(lockerStateManager, kioskId, lockerId_num);
+
         reply.send({ 
           success: true, 
           message: `Locker ${lockerId} blocked successfully` 
@@ -478,6 +501,9 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           staff_user: user.username,
           details: {}
         });
+
+        // Broadcast locker state update via WebSocket
+        await broadcastLockerUpdate(lockerStateManager, kioskId, lockerId_num);
 
         reply.send({ 
           success: true, 
@@ -527,6 +553,9 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           staff_user: user.username,
           details: { reason: reason || 'Manual release' }
         });
+
+        // Broadcast locker state update via WebSocket
+        await broadcastLockerUpdate(lockerStateManager, kioskId, lockerId_num);
 
         reply.send({ 
           success: true, 

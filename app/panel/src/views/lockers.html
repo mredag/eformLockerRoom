@@ -884,10 +884,23 @@
         }
 
         // WebSocket connection management - Task 12
-        function initWebSocketConnection() {
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsPort = 8080; // Default WebSocket port
-            const wsUrl = `${wsProtocol}//${window.location.hostname}:${wsPort}`;
+        async function initWebSocketConnection() {
+            let wsUrl;
+            
+            try {
+                // Fetch WebSocket configuration from server
+                const configResponse = await fetch('/api/config');
+                const config = await configResponse.json();
+                
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsPort = config.websocketPort || 8080;
+                wsUrl = `${wsProtocol}//${window.location.hostname}:${wsPort}`;
+            } catch (configError) {
+                console.warn('🔧 Failed to fetch WebSocket config, using default port 8080:', configError);
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsPort = 8080;
+                wsUrl = `${wsProtocol}//${window.location.hostname}:${wsPort}`;
+            }
             
             console.log('🔌 Admin Panel: Initializing WebSocket connection to:', wsUrl);
             
