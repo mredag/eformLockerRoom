@@ -3072,7 +3072,7 @@
         }
     };
     
-    // Log button click events
+    // Enhanced button click logging for debugging
     document.addEventListener('click', function(event) {
         const target = event.target;
         
@@ -3084,6 +3084,15 @@
                 disabled: target.disabled,
                 onclick: target.onclick ? target.onclick.toString() : 'none'
             });
+            
+            // Special logging for Maksisoft buttons
+            if (target.classList.contains('btn-maksi')) {
+                console.log('🎯 MAKSISOFT BUTTON DETECTED!', {
+                    lockerId: target.dataset.lockerId,
+                    ownerRfid: target.dataset.ownerRfid,
+                    buttonText: target.textContent.trim()
+                });
+            }
             
             // Check if button is disabled
             if (target.disabled) {
@@ -3586,11 +3595,30 @@
         }
     }
 
-    // Add event listener for Maksisoft buttons
-    document.addEventListener('click', onMaksiClick);
+    // Initialize Maksisoft functionality when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 DOM loaded - initializing Maksisoft functionality');
+        
+        // Add event listener for Maksisoft buttons
+        document.addEventListener('click', onMaksiClick);
+        
+        // Check Maksisoft status when page loads
+        checkMaksiStatus();
+        
+        console.log('✅ Maksisoft event listeners registered');
+    });
     
-    // Check Maksisoft status when page loads and after locker data updates
-    checkMaksiStatus();
+    // Also initialize if DOM is already loaded (in case script runs after DOMContentLoaded)
+    if (document.readyState === 'loading') {
+        // DOM is still loading, wait for DOMContentLoaded
+        console.log('⏳ DOM still loading - waiting for DOMContentLoaded');
+    } else {
+        // DOM is already loaded, initialize immediately
+        console.log('🚀 DOM already loaded - initializing Maksisoft functionality immediately');
+        document.addEventListener('click', onMaksiClick);
+        checkMaksiStatus();
+        console.log('✅ Maksisoft event listeners registered');
+    }
 
       // Close modals when clicking outside
         window.onclick = function(event) {
