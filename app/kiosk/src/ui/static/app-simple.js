@@ -318,18 +318,18 @@ class SimpleKioskApp {
         const statusElement = this.elements.connectionStatus;
         if (!statusElement) return;
         
+        // Handle both boolean and string status - declare at method scope
+        let statusKey;
+        if (typeof status === 'boolean') {
+            statusKey = status ? 'online' : 'offline';
+        } else {
+            statusKey = status;
+        }
+        
         const statusDot = statusElement.querySelector('.status-dot');
         const statusText = statusElement.querySelector('.status-text');
         
         if (statusDot && statusText) {
-            // Handle both boolean and string status
-            let statusKey;
-            if (typeof status === 'boolean') {
-                statusKey = status ? 'online' : 'offline';
-            } else {
-                statusKey = status;
-            }
-            
             // Update connection state
             this.state.connectionStatus = statusKey;
             
