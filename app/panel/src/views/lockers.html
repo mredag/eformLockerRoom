@@ -191,6 +191,14 @@
             border-left-color: #dc3545;
         }
 
+        .locker-card.opening {
+            border-left-color: #007bff;
+        }
+
+        .locker-card.error {
+            border-left-color: #6c757d;
+        }
+
         .locker-header {
             display: flex;
             justify-content: space-between;
@@ -1426,7 +1434,7 @@
                     lastChangeElement.textContent = `Son değişiklik: ${lastChanged}`;
                 }
 
-                // Update card border color based on status
+                // Update card border color and classes based on status
                 const statusColorMap = {
                     'Free': '#28a745',
                     'Owned': '#ffc107', 
@@ -1436,6 +1444,12 @@
                     'Error': '#6c757d'
                 };
                 
+                // Remove old status classes and add new one
+                const statusClasses = ['free', 'owned', 'reserved', 'opening', 'blocked', 'error'];
+                statusClasses.forEach(cls => lockerCard.classList.remove(cls));
+                lockerCard.classList.add(locker.status.toLowerCase());
+                
+                // Also set border color directly for immediate visual feedback
                 const borderColor = statusColorMap[locker.status] || '#ddd';
                 lockerCard.style.borderLeftColor = borderColor;
                 
@@ -1866,7 +1880,7 @@
                 // Build CSS classes with proper status class application
                 const cardClasses = [
                     'locker-card',
-                    locker.status.toLowerCase(), // Legacy class for backward compatibility
+                    locker.status.toLowerCase(), // Status-based border color class
                     isSelected ? 'selected' : ''
                 ].filter(Boolean).join(' ');
 
