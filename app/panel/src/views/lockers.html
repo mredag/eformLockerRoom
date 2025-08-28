@@ -889,7 +889,7 @@
             
             try {
                 // Fetch WebSocket configuration from server
-                const configResponse = await fetch('/api/config');
+                const configResponse = await fetch('/api/websocket-config');
                 const config = await configResponse.json();
                 
                 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

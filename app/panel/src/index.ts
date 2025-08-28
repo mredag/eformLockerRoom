@@ -434,8 +434,8 @@ async function startPanelService() {
       `;
     });
 
-    // Configuration endpoint for frontend
-    fastify.get("/api/config", async () => {
+    // WebSocket configuration endpoint for frontend
+    fastify.get("/api/websocket-config", async () => {
       return {
         websocketPort: parseInt(process.env.WEBSOCKET_PORT || "8080"),
         panelPort: parseInt(process.env.PANEL_PORT || "3001")
