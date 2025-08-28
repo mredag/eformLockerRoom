@@ -141,6 +141,29 @@
             background: #218838;
         }
 
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-maksi {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-maksi:hover {
+            background: #138496;
+        }
+
+        .btn-maksi:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
         .btn:disabled {
             background: #ccc;
             cursor: not-allowed;
@@ -405,6 +428,18 @@
 
         .close:hover {
             color: #000;
+        }
+
+        .modal-body {
+            padding: 1rem 0;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            padding-top: 1rem;
+            border-top: 1px solid #dee2e6;
         }
 
         .form-group {
@@ -756,6 +791,61 @@
         .locker-card.real-time-update.animation-complete {
             will-change: auto;
         }
+
+        /* Maksisoft Modal Specific Styles */
+        #maksiModal .modal-content {
+            max-width: 600px;
+        }
+
+        #maksiModal .close:hover {
+            color: #000;
+        }
+
+        .maksi-member-info {
+            display: grid;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .maksi-field {
+            display: flex;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .maksi-field:last-child {
+            border-bottom: none;
+        }
+
+        .maksi-field-label {
+            font-weight: 600;
+            color: #495057;
+            min-width: 120px;
+            flex-shrink: 0;
+        }
+
+        .maksi-field-value {
+            color: #212529;
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .maksi-error-message {
+            text-align: center;
+            color: #dc3545;
+            font-weight: 500;
+            padding: 2rem 1rem;
+            font-size: 1rem;
+        }
+
+        .maksi-no-results {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 2rem 1rem;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -941,6 +1031,29 @@
                     <button type="button" class="btn" onclick="closeEodModal()">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Maksisoft Modal -->
+    <div id="maksiModal" class="modal" style="display: none;" role="dialog" aria-labelledby="maksiModalTitle" aria-hidden="true">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="maksiModalTitle">Maksisoft Arama</h2>
+                <span class="close" onclick="closeMaksiModal()" style="cursor: pointer; font-size: 24px; font-weight: bold; color: #aaa;" aria-label="Kapat" title="Kapat">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="maksiBody" style="font-family: inherit; background: #f8f9fa; padding: 1rem; border-radius: 5px; border: 1px solid #dee2e6; min-height: 120px;" role="region" aria-live="polite">
+                    <!-- Member information will be displayed here -->
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 0.5rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid #dee2e6;">
+                <a id="maksiProfileLink" class="btn btn-primary" target="_blank" rel="noopener" href="#" style="text-decoration: none;" aria-label="Maksisoft profilini yeni sekmede aç">
+                    Profili Aç
+                </a>
+                <button type="button" class="btn btn-secondary" onclick="closeMaksiModal()" aria-label="Modalı kapat">
+                    Kapat
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1910,6 +2023,14 @@
                                     title="Doğrudan donanım aktivasyonu">
                                 ⚡ Direkt
                             </button>
+                            ${process.env.MAKSI_ENABLED === 'true' ? `
+                            <button class="btn btn-sm btn-secondary btn-maksi" 
+                                    data-locker-id="${locker.id}"
+                                    data-owner-rfid="${escapeHtml(ownerType === 'rfid' ? ownerKey || '' : '')}"
+                                    title="Maksisoft üye bilgisi sorgula">
+                                Maksisoft
+                            </button>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -2577,6 +2698,8 @@
             document.getElementById('eod-modal').style.display = 'none';
         }
 
+
+
         function showLoading(show) {
             document.getElementById('loading').style.display = show ? 'block' : 'none';
             document.getElementById('locker-grid').style.display = show ? 'none' : 'grid';
@@ -2934,17 +3057,164 @@
     
     console.log('✅ Enhanced button logging setup complete');
 
+    // Maksisoft Integration - Task 4.1
+    // Turkish error messages mapping
+    const maksiErrorMessages = {
+        'auth_error': 'Kimlik doğrulama hatası',
+        'rate_limited': 'Çok fazla istek',
+        'network_error': 'Bağlantı hatası',
+        'invalid_response': 'Geçersiz yanıt',
+        'unknown_error': 'Bilinmeyen hata',
+        'disabled': 'Özellik devre dışı',
+        'missing_rfid': 'RFID numarası gerekli'
+    };
+
+    // Search Maksisoft by RFID
+    async function searchMaksi(rfid) {
+        try {
+            const response = await fetch(`/api/maksi/search-by-rfid?rfid=${encodeURIComponent(rfid)}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await response.json().catch(() => ({ success: false, error: 'invalid_response' }));
+            return { ok: response.ok && data.success !== false, data: data };
+        } catch (error) {
+            console.error('Maksisoft search error:', error);
+            return { ok: false, data: { success: false, error: 'network_error' } };
+        }
+    }
+
+    // Render user information for display - exactly 6 fields in Turkish
+    function renderMaksiUser(user) {
+        const memberInfo = document.createElement('div');
+        memberInfo.className = 'maksi-member-info';
+        
+        const fields = [
+            { label: 'ID', value: user.id },
+            { label: 'RFID', value: user.rfid },
+            { label: 'Ad', value: user.fullName || '(boş)' },
+            { label: 'Telefon', value: user.phone || '-' },
+            { label: 'Üyelik Bitiş', value: user.membershipEndsAt || '-' },
+            { label: 'Son Giriş/Çıkış', value: `${user.lastCheckAt || '-'} (${user.lastCheckStatus || '-'})` }
+        ];
+        
+        fields.forEach(field => {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'maksi-field';
+            
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'maksi-field-label';
+            labelSpan.textContent = field.label + ':';
+            
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'maksi-field-value';
+            valueSpan.textContent = field.value;
+            
+            fieldDiv.appendChild(labelSpan);
+            fieldDiv.appendChild(valueSpan);
+            memberInfo.appendChild(fieldDiv);
+        });
+        
+        return memberInfo;
+    }
+
+    // Show Maksisoft modal
+    function showMaksiModal() {
+        const modal = document.getElementById('maksiModal');
+        modal.style.display = 'block';
+        modal.setAttribute('aria-hidden', 'false');
+        // Focus on the modal for accessibility
+        modal.focus();
+    }
+
+    // Close Maksisoft modal
+    function closeMaksiModal() {
+        const modal = document.getElementById('maksiModal');
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    // Handle Maksisoft button click
+    async function onMaksiClick(event) {
+        const btn = event.target.closest('.btn-maksi');
+        if (!btn) return;
+
+        const preset = btn.dataset.ownerRfid || '';
+        const rfid = preset || window.prompt('RFID numarası:');
+        if (!rfid) return;
+
+        const original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Sorgulanıyor…';
+
+        try {
+            const { ok, data } = await searchMaksi(rfid);
+            const maksiBody = document.getElementById('maksiBody');
+            const maksiProfileLink = document.getElementById('maksiProfileLink');
+            
+            // Clear previous content
+            maksiBody.innerHTML = '';
+            
+            if (!ok) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'maksi-error-message';
+                errorDiv.textContent = maksiErrorMessages[data.error] || 'Hata';
+                maksiBody.appendChild(errorDiv);
+                maksiProfileLink.href = '#';
+                showMaksiModal();
+                return;
+            }
+            
+            const hits = Array.isArray(data.hits) ? data.hits : [];
+            
+            if (hits.length > 0) {
+                // Display member information for each hit
+                hits.forEach((user, index) => {
+                    if (index > 0) {
+                        // Add separator between multiple results
+                        const separator = document.createElement('hr');
+                        separator.style.margin = '1rem 0';
+                        separator.style.border = 'none';
+                        separator.style.borderTop = '1px solid #dee2e6';
+                        maksiBody.appendChild(separator);
+                    }
+                    maksiBody.appendChild(renderMaksiUser(user));
+                });
+                
+                // Set profile link to open Maksisoft with the searched RFID
+                maksiProfileLink.href = `https://eformhatay.maksionline.com/ceo/index.php?page=user_search&search=${encodeURIComponent(rfid)}`;
+            } else {
+                // No results found
+                const noResultsDiv = document.createElement('div');
+                noResultsDiv.className = 'maksi-no-results';
+                noResultsDiv.textContent = 'Kayıt bulunamadı';
+                maksiBody.appendChild(noResultsDiv);
+                maksiProfileLink.href = '#';
+            }
+            
+            showMaksiModal();
+        } finally {
+            btn.disabled = false;
+            btn.textContent = original;
+        }
+    }
+
+    // Add event listener for Maksisoft buttons
+    document.addEventListener('click', onMaksiClick);
 
       // Close modals when clicking outside
         window.onclick = function(event) {
             const actionModal = document.getElementById('action-modal');
             const eodModal = document.getElementById('eod-modal');
+            const maksiModal = document.getElementById('maksiModal');
             
             if (event.target === actionModal) {
                 closeModal();
             }
             if (event.target === eodModal) {
                 closeEodModal();
+            }
+            if (event.target === maksiModal) {
+                closeMaksiModal();
             }
         }
     </script>

@@ -4,7 +4,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    // Don't use global setup - let individual tests set up what they need
   },
   resolve: {
     alias: {

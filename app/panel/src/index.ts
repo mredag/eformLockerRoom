@@ -1,9 +1,9 @@
 // Ensure EFORM_DB_PATH is set before any database imports
 if (!process.env.EFORM_DB_PATH) {
-  const path = require('path');
+  const path = require("path");
   // Resolve to project root from app/panel/src/
-  const projectRoot = path.resolve(__dirname, '../../..');
-  process.env.EFORM_DB_PATH = path.join(projectRoot, 'data', 'eform.db');
+  const projectRoot = path.resolve(__dirname, "../../..");
+  process.env.EFORM_DB_PATH = path.join(projectRoot, "data", "eform.db");
   console.log(`🔧 Panel: Set EFORM_DB_PATH to ${process.env.EFORM_DB_PATH}`);
 }
 
@@ -61,9 +61,9 @@ async function startPanelService() {
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
-        reportUri: "/csp-report"
+        reportUri: "/csp-report",
       },
-      reportOnly: true // Enable report-only mode for extension interference detection
+      reportOnly: true, // Enable report-only mode for extension interference detection
     });
 
     const i18nController = new I18nController(fastify);
@@ -71,8 +71,10 @@ async function startPanelService() {
 
     // Helper function to determine secure cookie settings
     const shouldUseSecureCookies = () => {
-      return process.env.NODE_ENV === 'production' && 
-             process.env.HTTPS_ENABLED === 'true';
+      return (
+        process.env.NODE_ENV === "production" &&
+        process.env.HTTPS_ENABLED === "true"
+      );
     };
 
     // Register plugins and middleware
@@ -84,109 +86,121 @@ async function startPanelService() {
         httpOnly: true,
         secure: shouldUseSecureCookies(), // Dynamic based on HTTPS availability
         sameSite: "lax", // Changed from "strict" for better LAN compatibility
-        path: "/" // Ensure consistent path across all routes
+        path: "/", // Ensure consistent path across all routes
       },
     });
 
     await fastify.register(import("@fastify/csrf-protection"), {
       cookieOpts: { signed: true },
-      sessionPlugin: '@fastify/cookie',
+      sessionPlugin: "@fastify/cookie",
       getToken: (request) => {
         // Skip CSRF validation for GET requests
-        if (request.method === 'GET') {
+        if (request.method === "GET") {
           return false;
         }
         // For other methods, use default token extraction
-        return request.headers['x-csrf-token'] || 
-               (request.body && request.body._csrf) ||
-               request.query._csrf;
-      }
+        return (
+          request.headers["x-csrf-token"] ||
+          (request.body && request.body._csrf) ||
+          request.query._csrf
+        );
+      },
     });
 
     // Add security headers middleware
     fastify.addHook("onRequest", securityMiddleware.createSecurityHook());
 
     // CSP violation reporting endpoint
-    fastify.post('/csp-report', {
-      config: {
-        rawBody: true
-      }
-    }, async (request, reply) => {
-      try {
-        // Parse CSP report from raw body
-        let report;
+    fastify.post(
+      "/csp-report",
+      {
+        config: {
+          rawBody: true,
+        },
+      },
+      async (request, reply) => {
         try {
-          const bodyStr = request.body ? request.body.toString() : '{}';
-          const parsed = JSON.parse(bodyStr);
-          report = parsed['csp-report'] || parsed;
-        } catch (parseError) {
-          fastify.log.warn('Failed to parse CSP report:', parseError);
-          return reply.code(400).send({ error: 'Invalid CSP report format' });
-        }
-        
-        // Log CSP violation with structured data
-        fastify.log.warn('CSP Violation Detected:', {
-          blockedUri: report['blocked-uri'],
-          violatedDirective: report['violated-directive'],
-          sourceFile: report['source-file'],
-          lineNumber: report['line-number'],
-          columnNumber: report['column-number'],
-          originalPolicy: report['original-policy'],
-          userAgent: request.headers['user-agent'],
-          timestamp: new Date().toISOString()
-        });
+          // Parse CSP report from raw body
+          let report;
+          try {
+            const bodyStr = request.body ? request.body.toString() : "{}";
+            const parsed = JSON.parse(bodyStr);
+            report = parsed["csp-report"] || parsed;
+          } catch (parseError) {
+            fastify.log.warn("Failed to parse CSP report:", parseError);
+            return reply.code(400).send({ error: "Invalid CSP report format" });
+          }
 
-        // Check if this looks like browser extension interference
-        const blockedUri = report['blocked-uri'] || '';
-        if (blockedUri.startsWith('chrome-extension://') || 
-            blockedUri.startsWith('moz-extension://') || 
-            blockedUri.startsWith('safari-extension://') ||
-            blockedUri.includes('extension')) {
-          
-          fastify.log.warn('Browser Extension Interference Detected:', {
-            extensionUri: blockedUri,
-            directive: report['violated-directive'],
-            recommendation: 'Consider disabling browser extensions on panel machines'
+          // Log CSP violation with structured data
+          fastify.log.warn("CSP Violation Detected:", {
+            blockedUri: report["blocked-uri"],
+            violatedDirective: report["violated-directive"],
+            sourceFile: report["source-file"],
+            lineNumber: report["line-number"],
+            columnNumber: report["column-number"],
+            originalPolicy: report["original-policy"],
+            userAgent: request.headers["user-agent"],
+            timestamp: new Date().toISOString(),
           });
-        }
 
-        reply.code(204).send();
-      } catch (error) {
-        fastify.log.error('CSP report processing error:', error);
-        reply.code(400).send({ error: 'Invalid CSP report format' });
+          // Check if this looks like browser extension interference
+          const blockedUri = report["blocked-uri"] || "";
+          if (
+            blockedUri.startsWith("chrome-extension://") ||
+            blockedUri.startsWith("moz-extension://") ||
+            blockedUri.startsWith("safari-extension://") ||
+            blockedUri.includes("extension")
+          ) {
+            fastify.log.warn("Browser Extension Interference Detected:", {
+              extensionUri: blockedUri,
+              directive: report["violated-directive"],
+              recommendation:
+                "Consider disabling browser extensions on panel machines",
+            });
+          }
+
+          reply.code(204).send();
+        } catch (error) {
+          fastify.log.error("CSP report processing error:", error);
+          reply.code(400).send({ error: "Invalid CSP report format" });
+        }
       }
-    });
+    );
 
     // Proxy heartbeat requests to Gateway service (before auth middleware)
     fastify.register(async function (fastify) {
       // Proxy all heartbeat routes
-      fastify.all('/api/heartbeat/*', async (request, reply) => {
+      fastify.all("/api/heartbeat/*", async (request, reply) => {
         try {
-          const gatewayUrl = process.env.GATEWAY_URL || 'http://127.0.0.1:3000';
+          const gatewayUrl = process.env.GATEWAY_URL || "http://127.0.0.1:3000";
           const path = request.url;
-          
+
           const response = await fetch(`${gatewayUrl}${path}`, {
             method: request.method,
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
               ...Object.fromEntries(
-                Object.entries(request.headers).filter(([key]) => 
-                  !['host', 'connection', 'content-length'].includes(key.toLowerCase())
+                Object.entries(request.headers).filter(
+                  ([key]) =>
+                    !["host", "connection", "content-length"].includes(
+                      key.toLowerCase()
+                    )
                 )
-              )
+              ),
             },
-            body: request.method !== 'GET' && request.method !== 'HEAD' 
-              ? JSON.stringify(request.body) 
-              : undefined
+            body:
+              request.method !== "GET" && request.method !== "HEAD"
+                ? JSON.stringify(request.body)
+                : undefined,
           });
-          
+
           const data = await response.json();
           reply.code(response.status).send(data);
         } catch (error) {
-          fastify.log.error('Heartbeat proxy error:', error);
-          reply.code(500).send({ 
-            success: false, 
-            error: 'Failed to connect to Gateway service' 
+          fastify.log.error("Heartbeat proxy error:", error);
+          reply.code(500).send({
+            success: false,
+            error: "Failed to connect to Gateway service",
           });
         }
       });
@@ -216,26 +230,39 @@ async function startPanelService() {
 
     // Register locker naming routes
     try {
-      const { lockerNamingRoutes } = await import('./routes/locker-naming-routes');
+      const { lockerNamingRoutes } = await import(
+        "./routes/locker-naming-routes"
+      );
       await fastify.register(lockerNamingRoutes, {
         prefix: "/api/locker-naming",
         dbManager,
       });
-      console.log('✅ Locker naming routes registered successfully');
+      console.log("✅ Locker naming routes registered successfully");
     } catch (error) {
-      console.error('❌ Failed to register locker naming routes:', error);
+      console.error("❌ Failed to register locker naming routes:", error);
     }
 
     // Register relay control routes
     try {
-      const { registerRelayRoutes, cleanupRelayService } = await import('./routes/relay-routes');
+      const { registerRelayRoutes, cleanupRelayService } = await import(
+        "./routes/relay-routes"
+      );
       await registerRelayRoutes(fastify);
-      console.log('✅ Relay routes registered successfully');
-      
+      console.log("✅ Relay routes registered successfully");
+
       // Store cleanup function for shutdown
       (global as any).cleanupRelayService = cleanupRelayService;
     } catch (error) {
-      console.error('❌ Failed to register relay routes:', error);
+      console.error("❌ Failed to register relay routes:", error);
+    }
+
+    // Register Maksisoft integration routes
+    try {
+      const { registerMaksiRoutes } = await import("./routes/maksi-routes");
+      await registerMaksiRoutes(fastify);
+      console.log("✅ Maksisoft routes registered successfully");
+    } catch (error) {
+      console.error("❌ Failed to register Maksisoft routes:", error);
     }
 
     // Register performance monitoring routes - TEMPORARILY DISABLED
@@ -249,9 +276,9 @@ async function startPanelService() {
       console.error('❌ Failed to register performance routes:', error);
     }
     */
-    console.log('⚠️ Performance monitoring routes temporarily disabled - will fix database connection issue')
-
-
+    console.log(
+      "⚠️ Performance monitoring routes temporarily disabled - will fix database connection issue"
+    );
 
     // Register i18n routes
     await i18nController.registerRoutes();
@@ -281,20 +308,25 @@ async function startPanelService() {
         // Setup is complete, check authentication
         const sessionToken = request.cookies.session;
         if (sessionToken) {
-          const ipAddress = request.ip || request.socket.remoteAddress || 'unknown';
-          const userAgent = request.headers['user-agent'] || 'unknown';
-          const session = sessionManager.validateSession(sessionToken, ipAddress, userAgent);
-          
+          const ipAddress =
+            request.ip || request.socket.remoteAddress || "unknown";
+          const userAgent = request.headers["user-agent"] || "unknown";
+          const session = sessionManager.validateSession(
+            sessionToken,
+            ipAddress,
+            userAgent
+          );
+
           // Only redirect to dashboard if session is valid
           if (session) {
             return reply.redirect("/dashboard");
           }
         }
-        
+
         // No valid session - show login
         return reply.redirect("/login.html");
       } catch (error) {
-        fastify.log.error('Root route error:', error);
+        fastify.log.error("Root route error:", error);
         return reply.redirect("/login.html");
       }
     });
@@ -339,15 +371,14 @@ async function startPanelService() {
       return reply.sendFile("performance-dashboard.html");
     });
 
-    
     // Clear cookies endpoint (fix browser conflicts)
     fastify.get("/clear-cookies", async (request, reply) => {
       // Clear session cookies with all possible paths
-      reply.clearCookie('session', { path: '/' });
-      reply.clearCookie('session', { path: '/auth' });
-      reply.clearCookie('session');
-      
-      reply.type('text/html');
+      reply.clearCookie("session", { path: "/" });
+      reply.clearCookie("session", { path: "/auth" });
+      reply.clearCookie("session");
+
+      reply.type("text/html");
       return `
         <!DOCTYPE html>
         <html>
@@ -441,7 +472,7 @@ async function startPanelService() {
     fastify.get("/api/websocket-config", async () => {
       return {
         websocketPort: parseInt(process.env.WEBSOCKET_PORT || "8080"),
-        panelPort: parseInt(process.env.PANEL_PORT || "3001")
+        panelPort: parseInt(process.env.PANEL_PORT || "3001"),
       };
     });
 
@@ -465,7 +496,7 @@ async function startPanelService() {
         }
 
         // No users exist, show setup page
-        reply.type('text/html');
+        reply.type("text/html");
         return `
           <!DOCTYPE html>
           <html>
@@ -586,55 +617,66 @@ async function startPanelService() {
           </html>
         `;
       } catch (error) {
-        fastify.log.error('Setup page error:', error);
-        return reply.code(500).send({ error: 'Internal server error' });
+        fastify.log.error("Setup page error:", error);
+        return reply.code(500).send({ error: "Internal server error" });
       }
     });
 
     // Setup POST endpoint for creating initial admin user
-    fastify.post("/setup", {
-      schema: {
-        body: {
-          type: 'object',
-          required: ['username', 'password'],
-          properties: {
-            username: { type: 'string', minLength: 3 },
-            password: { type: 'string', minLength: 8 }
+    fastify.post(
+      "/setup",
+      {
+        schema: {
+          body: {
+            type: "object",
+            required: ["username", "password"],
+            properties: {
+              username: { type: "string", minLength: 3 },
+              password: { type: "string", minLength: 8 },
+            },
+          },
+        },
+      },
+      async (request, reply) => {
+        try {
+          const hasAdmins = await authService.hasAdminUsers();
+          if (hasAdmins) {
+            return reply.code(403).send({ error: "Setup already completed" });
           }
+
+          const { username, password } = request.body as {
+            username: string;
+            password: string;
+          };
+
+          const newUser = await authService.createUser({
+            username,
+            password,
+            role: "admin",
+          });
+
+          return reply.send({
+            success: true,
+            message: "Yönetici hesabı başarıyla oluşturuldu",
+          });
+        } catch (error) {
+          fastify.log.error("Setup error:", error);
+          return reply
+            .code(500)
+            .send({ error: "Failed to create administrator account" });
         }
       }
-    }, async (request, reply) => {
-      try {
-        const hasAdmins = await authService.hasAdminUsers();
-        if (hasAdmins) {
-          return reply.code(403).send({ error: 'Setup already completed' });
-        }
-
-        const { username, password } = request.body as { username: string; password: string };
-        
-        const newUser = await authService.createUser({ 
-          username, 
-          password, 
-          role: 'admin' 
-        });
-
-        return reply.send({
-          success: true,
-          message: 'Yönetici hesabı başarıyla oluşturuldu'
-        });
-      } catch (error) {
-        fastify.log.error('Setup error:', error);
-        return reply.code(500).send({ error: 'Failed to create administrator account' });
-      }
-    });
+    );
 
     // Initialize WebSocket service for real-time updates
     try {
       const wsPort = parseInt(process.env.WEBSOCKET_PORT || "8080");
       webSocketService.initialize(wsPort);
-      console.log(`🔌 WebSocket service initialized on port ${wsPort} for real-time state updates`);
+      console.log(
+        `🔌 WebSocket service initialized on port ${wsPort} for real-time state updates`
+      );
     } catch (error) {
-      console.error('❌ Failed to initialize WebSocket service:', error);
+      console.error("❌ Failed to initialize WebSocket service:", error);
     }
 
     // Start the server
@@ -651,24 +693,24 @@ async function startPanelService() {
 process.on("SIGTERM", async () => {
   console.log("Received SIGTERM, shutting down gracefully...");
   webSocketService.shutdown();
-  
+
   // Cleanup relay service
   if ((global as any).cleanupRelayService) {
     (global as any).cleanupRelayService();
   }
-  
+
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   console.log("Received SIGINT, shutting down gracefully...");
   webSocketService.shutdown();
-  
+
   // Cleanup relay service
   if ((global as any).cleanupRelayService) {
     (global as any).cleanupRelayService();
   }
-  
+
   process.exit(0);
 });
 
