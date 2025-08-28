@@ -15,7 +15,10 @@ export class WebSocketService {
    * Initialize WebSocket server
    */
   public initialize(port: number = 8080): void {
-    this.wss = new WebSocketServer({ port });
+    this.wss = new WebSocketServer({ 
+      port,
+      host: '0.0.0.0' // Bind to all interfaces to accept external connections
+    });
     
     this.wss.on('connection', (ws: WebSocket) => {
       console.log('🔌 WebSocket client connected');
