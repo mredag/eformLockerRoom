@@ -1828,6 +1828,9 @@
                 
                 applyFilters();
                 updateStats();
+                
+                // Check Maksisoft status after loading lockers
+                checkMaksiStatus();
             } catch (error) {
                 // Display clear error messages from server response
                 // Handle three main error cases: 401 session, 403 permission, 500 server error
@@ -2023,14 +2026,13 @@
                                     title="Doğrudan donanım aktivasyonu">
                                 ⚡ Direkt
                             </button>
-                            ${process.env.MAKSI_ENABLED === 'true' ? `
                             <button class="btn btn-sm btn-secondary btn-maksi" 
                                     data-locker-id="${locker.id}"
                                     data-owner-rfid="${escapeHtml(ownerType === 'rfid' ? ownerKey || '' : '')}"
-                                    title="Maksisoft üye bilgisi sorgula">
+                                    title="Maksisoft üye bilgisi sorgula"
+                                    style="display: none;">
                                 Maksisoft
                             </button>
-                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -3198,8 +3200,31 @@
         }
     }
 
+    // Check if Maksisoft is enabled and show/hide buttons accordingly
+    async function checkMaksiStatus() {
+        try {
+            const response = await fetch('/api/maksi/status');
+            const data = await response.json();
+            
+            if (data.enabled) {
+                // Show all Maksisoft buttons
+                document.querySelectorAll('.btn-maksi').forEach(btn => {
+                    btn.style.display = 'inline-block';
+                });
+                console.log('✅ Maksisoft integration enabled - buttons shown');
+            } else {
+                console.log('ℹ️ Maksisoft integration disabled - buttons hidden');
+            }
+        } catch (error) {
+            console.log('ℹ️ Maksisoft integration not available - buttons hidden');
+        }
+    }
+
     // Add event listener for Maksisoft buttons
     document.addEventListener('click', onMaksiClick);
+    
+    // Check Maksisoft status when page loads and after locker data updates
+    checkMaksiStatus();
 
       // Close modals when clicking outside
         window.onclick = function(event) {
