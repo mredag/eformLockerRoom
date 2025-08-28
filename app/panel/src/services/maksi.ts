@@ -6,7 +6,7 @@
  * timeout management, and data mapping.
  * 
  * Key features:
- * - 10-second timeout with no retry logic
+ * - 15-second timeout with no retry logic (high network latency)
  * - Bootstrap cookie authentication
  * - Data mapping to exactly 6 display fields
  * - Proper error handling and logging
@@ -48,9 +48,9 @@ export async function searchMaksiByRFID(rfid: string): Promise<{ hits: MaksiUser
   // Build the search URL with RFID and criteria=0
   const searchUrl = `${config.baseUrl}${config.searchPath}?text=${encodeURIComponent(rfid)}&criteria=${config.criteriaForRfid}`;
   
-  // Create abort controller for 10-second timeout
+  // Create abort controller for 15-second timeout (high network latency)
   const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(), 10000);
+  const timeoutId = setTimeout(() => abortController.abort(), 15000);
 
   try {
     // Make the API request with bootstrap cookie
