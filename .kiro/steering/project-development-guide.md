@@ -94,7 +94,7 @@ rm logs/*.log
 
 ## 🎯 **Latest System Features (August 2025)**
 
-### **✅ Repository Cleanup (August 2025)**
+### **✅ Repository Cleanup & Maintenance System (August 2025)**
 
 **RECENTLY COMPLETED:**
 
@@ -103,17 +103,32 @@ rm logs/*.log
 - **Code Cleanup**: Eliminated Turkish/English mixing in backend code
 - **Documentation Consolidation**: Streamlined and organized documentation
 - **Script Optimization**: Kept only essential operational scripts
+- **Automated Maintenance System**: Comprehensive cleanup and organization automation
+- **Git Hooks**: Quality gates to prevent repository degradation
+- **Health Monitoring**: Continuous repository health tracking and reporting
 
 **Current Repository Structure**:
 ```
 eform-locker-system/
-├── app/          # 4 core services (Gateway, Kiosk, Panel, Agent)
-├── shared/       # Common utilities and types
-├── scripts/      # 60 essential operational scripts
-├── docs/         # 7 essential documentation files
-├── tests/        # Integration tests
-└── migrations/   # Database migrations
+├── app/                    # 4 core services (Gateway, Kiosk, Panel, Agent)
+├── shared/                 # Common utilities and types
+├── scripts/                # Essential operational scripts
+│   ├── deployment/         # Deployment automation
+│   ├── testing/           # Test execution scripts
+│   ├── maintenance/       # Repository maintenance system (NEW)
+│   └── emergency/         # Emergency procedures
+├── docs/                   # Essential documentation
+├── tests/                  # Integration and unit tests
+├── migrations/             # Database migrations
+└── config/                 # Configuration files
 ```
+
+**Maintenance System Features**:
+- **Automated Cleanup**: Daily removal of temporary files and artifacts
+- **Health Monitoring**: Repository health scoring and compliance checking
+- **Git Hooks**: Pre-commit/pre-push quality gates
+- **Organization Compliance**: Automated file placement and naming validation
+- **Scheduled Maintenance**: Windows Task Scheduler integration
 
 ### **� RFIbD Session Management**
 
@@ -228,14 +243,20 @@ const coilAddress = relayId - 1; // 0-based coil address
 ### **1. Making Code Changes (Windows PC)**
 
 ```powershell
+# Pre-work maintenance check
+.\scripts\maintenance\daily-routine.ps1 -Quick
+
 # Edit code in Kiro
 # Build the service
 npm run build:kiosk  # or build:gateway, build:panel
 
-# Commit and push
+# Pre-commit verification (Git hooks will run automatically)
 git add .
-git commit -m "Description of changes"
+git commit -m "feat(component): description of changes"  # Follow commit format
 git push origin main
+
+# Post-work cleanup (optional)
+bash scripts/maintenance/daily-cleanup.sh
 ```
 
 ### **2. Deploy to Raspberry Pi**
@@ -490,8 +511,9 @@ sqlite3 data/eform.db "PRAGMA integrity_check;"
 - `docs/kiosk-troubleshooting-guide.md` - Troubleshooting guide
 - `docs/pi-configuration-guide.md` - Pi configuration
 - `docs/rollback-procedures.md` - Rollback procedures
+- `docs/REPOSITORY_MAINTENANCE_GUIDE.md` - Repository maintenance procedures
+- `scripts/maintenance/README.md` - Maintenance system documentation
 - `REPOSITORY_CLEANUP_COMPLETE.md` - Repository cleanup summary
-- `engelli-cleanup-completion-summary.md` - Status normalization summary
 
 ---
 

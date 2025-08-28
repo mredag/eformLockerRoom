@@ -116,11 +116,75 @@ Thumbs.db
 *-old.*
 *-backup.*
 
-# Development summaries
+# Development summaries and temporary files
 task-*-summary.md
 *-incident-report.md
 *-fix-summary.md
+*-cleanup-summary.md
+*-status-*.md
+*-deployment-*.md
 
-# Test artifacts
+# Test artifacts and debugging files
 test-*.html
 validate-*.md
+debug-*.js
+debug-*.ts
+temp-*.js
+temp-*.ts
+*-debug.*
+*-test-output.*
+
+# Build artifacts that shouldn't be committed
+assets/index-*.js
+assets/index-*.css
+dist/index.js
+build/
+
+# Deployment artifacts
+deploy-status-*.ps1
+deploy-status-*.sh
+deployment-*.log
+
+# Legacy and backup directories
+legacy-*/
+backup-*/
+old-*/
+
+# IDE and editor temporary files
+*.swp
+*.swo
+*~
+.#*
+\#*#
+
+# System temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Node.js specific temporary files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime and process files
+*.pid
+*.seed
+*.pid.lock
+.lock-wscript
+
+# Coverage and test output
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+test-output/
+
+# Package manager files
+.pnp.*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz

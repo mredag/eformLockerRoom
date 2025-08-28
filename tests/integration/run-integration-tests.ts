@@ -52,6 +52,60 @@ const TEST_SUITES: TestSuite[] = [
     file: 'accessibility-requirements.test.ts',
     requirements: ['2.3', '3.7', '8.2', '8.3', '8.4'],
     description: 'Tests 2m readability, color-blind safety, touch targets, and responsive design'
+  },
+  {
+    name: 'Backend Integration',
+    file: 'backend-integration.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests backend service integration and API communication'
+  },
+  {
+    name: 'Admin Panel UI Improvements',
+    file: 'admin-panel-ui-improvements.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests admin panel UI enhancements and user experience'
+  },
+  {
+    name: 'WebSocket Real-time UI Updates',
+    file: 'websocket-realtime-ui-updates.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests real-time UI updates via WebSocket connections'
+  },
+  {
+    name: 'VIP Workflow Integration',
+    file: 'vip-workflow-integration.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests VIP contract management workflows across services'
+  },
+  {
+    name: 'RFID and QR Integration',
+    file: 'rfid-qr-integration.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests RFID and QR code integration and user journeys'
+  },
+  {
+    name: 'Database Integration',
+    file: 'database-integration.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests database setup, migrations, and data integrity'
+  },
+  {
+    name: 'Multi-Service Integration',
+    file: 'multi-service-integration.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests coordination between Gateway, Kiosk, and Panel services'
+  },
+  {
+    name: 'Multi-Room Coordination',
+    file: 'multi-room-coordination.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests cross-room locker operations and coordination'
+  },
+  {
+    name: 'Gateway Service Integration',
+    file: 'gateway-service-integration.test.ts',
+    requirements: ['3.2', '3.4', '3.5'],
+    description: 'Tests Gateway service coordination and command queue management'
   }
 ];
 

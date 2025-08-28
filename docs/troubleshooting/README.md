@@ -10,17 +10,17 @@ This folder contains historical troubleshooting reports and solutions for issues
 - **Resolution**: Standardized database path configuration
 - **Status**: ✅ Resolved
 
-### **[Direct Relay Troubleshooting Report](DIRECT_RELAY_TROUBLESHOOTING_REPORT.md)**
-- **Issue**: Relay control failures and hardware communication problems
-- **Impact**: Physical locker control not working
-- **Resolution**: Custom Modbus implementation and service coordination
-- **Status**: ✅ Resolved
+### **[Hardware Integration & Troubleshooting Guide](hardware-integration-guide.md)**
+- **Issue**: Relay control failures, serial port conflicts, and hardware communication problems
+- **Impact**: Physical locker control not working, service conflicts
+- **Resolution**: Custom Modbus implementation, service coordination, and connection lifecycle management
+- **Status**: ✅ Resolved - Comprehensive guide available
 
-### **[Raspberry Pi Migration Fix](RASPBERRY_PI_MIGRATION_FIX.md)**
-- **Issue**: Cross-platform compatibility and deployment issues
-- **Impact**: Service failures when moving from development to production
-- **Resolution**: Platform-specific configurations and build processes
-- **Status**: ✅ Resolved
+### **[Kiosk Assignment Failure Incident](incident-reports/kiosk-assignment-failure-2025-08.md)**
+- **Issue**: Session management bug preventing locker assignments
+- **Impact**: Complete system failure for locker assignment functionality
+- **Resolution**: Fixed session storage and validation logic
+- **Status**: ✅ Resolved - Detailed incident report available
 
 ## 🔧 **How to Use These Reports**
 

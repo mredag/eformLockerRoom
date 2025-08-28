@@ -1,0 +1,255 @@
+{
+  "version": "1.0.0",
+  "description": "Repository maintenance configuration for eForm Locker System",
+  "lastUpdated": "2025-08-28",
+  
+  "filePatterns": {
+    "temporary": {
+      "patterns": [
+        "*.tmp",
+        "*.temp", 
+        "*.bak",
+        "*debug*",
+        "*.debug",
+        "*-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*",
+        "test-output-*",
+        "*-test-[0-9]*"
+      ],
+      "maxAge": {
+        "tmp": 1,
+        "temp": 1,
+        "bak": 7,
+        "debug": 3,
+        "timestamped": 1,
+        "testArtifacts": 1
+      }
+    },
+    
+    "sensitive": {
+      "patterns": [
+        "*.key",
+        "*.pem",
+        "*.p12",
+        "*.pfx",
+        "*password*",
+        "*secret*",
+        ".env"
+      ],
+      "exclude": [
+        ".env.example",
+        "password-policy.md"
+      ]
+    },
+    
+    "large": {
+      "maxSize": "10MB",
+      "exclude": [
+        "data/*",
+        "*.db",
+        "*.sqlite"
+      ]
+    }
+  },
+  
+  "directoryStructure": {
+    "required": [
+      "app",
+      "docs", 
+      "scripts",
+      "tests",
+      "shared",
+      "config"
+    ],
+    
+    "scriptCategories": [
+      "deployment",
+      "testing", 
+      "maintenance",
+      "emergency"
+    ],
+    
+    "testCategories": [
+      "unit",
+      "integration",
+      "e2e"
+    ],
+    
+    "maxRootFiles": 15,
+    "maxScriptFiles": 100,
+    "maxDocFiles": 20
+  },
+  
+  "namingConventions": {
+    "fileNames": {
+      "pattern": "kebab-case",
+      "maxLength": 50,
+      "allowSpaces": false,
+      "allowUppercaseExtensions": false
+    },
+    
+    "directories": {
+      "pattern": "kebab-case",
+      "maxDepth": 5
+    },
+    
+    "allowedExtensions": [
+      ".js",
+      ".ts", 
+      ".md",
+      ".json",
+      ".html",
+      ".css",
+      ".sh",
+      ".sql",
+      ".yml",
+      ".yaml",
+      ".env"
+    ]
+  },
+  
+  "maintenanceSchedule": {
+    "daily": {
+      "time": "02:00",
+      "tasks": [
+        "cleanTemporaryFiles",
+        "rotateLogFiles",
+        "checkDiskSpace"
+      ]
+    },
+    
+    "weekly": {
+      "day": "Sunday",
+      "time": "03:00", 
+      "tasks": [
+        "repositoryHealthCheck",
+        "linkValidation",
+        "dependencyAudit"
+      ]
+    },
+    
+    "monthly": {
+      "day": 1,
+      "time": "04:00",
+      "tasks": [
+        "comprehensiveMaintenance",
+        "structureOptimization",
+        "performanceAnalysis"
+      ]
+    }
+  },
+  
+  "thresholds": {
+    "health": {
+      "excellent": 90,
+      "good": 75,
+      "needsAttention": 50,
+      "poor": 25
+    },
+    
+    "files": {
+      "maxTotal": 2000,
+      "maxTemporary": 10,
+      "maxLarge": 5,
+      "maxRootLevel": 15
+    },
+    
+    "repository": {
+      "maxSizeMB": 500,
+      "maxLogSizeMB": 100,
+      "maxNodeModulesSizeMB": 200
+    }
+  },
+  
+  "automation": {
+    "gitHooks": {
+      "preCommit": {
+        "enabled": true,
+        "checks": [
+          "temporaryFiles",
+          "largeFiles", 
+          "namingConventions",
+          "sensitiveFiles"
+        ]
+      },
+      
+      "prePush": {
+        "enabled": true,
+        "checks": [
+          "repositoryHealth",
+          "fileOrganization",
+          "testExecution"
+        ]
+      },
+      
+      "commitMsg": {
+        "enabled": true,
+        "enforceFormat": true,
+        "allowedTypes": [
+          "feat",
+          "fix",
+          "docs",
+          "style", 
+          "refactor",
+          "test",
+          "chore",
+          "cleanup"
+        ]
+      }
+    },
+    
+    "cronJobs": {
+      "enabled": true,
+      "logPath": "logs/maintenance.log",
+      "maxLogSize": "50MB",
+      "retentionDays": 90
+    }
+  },
+  
+  "notifications": {
+    "healthScore": {
+      "threshold": 70,
+      "method": "log"
+    },
+    
+    "criticalIssues": {
+      "threshold": 5,
+      "method": "log"
+    },
+    
+    "diskSpace": {
+      "threshold": "90%",
+      "method": "log"
+    }
+  },
+  
+  "reporting": {
+    "formats": ["json", "text"],
+    "retention": {
+      "daily": 30,
+      "weekly": 12,
+      "monthly": 24
+    },
+    
+    "metrics": [
+      "filesProcessed",
+      "filesRemoved",
+      "filesReorganized", 
+      "issuesFound",
+      "warnings",
+      "healthScore",
+      "repositorySize",
+      "executionTime"
+    ]
+  },
+  
+  "recovery": {
+    "backupBeforeCleanup": true,
+    "backupRetentionDays": 30,
+    "rollbackCapability": true,
+    "safetyChecks": [
+      "dependencyValidation",
+      "referenceCheck",
+      "buildVerification"
+    ]
+  }
+}
