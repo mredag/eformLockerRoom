@@ -543,9 +543,6 @@ class SimpleKioskApp {
      * Open existing locker and release assignment with enhanced error handling
      */
     async openAndReleaseLocker(cardId, lockerId) {
-        // Store the locker name before the API call while it's still available
-        const lockerName = this.getLockerDisplayName(lockerId);
-        
         try {
             this.showLoadingState('Dolap açılıyor...');
             
@@ -573,7 +570,8 @@ class SimpleKioskApp {
             const result = await response.json();
             
             if (result.success) {
-                this.showLoadingState(`${lockerName} açıldı - Eşyalarınızı alın`);
+                // Use the server's message which contains the correct display name
+                this.showLoadingState(result.message.replace('ve serbest bırakıldı', '- Eşyalarınızı alın'));
                 setTimeout(() => {
                     this.showIdleState();
                 }, 3000);
@@ -919,9 +917,6 @@ class SimpleKioskApp {
      * Select and assign locker with comprehensive error handling
      */
     async selectLocker(lockerId) {
-        // Store the locker name before the API call while it's still available
-        const lockerName = this.getLockerDisplayName(lockerId);
-        
         try {
             this.showLoadingState('Dolap atanıyor...');
             
@@ -953,7 +948,8 @@ class SimpleKioskApp {
             
             if (result.success) {
                 this.endSession();
-                this.showLoadingState(`${lockerName} açıldı - Eşyalarınızı yerleştirin`);
+                // Use the server's message which contains the correct display name
+                this.showLoadingState(result.message.replace('ve atandı', '- Eşyalarınızı yerleştirin'));
                 setTimeout(() => {
                     this.showIdleState();
                 }, 3000);

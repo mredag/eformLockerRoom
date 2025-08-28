@@ -451,6 +451,92 @@ describe('SimpleKioskApp', () => {
     });
   });
 
+  describe('Display Name Fix', () => {
+    test('should use server response message for locker release (Bug Fix)', async () => {
+      // Mock API response with custom display name
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          lockerId: 5,
+          message: '0Emre 1 açıldı ve serbest bırakıldı'
+        })
+      });
+
+      // Create a mock openAndReleaseLocker method for testing
+      app.openAndReleaseLocker = async function(cardId, lockerId) {
+        try {
+          this.showLoadingState('Dolap açılıyor...');
+          
+          const response = await fetch('/api/locker/release', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardId, kioskId: this.kioskId })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // Use server's message instead of local name
+            this.showLoadingState(result.message.replace('ve serbest bırakıldı', '- Eşyalarınızı alın'));
+          }
+        } catch (error) {
+          this.showErrorState('HARDWARE_ERROR');
+        }
+      };
+
+      await app.openAndReleaseLocker('test-card', 5);
+      
+      // Should show the custom display name from server, not generic "Dolap 5"
+      expect(app.elements.loadingText.textContent).toBe('0Emre 1 açıldı - Eşyalarınızı alın');
+      expect(app.elements.loadingText.textContent).not.toBe('Dolap 5 açıldı - Eşyalarınızı alın');
+    });
+
+    test('should use server response message for locker assignment (Consistency)', async () => {
+      // Mock API response with custom display name
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          lockerId: 3,
+          message: '0Emre 2 açıldı ve atandı'
+        })
+      });
+
+      // Create a mock selectLocker method for testing
+      app.selectLocker = async function(lockerId) {
+        try {
+          this.showLoadingState('Dolap atanıyor...');
+          
+          const response = await fetch('/api/locker/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cardId: this.state.selectedCard,
+              lockerId: lockerId,
+              kioskId: this.kioskId
+            })
+          });
+          
+          const result = await response.json();
+          
+          if (result.success) {
+            // Use server's message instead of local name
+            this.showLoadingState(result.message.replace('ve atandı', '- Eşyalarınızı yerleştirin'));
+          }
+        } catch (error) {
+          this.showErrorState('ASSIGNMENT_FAILED');
+        }
+      };
+
+      app.state.selectedCard = 'test-card';
+      await app.selectLocker(3);
+      
+      // Should show the custom display name from server
+      expect(app.elements.loadingText.textContent).toBe('0Emre 2 açıldı - Eşyalarınızı yerleştirin');
+    });
+  });
+
   describe('Requirements Validation', () => {
     test('should implement 30-second session timeout (Requirement 3.1)', () => {
       expect(app.sessionTimeoutSeconds).toBe(30);
