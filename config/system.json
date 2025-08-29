@@ -70,14 +70,6 @@
         "dip_switches": "00000001",
         "description": "Main Locker Bank 1-16",
         "enabled": true
-      },
-      {
-        "slave_address": 2,
-        "channels": 16,
-        "type": "waveshare_16ch",
-        "dip_switches": "00000010",
-        "description": "Main Locker Bank 17-32",
-        "enabled": true
       }
     ],
     "rfid": {
@@ -119,7 +111,7 @@
     }
   },
   "lockers": {
-    "total_count": 32,
+    "total_count": 16,
     "reserve_ttl_seconds": 120,
     "offline_threshold_seconds": 60,
     "bulk_operation_interval_ms": 500,
@@ -129,7 +121,7 @@
     "maintenance_mode": false,
     "layout": {
       "rows": 4,
-      "columns": 8,
+      "columns": 4,
       "numbering_scheme": "sequential"
     }
   },

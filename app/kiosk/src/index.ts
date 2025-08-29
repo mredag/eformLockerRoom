@@ -173,10 +173,16 @@ fastify.post("/api/locker/open", async (request, reply) => {
       });
     }
 
-    if (locker_id < 1 || locker_id > 30) {
+    // Get max locker ID from configuration
+    const { ConfigManager } = await import("../../../shared/services/config-manager");
+    const configManager = ConfigManager.getInstance();
+    const config = configManager.getConfiguration();
+    const maxLockerId = config.lockers.total_count;
+    
+    if (locker_id < 1 || locker_id > maxLockerId) {
       return reply.status(400).send({
         success: false,
-        error: "Invalid locker_id. Must be between 1 and 30."
+        error: `Invalid locker_id. Must be between 1 and ${maxLockerId}.`
       });
     }
 
@@ -228,10 +234,16 @@ fastify.post('/api/locker/close', async (request, reply) => {
       });
     }
 
-    if (locker_id < 1 || locker_id > 30) {
+    // Get max locker ID from configuration
+    const { ConfigManager } = await import("../../../shared/services/config-manager");
+    const configManager = ConfigManager.getInstance();
+    const config = configManager.getConfiguration();
+    const maxLockerId = config.lockers.total_count;
+    
+    if (locker_id < 1 || locker_id > maxLockerId) {
       return reply.status(400).send({
         success: false,
-        error: "Invalid locker_id. Must be between 1 and 30."
+        error: `Invalid locker_id. Must be between 1 and ${maxLockerId}.`
       });
     }
 
@@ -627,7 +639,15 @@ const start = async () => {
       console.log(`🔍 Initializing lockers for kiosk: ${KIOSK_ID}`);
       console.log(`🔍 Changed working directory to: ${process.cwd()}`);
       console.log(`🔍 Database path: ${process.env.EFORM_DB_PATH || './data/eform.db'}`);
-      await lockerStateManager.initializeKioskLockers(KIOSK_ID, 30);
+      // Load system configuration to get locker count
+      const { ConfigManager } = await import("../../../shared/services/config-manager");
+      const configManager = ConfigManager.getInstance();
+      await configManager.initialize();
+      const config = configManager.getConfiguration();
+      
+      const lockerCount = config.lockers.total_count;
+      console.log(`🔧 Using configured locker count: ${lockerCount}`);
+      await lockerStateManager.initializeKioskLockers(KIOSK_ID, lockerCount);
       console.log(`✅ Kiosk lockers initialized successfully`);
     } catch (dbError) {
       console.error("❌ Error initializing kiosk lockers:", dbError);

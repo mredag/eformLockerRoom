@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donanım Yapılandırması - eForm Locker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .nav {
+            background: #f8f9fa;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .nav a {
+            color: #495057;
+            text-decoration: none;
+            margin-right: 2rem;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav a:hover {
+            color: #667eea;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        .relay-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        .relay-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .relay-card.disabled {
+            opacity: 0.6;
+            background: #f8f9fa;
+        }
+        .status-badge {
+            font-size: 0.8em;
+            padding: 4px 8px;
+        }
+        .dip-switch {
+            font-family: 'Courier New', monospace;
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        .hardware-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+        }
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .config-form {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-test {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            color: white;
+        }
+        .btn-test:hover {
+            background: linear-gradient(45deg, #218838, #1ea080);
+            color: white;
+        }
+        .alert-config {
+            border-left: 4px solid #ffc107;
+            background: #fff3cd;
+            border-color: #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><i class="fas fa-microchip me-2"></i>Donanım Yapılandırması</h1>
+        <p>Modbus ve röle kartı ayarlarını yönetin</p>
+    </div>
+
+    <div class="nav">
+        <a href="/dashboard">🏠 Ana Sayfa</a>
+        <a href="/lockers">📦 Dolaplar</a>
+        <a href="/relay">⚡ Röle Kontrolü</a>
+        <a href="/hardware-config" style="color: #667eea; font-weight: bold;">🔧 Donanım Yapılandırması</a>
+        <a href="/locker-naming">🏷️ Dolap İsimlendirme</a>
+        <a href="/performance">📊 Performans</a>
+    </div>
+
+    <div class="container">
+        <div class="content">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <button class="btn btn-outline-primary me-2" onclick="loadConfiguration()">
+                        <i class="fas fa-sync-alt me-1"></i>Yenile
+                    </button>
+                    <button class="btn btn-success" onclick="saveConfiguration()">
+                        <i class="fas fa-save me-1"></i>Kaydet
+                    </button>
+                </div>
+            </div>
+
+                <!-- Hardware Statistics -->
+                <div class="hardware-stats">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <span class="stat-number" id="totalLockers">-</span>
+                                <span class="stat-label">Toplam Dolap</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <span class="stat-number" id="totalCards">-</span>
+                                <span class="stat-label">Röle Kartı</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <span class="stat-number" id="totalChannels">-</span>
+                                <span class="stat-label">Toplam Kanal</span>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <span class="stat-number" id="enabledCards">-</span>
+                                <span class="stat-label">Aktif Kart</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Mismatch Alert -->
+                <div id="configAlert" class="alert alert-config d-none">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Yapılandırma Uyarısı</h5>
+                    <p id="configAlertText"></p>
+                    <button class="btn btn-warning btn-sm" onclick="autoFixConfiguration()">
+                        <i class="fas fa-magic me-1"></i>Otomatik Düzelt
+                    </button>
+                </div>
+
+                <div class="row">
+                    <!-- Modbus Configuration -->
+                    <div class="col-lg-6">
+                        <div class="config-section">
+                            <h4><i class="fas fa-plug me-2"></i>Modbus Yapılandırması</h4>
+                            <div class="config-form">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Seri Port</label>
+                                        <input type="text" class="form-control" id="modbusPort" placeholder="/dev/ttyUSB0">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Baud Rate</label>
+                                        <select class="form-select" id="modbusBaudrate">
+                                            <option value="9600">9600</option>
+                                            <option value="19200">19200</option>
+                                            <option value="38400">38400</option>
+                                            <option value="57600">57600</option>
+                                            <option value="115200">115200</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Timeout (ms)</label>
+                                        <input type="number" class="form-control" id="modbusTimeout" min="500" max="10000" step="100">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Pulse Süresi (ms)</label>
+                                        <input type="number" class="form-control" id="modbusPulseDuration" min="100" max="2000" step="50">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Komut Aralığı (ms)</label>
+                                        <input type="number" class="form-control" id="modbusCommandInterval" min="50" max="1000" step="10">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Maksimum Deneme</label>
+                                        <input type="number" class="form-control" id="modbusMaxRetries" min="1" max="10">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="modbusMultipleCoils">
+                                            <label class="form-check-label" for="modbusMultipleCoils">
+                                                Çoklu Coil Kullan
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="modbusVerifyWrites">
+                                            <label class="form-check-label" for="modbusVerifyWrites">
+                                                Yazma İşlemlerini Doğrula
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-test" onclick="testModbusConnection()">
+                                    <i class="fas fa-plug me-1"></i>Bağlantıyı Test Et
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Locker Configuration -->
+                    <div class="col-lg-6">
+                        <div class="config-section">
+                            <h4><i class="fas fa-archive me-2"></i>Dolap Yapılandırması</h4>
+                            <div class="config-form">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Toplam Dolap Sayısı</label>
+                                        <input type="number" class="form-control" id="lockerTotalCount" min="1" max="1000">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Rezervasyon Süresi (saniye)</label>
+                                        <input type="number" class="form-control" id="lockerReserveTtl" min="30" max="600" step="10">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Satır Sayısı</label>
+                                        <input type="number" class="form-control" id="lockerLayoutRows" min="1" max="20">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Sütun Sayısı</label>
+                                        <input type="number" class="form-control" id="lockerLayoutColumns" min="1" max="20">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Numaralama</label>
+                                        <select class="form-select" id="lockerNumberingScheme">
+                                            <option value="sequential">Sıralı</option>
+                                            <option value="grid">Izgara</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Otomatik Serbest Bırakma (saat)</label>
+                                        <input type="number" class="form-control" id="lockerAutoReleaseHours" min="1" max="168">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <div class="form-check mt-4">
+                                            <input class="form-check-input" type="checkbox" id="lockerMaintenanceMode">
+                                            <label class="form-check-label" for="lockerMaintenanceMode">
+                                                Bakım Modu
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relay Cards Configuration -->
+                <div class="config-section">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4><i class="fas fa-microchip me-2"></i>Röle Kartları</h4>
+                        <button class="btn btn-primary btn-sm" onclick="addRelayCard()">
+                            <i class="fas fa-plus me-1"></i>Kart Ekle
+                        </button>
+                    </div>
+                    <div id="relayCardsContainer">
+                        <!-- Relay cards will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Hardware Testing -->
+                <div class="config-section">
+                    <h4><i class="fas fa-vial me-2"></i>Donanım Testi</h4>
+                    <div class="config-form">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Test Edilecek Dolap ID</label>
+                                <input type="number" class="form-control" id="testLockerId" min="1" placeholder="1">
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-test" onclick="testSingleLocker()">
+                                        <i class="fas fa-play me-1"></i>Tek Dolap Test
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="testAllLockers()">
+                                        <i class="fas fa-list me-1"></i>Tüm Dolapları Test
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="emergencyStop()">
+                                        <i class="fas fa-stop me-1"></i>Acil Durdur
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="testResults" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong class="me-auto">Bildirim</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentConfig = null;
+
+        // Load configuration on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfiguration();
+        });
+
+        async function loadConfiguration() {
+            try {
+                const response = await fetch('/api/hardware-config');
+                if (!response.ok) throw new Error('Failed to load configuration');
+                
+                currentConfig = await response.json();
+                populateForm(currentConfig);
+                updateStatistics(currentConfig);
+                renderRelayCards(currentConfig.hardware.relay_cards);
+                checkConfigurationMismatch(currentConfig);
+                
+                showToast('Yapılandırma yüklendi', 'success');
+            } catch (error) {
+                console.error('Error loading configuration:', error);
+                showToast('Yapılandırma yüklenemedi: ' + error.message, 'error');
+            }
+        }
+
+        function populateForm(config) {
+            // Modbus configuration
+            document.getElementById('modbusPort').value = config.hardware.modbus.port;
+            document.getElementById('modbusBaudrate').value = config.hardware.modbus.baudrate;
+            document.getElementById('modbusTimeout').value = config.hardware.modbus.timeout_ms;
+            document.getElementById('modbusPulseDuration').value = config.hardware.modbus.pulse_duration_ms;
+            document.getElementById('modbusCommandInterval').value = config.hardware.modbus.command_interval_ms;
+            document.getElementById('modbusMaxRetries').value = config.hardware.modbus.max_retries;
+            document.getElementById('modbusMultipleCoils').checked = config.hardware.modbus.use_multiple_coils;
+            document.getElementById('modbusVerifyWrites').checked = config.hardware.modbus.verify_writes;
+
+            // Locker configuration
+            document.getElementById('lockerTotalCount').value = config.lockers.total_count;
+            document.getElementById('lockerReserveTtl').value = config.lockers.reserve_ttl_seconds;
+            document.getElementById('lockerLayoutRows').value = config.lockers.layout.rows;
+            document.getElementById('lockerLayoutColumns').value = config.lockers.layout.columns;
+            document.getElementById('lockerNumberingScheme').value = config.lockers.layout.numbering_scheme;
+            document.getElementById('lockerAutoReleaseHours').value = config.lockers.auto_release_hours;
+            document.getElementById('lockerMaintenanceMode').checked = config.lockers.maintenance_mode;
+        }
+
+        function updateStatistics(config) {
+            const totalCards = config.hardware.relay_cards.length;
+            const enabledCards = config.hardware.relay_cards.filter(card => card.enabled).length;
+            const totalChannels = config.hardware.relay_cards
+                .filter(card => card.enabled)
+                .reduce((sum, card) => sum + card.channels, 0);
+
+            document.getElementById('totalLockers').textContent = config.lockers.total_count;
+            document.getElementById('totalCards').textContent = totalCards;
+            document.getElementById('totalChannels').textContent = totalChannels;
+            document.getElementById('enabledCards').textContent = enabledCards;
+        }
+
+        function checkConfigurationMismatch(config) {
+            const totalChannels = config.hardware.relay_cards
+                .filter(card => card.enabled)
+                .reduce((sum, card) => sum + card.channels, 0);
+            
+            const configAlert = document.getElementById('configAlert');
+            const configAlertText = document.getElementById('configAlertText');
+
+            if (config.lockers.total_count !== totalChannels) {
+                configAlertText.textContent = 
+                    `Donanım uyumsuzluğu: ${totalChannels} röle kanalınız var ama ${config.lockers.total_count} dolap yapılandırılmış. ` +
+                    `Optimal kullanım için dolap sayısını ${totalChannels} olarak ayarlayın.`;
+                configAlert.classList.remove('d-none');
+            } else {
+                configAlert.classList.add('d-none');
+            }
+        }
+
+        function renderRelayCards(relayCards) {
+            const container = document.getElementById('relayCardsContainer');
+            container.innerHTML = '';
+
+            relayCards.forEach((card, index) => {
+                const cardHtml = `
+                    <div class="relay-card ${!card.enabled ? 'disabled' : ''}" data-index="${index}">
+                        <div class="row align-items-center">
+                            <div class="col-md-2">
+                                <label class="form-label">Slave Adresi</label>
+                                <input type="number" class="form-control form-control-sm" 
+                                       value="${card.slave_address}" min="1" max="247"
+                                       onchange="updateRelayCard(${index}, 'slave_address', parseInt(this.value))">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Kanal Sayısı</label>
+                                <select class="form-select form-select-sm" 
+                                        onchange="updateRelayCard(${index}, 'channels', parseInt(this.value))">
+                                    <option value="8" ${card.channels === 8 ? 'selected' : ''}>8</option>
+                                    <option value="16" ${card.channels === 16 ? 'selected' : ''}>16</option>
+                                    <option value="32" ${card.channels === 32 ? 'selected' : ''}>32</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">DIP Switch</label>
+                                <div class="dip-switch">${card.dip_switches}</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Açıklama</label>
+                                <input type="text" class="form-control form-control-sm" 
+                                       value="${card.description}"
+                                       onchange="updateRelayCard(${index}, 'description', this.value)">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Durum</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" 
+                                           ${card.enabled ? 'checked' : ''}
+                                           onchange="updateRelayCard(${index}, 'enabled', this.checked)">
+                                    <label class="form-check-label">
+                                        <span class="status-badge badge ${card.enabled ? 'bg-success' : 'bg-secondary'}">
+                                            ${card.enabled ? 'Aktif' : 'Pasif'}
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-1">
+                                <button class="btn btn-outline-danger btn-sm" onclick="removeRelayCard(${index})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    Dolap Aralığı: ${getLockerRange(index, card.channels)} | 
+                                    Tip: ${card.type}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        }
+
+        function getLockerRange(cardIndex, channels) {
+            const startLocker = (cardIndex * 16) + 1;
+            const endLocker = startLocker + channels - 1;
+            return `${startLocker}-${endLocker}`;
+        }
+
+        function updateRelayCard(index, field, value) {
+            if (!currentConfig) return;
+            
+            currentConfig.hardware.relay_cards[index][field] = value;
+            
+            // Update DIP switches when slave address changes
+            if (field === 'slave_address') {
+                currentConfig.hardware.relay_cards[index].dip_switches = 
+                    value.toString(2).padStart(8, '0');
+            }
+            
+            renderRelayCards(currentConfig.hardware.relay_cards);
+            updateStatistics(currentConfig);
+            checkConfigurationMismatch(currentConfig);
+        }
+
+        function addRelayCard() {
+            if (!currentConfig) return;
+            
+            const nextSlaveAddress = Math.max(...currentConfig.hardware.relay_cards.map(c => c.slave_address)) + 1;
+            const newCard = {
+                slave_address: nextSlaveAddress,
+                channels: 16,
+                type: "waveshare_16ch",
+                dip_switches: nextSlaveAddress.toString(2).padStart(8, '0'),
+                description: `Dolap Bankası ${(nextSlaveAddress - 1) * 16 + 1}-${nextSlaveAddress * 16}`,
+                enabled: true
+            };
+            
+            currentConfig.hardware.relay_cards.push(newCard);
+            renderRelayCards(currentConfig.hardware.relay_cards);
+            updateStatistics(currentConfig);
+            checkConfigurationMismatch(currentConfig);
+            
+            showToast('Yeni röle kartı eklendi', 'success');
+        }
+
+        function removeRelayCard(index) {
+            if (!currentConfig || currentConfig.hardware.relay_cards.length <= 1) {
+                showToast('En az bir röle kartı gereklidir', 'error');
+                return;
+            }
+            
+            if (confirm('Bu röle kartını silmek istediğinizden emin misiniz?')) {
+                currentConfig.hardware.relay_cards.splice(index, 1);
+                renderRelayCards(currentConfig.hardware.relay_cards);
+                updateStatistics(currentConfig);
+                checkConfigurationMismatch(currentConfig);
+                
+                showToast('Röle kartı silindi', 'success');
+            }
+        }
+
+        function autoFixConfiguration() {
+            if (!currentConfig) return;
+            
+            const totalChannels = currentConfig.hardware.relay_cards
+                .filter(card => card.enabled)
+                .reduce((sum, card) => sum + card.channels, 0);
+            
+            currentConfig.lockers.total_count = totalChannels;
+            
+            // Update layout for better UI
+            const columns = Math.ceil(Math.sqrt(totalChannels));
+            const rows = Math.ceil(totalChannels / columns);
+            currentConfig.lockers.layout.columns = columns;
+            currentConfig.lockers.layout.rows = rows;
+            
+            populateForm(currentConfig);
+            updateStatistics(currentConfig);
+            checkConfigurationMismatch(currentConfig);
+            
+            showToast('Yapılandırma otomatik olarak düzeltildi', 'success');
+        }
+
+        async function saveConfiguration() {
+            if (!currentConfig) return;
+            
+            try {
+                // Update configuration from form
+                currentConfig.hardware.modbus.port = document.getElementById('modbusPort').value;
+                currentConfig.hardware.modbus.baudrate = parseInt(document.getElementById('modbusBaudrate').value);
+                currentConfig.hardware.modbus.timeout_ms = parseInt(document.getElementById('modbusTimeout').value);
+                currentConfig.hardware.modbus.pulse_duration_ms = parseInt(document.getElementById('modbusPulseDuration').value);
+                currentConfig.hardware.modbus.command_interval_ms = parseInt(document.getElementById('modbusCommandInterval').value);
+                currentConfig.hardware.modbus.max_retries = parseInt(document.getElementById('modbusMaxRetries').value);
+                currentConfig.hardware.modbus.use_multiple_coils = document.getElementById('modbusMultipleCoils').checked;
+                currentConfig.hardware.modbus.verify_writes = document.getElementById('modbusVerifyWrites').checked;
+                
+                currentConfig.lockers.total_count = parseInt(document.getElementById('lockerTotalCount').value);
+                currentConfig.lockers.reserve_ttl_seconds = parseInt(document.getElementById('lockerReserveTtl').value);
+                currentConfig.lockers.layout.rows = parseInt(document.getElementById('lockerLayoutRows').value);
+                currentConfig.lockers.layout.columns = parseInt(document.getElementById('lockerLayoutColumns').value);
+                currentConfig.lockers.layout.numbering_scheme = document.getElementById('lockerNumberingScheme').value;
+                currentConfig.lockers.auto_release_hours = parseInt(document.getElementById('lockerAutoReleaseHours').value);
+                currentConfig.lockers.maintenance_mode = document.getElementById('lockerMaintenanceMode').checked;
+                
+                const response = await fetch('/api/hardware-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(currentConfig)
+                });
+                
+                if (!response.ok) throw new Error('Failed to save configuration');
+                
+                showToast('Yapılandırma kaydedildi. Değişikliklerin etkili olması için servisleri yeniden başlatın.', 'success');
+            } catch (error) {
+                console.error('Error saving configuration:', error);
+                showToast('Yapılandırma kaydedilemedi: ' + error.message, 'error');
+            }
+        }
+
+        async function testModbusConnection() {
+            try {
+                const response = await fetch('/api/hardware-config/test-modbus', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Modbus bağlantısı başarılı', 'success');
+                } else {
+                    showToast('Modbus bağlantısı başarısız: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Bağlantı testi başarısız: ' + error.message, 'error');
+            }
+        }
+
+        async function testSingleLocker() {
+            const lockerId = parseInt(document.getElementById('testLockerId').value);
+            if (!lockerId) {
+                showToast('Lütfen geçerli bir dolap ID girin', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/hardware-config/test-locker', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ locker_id: lockerId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`Dolap ${lockerId} testi başarılı`, 'success');
+                } else {
+                    showToast(`Dolap ${lockerId} testi başarısız: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showToast('Test başarısız: ' + error.message, 'error');
+            }
+        }
+
+        async function testAllLockers() {
+            if (!confirm('Tüm dolapları test etmek istediğinizden emin misiniz? Bu işlem uzun sürebilir.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/hardware-config/test-all-lockers', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`Tüm dolaplar test edildi. Başarılı: ${result.successful}, Başarısız: ${result.failed}`, 'success');
+                } else {
+                    showToast('Toplu test başarısız: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Test başarısız: ' + error.message, 'error');
+            }
+        }
+
+        async function emergencyStop() {
+            if (!confirm('Acil durdurma işlemini başlatmak istediğinizden emin misiniz?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/hardware-config/emergency-stop', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Acil durdurma başarılı', 'success');
+                } else {
+                    showToast('Acil durdurma başarısız: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showToast('Acil durdurma başarısız: ' + error.message, 'error');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastBody = document.getElementById('toastBody');
+            
+            toastBody.textContent = message;
+            
+            // Update toast styling based on type
+            toast.className = 'toast';
+            if (type === 'success') {
+                toast.classList.add('bg-success', 'text-white');
+            } else if (type === 'error') {
+                toast.classList.add('bg-danger', 'text-white');
+            } else if (type === 'warning') {
+                toast.classList.add('bg-warning');
+            }
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+    </script>
+</body>
+</html>

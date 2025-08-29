@@ -269,6 +269,16 @@ async function startPanelService() {
       console.error("❌ Failed to register Maksisoft routes:", error);
     }
 
+    // Register hardware configuration routes
+    try {
+      const { HardwareConfigRoutes } = await import("./routes/hardware-config-routes");
+      const hardwareConfigRoutes = new HardwareConfigRoutes();
+      await hardwareConfigRoutes.registerRoutes(fastify);
+      console.log("✅ Hardware configuration routes registered successfully");
+    } catch (error) {
+      console.error("❌ Failed to register hardware configuration routes:", error);
+    }
+
     // Register performance monitoring routes - TEMPORARILY DISABLED
     // TODO: Fix database connection issue in PerformanceMonitor
     /*
@@ -373,6 +383,11 @@ async function startPanelService() {
     // Performance dashboard route
     fastify.get("/performance", async (_request, reply) => {
       return reply.sendFile("performance-dashboard.html");
+    });
+
+    // Hardware configuration route
+    fastify.get("/hardware-config", async (_request, reply) => {
+      return reply.sendFile("hardware-config.html");
     });
 
     // Clear cookies endpoint (fix browser conflicts)
