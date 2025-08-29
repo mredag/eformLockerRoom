@@ -163,6 +163,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         message: '📊 Calling lockerStateManager.getAllLockers...'
       });
 
+      // Since kioskId is validated above, we can safely use the enhanced method
       let lockers = await lockerStateManager.getEnhancedKioskLockers(query.kioskId);
       
       // Apply status filtering if provided
