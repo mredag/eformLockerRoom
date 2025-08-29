@@ -1,0 +1,246 @@
+import { ConfigManager } from './config-manager';
+
+export interface LockerLayoutInfo {
+  id: number;
+  cardId: number;
+  relayId: number;
+  slaveAddress: number;
+  displayName: string;
+  description: string;
+  enabled: boolean;
+  cardDescription: string;
+}
+
+export interface LayoutGrid {
+  rows: number;
+  columns: number;
+  totalLockers: number;
+  lockers: LockerLayoutInfo[];
+}
+
+/**
+ * Service for generating locker layouts based on Modbus configuration
+ * Ensures UI matches hardware configuration exactly
+ */
+export class LockerLayoutService {
+  private configManager: ConfigManager;
+
+  constructor() {
+    this.configManager = ConfigManager.getInstance();
+  }
+
+  /**
+   * Generate locker layout based on current Modbus configuration
+   */
+  async generateLockerLayout(): Promise<LayoutGrid> {
+    await this.configManager.initialize();
+    const config = this.configManager.getConfiguration();
+
+    const lockers: LockerLayoutInfo[] = [];
+    let lockerCounter = 1;
+
+    // Generate lockers based on enabled relay cards
+    for (const card of config.hardware.relay_cards) {
+      if (!card.enabled) continue;
+
+      for (let relayId = 1; relayId <= card.channels; relayId++) {
+        if (lockerCounter > config.lockers.total_count) break;
+
+        const lockerInfo: LockerLayoutInfo = {
+          id: lockerCounter,
+          cardId: card.slave_address,
+          relayId: relayId,
+          slaveAddress: card.slave_address,
+          displayName: `Dolap ${lockerCounter}`,
+          description: `Card ${card.slave_address}, Relay ${relayId}`,
+          enabled: true,
+          cardDescription: card.description
+        };
+
+        lockers.push(lockerInfo);
+        lockerCounter++;
+      }
+    }
+
+    return {
+      rows: config.lockers.layout.rows,
+      columns: config.lockers.layout.columns,
+      totalLockers: config.lockers.total_count,
+      lockers
+    };
+  }
+
+  /**
+   * Generate CSS grid layout based on configuration
+   */
+  async generateGridCSS(): Promise<string> {
+    const layout = await this.generateLockerLayout();
+    
+    return `
+      .locker-grid {
+        display: grid;
+        grid-template-columns: repeat(${layout.columns}, 1fr);
+        grid-template-rows: repeat(${layout.rows}, 1fr);
+        gap: 10px;
+        width: 100%;
+        height: 100%;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+      
+      .locker-tile {
+        aspect-ratio: 1;
+        min-height: 80px;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+      }
+      
+      @media (max-width: 768px) {
+        .locker-grid {
+          grid-template-columns: repeat(${Math.min(layout.columns, 4)}, 1fr);
+          gap: 8px;
+          padding: 10px;
+        }
+        
+        .locker-tile {
+          min-height: 60px;
+          font-size: 0.9em;
+        }
+      }
+    `;
+  }
+
+  /**
+   * Get locker mapping information for hardware control
+   */
+  async getLockerMapping(lockerId: number): Promise<LockerLayoutInfo | null> {
+    const layout = await this.generateLockerLayout();
+    return layout.lockers.find(locker => locker.id === lockerId) || null;
+  }
+
+  /**
+   * Validate that locker ID is within configured range
+   */
+  async isValidLockerId(lockerId: number): Promise<boolean> {
+    const layout = await this.generateLockerLayout();
+    return lockerId >= 1 && lockerId <= layout.totalLockers;
+  }
+
+  /**
+   * Get hardware statistics based on configuration
+   */
+  async getHardwareStats(): Promise<{
+    totalCards: number;
+    enabledCards: number;
+    totalChannels: number;
+    configuredLockers: number;
+    utilizationPercent: number;
+  }> {
+    await this.configManager.initialize();
+    const config = this.configManager.getConfiguration();
+
+    const totalCards = config.hardware.relay_cards.length;
+    const enabledCards = config.hardware.relay_cards.filter(card => card.enabled).length;
+    const totalChannels = config.hardware.relay_cards
+      .filter(card => card.enabled)
+      .reduce((sum, card) => sum + card.channels, 0);
+    const configuredLockers = config.lockers.total_count;
+    const utilizationPercent = totalChannels > 0 ? Math.round((configuredLockers / totalChannels) * 100) : 0;
+
+    return {
+      totalCards,
+      enabledCards,
+      totalChannels,
+      configuredLockers,
+      utilizationPercent
+    };
+  }
+
+  /**
+   * Generate locker cards for admin panel
+   */
+  async generatePanelCards(): Promise<string> {
+    const layout = await this.generateLockerLayout();
+    
+    let html = '';
+    for (const locker of layout.lockers) {
+      html += `
+        <div class="locker-card" data-locker-id="${locker.id}" data-card-id="${locker.cardId}" data-relay-id="${locker.relayId}">
+          <div class="locker-header">
+            <span class="locker-number">${locker.displayName}</span>
+            <span class="locker-status" data-status="Free">BOŞ</span>
+          </div>
+          <div class="locker-info">
+            <small>Card ${locker.cardId} • Relay ${locker.relayId}</small>
+            <small>${locker.cardDescription}</small>
+          </div>
+          <div class="locker-actions">
+            <button class="btn btn-sm btn-primary open-locker-btn" data-locker-id="${locker.id}">
+              <i class="fas fa-unlock"></i> Aç
+            </button>
+            <button class="btn btn-sm btn-secondary test-locker-btn" data-locker-id="${locker.id}">
+              <i class="fas fa-vial"></i> Test
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    
+    return html;
+  }
+
+  /**
+   * Generate locker tiles for kiosk interface
+   */
+  async generateKioskTiles(): Promise<string> {
+    const layout = await this.generateLockerLayout();
+    
+    let html = '';
+    for (const locker of layout.lockers) {
+      html += `
+        <div class="locker-tile available" 
+             data-locker-id="${locker.id}" 
+             data-card-id="${locker.cardId}" 
+             data-relay-id="${locker.relayId}"
+             role="button" 
+             tabindex="0"
+             aria-label="Dolap ${locker.id}, Boş">
+          <div class="locker-number">${locker.displayName}</div>
+          <div class="locker-status">BOŞ</div>
+        </div>
+      `;
+    }
+    
+    return html;
+  }
+
+  /**
+   * Get relay card information for a specific locker
+   */
+  async getRelayCardInfo(lockerId: number): Promise<{
+    cardId: number;
+    relayId: number;
+    slaveAddress: number;
+    cardDescription: string;
+  } | null> {
+    const mapping = await this.getLockerMapping(lockerId);
+    if (!mapping) return null;
+
+    return {
+      cardId: mapping.cardId,
+      relayId: mapping.relayId,
+      slaveAddress: mapping.slaveAddress,
+      cardDescription: mapping.cardDescription
+    };
+  }
+}
+
+// Export singleton instance
+export const lockerLayoutService = new LockerLayoutService();

@@ -83,6 +83,15 @@ export interface ServiceConfig {
   };
 }
 
+export interface RelayCard {
+  slave_address: number;
+  channels: number;
+  type: string;
+  dip_switches?: string;
+  description: string;
+  enabled: boolean;
+}
+
 export interface HardwareConfig {
   modbus: {
     port: string;
@@ -92,11 +101,28 @@ export interface HardwareConfig {
     burst_duration_seconds: number;
     burst_interval_ms: number;
     command_interval_ms: number;
+    use_multiple_coils?: boolean;
+    verify_writes?: boolean;
+    max_retries?: number;
+    retry_delay_base_ms?: number;
+    connection_retry_attempts?: number;
+    test_mode?: boolean;
   };
+  relay_cards: RelayCard[];
   rfid: {
     reader_type: 'hid' | 'serial';
     debounce_ms: number;
     scan_timeout_ms: number;
+    auto_detect?: boolean;
+    fallback_to_keyboard?: boolean;
+    vendor_id?: string | null;
+    product_id?: string | null;
+  };
+  display?: {
+    type: string;
+    resolution: string;
+    brightness: number;
+    screensaver_timeout_minutes: number;
   };
 }
 
@@ -131,11 +157,19 @@ export interface I18nConfig {
 }
 
 export interface LockerConfig {
+  total_count: number;
   reserve_ttl_seconds: number;
   offline_threshold_seconds: number;
   bulk_operation_interval_ms: number;
   master_lockout_fails: number;
   master_lockout_minutes: number;
+  auto_release_hours?: number;
+  maintenance_mode?: boolean;
+  layout: {
+    rows: number;
+    columns: number;
+    numbering_scheme?: string;
+  };
 }
 
 /**

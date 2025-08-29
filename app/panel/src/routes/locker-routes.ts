@@ -7,6 +7,7 @@ import { requirePermission, requireCsrfToken } from '../middleware/auth-middlewa
 import { Permission } from '../services/permission-service';
 import { User } from '../services/auth-service';
 import { webSocketService } from '../../../../shared/services/websocket-service';
+import { lockerLayoutService } from '../../../../shared/services/locker-layout-service';
 
 interface LockerRouteOptions extends FastifyPluginOptions {
   dbManager: DatabaseManager;
@@ -934,6 +935,45 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         code: 'server_error',
         message: 'try again'
       });
+    }
+  });
+
+  // Get dynamic locker layout based on Modbus configuration
+  fastify.get('/layout', {
+    preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
+  }, async (request, reply) => {
+    try {
+      const layout = await lockerLayoutService.generateLockerLayout();
+      const stats = await lockerLayoutService.getHardwareStats();
+      const gridCSS = await lockerLayoutService.generateGridCSS();
+      
+      reply.send({
+        success: true,
+        layout,
+        stats,
+        gridCSS
+      });
+    } catch (error) {
+      fastify.log.error('Failed to get locker layout:', error);
+      reply.code(500).send({
+        success: false,
+        error: 'Failed to generate locker layout'
+      });
+    }
+  });
+
+  // Get locker cards HTML for panel
+  fastify.get('/cards', {
+    preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
+  }, async (request, reply) => {
+    try {
+      const cardsHTML = await lockerLayoutService.generatePanelCards();
+      
+      reply.type('text/html');
+      reply.send(cardsHTML);
+    } catch (error) {
+      fastify.log.error('Failed to generate locker cards:', error);
+      reply.code(500).send('<div class="error">Failed to generate locker cards</div>');
     }
   });
 }

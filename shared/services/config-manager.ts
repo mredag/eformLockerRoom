@@ -355,6 +355,15 @@ export class ConfigManager {
           burst_interval_ms: 2000,
           command_interval_ms: 300
         },
+        relay_cards: [
+          {
+            slave_address: 1,
+            channels: 16,
+            type: 'waveshare_16ch',
+            description: 'Main Locker Bank 1-16',
+            enabled: true
+          }
+        ],
         rfid: {
           reader_type: 'hid',
           debounce_ms: 500,
@@ -374,11 +383,16 @@ export class ConfigManager {
         }
       },
       lockers: {
+        total_count: 16,
         reserve_ttl_seconds: 90,
         offline_threshold_seconds: 30,
         bulk_operation_interval_ms: 300,
         master_lockout_fails: 5,
-        master_lockout_minutes: 5
+        master_lockout_minutes: 5,
+        layout: {
+          rows: 4,
+          columns: 4
+        }
       },
       qr: {
         token_ttl_seconds: 5,

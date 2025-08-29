@@ -71,6 +71,15 @@ describe('ConfigManager', () => {
             burst_interval_ms: 2000,
             command_interval_ms: 300
           },
+          relay_cards: [
+            {
+              slave_address: 1,
+              channels: 16,
+              type: 'waveshare_16ch',
+              description: 'Test Card',
+              enabled: true
+            }
+          ],
           rfid: {
             reader_type: 'hid',
             debounce_ms: 500,
@@ -90,11 +99,16 @@ describe('ConfigManager', () => {
           }
         },
         lockers: {
+          total_count: 16,
           reserve_ttl_seconds: 90,
           offline_threshold_seconds: 30,
           bulk_operation_interval_ms: 300,
           master_lockout_fails: 5,
-          master_lockout_minutes: 5
+          master_lockout_minutes: 5,
+          layout: {
+            rows: 4,
+            columns: 4
+          }
         },
         qr: {
           token_ttl_seconds: 5,
@@ -159,6 +173,7 @@ describe('ConfigManager', () => {
             pulse_duration_ms: 400, burst_duration_seconds: 10,
             burst_interval_ms: 2000, command_interval_ms: 300
           },
+          relay_cards: [{ slave_address: 1, channels: 16, type: 'test', description: 'Test', enabled: true }],
           rfid: { reader_type: 'hid', debounce_ms: 500, scan_timeout_ms: 5000 }
         },
         security: {
@@ -167,8 +182,10 @@ describe('ConfigManager', () => {
           rate_limits: { ip_per_minute: 30, card_per_minute: 60, locker_per_minute: 6, device_per_20_seconds: 1 }
         },
         lockers: {
+          total_count: 16,
           reserve_ttl_seconds: 90, offline_threshold_seconds: 30,
-          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5
+          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5,
+          layout: { rows: 4, columns: 4 }
         },
         qr: { token_ttl_seconds: 5, hmac_secret: 'test-hmac' },
         logging: { level: 'info', retention_days: 30, max_file_size_mb: 100, rotate_daily: true },
@@ -210,6 +227,7 @@ describe('ConfigManager', () => {
             pulse_duration_ms: 400, burst_duration_seconds: 10,
             burst_interval_ms: 2000, command_interval_ms: 300
           },
+          relay_cards: [{ slave_address: 1, channels: 16, type: 'test', description: 'Test', enabled: true }],
           rfid: { reader_type: 'hid', debounce_ms: 500, scan_timeout_ms: 5000 }
         },
         security: {
@@ -218,8 +236,10 @@ describe('ConfigManager', () => {
           rate_limits: { ip_per_minute: 30, card_per_minute: 60, locker_per_minute: 6, device_per_20_seconds: 1 }
         },
         lockers: {
+          total_count: 16,
           reserve_ttl_seconds: 90, offline_threshold_seconds: 30,
-          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5
+          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5,
+          layout: { rows: 4, columns: 4 }
         },
         qr: { token_ttl_seconds: 5, hmac_secret: 'test-hmac' },
         logging: { level: 'info', retention_days: 30, max_file_size_mb: 100, rotate_daily: true },
@@ -248,6 +268,7 @@ describe('ConfigManager', () => {
             pulse_duration_ms: 400, burst_duration_seconds: 10,
             burst_interval_ms: 2000, command_interval_ms: 300
           },
+          relay_cards: [{ slave_address: 1, channels: 16, type: 'test', description: 'Test', enabled: true }],
           rfid: { reader_type: 'hid', debounce_ms: 500, scan_timeout_ms: 5000 }
         },
         security: {
@@ -257,8 +278,10 @@ describe('ConfigManager', () => {
           rate_limits: { ip_per_minute: 30, card_per_minute: 60, locker_per_minute: 6, device_per_20_seconds: 1 }
         },
         lockers: {
+          total_count: 16,
           reserve_ttl_seconds: 90, offline_threshold_seconds: 30,
-          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5
+          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5,
+          layout: { rows: 4, columns: 4 }
         },
         qr: { token_ttl_seconds: 5, hmac_secret: 'change-this-in-production' }, // Default secret
         logging: { level: 'info', retention_days: 30, max_file_size_mb: 100, rotate_daily: true },
@@ -287,6 +310,7 @@ describe('ConfigManager', () => {
             pulse_duration_ms: 50, // Very short pulse
             burst_duration_seconds: 10, burst_interval_ms: 2000, command_interval_ms: 300
           },
+          relay_cards: [{ slave_address: 1, channels: 16, type: 'test', description: 'Test', enabled: true }],
           rfid: { reader_type: 'hid', debounce_ms: 500, scan_timeout_ms: 5000 }
         },
         security: {
@@ -295,9 +319,11 @@ describe('ConfigManager', () => {
           rate_limits: { ip_per_minute: 5, card_per_minute: 60, locker_per_minute: 6, device_per_20_seconds: 1 } // Very low IP limit
         },
         lockers: {
+          total_count: 16,
           reserve_ttl_seconds: 15, // Very short TTL
           offline_threshold_seconds: 30, bulk_operation_interval_ms: 300,
-          master_lockout_fails: 5, master_lockout_minutes: 5
+          master_lockout_fails: 5, master_lockout_minutes: 5,
+          layout: { rows: 4, columns: 4 }
         },
         qr: { token_ttl_seconds: 5, hmac_secret: 'test-hmac' },
         logging: { level: 'info', retention_days: 30, max_file_size_mb: 100, rotate_daily: true },
@@ -327,7 +353,8 @@ describe('ConfigManager', () => {
             pulse_duration_ms: 500, burst_duration_seconds: 15,
             burst_interval_ms: 3000, command_interval_ms: 400
           },
-          rfid: { reader_type: 'hid', debounce_ms: 1000, scan_timeout_ms: 10000 }
+          relay_cards: [{ slave_address: 1, channels: 16, type: 'test', description: 'Test', enabled: true }],
+          rfid: { reader_type: 'hid', debounce_ms: 500, scan_timeout_ms: 5000 }
         },
         security: {
           provisioning_secret: 'test-secret', session_secret: 'test-session',
@@ -335,8 +362,10 @@ describe('ConfigManager', () => {
           rate_limits: { ip_per_minute: 60, card_per_minute: 120, locker_per_minute: 12, device_per_20_seconds: 2 }
         },
         lockers: {
+          total_count: 16,
           reserve_ttl_seconds: 120, offline_threshold_seconds: 60,
-          bulk_operation_interval_ms: 500, master_lockout_fails: 3, master_lockout_minutes: 10
+          bulk_operation_interval_ms: 500, master_lockout_fails: 3, master_lockout_minutes: 10,
+          layout: { rows: 4, columns: 4 }
         },
         qr: { token_ttl_seconds: 10, hmac_secret: 'test-hmac' },
         logging: { level: 'info', retention_days: 60, max_file_size_mb: 100, rotate_daily: true },
@@ -381,6 +410,7 @@ describe('ConfigManager', () => {
             pulse_duration_ms: 400, burst_duration_seconds: 10,
             burst_interval_ms: 2000, command_interval_ms: 300
           },
+          relay_cards: [{ slave_address: 1, channels: 16, type: 'test', description: 'Test', enabled: true }],
           rfid: { reader_type: 'hid', debounce_ms: 500, scan_timeout_ms: 5000 }
         },
         security: {
@@ -389,8 +419,10 @@ describe('ConfigManager', () => {
           rate_limits: { ip_per_minute: 30, card_per_minute: 60, locker_per_minute: 6, device_per_20_seconds: 1 }
         },
         lockers: {
+          total_count: 16,
           reserve_ttl_seconds: 90, offline_threshold_seconds: 30,
-          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5
+          bulk_operation_interval_ms: 300, master_lockout_fails: 5, master_lockout_minutes: 5,
+          layout: { rows: 4, columns: 4 }
         },
         qr: { token_ttl_seconds: 5, hmac_secret: 'test-hmac' },
         logging: { level: 'info', retention_days: 30, max_file_size_mb: 100, rotate_daily: true },
