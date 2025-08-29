@@ -1,0 +1,2046 @@
+{
+  "timestamp": "2025-08-28T23:46:54.208Z",
+  "stats": {
+    "totalFiles": 466,
+    "categorized": {
+      "app": 180,
+      "docs": 33,
+      "scripts": 80,
+      "tests": 15,
+      "config": 5,
+      "other": 153
+    },
+    "violations": {
+      "naming": 149,
+      "structure": 0,
+      "temporary": 1,
+      "large": 0,
+      "misplaced": 144
+    }
+  },
+  "issues": [
+    {
+      "type": "temporary",
+      "severity": "error",
+      "message": "Temporary file detected: debug-pi-commands.sh",
+      "path": "scripts\\emergency\\debug-pi-commands.sh"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .example",
+      "path": ".env.example"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: maksisoft-spec-help.md",
+      "path": ".kiro\\maksisoft-spec-help.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: tasks.md",
+      "path": ".kiro\\specs\\admin-panel-relay-control\\tasks.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: design.md",
+      "path": ".kiro\\specs\\admin-panel-ui-improvements\\design.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: requirements.md",
+      "path": ".kiro\\specs\\admin-panel-ui-improvements\\requirements.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: tasks.md",
+      "path": ".kiro\\specs\\admin-panel-ui-improvements\\tasks.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: design.md",
+      "path": ".kiro\\specs\\eform-locker-system\\design.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: requirements.md",
+      "path": ".kiro\\specs\\eform-locker-system\\requirements.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: tasks.md",
+      "path": ".kiro\\specs\\eform-locker-system\\tasks.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: tasks.md",
+      "path": ".kiro\\specs\\kiosk-ui-overhaul\\tasks.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: design.md",
+      "path": ".kiro\\specs\\maksisoft-integration\\design.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: requirements.md",
+      "path": ".kiro\\specs\\maksisoft-integration\\requirements.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: tasks.md",
+      "path": ".kiro\\specs\\maksisoft-integration\\tasks.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: design.md",
+      "path": ".kiro\\specs\\repository-cleanup-v3\\design.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: requirements.md",
+      "path": ".kiro\\specs\\repository-cleanup-v3\\requirements.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: tasks.md",
+      "path": ".kiro\\specs\\repository-cleanup-v3\\tasks.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: tasks.md",
+      "path": ".kiro\\specs\\system-modernization-v2\\tasks.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: clean-work-etiquette.md",
+      "path": ".kiro\\steering\\clean-work-etiquette.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: development-environment.md",
+      "path": ".kiro\\steering\\development-environment.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: project-development-guide.md",
+      "path": ".kiro\\steering\\project-development-guide.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: scripts-audit-report.md",
+      "path": "analysis-reports\\scripts-audit-report.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .service",
+      "path": "app\\agent\\eform-agent.service"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: jest.config",
+      "path": "app\\agent\\jest.config.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: jest.config.js",
+      "path": "app\\agent\\jest.config.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "app\\agent\\README.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "app\\agent\\src\\index.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: update-agent.js",
+      "path": "app\\agent\\src\\services\\update-agent.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: update-agent.ts",
+      "path": "app\\agent\\src\\services\\update-agent.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: update-agent.test",
+      "path": "app\\agent\\src\\services\\__tests__\\update-agent.test.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: update-agent.test",
+      "path": "app\\agent\\src\\services\\__tests__\\update-agent.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: update-types.ts",
+      "path": "app\\agent\\src\\types\\update-types.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "app\\data\\eform.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-shm",
+      "path": "app\\data\\eform.db-shm"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-wal",
+      "path": "app\\data\\eform.db-wal"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "app\\gateway\\data\\eform.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-shm",
+      "path": "app\\gateway\\data\\eform.db-shm"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-wal",
+      "path": "app\\gateway\\data\\eform.db-wal"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: configuration.ts",
+      "path": "app\\gateway\\src\\controllers\\configuration.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provisioning.ts",
+      "path": "app\\gateway\\src\\controllers\\provisioning.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "app\\gateway\\src\\index.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: admin.ts",
+      "path": "app\\gateway\\src\\routes\\admin.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: configuration.ts",
+      "path": "app\\gateway\\src\\routes\\configuration.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: heartbeat.ts",
+      "path": "app\\gateway\\src\\routes\\heartbeat.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provisioning.ts",
+      "path": "app\\gateway\\src\\routes\\provisioning.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: heartbeat.test",
+      "path": "app\\gateway\\src\\routes\\__tests__\\heartbeat.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: configuration.ts",
+      "path": "app\\gateway\\src\\services\\configuration.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: locker-coordination.ts",
+      "path": "app\\gateway\\src\\services\\locker-coordination.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provisioning.ts",
+      "path": "app\\gateway\\src\\services\\provisioning.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-coordination.test",
+      "path": "app\\gateway\\src\\services\\__tests__\\locker-coordination.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provision.ts",
+      "path": "app\\gateway\\src\\utils\\provision.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: system-resilience.test",
+      "path": "app\\gateway\\src\\__tests__\\failure-scenarios\\system-resilience.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: comprehensive-performance-validation.test",
+      "path": "app\\gateway\\src\\__tests__\\validation\\comprehensive-performance-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: comprehensive-system-validation.test",
+      "path": "app\\gateway\\src\\__tests__\\validation\\comprehensive-system-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: power-interruption-validation.test",
+      "path": "app\\gateway\\src\\__tests__\\validation\\power-interruption-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: system-validation.test",
+      "path": "app\\gateway\\src\\__tests__\\validation\\system-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: configuration.test",
+      "path": "app\\gateway\\__tests__\\configuration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: provisioning.test",
+      "path": "app\\gateway\\__tests__\\provisioning.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "app\\kiosk\\data\\eform.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-shm",
+      "path": "app\\kiosk\\data\\eform.db-shm"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-wal",
+      "path": "app\\kiosk\\data\\eform.db-wal"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: i18n-controller.ts",
+      "path": "app\\kiosk\\src\\controllers\\i18n-controller.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: qr-handler.ts",
+      "path": "app\\kiosk\\src\\controllers\\qr-handler.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: session-manager.ts",
+      "path": "app\\kiosk\\src\\controllers\\session-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: ui-controller.ts",
+      "path": "app\\kiosk\\src\\controllers\\ui-controller.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: i18n-controller.test",
+      "path": "app\\kiosk\\src\\controllers\\__tests__\\i18n-controller.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: qr-handler-vip.test",
+      "path": "app\\kiosk\\src\\controllers\\__tests__\\qr-handler-vip.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: qr-handler.test",
+      "path": "app\\kiosk\\src\\controllers\\__tests__\\qr-handler.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: session-manager.test",
+      "path": "app\\kiosk\\src\\controllers\\__tests__\\session-manager.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: ui-controller-enhanced.test",
+      "path": "app\\kiosk\\src\\controllers\\__tests__\\ui-controller-enhanced.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: modbus-controller.ts",
+      "path": "app\\kiosk\\src\\hardware\\modbus-controller.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: rfid-handler.ts",
+      "path": "app\\kiosk\\src\\hardware\\rfid-handler.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: rs485-diagnostics.ts",
+      "path": "app\\kiosk\\src\\hardware\\rs485-diagnostics.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: modbus-controller.test",
+      "path": "app\\kiosk\\src\\hardware\\__tests__\\modbus-controller.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: modbus-error-handling.test",
+      "path": "app\\kiosk\\src\\hardware\\__tests__\\modbus-error-handling.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rfid-handler.test",
+      "path": "app\\kiosk\\src\\hardware\\__tests__\\rfid-handler.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rs485-diagnostics.test",
+      "path": "app\\kiosk\\src\\hardware\\__tests__\\rs485-diagnostics.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "app\\kiosk\\src\\index.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: security-middleware.ts",
+      "path": "app\\kiosk\\src\\middleware\\security-middleware.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: security-middleware.test",
+      "path": "app\\kiosk\\src\\middleware\\__tests__\\security-middleware.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: heartbeat-client.ts",
+      "path": "app\\kiosk\\src\\services\\heartbeat-client.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: rate-limiter.ts",
+      "path": "app\\kiosk\\src\\services\\rate-limiter.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: rfid-user-flow.ts",
+      "path": "app\\kiosk\\src\\services\\rfid-user-flow.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: heartbeat-client.test",
+      "path": "app\\kiosk\\src\\services\\__tests__\\heartbeat-client.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rate-limiter.test",
+      "path": "app\\kiosk\\src\\services\\__tests__\\rate-limiter.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rfid-user-flow-vip.test",
+      "path": "app\\kiosk\\src\\services\\__tests__\\rfid-user-flow-vip.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rfid-user-flow.test",
+      "path": "app\\kiosk\\src\\services\\__tests__\\rfid-user-flow.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: node-hid.d",
+      "path": "app\\kiosk\\src\\types\\node-hid.d.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: node-hid.d.ts",
+      "path": "app\\kiosk\\src\\types\\node-hid.d.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: app-simple.js",
+      "path": "app\\kiosk\\src\\ui\\static\\app-simple.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: app.js",
+      "path": "app\\kiosk\\src\\ui\\static\\app.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: i18n.js",
+      "path": "app\\kiosk\\src\\ui\\static\\i18n.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: performance-tracker.js",
+      "path": "app\\kiosk\\src\\ui\\static\\performance-tracker.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: pi-config.js",
+      "path": "app\\kiosk\\src\\ui\\static\\pi-config.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: app-simple.test",
+      "path": "app\\kiosk\\src\\ui\\static\\__tests__\\app-simple.test.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: complete-user-flows.test",
+      "path": "app\\kiosk\\src\\__tests__\\e2e\\complete-user-flows.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: heartbeat-commands-vip.test",
+      "path": "app\\kiosk\\src\\__tests__\\heartbeat-commands-vip.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: master-pin.test",
+      "path": "app\\kiosk\\src\\__tests__\\master-pin.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: qr-security.test",
+      "path": "app\\kiosk\\src\\__tests__\\qr-security.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rfid-integration.test",
+      "path": "app\\kiosk\\src\\__tests__\\rfid-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: hardware-endurance.test",
+      "path": "app\\kiosk\\src\\__tests__\\soak\\hardware-endurance.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: simple-test.test",
+      "path": "app\\kiosk\\src\\__tests__\\soak\\simple-test.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: ui-controller.test",
+      "path": "app\\kiosk\\src\\__tests__\\ui-controller.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: actual-hardware-validation.test",
+      "path": "app\\kiosk\\src\\__tests__\\validation\\actual-hardware-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: hardware-integration-validation.test",
+      "path": "app\\kiosk\\src\\__tests__\\validation\\hardware-integration-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: vitest.config",
+      "path": "app\\kiosk\\vitest.config.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .example",
+      "path": "app\\panel\\.env.example"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "app\\panel\\data\\eform.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-shm",
+      "path": "app\\panel\\data\\eform.db-shm"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-wal",
+      "path": "app\\panel\\data\\eform.db-wal"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .svg",
+      "path": "app\\panel\\frontend\\public\\vite.svg"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: index-CH19RiHT",
+      "path": "app\\panel\\public\\assets\\index-CH19RiHT.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index-CH19RiHT.js",
+      "path": "app\\panel\\public\\assets\\index-CH19RiHT.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: index-D8ygJgM8",
+      "path": "app\\panel\\public\\assets\\index-D8ygJgM8.css"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: ui-B2zvOGH9",
+      "path": "app\\panel\\public\\assets\\ui-B2zvOGH9.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: ui-B2zvOGH9.js",
+      "path": "app\\panel\\public\\assets\\ui-B2zvOGH9.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: vendor-gH-7aFTg",
+      "path": "app\\panel\\public\\assets\\vendor-gH-7aFTg.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: vendor-gH-7aFTg.js",
+      "path": "app\\panel\\public\\assets\\vendor-gH-7aFTg.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .svg",
+      "path": "app\\panel\\public\\vite.svg"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: config-controller.ts",
+      "path": "app\\panel\\src\\controllers\\config-controller.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: i18n-controller.ts",
+      "path": "app\\panel\\src\\controllers\\i18n-controller.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: i18n-controller.test",
+      "path": "app\\panel\\src\\controllers\\__tests__\\i18n-controller.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "app\\panel\\src\\index.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: auth-middleware.ts",
+      "path": "app\\panel\\src\\middleware\\auth-middleware.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: rate-limit.ts",
+      "path": "app\\panel\\src\\middleware\\rate-limit.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: security-middleware.ts",
+      "path": "app\\panel\\src\\middleware\\security-middleware.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: security-middleware.test",
+      "path": "app\\panel\\src\\middleware\\__tests__\\security-middleware.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: auth-routes.ts",
+      "path": "app\\panel\\src\\routes\\auth-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: locker-naming-routes.ts",
+      "path": "app\\panel\\src\\routes\\locker-naming-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: locker-routes.ts",
+      "path": "app\\panel\\src\\routes\\locker-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: maksi-routes.ts",
+      "path": "app\\panel\\src\\routes\\maksi-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: performance-routes.ts",
+      "path": "app\\panel\\src\\routes\\performance-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: relay-routes.ts",
+      "path": "app\\panel\\src\\routes\\relay-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: vip-routes.ts",
+      "path": "app\\panel\\src\\routes\\vip-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: auth-service.ts",
+      "path": "app\\panel\\src\\services\\auth-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: authorization-service.ts",
+      "path": "app\\panel\\src\\services\\authorization-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: maksi-config.md",
+      "path": "app\\panel\\src\\services\\maksi-config.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: maksi-types.ts",
+      "path": "app\\panel\\src\\services\\maksi-types.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: maksi.ts",
+      "path": "app\\panel\\src\\services\\maksi.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: permission-service.ts",
+      "path": "app\\panel\\src\\services\\permission-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: pin-rotation-service.ts",
+      "path": "app\\panel\\src\\services\\pin-rotation-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: session-manager.ts",
+      "path": "app\\panel\\src\\services\\session-manager.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: authorization-service.test",
+      "path": "app\\panel\\src\\services\\__tests__\\authorization-service.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: fastify.d",
+      "path": "app\\panel\\src\\types\\fastify.d.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: fastify.d.ts",
+      "path": "app\\panel\\src\\types\\fastify.d.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: simple-validation.js",
+      "path": "app\\panel\\src\\validation\\simple-validation.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: task-8.4-implementation-summary",
+      "path": "app\\panel\\src\\validation\\task-8.4-implementation-summary.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: task-8.4-implementation-summary.md",
+      "path": "app\\panel\\src\\validation\\task-8.4-implementation-summary.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: vip-transfer-validation.ts",
+      "path": "app\\panel\\src\\validation\\vip-transfer-validation.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: i18n.js",
+      "path": "app\\panel\\src\\views\\static\\i18n.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: auth-middleware.test",
+      "path": "app\\panel\\src\\__tests__\\auth-middleware.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: auth-service.test",
+      "path": "app\\panel\\src\\__tests__\\auth-service.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: command-status.test",
+      "path": "app\\panel\\src\\__tests__\\command-status.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-routes-vip.test",
+      "path": "app\\panel\\src\\__tests__\\locker-routes-vip.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: maksi-data-mapping.test",
+      "path": "app\\panel\\src\\__tests__\\maksi-data-mapping.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: maksi-integration.test",
+      "path": "app\\panel\\src\\__tests__\\maksi-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: maksi-modal-display.test",
+      "path": "app\\panel\\src\\__tests__\\maksi-modal-display.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: maksi-mvp-validation.test",
+      "path": "app\\panel\\src\\__tests__\\maksi-mvp-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: maksi-rate-limiter.test",
+      "path": "app\\panel\\src\\__tests__\\maksi-rate-limiter.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: maksi-routes.test",
+      "path": "app\\panel\\src\\__tests__\\maksi-routes.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: maksi-service.test",
+      "path": "app\\panel\\src\\__tests__\\maksi-service.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: maksi-test-summary.md",
+      "path": "app\\panel\\src\\__tests__\\maksi-test-summary.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: MAKSISOFT_MVP_VALIDATION_REPORT",
+      "path": "app\\panel\\src\\__tests__\\MAKSISOFT_MVP_VALIDATION_REPORT.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: MAKSISOFT_MVP_VALIDATION_REPORT.md",
+      "path": "app\\panel\\src\\__tests__\\MAKSISOFT_MVP_VALIDATION_REPORT.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: panel-performance.test",
+      "path": "app\\panel\\src\\__tests__\\performance\\panel-performance.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: permission-service.test",
+      "path": "app\\panel\\src\\__tests__\\permission-service.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: session-manager.test",
+      "path": "app\\panel\\src\\__tests__\\session-manager.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: accessibility-validation-report.md",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\accessibility-validation-report.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: accessibility-validation.test",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\accessibility-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: ACCESSIBILITY_VALIDATION_SUMMARY",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\ACCESSIBILITY_VALIDATION_SUMMARY.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: ACCESSIBILITY_VALIDATION_SUMMARY.md",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\ACCESSIBILITY_VALIDATION_SUMMARY.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: api-integration.test",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\api-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: click-to-select.test",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\click-to-select.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rfid-display.test",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\rfid-display.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: status-translation.test",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\status-translation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: visual-regression.test",
+      "path": "app\\panel\\src\\__tests__\\ui-improvements\\visual-regression.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: end-of-day-csv-validation.test",
+      "path": "app\\panel\\src\\__tests__\\validation\\end-of-day-csv-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: vip-routes.test",
+      "path": "app\\panel\\src\\__tests__\\vip-routes.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: vitest.config",
+      "path": "app\\panel\\vitest.config.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: BACKUP_INVENTORY",
+      "path": "BACKUP_INVENTORY.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: BACKUP_INVENTORY.md",
+      "path": "BACKUP_INVENTORY.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: CLEANUP_DECISION_REASONING",
+      "path": "CLEANUP_DECISION_REASONING.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: CLEANUP_DECISION_REASONING.md",
+      "path": "CLEANUP_DECISION_REASONING.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: CLEANUP_TRACKING_REPORT",
+      "path": "CLEANUP_TRACKING_REPORT.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: CLEANUP_TRACKING_REPORT.md",
+      "path": "CLEANUP_TRACKING_REPORT.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "config\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: CONTRIBUTING",
+      "path": "CONTRIBUTING.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: CONTRIBUTING.md",
+      "path": "CONTRIBUTING.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "data\\eform.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-shm",
+      "path": "data\\eform.db-shm"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db-wal",
+      "path": "data\\eform.db-wal"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: DEVELOPER_ONBOARDING_GUIDE",
+      "path": "DEVELOPER_ONBOARDING_GUIDE.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: DEVELOPER_ONBOARDING_GUIDE.md",
+      "path": "DEVELOPER_ONBOARDING_GUIDE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: DIRECTORY_STRUCTURE",
+      "path": "DIRECTORY_STRUCTURE.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: DIRECTORY_STRUCTURE.md",
+      "path": "DIRECTORY_STRUCTURE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: API_REFERENCE",
+      "path": "docs\\API_REFERENCE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: CROSS_PLATFORM_IMPROVEMENTS",
+      "path": "docs\\CROSS_PLATFORM_IMPROVEMENTS.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: DEPLOYMENT",
+      "path": "docs\\DEPLOYMENT.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: DEPLOYMENT_README",
+      "path": "docs\\DEPLOYMENT_README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: DEVELOPMENT_ENVIRONMENT_SETUP",
+      "path": "docs\\DEVELOPMENT_ENVIRONMENT_SETUP.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: MONITORING_GUIDE",
+      "path": "docs\\MONITORING_GUIDE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: PRODUCTION_READY_SUMMARY",
+      "path": "docs\\PRODUCTION_READY_SUMMARY.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: QUICK_REFERENCE",
+      "path": "docs\\QUICK_REFERENCE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: RASPBERRY_PI_ENVIRONMENT_SETUP",
+      "path": "docs\\RASPBERRY_PI_ENVIRONMENT_SETUP.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "docs\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: REPOSITORY_MAINTENANCE_GUIDE",
+      "path": "docs\\REPOSITORY_MAINTENANCE_GUIDE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: REPOSITORY_STANDARDIZATION_SUMMARY",
+      "path": "docs\\REPOSITORY_STANDARDIZATION_SUMMARY.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: SYSTEM_DOCUMENTATION",
+      "path": "docs\\SYSTEM_DOCUMENTATION.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: TASK_10_CLEANUP_SUMMARY",
+      "path": "docs\\TASK_10_CLEANUP_SUMMARY.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "docs\\troubleshooting\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ico",
+      "path": "favicon.ico"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .svg",
+      "path": "favicon.svg"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: FILE_CONSOLIDATION_MAPPING",
+      "path": "FILE_CONSOLIDATION_MAPPING.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: FILE_CONSOLIDATION_MAPPING.md",
+      "path": "FILE_CONSOLIDATION_MAPPING.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: FRONTEND_DEVELOPER_QUICK_START",
+      "path": "FRONTEND_DEVELOPER_QUICK_START.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: FRONTEND_DEVELOPER_QUICK_START.md",
+      "path": "FRONTEND_DEVELOPER_QUICK_START.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provision.ts",
+      "path": "legacy-src\\cli\\provision.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: configuration.ts",
+      "path": "legacy-src\\controllers\\configuration.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provisioning.ts",
+      "path": "legacy-src\\controllers\\provisioning.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: configuration.test",
+      "path": "legacy-src\\controllers\\__tests__\\configuration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: provisioning.test",
+      "path": "legacy-src\\controllers\\__tests__\\provisioning.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: connection.ts",
+      "path": "legacy-src\\database\\connection.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "legacy-src\\index.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: configuration.ts",
+      "path": "legacy-src\\routes\\configuration.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provisioning.ts",
+      "path": "legacy-src\\routes\\provisioning.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: configuration.ts",
+      "path": "legacy-src\\services\\configuration.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: provisioning.ts",
+      "path": "legacy-src\\services\\provisioning.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: configuration.test",
+      "path": "legacy-src\\services\\__tests__\\configuration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: provisioning.test",
+      "path": "legacy-src\\services\\__tests__\\provisioning.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: core-entities.d",
+      "path": "legacy-src\\types\\core-entities.d.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: core-entities.d.ts",
+      "path": "legacy-src\\types\\core-entities.d.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .map",
+      "path": "legacy-src\\types\\core-entities.d.ts.map"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: core-entities.js",
+      "path": "legacy-src\\types\\core-entities.js"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .map",
+      "path": "legacy-src\\types\\core-entities.js.map"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: core-entities.ts",
+      "path": "legacy-src\\types\\core-entities.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "legacy-src\\types\\index.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: MAINTENANCE_SYSTEM_TEST_RESULTS",
+      "path": "MAINTENANCE_SYSTEM_TEST_RESULTS.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: MAINTENANCE_SYSTEM_TEST_RESULTS.md",
+      "path": "MAINTENANCE_SYSTEM_TEST_RESULTS.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: REPOSITORY_CLEANUP_REPORT",
+      "path": "REPOSITORY_CLEANUP_REPORT.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: REPOSITORY_CLEANUP_REPORT.md",
+      "path": "REPOSITORY_CLEANUP_REPORT.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: REPOSITORY_INTEGRITY_VALIDATION_REPORT",
+      "path": "REPOSITORY_INTEGRITY_VALIDATION_REPORT.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Documentation file outside docs/ directory: REPOSITORY_INTEGRITY_VALIDATION_REPORT.md",
+      "path": "REPOSITORY_INTEGRITY_VALIDATION_REPORT.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "scripts\\analysis\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\deployment\\deploy-maksisoft-to-pi.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "scripts\\emergency\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\maintenance\\daily-routine.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "scripts\\maintenance\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\maintenance\\windows-scheduler-setup.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README-analysis-tools",
+      "path": "scripts\\README-analysis-tools.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "scripts\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "scripts\\setup\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .service",
+      "path": "scripts\\systemd\\eform-agent.service"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .service",
+      "path": "scripts\\systemd\\eform-gateway.service"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .service",
+      "path": "scripts\\systemd\\eform-kiosk.service"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .service",
+      "path": "scripts\\systemd\\eform-panel.service"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\testing\\run-integration-tests.ps1"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: health-controller.ts",
+      "path": "shared\\controllers\\health-controller.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: health-controller.test",
+      "path": "shared\\controllers\\__tests__\\health-controller.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755810829494.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755810839501.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755810849515.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755810859530.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755810869535.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755849355388.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755849360406.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755849365408.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755849370413.db"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .db",
+      "path": "shared\\data\\test\\test-1755849375428.db"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: base-repository.ts",
+      "path": "shared\\database\\base-repository.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: command-queue-repository.ts",
+      "path": "shared\\database\\command-queue-repository.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: connection.ts",
+      "path": "shared\\database\\connection.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: database-manager.ts",
+      "path": "shared\\database\\database-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: event-repository.ts",
+      "path": "shared\\database\\event-repository.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "shared\\database\\index.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: kiosk-heartbeat-repository.ts",
+      "path": "shared\\database\\kiosk-heartbeat-repository.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: locker-repository.ts",
+      "path": "shared\\database\\locker-repository.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: migration-runner.ts",
+      "path": "shared\\database\\migration-runner.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: repository-factory.ts",
+      "path": "shared\\database\\repository-factory.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: vip-contract-repository.ts",
+      "path": "shared\\database\\vip-contract-repository.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: vip-history-repository.ts",
+      "path": "shared\\database\\vip-history-repository.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: vip-transfer-repository.ts",
+      "path": "shared\\database\\vip-transfer-repository.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: vitest.config",
+      "path": "shared\\database\\vitest.config.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: command-queue-repository.test",
+      "path": "shared\\database\\__tests__\\command-queue-repository.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: database-manager.test",
+      "path": "shared\\database\\__tests__\\database-manager.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-repository.test",
+      "path": "shared\\database\\__tests__\\locker-repository.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: command-queue-manager.ts",
+      "path": "shared\\services\\command-queue-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: config-manager.ts",
+      "path": "shared\\services\\config-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: cookie-cleanup-service.ts",
+      "path": "shared\\services\\cookie-cleanup-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: cookie-manager.ts",
+      "path": "shared\\services\\cookie-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: event-logger.ts",
+      "path": "shared\\services\\event-logger.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: health-monitor.ts",
+      "path": "shared\\services\\health-monitor.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: heartbeat-manager.ts",
+      "path": "shared\\services\\heartbeat-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: i18n-service.ts",
+      "path": "shared\\services\\i18n-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: locker-naming-service.ts",
+      "path": "shared\\services\\locker-naming-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: locker-state-manager.ts",
+      "path": "shared\\services\\locker-state-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: log-retention-manager.ts",
+      "path": "shared\\services\\log-retention-manager.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: performance-monitor.ts",
+      "path": "shared\\services\\performance-monitor.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: rate-limiter.ts",
+      "path": "shared\\services\\rate-limiter.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: security-validation.ts",
+      "path": "shared\\services\\security-validation.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: session-conflict-detector.ts",
+      "path": "shared\\services\\session-conflict-detector.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: websocket-service.ts",
+      "path": "shared\\services\\websocket-service.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: command-queue-manager.test",
+      "path": "shared\\services\\__tests__\\command-queue-manager.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: config-manager.test",
+      "path": "shared\\services\\__tests__\\config-manager.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: event-logger.test",
+      "path": "shared\\services\\__tests__\\event-logger.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: hardware-soak-tester.test",
+      "path": "shared\\services\\__tests__\\hardware-soak-tester.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: health-monitor.test",
+      "path": "shared\\services\\__tests__\\health-monitor.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: i18n-regression.test",
+      "path": "shared\\services\\__tests__\\i18n-regression.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: i18n-service.test",
+      "path": "shared\\services\\__tests__\\i18n-service.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-assignment-release.test",
+      "path": "shared\\services\\__tests__\\locker-assignment-release.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-naming-service.test",
+      "path": "shared\\services\\__tests__\\locker-naming-service.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-state-manager-enhanced.test",
+      "path": "shared\\services\\__tests__\\locker-state-manager-enhanced.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-state-manager-simple.test",
+      "path": "shared\\services\\__tests__\\locker-state-manager-simple.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: locker-state-manager.test",
+      "path": "shared\\services\\__tests__\\locker-state-manager.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: log-retention-manager.test",
+      "path": "shared\\services\\__tests__\\log-retention-manager.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rate-limiter.test",
+      "path": "shared\\services\\__tests__\\rate-limiter.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: security-validation.test",
+      "path": "shared\\services\\__tests__\\security-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: websocket-service.test",
+      "path": "shared\\services\\__tests__\\websocket-service.test.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: core-entities.ts",
+      "path": "shared\\types\\core-entities.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: index.ts",
+      "path": "shared\\types\\index.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: system-config.ts",
+      "path": "shared\\types\\system-config.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: accessibility-requirements.test",
+      "path": "tests\\integration\\accessibility-requirements.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: admin-panel-ui-improvements.test",
+      "path": "tests\\integration\\admin-panel-ui-improvements.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: backend-integration.test",
+      "path": "tests\\integration\\backend-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: database-integration.test",
+      "path": "tests\\integration\\database-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: gateway-service-integration.test",
+      "path": "tests\\integration\\gateway-service-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: multi-room-coordination.test",
+      "path": "tests\\integration\\multi-room-coordination.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: multi-service-integration.test",
+      "path": "tests\\integration\\multi-service-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: real-time-state-sync.test",
+      "path": "tests\\integration\\real-time-state-sync.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: rfid-qr-integration.test",
+      "path": "tests\\integration\\rfid-qr-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: session-management-lifecycle.test",
+      "path": "tests\\integration\\session-management-lifecycle.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: turkish-language-validation.test",
+      "path": "tests\\integration\\turkish-language-validation.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: vip-workflow-integration.test",
+      "path": "tests\\integration\\vip-workflow-integration.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: websocket-realtime-ui-updates.test",
+      "path": "tests\\integration\\websocket-realtime-ui-updates.test.ts"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "tests\\README.md"
+    }
+  ],
+  "summary": {
+    "totalIssues": 1,
+    "totalWarnings": 335,
+    "healthScore": 0
+  }
+}
