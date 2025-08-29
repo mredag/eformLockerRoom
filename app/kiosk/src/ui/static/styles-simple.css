@@ -149,6 +149,7 @@ html, body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    overflow: auto; /* prevent layout breaks with many tiles */
 }
 
 /* Idle State - Clear "Scan your card" message (Requirement 5.4) */
@@ -326,18 +327,19 @@ html, body {
     font-style: italic;
 }
 
-/* Locker Grid - Optimized for Pi Performance */
+/* Locker Grid - Optimized for Pi Performance and large counts */
 .locker-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    gap: 12px;
+    /* Responsive columns; JS may override inline for precision */
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: clamp(8px, 1.2vw, 16px);
     justify-content: center;
-    align-content: center;
-    max-width: 600px;
+    align-content: start;
+    width: min(100%, 1400px);
     max-height: calc(100vh - 140px);
     padding: 20px;
     margin: 0 auto;
+    overflow: auto; /* allow scroll when lockers exceed viewport */
 }
 
 /* Locker Tiles - Touch-Friendly Design (Requirements 8.1, 8.2, 8.3) */
@@ -1038,11 +1040,10 @@ html, body {
 
 /* Orientation-specific optimizations (Requirements 8.4, 8.5) */
 @media (orientation: landscape) {
-    /* Landscape mode - optimize for wider screens */
+    /* Landscape mode - fill width with responsive columns */
     .locker-grid {
-        grid-template-columns: repeat(4, 1fr);
-        grid-template-rows: repeat(4, 1fr);
-        max-width: 600px;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        width: min(100%, 1400px);
         margin: 0 auto;
     }
     
@@ -1059,10 +1060,10 @@ html, body {
 }
 
 @media (orientation: portrait) {
-    /* Portrait mode - optimize for taller screens */
+    /* Portrait mode - more, smaller columns */
     .locker-grid {
         grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-        max-width: 600px;
+        width: min(100%, 1200px);
         margin: 0 auto;
     }
     

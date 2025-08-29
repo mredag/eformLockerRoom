@@ -2087,14 +2087,30 @@
         function applyDynamicGridCSS(cssText) {
             // Remove existing dynamic styles
             const existingStyle = document.getElementById('dynamic-panel-grid-styles');
-            if (existingStyle) {
-                existingStyle.remove();
+            if (existingStyle) existingStyle.remove();
+
+            // Only keep grid container rules; avoid copying kiosk tile styles
+            // Extract `.locker-grid { ... }` blocks and map to `#locker-grid`
+            let sanitized = '';
+            try {
+                const matches = cssText.match(/\.locker-grid\s*\{[^}]*\}/g);
+                if (matches && matches.length) {
+                    sanitized = matches
+                        .join('\n\n')
+                        .replace(/\.locker-grid/g, '#locker-grid');
+                }
+            } catch (_) {
+                // ignore parse issues; fall back below
             }
-            
-            // Add new dynamic styles
+
+            // Fallback if nothing was extracted
+            if (!sanitized) {
+                sanitized = `#locker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }`;
+            }
+
             const style = document.createElement('style');
             style.id = 'dynamic-panel-grid-styles';
-            style.textContent = cssText.replace('.locker-grid', '#locker-grid').replace('.locker-tile', '.locker-card');
+            style.textContent = sanitized;
             document.head.appendChild(style);
         }
 

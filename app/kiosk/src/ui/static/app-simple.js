@@ -870,8 +870,8 @@ class SimpleKioskApp {
             columns = Math.floor((width - 60) / (tileSize + gap));
         }
         
-        // Ensure minimum columns and maximum for readability
-        columns = Math.max(3, Math.min(8, columns));
+        // Ensure minimum columns and reasonable maximum for wide screens
+        columns = Math.max(3, Math.min(10, columns));
         
         // Apply optimized layout
         this.elements.lockerGrid.style.gridTemplateColumns = `repeat(${columns}, ${tileSize}px)`;
