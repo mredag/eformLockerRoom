@@ -163,7 +163,12 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         message: '📊 Calling lockerStateManager.getAllLockers...'
       });
 
-      const lockers = await lockerStateManager.getAllLockers(query.kioskId, query.status);
+      let lockers = await lockerStateManager.getEnhancedKioskLockers(query.kioskId);
+      
+      // Apply status filtering if provided
+      if (query.status) {
+        lockers = lockers.filter(locker => locker.status === query.status);
+      }
       
       fastify.log.info({
         requestId,
@@ -943,7 +948,10 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
   }, async (request, reply) => {
     try {
-      const layout = await lockerLayoutService.generateLockerLayout();
+      const { kioskId } = request.query as { kioskId?: string };
+      const defaultKioskId = kioskId || 'kiosk-1'; // Default to kiosk-1 if not provided
+      
+      const layout = await lockerLayoutService.generateLockerLayout(defaultKioskId);
       const stats = await lockerLayoutService.getHardwareStats();
       const gridCSS = await lockerLayoutService.generateGridCSS();
 
@@ -967,7 +975,10 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
   }, async (request, reply) => {
     try {
-      const cardsHTML = await lockerLayoutService.generatePanelCards();
+      const { kioskId } = request.query as { kioskId?: string };
+      const defaultKioskId = kioskId || 'kiosk-1'; // Default to kiosk-1 if not provided
+      
+      const cardsHTML = await lockerLayoutService.generatePanelCards(defaultKioskId);
       
       reply.type('text/html');
       reply.send(cardsHTML);

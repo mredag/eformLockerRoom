@@ -1326,7 +1326,10 @@ export class UiController {
    */
   private async getLockerLayout(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const layout = await lockerLayoutService.generateLockerLayout();
+      const { kioskId, kiosk_id } = request.query as { kioskId?: string; kiosk_id?: string };
+      const defaultKioskId = kioskId || kiosk_id || 'kiosk-1'; // Support both parameter names
+      
+      const layout = await lockerLayoutService.generateLockerLayout(defaultKioskId);
       const stats = await lockerLayoutService.getHardwareStats();
       const gridCSS = await lockerLayoutService.generateGridCSS();
 
@@ -1351,7 +1354,10 @@ export class UiController {
    */
   private async getLockerTiles(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tilesHTML = await lockerLayoutService.generateKioskTiles();
+      const { kioskId, kiosk_id } = request.query as { kioskId?: string; kiosk_id?: string };
+      const defaultKioskId = kioskId || kiosk_id || 'kiosk-1'; // Support both parameter names
+      
+      const tilesHTML = await lockerLayoutService.generateKioskTiles(defaultKioskId);
       
       reply.type('text/html');
       return tilesHTML;

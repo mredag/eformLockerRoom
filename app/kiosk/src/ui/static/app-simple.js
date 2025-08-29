@@ -996,7 +996,8 @@ class SimpleKioskApp {
         try {
             // Get dynamic layout from configuration
             console.log('🔧 Loading dynamic locker layout...');
-            const layoutResponse = await fetch('/api/ui/layout');
+            const layoutUrl = `/api/ui/layout?kioskId=${encodeURIComponent(this.kioskId)}`;
+            const layoutResponse = await fetch(layoutUrl);
             if (!layoutResponse.ok) {
                 throw new Error('Failed to fetch layout configuration');
             }
