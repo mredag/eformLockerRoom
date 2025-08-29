@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+  <title>Eform Locker – Yeni Arayüz (A/B)</title>
+  <meta name="theme-color" content="#10B981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-touch-fullscreen" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <link rel="preload" href="/static/app-new.js" as="script">
+  <link rel="stylesheet" href="/static/styles-new.css">
+</head>
+<body>
+  <div id="app" class="app-root">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div id="connection-status" class="connection-status online">
+          <span class="dot"></span>
+          <span class="label">Bağlı</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <div id="session-timer" class="session-timer" hidden>
+          <span class="timer-label">Süre:</span>
+          <span id="countdown-value" class="timer-value">30</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Idle Screen -->
+    <main id="idle-screen" class="screen screen-idle active" aria-live="polite">
+      <div class="idle-card">
+        <div class="icon">
+          <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V6H20V18ZM6 8H8V10H6V8ZM6 12H8V14H6V12ZM10 8H18V10H10V8ZM10 12H16V14H10V12Z"/>
+          </svg>
+        </div>
+        <h1 class="title">Kartınızı okutun</h1>
+        <p class="subtitle">RFID kartınızı okuyucuya yaklaştırın</p>
+        <p class="hint">Klavye modunda kart okuyucu desteklenir</p>
+      </div>
+    </main>
+
+    <!-- Session Screen -->
+    <section id="session-screen" class="screen screen-session" aria-live="polite" hidden>
+      <div class="session-header">
+        <h2 class="session-title">Dolap seçin</h2>
+        <p class="session-subtitle">Yeşil kartlar kullanılabilir</p>
+      </div>
+      <div id="locker-grid" class="locker-grid" role="list"></div>
+    </section>
+
+    <!-- Loading Screen -->
+    <section id="loading-screen" class="screen screen-loading" hidden>
+      <div class="loading-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <h2 id="loading-text">İşlem yapılıyor...</h2>
+      </div>
+    </section>
+
+    <!-- Error Screen -->
+    <section id="error-screen" class="screen screen-error" hidden>
+      <div class="error-card">
+        <div class="error-icon" aria-hidden="true">!</div>
+        <h2 id="error-text">Bir hata oluştu</h2>
+        <p id="error-description">Beklenmeyen bir sorun oluştu</p>
+        <div class="actions">
+          <button id="retry-button" class="btn btn-primary" hidden>Tekrar dene</button>
+          <button id="return-button" class="btn btn-secondary">Ana ekrana dön</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Pi optimizations -->
+  <script src="/static/pi-config.js"></script>
+  <!-- App bootstrap -->
+  <script src="/static/app-new.js"></script>
+</body>
+</html>
+

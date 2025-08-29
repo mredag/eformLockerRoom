@@ -64,6 +64,11 @@ export class UiController {
       return this.serveUI(request, reply);
     });
 
+    // Serve new UI (A/B testing route)
+    fastify.get('/ui-new', async (request: FastifyRequest, reply: FastifyReply) => {
+      return this.serveUINew(request, reply);
+    });
+
     // API endpoints for UI
     fastify.get('/api/rfid/events', async (request: FastifyRequest, reply: FastifyReply) => {
       return this.getRfidEvents(request, reply);
@@ -142,6 +147,20 @@ export class UiController {
       console.error('Error serving UI:', error);
       reply.code(500);
       return { error: 'Failed to load UI' };
+    }
+  }
+
+  private async serveUINew(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const htmlPath = join(__dirname, 'ui/index-new.html');
+      const html = await readFile(htmlPath, 'utf-8');
+
+      reply.type('text/html');
+      return html;
+    } catch (error) {
+      console.error('Error serving new UI:', error);
+      reply.code(500);
+      return { error: 'Failed to load new UI' };
     }
   }
 
