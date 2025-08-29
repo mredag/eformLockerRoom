@@ -5,6 +5,7 @@ import { LockerStateManager } from '../../../../shared/services/locker-state-man
 import { LockerNamingService } from '../../../../shared/services/locker-naming-service';
 import { ModbusController } from '../hardware/modbus-controller';
 import { SessionManager } from './session-manager';
+import { lockerLayoutService } from '../../../../shared/services/locker-layout-service';
 
 export class UiController {
   private lockerStateManager: LockerStateManager;
@@ -125,6 +126,15 @@ export class UiController {
     // Hardware status endpoint for monitoring (Requirement 4.6)
     fastify.get('/api/hardware/status', async (request: FastifyRequest, reply: FastifyReply) => {
       return this.getHardwareStatus(request, reply);
+    });
+
+    // Dynamic locker layout endpoints
+    fastify.get('/api/ui/layout', async (request: FastifyRequest, reply: FastifyReply) => {
+      return this.getLockerLayout(request, reply);
+    });
+
+    fastify.get('/api/ui/tiles', async (request: FastifyRequest, reply: FastifyReply) => {
+      return this.getLockerTiles(request, reply);
     });
 
     // Register enhanced feedback routes
@@ -1308,6 +1318,48 @@ export class UiController {
       default:
         console.warn(`Unknown status: ${dbStatus}, defaulting to 'error'`);
         return 'error';
+    }
+  }
+
+  /**
+   * Get dynamic locker layout based on hardware configuration
+   */
+  private async getLockerLayout(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const layout = await lockerLayoutService.generateLockerLayout();
+      const stats = await lockerLayoutService.getHardwareStats();
+      const gridCSS = await lockerLayoutService.generateGridCSS();
+
+      return {
+        success: true,
+        layout,
+        stats,
+        gridCSS
+      };
+    } catch (error) {
+      console.error('Error getting locker layout:', error);
+      reply.code(500);
+      return {
+        success: false,
+        error: 'Failed to get locker layout'
+      };
+    }
+  }
+
+  /**
+   * Get HTML tiles for kiosk interface
+   */
+  private async getLockerTiles(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const tilesHTML = await lockerLayoutService.generateKioskTiles();
+      
+      reply.type('text/html');
+      return tilesHTML;
+    } catch (error) {
+      console.error('Error generating locker tiles:', error);
+      reply.code(500);
+      reply.type('text/html');
+      return '<div class="error">Failed to generate locker tiles</div>';
     }
   }
 

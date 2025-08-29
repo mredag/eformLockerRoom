@@ -175,6 +175,39 @@
             gap: 1rem;
             margin-bottom: 2rem;
         }
+        
+        .hardware-stats {
+            margin-bottom: 20px;
+        }
+        
+        .stats-item {
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .stats-number {
+            display: block;
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stats-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .locker-hardware-info {
+            background: #f8f9fa;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+        
+        .locker-hardware-info .badge {
+            font-size: 0.75em;
+        }
 
         .locker-card {
             background: white;
@@ -1053,6 +1086,11 @@
             </div>
         </div>
 
+        <!-- Hardware Statistics -->
+        <div id="hardwareStats" class="hardware-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white;">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+
         <!-- Opening Methods Info -->
         <div class="actions" style="background: #e3f2fd; border-left: 4px solid #2196f3;">
             <div style="flex: 1;">
@@ -1847,6 +1885,95 @@
             }
 
             try {
+                // First, try to get dynamic layout based on hardware configuration
+                console.log('🔧 Attempting to load dynamic layout...');
+                
+                try {
+                    const layoutResponse = await fetch('/api/lockers/layout', {
+                        credentials: 'same-origin'
+                    });
+                    
+                    if (layoutResponse.ok) {
+                        const layoutData = await layoutResponse.json();
+                        
+                        if (layoutData.success) {
+                            console.log('✅ Dynamic layout loaded successfully');
+                            console.log('📊 Hardware stats:', layoutData.stats);
+                            
+                            // Update hardware statistics display
+                            updateHardwareStats(layoutData.stats);
+                            
+                            // Apply dynamic CSS
+                            applyDynamicGridCSS(layoutData.gridCSS);
+                            
+                            // Get current locker statuses
+                            const params = new URLSearchParams();
+                            if (kioskFilter) params.append('kioskId', kioskFilter);
+                            if (statusFilter) params.append('status', statusFilter);
+                            
+                            const statusResponse = await fetch(`/api/lockers?${params}`, {
+                                credentials: 'same-origin'
+                            });
+                            
+                            let statusData = { lockers: [] };
+                            if (statusResponse.ok) {
+                                statusData = await statusResponse.json();
+                            }
+                            
+                            // Create status lookup map
+                            const statusMap = new Map();
+                            if (Array.isArray(statusData.lockers)) {
+                                statusData.lockers.forEach(locker => {
+                                    statusMap.set(locker.id, locker);
+                                });
+                            }
+                            
+                            // Merge layout with status data
+                            lockers = layoutData.layout.lockers.map(layoutLocker => {
+                                const statusLocker = statusMap.get(layoutLocker.id) || {
+                                    id: layoutLocker.id,
+                                    kiosk_id: kioskFilter,
+                                    status: 'Free',
+                                    owner_rfid: null,
+                                    assigned_at: null,
+                                    display_name: layoutLocker.displayName
+                                };
+                                
+                                // Merge layout info with status info
+                                return {
+                                    ...statusLocker,
+                                    cardId: layoutLocker.cardId,
+                                    relayId: layoutLocker.relayId,
+                                    slaveAddress: layoutLocker.slaveAddress,
+                                    cardDescription: layoutLocker.cardDescription,
+                                    hardwareEnabled: layoutLocker.enabled,
+                                    display_name: layoutLocker.displayName
+                                };
+                            });
+                            
+                            console.log(`✅ Successfully loaded ${lockers.length} lockers from dynamic layout`);
+                            
+                            // Filter by zone if selected
+                            if (zoneFilter && Array.isArray(lockers) && Array.isArray(kiosks)) {
+                                const kioskIdsInZone = kiosks
+                                    .filter(k => k.zone === zoneFilter)
+                                    .map(k => k.kiosk_id);
+                                lockers = lockers.filter(l => kioskIdsInZone.includes(l.kiosk_id));
+                            }
+                            
+                            applyFilters();
+                            updateStats();
+                            checkMaksiStatus();
+                            return;
+                        }
+                    }
+                } catch (layoutError) {
+                    console.warn('⚠️ Dynamic layout failed, falling back to static method:', layoutError);
+                }
+                
+                // Fallback to original static method
+                console.log('🔄 Using fallback static locker loading...');
+                
                 const params = new URLSearchParams();
                 if (kioskFilter) params.append('kioskId', kioskFilter);
                 if (statusFilter) params.append('status', statusFilter);
@@ -1858,16 +1985,13 @@
                 });
 
                 console.log('📡 API Response status:', response.status);
-                console.log('📡 API Response headers:', Object.fromEntries(response.headers.entries()));
 
                 if (!response.ok) {
-                    // Enhanced error parsing: try response.json(), fallback to response.text()
                     let message = `HTTP ${response.status}`;
                     try {
                         const errorData = await response.json();
                         message = errorData.message || errorData.error || message;
                     } catch {
-                        // Fallback to text if JSON parsing fails (e.g., HTML error pages)
                         try {
                             const textResponse = await response.text();
                             if (textResponse && textResponse.length < 200) {
@@ -1878,15 +2002,11 @@
                         }
                     }
                     
-                    // Handle three main error cases with clear server error messages
                     if (response.status === 401) {
-                        // 401 session error - show "login required" message
                         message = message.includes('login required') ? message : 'login required';
                     } else if (response.status === 403) {
-                        // 403 permission error - show appropriate permission message
                         message = message.includes('permission') ? message : 'permission denied';
                     } else if (response.status >= 500) {
-                        // 500 server error - show "try again" message
                         message = message.includes('try again') ? message : 'try again';
                     }
                     
@@ -1906,13 +2026,6 @@
                     throw new Error('Server returned invalid JSON');
                 }
                 
-                // Validate response format
-                console.log('🔍 Validating response format...');
-                console.log('- data exists:', !!data);
-                console.log('- data.lockers exists:', !!data.lockers);
-                console.log('- data.lockers is array:', Array.isArray(data.lockers));
-                console.log('- data.lockers length:', data.lockers ? data.lockers.length : 'N/A');
-                
                 if (!data || !Array.isArray(data.lockers)) {
                     console.error('❌ Invalid response format. Expected: {lockers: [...]}');
                     console.error('❌ Actual response:', data);
@@ -1920,7 +2033,7 @@
                 }
                 
                 lockers = data.lockers;
-                console.log('✅ Successfully loaded', lockers.length, 'lockers');
+                console.log('✅ Successfully loaded', lockers.length, 'lockers (static fallback)');
                 
                 // Filter by zone if selected
                 if (zoneFilter && Array.isArray(lockers) && Array.isArray(kiosks)) {
@@ -1932,17 +2045,10 @@
                 
                 applyFilters();
                 updateStats();
-                
-                // Check Maksisoft status after loading lockers
                 checkMaksiStatus();
-            } catch (error) {
-                // Display clear error messages from server response
-                // Handle three main error cases: 401 session, 403 permission, 500 server error
-                const errorMessage = error.message;
                 
-                // Show single Refresh button on error (no exponential backoff)
-                // Show retry for 403 permission and 500 server errors, and network errors
-                // Don't show retry for "Select a kiosk" message or 401 session errors (login required)
+            } catch (error) {
+                const errorMessage = error.message;
                 const shouldShowRetry = !errorMessage.includes('Select a kiosk') && 
                                        !errorMessage.includes('login required') &&
                                        !errorMessage.includes('401');
@@ -1950,6 +2056,46 @@
                 showError(errorMessage, shouldShowRetry);
                 console.error('Locker loading failed:', error);
             }
+        }
+
+        // Helper functions for dynamic layout
+        function updateHardwareStats(stats) {
+            // Add hardware stats to the page if elements exist
+            const statsContainer = document.getElementById('hardwareStats');
+            if (statsContainer) {
+                statsContainer.innerHTML = `
+                    <div class="stats-item">
+                        <span class="stats-number">${stats.configuredLockers}</span>
+                        <span class="stats-label">Toplam Dolap</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-number">${stats.enabledCards}</span>
+                        <span class="stats-label">Aktif Kart</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-number">${stats.totalChannels}</span>
+                        <span class="stats-label">Toplam Kanal</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-number">${stats.utilizationPercent}%</span>
+                        <span class="stats-label">Kullanım Oranı</span>
+                    </div>
+                `;
+            }
+        }
+        
+        function applyDynamicGridCSS(cssText) {
+            // Remove existing dynamic styles
+            const existingStyle = document.getElementById('dynamic-panel-grid-styles');
+            if (existingStyle) {
+                existingStyle.remove();
+            }
+            
+            // Add new dynamic styles
+            const style = document.createElement('style');
+            style.id = 'dynamic-panel-grid-styles';
+            style.textContent = cssText.replace('.locker-grid', '#locker-grid').replace('.locker-tile', '.locker-card');
+            document.head.appendChild(style);
         }
 
         // Apply filters and sorting
@@ -2113,6 +2259,17 @@
                             <div class="locker-state-chip ${statusClass}">${escapeHtml(turkishState)}</div>
                         </div>
                         <div class="locker-relay-number">Röle: ${locker.id}</div>
+                        ${locker.cardId ? `
+                        <div class="locker-hardware-info" style="background: #f8f9fa; padding: 8px; margin: 8px 0; border-radius: 4px; font-size: 0.85em;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span><i class="fas fa-microchip"></i> Card ${locker.cardId} • Relay ${locker.relayId}</span>
+                                <span class="badge ${locker.hardwareEnabled ? 'bg-success' : 'bg-secondary'}" style="font-size: 0.75em;">
+                                    ${locker.hardwareEnabled ? 'Aktif' : 'Pasif'}
+                                </span>
+                            </div>
+                            ${locker.cardDescription ? `<small class="text-muted">${escapeHtml(locker.cardDescription)}</small>` : ''}
+                        </div>
+                        ` : ''}
                         <div class="locker-details">
                             ${locker.is_vip ? '<div><strong>VIP Dolap</strong></div>' : ''}
                             ${ownerDisplay !== 'Yok' ? 

@@ -985,11 +985,135 @@ class SimpleKioskApp {
 
     /**
      * Render locker grid with clear visual indicators (Requirements 5.1, 5.2, 5.3, 8.1, 8.3)
+     * Now uses dynamic layout based on Modbus configuration
      */
-    renderLockerGrid() {
+    async renderLockerGrid() {
+        if (!this.elements.lockerGrid) {
+            return;
+        }
+        
+        try {
+            // Get dynamic layout from configuration
+            console.log('🔧 Loading dynamic locker layout...');
+            const layoutResponse = await fetch('/api/ui/layout');
+            if (!layoutResponse.ok) {
+                throw new Error('Failed to fetch layout configuration');
+            }
+            
+            const layoutData = await layoutResponse.json();
+            if (!layoutData.success) {
+                throw new Error(layoutData.error || 'Layout fetch failed');
+            }
+            
+            console.log('✅ Dynamic layout loaded successfully');
+            console.log('📊 Hardware stats:', layoutData.stats);
+            
+            // Apply dynamic CSS
+            this.applyDynamicGridCSS(layoutData.gridCSS);
+            
+            // Clear existing grid
+            this.elements.lockerGrid.innerHTML = '';
+            
+            // Create locker tiles based on hardware configuration
+            layoutData.layout.lockers.forEach(locker => {
+                const tile = document.createElement('div');
+                tile.className = `locker-tile available`; // Default to available, will be updated by status
+                tile.dataset.lockerId = locker.id;
+                tile.dataset.cardId = locker.cardId;
+                tile.dataset.relayId = locker.relayId;
+                tile.dataset.slaveAddress = locker.slaveAddress;
+                
+                tile.setAttribute('role', 'button');
+                tile.setAttribute('tabindex', '0');
+                tile.setAttribute('aria-label', `Dolap ${locker.displayName}, Boş`);
+                
+                // Add touch-friendly attributes (Requirements 8.1, 8.2, 8.3)
+                tile.setAttribute('data-touch-target', 'true');
+                tile.setAttribute('data-status', 'available');
+                
+                // Enhanced visual content with hardware info
+                tile.innerHTML = `
+                    <div class="locker-number">${locker.displayName}</div>
+                    <div class="locker-status">BOŞ</div>
+                    <div class="locker-hardware" style="font-size: 0.7em; opacity: 0.7; margin-top: 2px;">
+                        C${locker.cardId}R${locker.relayId}
+                    </div>
+                `;
+                
+                // Add keyboard support
+                tile.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        this.handleLockerClick(event);
+                    }
+                });
+                
+                this.elements.lockerGrid.appendChild(tile);
+            });
+            
+            // Update locker statuses if we have state data
+            if (this.state.availableLockers) {
+                this.updateLockerStatuses(this.state.availableLockers);
+            }
+            
+            console.log(`🎯 Rendered ${layoutData.layout.lockers.length} locker tiles from hardware config`);
+            console.log(`📊 Hardware: ${layoutData.stats.enabledCards} cards, ${layoutData.stats.totalChannels} channels`);
+            
+        } catch (error) {
+            console.error('❌ Failed to render dynamic locker grid:', error);
+            // Fallback to static rendering if dynamic fails
+            this.renderStaticLockerGrid();
+        }
+    }
+    
+    /**
+     * Apply dynamic CSS for grid layout
+     */
+    applyDynamicGridCSS(cssText) {
+        // Remove existing dynamic styles
+        const existingStyle = document.getElementById('dynamic-locker-grid-styles');
+        if (existingStyle) {
+            existingStyle.remove();
+        }
+        
+        // Add new dynamic styles
+        const style = document.createElement('style');
+        style.id = 'dynamic-locker-grid-styles';
+        style.textContent = cssText;
+        document.head.appendChild(style);
+    }
+    
+    /**
+     * Update locker statuses on existing tiles
+     */
+    updateLockerStatuses(lockers) {
+        lockers.forEach(locker => {
+            const tile = this.elements.lockerGrid.querySelector(`[data-locker-id="${locker.id}"]`);
+            if (tile) {
+                tile.className = `locker-tile ${locker.status}`;
+                tile.dataset.status = locker.status;
+                tile.setAttribute('aria-label', `Dolap ${locker.displayName || locker.id}, ${this.getStatusText(locker.status)}`);
+                
+                const statusElement = tile.querySelector('.locker-status');
+                if (statusElement) {
+                    statusElement.textContent = this.getStatusText(locker.status);
+                }
+                
+                // Update tabindex based on availability
+                tile.setAttribute('tabindex', locker.status === 'available' ? '0' : '-1');
+            }
+        });
+    }
+    
+    /**
+     * Fallback static rendering for compatibility
+     */
+    renderStaticLockerGrid() {
         if (!this.elements.lockerGrid || !this.state.availableLockers) {
             return;
         }
+        
+        console.log('⚠️ Using fallback static locker grid rendering');
         
         // Clear existing grid
         this.elements.lockerGrid.innerHTML = '';
@@ -1032,7 +1156,7 @@ class SimpleKioskApp {
             this.elements.lockerGrid.appendChild(tile);
         });
         
-        console.log(`🔲 Rendered ${this.state.availableLockers.length} locker tiles with visual indicators`);
+        console.log(`🎯 Rendered ${this.state.availableLockers.length} locker tiles (static fallback)`);
     }
 
     /**

@@ -946,6 +946,46 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       const layout = await lockerLayoutService.generateLockerLayout();
       const stats = await lockerLayoutService.getHardwareStats();
       const gridCSS = await lockerLayoutService.generateGridCSS();
+
+      reply.send({
+        success: true,
+        layout,
+        stats,
+        gridCSS
+      });
+    } catch (error) {
+      fastify.log.error('Failed to get locker layout:', error);
+      reply.code(500).send({
+        success: false,
+        error: 'Failed to get locker layout'
+      });
+    }
+  });
+
+  // Get HTML for panel locker cards
+  fastify.get('/cards', {
+    preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
+  }, async (request, reply) => {
+    try {
+      const cardsHTML = await lockerLayoutService.generatePanelCards();
+      
+      reply.type('text/html');
+      reply.send(cardsHTML);
+    } catch (error) {
+      fastify.log.error('Failed to generate locker cards:', error);
+      reply.code(500);
+      reply.type('text/html');
+      reply.send('<div class="error">Failed to generate locker cards</div>');
+    }
+  });
+
+  fastify.get('/layout', {
+    preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
+  }, async (request, reply) => {
+    try {
+      const layout = await lockerLayoutService.generateLockerLayout();
+      const stats = await lockerLayoutService.getHardwareStats();
+      const gridCSS = await lockerLayoutService.generateGridCSS();
       
       reply.send({
         success: true,
