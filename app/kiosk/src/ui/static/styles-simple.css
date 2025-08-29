@@ -296,35 +296,29 @@ html, body {
 }
 
 .session-header {
-    text-align: center;
-    color: white;
-    margin-bottom: 40px;
-    padding: 20px;
-    background: rgba(51, 65, 85, 0.8);
-    border-radius: 12px;
-    border: 2px solid #475569;
+    display: none; /* Hide legacy header block in session */
 }
 
 .session-title {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 12px;
-    color: #ffffff;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    display: none; /* Hidden with legacy header */
 }
 
 .session-subtitle {
-    font-size: 1.4rem;
-    color: #cbd5e1;
-    font-weight: 500;
-    margin-bottom: 16px;
+    display: none !important;
 }
 
 /* Session Instructions */
 .session-instructions {
-    font-size: 1.1rem;
-    color: #94a3b8;
-    font-style: italic;
+    display: none !important;
+}
+
+/* Compact session title (new) */
+.session-title-compact {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #e2e8f0;
+    margin: 6px 0 8px;
+    text-align: center;
 }
 
 /* Locker Grid - Optimized for Pi Performance and large counts */
@@ -366,6 +360,12 @@ html, body {
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
+}
+
+/* Session view: hide status labels to simplify UI */
+#session-screen .locker-status,
+#session-screen .locker-hardware {
+    display: none !important;
 }
 
 /* Enhanced touch and hover feedback (Requirement 8.2) */

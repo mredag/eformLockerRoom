@@ -656,6 +656,7 @@ class SimpleKioskApp {
         
         this.renderLockerGrid();
         this.showSessionState();
+        this.ensureCompactSessionTitle();
         this.startCountdown();
         
         console.log(`⏱️ Session started: ${this.state.sessionId}`);
@@ -1051,6 +1052,18 @@ class SimpleKioskApp {
                 this.elements.lockerGrid.appendChild(tile);
             });
             
+            // Hide tiles not available (session shows only available)
+            try {
+                const availableSet = new Set((this.state.availableLockers || []).map(l => l.id));
+                if (availableSet.size > 0) {
+                    const tiles = this.elements.lockerGrid.querySelectorAll('.locker-tile');
+                    tiles.forEach(t => {
+                        const id = parseInt(t.dataset.lockerId);
+                        if (!availableSet.has(id)) t.style.display = 'none';
+                    });
+                }
+            } catch (_) {}
+
             // Update locker statuses if we have state data
             if (this.state.availableLockers) {
                 this.updateLockerStatuses(this.state.availableLockers);
@@ -1082,7 +1095,30 @@ class SimpleKioskApp {
         style.textContent = cssText;
         document.head.appendChild(style);
     }
-    
+
+    /** Ensure compact session title exists and reads 'Dolap seçiniz' */
+    ensureCompactSessionTitle() {
+        try {
+            const sessionScreen = this.elements.sessionScreen || document.getElementById('session-screen');
+            const grid = this.elements.lockerGrid;
+            if (!sessionScreen || !grid) return;
+
+            // Hide legacy header if present
+            const legacyHeader = sessionScreen.querySelector('.session-header');
+            if (legacyHeader) legacyHeader.style.display = 'none';
+
+            // Create or update compact title element
+            let title = sessionScreen.querySelector('#session-title-compact');
+            if (!title) {
+                title = document.createElement('h2');
+                title.id = 'session-title-compact';
+                title.className = 'session-title-compact';
+                grid.parentNode.insertBefore(title, grid);
+            }
+            title.textContent = 'Dolap seçiniz';
+        } catch (_) {}
+    }
+
     /**
      * Update locker statuses on existing tiles
      */
