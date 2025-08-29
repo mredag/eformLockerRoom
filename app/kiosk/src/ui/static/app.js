@@ -1148,7 +1148,7 @@ class KioskApp {
     
     async loadAvailableLockers() {
         try {
-            const response = await fetch(`/api/lockers/available?kiosk_id=${this.kioskId}`);
+            const response = await fetch(`/api/lockers/available?kioskId=${this.kioskId}`);
             if (response.ok) {
                 const lockers = await response.json();
                 this.availableLockers = lockers;
