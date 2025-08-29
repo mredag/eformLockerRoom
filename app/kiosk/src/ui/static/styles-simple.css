@@ -200,6 +200,93 @@ html, body {
     50% { opacity: 0.85; }
 }
 
+/* Idle Scan Area Attention Animation (GPU-friendly: transform/opacity only) */
+.scan-area {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 24px;
+    pointer-events: none; /* purely decorative */
+    transform: translateZ(0);
+    will-change: transform, opacity;
+}
+
+/* Soft radial glow under the scan area */
+.scan-area::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160px;
+    height: 160px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59,130,246,0.28) 0%, rgba(59,130,246,0.16) 45%, rgba(59,130,246,0.06) 70%, rgba(59,130,246,0) 78%);
+}
+
+/* Place the icon in the center of the scan area */
+.scan-area .rfid-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    z-index: 3;
+}
+
+/* Expanding rings to draw attention */
+.scan-area .pulse {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 130px;
+    height: 130px;
+    transform: translate(-50%, -50%) scale(1);
+    border-radius: 50%;
+    border: 3px solid rgba(96, 165, 250, 0.55);
+    opacity: 0.8;
+    will-change: transform, opacity;
+    animation: scan-pulse 2.4s ease-out infinite !important;
+}
+
+.scan-area .pulse.delay-1 { animation-delay: 0.8s !important; }
+.scan-area .pulse.delay-2 { animation-delay: 1.6s !important; }
+
+/* Rotating beam around the ring */
+.scan-area .scan-beam {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 170px;
+    height: 170px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: conic-gradient(
+        from 0deg,
+        rgba(96,165,250,0) 0deg,
+        rgba(96,165,250,0.65) 25deg,
+        rgba(96,165,250,0) 70deg,
+        rgba(96,165,250,0) 360deg
+    );
+    /* Hollow out the center to form a ring */
+    -webkit-mask: radial-gradient(circle, transparent 0 62px, #000 62px);
+            mask: radial-gradient(circle, transparent 0 62px, #000 62px);
+    opacity: 0.9;
+    will-change: transform;
+    animation: rotate-beam 3.2s linear infinite !important;
+}
+
+@keyframes scan-pulse {
+    0%   { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+    70%  { opacity: 0.15; }
+    100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+}
+
+@keyframes rotate-beam {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
 /* Session State - "Select a locker" with countdown (Requirement 5.5) */
 .session-screen {
     width: 100%;
