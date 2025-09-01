@@ -59,8 +59,8 @@ function Invoke-SSHCommand($command) {
         return $false
     }
 }
-
-# Main command execution
+# Main co
+mmand execution
 switch ($Command.ToLower()) {
     "status" {
         Write-Header "eForm Locker System Status"
@@ -129,8 +129,8 @@ switch ($Command.ToLower()) {
         } else {
             Write-Error "Cannot connect to Pi. Check SSH connection."
         }
-    }
-    
+    } 
+   
     "logs" {
         Write-Header "Service Logs"
         if (Test-SSHConnection) {
