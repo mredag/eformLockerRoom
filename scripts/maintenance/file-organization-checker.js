@@ -497,6 +497,7 @@ class FileOrganizationChecker {
     const skipPatterns = [
       'node_modules',
       '.git',
+      '.kiro',
       '.DS_Store',
       'Thumbs.db',
       'dist',

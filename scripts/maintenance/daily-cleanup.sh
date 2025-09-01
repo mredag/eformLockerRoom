@@ -26,9 +26,9 @@ safe_remove() {
     local description="$3"
     
     if [ -n "$pattern" ] && [ -n "$age" ]; then
-        local count=$(find . -name "$pattern" -mtime +$age -not -path "./node_modules/*" -not -path "./.git/*" | wc -l)
+        local count=$(find . -name "$pattern" -mtime +$age -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.kiro/*" | wc -l)
         if [ $count -gt 0 ]; then
-            find . -name "$pattern" -mtime +$age -not -path "./node_modules/*" -not -path "./.git/*" -delete
+            find . -name "$pattern" -mtime +$age -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./.kiro/*" -delete
             echo "  ✓ Removed $count $description files"
             return $count
         else
