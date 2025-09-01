@@ -6,6 +6,71 @@ A comprehensive locker management solution designed for Raspberry Pi with Wavesh
 
 ## 🚀 Quick Start
 
+### 🥧 Raspberry Pi Management
+
+#### **First Time Setup**
+```bash
+# Clone the project
+git clone https://github.com/mredag/eformLockerRoom.git eform-locker
+cd eform-locker
+
+# Fix script permissions (required after Git clone)
+chmod +x scripts/maintenance/*.sh
+chmod +x scripts/deployment/*.sh
+chmod +x scripts/*.sh
+
+# Install complete startup system with auto IP detection (ONE COMMAND!)
+sudo bash scripts/maintenance/install-startup-system.sh
+
+# Or just configure IP settings without full installation
+sudo bash scripts/maintenance/smart-ip-setup.sh
+
+# Reboot to activate everything
+sudo reboot
+```
+
+#### **Daily Pi Management**
+```bash
+# Check system status
+./scripts/maintenance/health-check.sh
+
+# View system dashboard
+/home/pi/eform-status.sh
+
+# Quick service control
+./scripts/maintenance/restart-services.sh
+./scripts/start-all-clean.sh
+```
+
+#### **From Windows PC (Remote Management)**
+```powershell
+# Check Pi status remotely
+.\scripts\deployment\pi-manager.ps1 status
+
+# Discover Pi if IP changed
+.\scripts\deployment\discover-pi.ps1
+
+# Health check from Windows
+.\scripts\deployment\pi-manager.ps1 health
+
+# Restart services remotely
+.\scripts\deployment\pi-manager.ps1 restart
+```
+
+#### **Common Issues & Solutions**
+```bash
+# Permission denied error?
+chmod +x scripts/maintenance/health-check.sh
+
+# Services not starting?
+sudo systemctl status eform-locker
+sudo journalctl -u eform-locker -f
+
+# Hardware issues?
+ls -la /dev/ttyUSB*
+./scripts/maintenance/hardware-init.sh
+```
+
 ### For Raspberry Pi Production Deployment
 ```bash
 # One-command setup for Raspberry Pi (fully automated)
@@ -16,6 +81,52 @@ chmod +x scripts/quick-setup.sh
 
 # Or use the comprehensive installation script
 sudo ./scripts/install.sh
+```
+
+### 🌐 Web Interfaces & Access Points
+
+Once your Pi is running, access these interfaces:
+
+#### **Production URLs (Default Pi IP: 192.168.1.8)**
+- **🔧 Admin Panel**: `http://192.168.1.8:3001` - Complete locker management
+- **👤 Kiosk Interface**: `http://192.168.1.8:3002` - User RFID interface
+- **🔌 Gateway API**: `http://192.168.1.8:3000` - REST API endpoints
+- **⚙️ Hardware Config**: `http://192.168.1.8:3001/hardware-config` - Relay control
+
+#### **Quick Access Commands (After Installation)**
+```bash
+# Available on Pi after startup system installation
+eform-status    # Complete system dashboard
+eform-health    # Health check with diagnostics
+eform-logs      # View all service logs
+eform-start     # Start all services
+eform-stop      # Stop all services  
+eform-restart   # Restart all services
+```
+
+#### **Smart IP Configuration (Automatic)**
+```bash
+# On Pi - automatically configure current IP as static
+sudo bash scripts/maintenance/smart-ip-setup.sh
+
+# Test IP configuration
+bash scripts/maintenance/test-ip-setup.sh
+
+# The system will automatically:
+# • Detect current IP address
+# • Configure it as static IP
+# • Update all Windows scripts
+# • Create status dashboard
+# • Set up quick access commands
+```
+
+#### **If Pi IP Address Changes**
+```powershell
+# From Windows PC - discover new IP
+.\scripts\deployment\discover-pi.ps1
+
+# Or let the Pi auto-configure itself
+ssh pi@OLD_IP "sudo bash /home/pi/eform-locker/scripts/maintenance/smart-ip-setup.sh"
 ```
 
 ### For Development
@@ -611,6 +722,95 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Database operations powered by [SQLite](https://www.sqlite.org/)
 - Testing framework: [Vitest](https://vitest.dev/)
 - Build system: [ESBuild](https://esbuild.github.io/)
+
+## 🚨 Troubleshooting & Common Issues
+
+### **Permission Denied Errors**
+```bash
+# Fix script permissions after Git clone
+chmod +x scripts/maintenance/*.sh
+chmod +x scripts/deployment/*.sh
+chmod +x scripts/*.sh
+
+# Run script with bash if permissions can't be changed
+bash scripts/maintenance/health-check.sh
+```
+
+### **Services Won't Start**
+```bash
+# Check systemd service status
+sudo systemctl status eform-locker
+sudo journalctl -u eform-locker -f
+
+# Manual service start for debugging
+cd /home/pi/eform-locker
+./scripts/maintenance/startup-services.sh
+
+# Check if ports are in use
+sudo netstat -tulpn | grep :300
+```
+
+### **Hardware Issues**
+```bash
+# Check USB serial devices
+ls -la /dev/ttyUSB*
+lsusb
+
+# Test relay control directly
+node scripts/test-basic-relay-control.js
+
+# Reinitialize hardware
+sudo ./scripts/maintenance/hardware-init.sh
+```
+
+### **Pi IP Address Changed**
+```powershell
+# From Windows PC - discover new IP
+.\scripts\deployment\discover-pi.ps1
+
+# Update pi-manager with new IP
+# Edit scripts/deployment/pi-manager.ps1:
+# $PI_HOST = "pi@NEW_IP_ADDRESS"
+```
+
+### **Web Interface Not Loading**
+```bash
+# Check if services are running
+curl http://192.168.1.8:3001/health
+curl http://192.168.1.8:3002/health
+curl http://192.168.1.8:3000/health
+
+# Check firewall
+sudo ufw status
+sudo ufw allow 3000:3002/tcp
+```
+
+### **Database Issues**
+```bash
+# Check database integrity
+node scripts/database-health-check.js
+
+# Rebuild database if corrupted
+node fix-corrupted-database.js
+```
+
+### **High Resource Usage**
+```bash
+# Check system resources
+./scripts/maintenance/health-check.sh
+top
+free -h
+df -h
+
+# View system alerts
+cat /home/pi/eform-locker/.system-alerts
+```
+
+### **Getting Help**
+- **📚 Documentation**: Check `docs/` folder for detailed guides
+- **🔍 Logs**: View logs with `./scripts/maintenance/health-check.sh`
+- **⚙️ Scripts**: Use `scripts/maintenance/` for common tasks
+- **🌐 Web Interface**: Admin panel at `http://PI_IP:3001`
 
 ---
 

@@ -88,10 +88,23 @@ else
 fi
 
 echo ""
-log_header "Step 2: Configuring Boot Optimizations"
+log_header "Step 2: Smart IP Configuration"
+echo "==============================="
+
+# Use smart IP setup for complete configuration
+chmod +x scripts/maintenance/smart-ip-setup.sh
+if bash scripts/maintenance/smart-ip-setup.sh; then
+    log_success "Smart IP configuration completed"
+else
+    log_error "Failed to configure IP settings"
+    exit 1
+fi
+
+echo ""
+log_header "Step 3: Configuring Boot Optimizations"
 echo "======================================"
 
-# Configure boot optimizations
+# Configure boot optimizations (skip network config since we did it above)
 if bash "$SCRIPT_DIR/pi-boot-setup.sh"; then
     log_success "Boot optimizations configured"
 else
@@ -100,7 +113,7 @@ else
 fi
 
 echo ""
-log_header "Step 3: Enabling Services"
+log_header "Step 4: Enabling Services"
 echo "========================="
 
 # Reload systemd daemon

@@ -96,21 +96,29 @@ systemctl enable ssh
 log_success "System services optimized"
 
 # 3. Network Configuration
-log_info "🌐 Configuring network settings..."
+log_info "🌐 Checking network configuration..."
 
-# Set static IP if not already configured
-if ! grep -q "192.168.1.8" /etc/dhcpcd.conf; then
+# Check if eForm static IP is already configured
+if grep -q "# eForm Locker Static IP Configuration" /etc/dhcpcd.conf; then
+    log_info "✅ eForm static IP already configured"
+    
+    # Get the configured IP for display
+    CONFIGURED_IP=$(grep "static ip_address=" /etc/dhcpcd.conf | tail -1 | cut -d'=' -f2 | cut -d'/' -f1)
+    if [ -n "$CONFIGURED_IP" ]; then
+        log_success "Static IP: $CONFIGURED_IP"
+    fi
+else
+    # Fallback to old hardcoded configuration if auto-config wasn't run
+    log_warning "No eForm IP configuration found, using fallback (192.168.1.8)"
     cat >> /etc/dhcpcd.conf << 'EOF'
 
-# eForm Locker Static IP Configuration
+# eForm Locker Static IP Configuration (Fallback)
 interface eth0
 static ip_address=192.168.1.8/24
 static routers=192.168.1.1
 static domain_name_servers=8.8.8.8 8.8.4.4
 EOF
-    log_success "Static IP configured (192.168.1.8)"
-else
-    log_info "Static IP already configured"
+    log_success "Fallback static IP configured (192.168.1.8)"
 fi
 
 # 4. File System Optimizations

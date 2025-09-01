@@ -4,7 +4,7 @@ param(
     [string]$Command = "help"
 )
 
-$PI_HOST = "pi@pi-eform-locker"
+$PI_HOST = "pi@192.168.1.8"  # Update this IP if Pi changes
 
 function Show-Help {
     Write-Host ""
