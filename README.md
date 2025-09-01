@@ -50,11 +50,17 @@ sudo reboot
 # Discover Pi if IP changed
 .\scripts\deployment\discover-pi.ps1
 
-# Health check from Windows
+# Comprehensive health check from Windows
 .\scripts\deployment\pi-manager.ps1 health
 
 # Restart services remotely
 .\scripts\deployment\pi-manager.ps1 restart
+
+# Available pi-manager commands:
+# health   - Complete system health check with diagnostics
+# status   - Quick service status check
+# restart  - Restart all services with health verification
+# logs     - View recent service logs
 ```
 
 #### **Common Issues & Solutions**
@@ -223,6 +229,17 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
 - **[🔧 Kiosk Troubleshooting](docs/kiosk-troubleshooting-guide.md)** - Hardware and software issues
 - **[🥧 Pi Configuration](docs/pi-configuration-guide.md)** - Raspberry Pi specific settings
 - **[🔄 Rollback Procedures](docs/rollback-procedures.md)** - Emergency recovery procedures
+
+### **🔧 Health Monitoring & Diagnostics**
+- **`scripts/deployment/health-check.sh`** - Comprehensive system health validation
+  - Service status monitoring (Gateway, Panel, Kiosk)
+  - Hardware connectivity checks (USB-RS485 port)
+  - Database availability verification
+  - System resource monitoring (CPU, Memory, Disk)
+- **Windows Pi Manager** - Remote health monitoring from development PC
+  - `.\scripts\deployment\pi-manager.ps1 health` - Full system diagnostics
+  - Real-time service status and resource usage
+  - Automated troubleshooting recommendations
 
 ### **🗂️ Specialized Documentation**
 - **[🔗 Integrations](docs/integrations/)** - External system integrations (Maksisoft)
@@ -768,7 +785,10 @@ sudo ./scripts/maintenance/hardware-init.sh
 # From Windows PC - discover new IP
 .\scripts\deployment\discover-pi.ps1
 
-# Update pi-manager with new IP
+# Test connection with new IP
+.\scripts\deployment\pi-manager.ps1 health
+
+# Update pi-manager with new IP if needed
 # Edit scripts/deployment/pi-manager.ps1:
 # $PI_HOST = "pi@NEW_IP_ADDRESS"
 ```
@@ -776,9 +796,15 @@ sudo ./scripts/maintenance/hardware-init.sh
 ### **Web Interface Not Loading**
 ```bash
 # Check if services are running
+./scripts/deployment/health-check.sh
+
+# Or check individual services
 curl http://192.168.1.8:3001/health
 curl http://192.168.1.8:3002/health
 curl http://192.168.1.8:3000/health
+
+# From Windows PC
+.\scripts\deployment\pi-manager.ps1 health
 
 # Check firewall
 sudo ufw status
