@@ -43,7 +43,13 @@ class AutomatedMaintenance {
           pattern: /\.md$/i, 
           exclude: /^README/i,
           targetDir: 'docs',
-          condition: (filePath) => !filePath.startsWith('docs/') && !filePath.includes('node_modules') && !filePath.startsWith('.kiro/')
+          condition: (filePath) => {
+            const normalizedPath = filePath.replace(/\\/g, '/');
+            return !normalizedPath.startsWith('docs/') && 
+                   !normalizedPath.includes('node_modules') && 
+                   !normalizedPath.startsWith('.kiro/') &&
+                   !normalizedPath.includes('/.kiro/');
+          }
         },
         {
           pattern: /\.(sh|py)$/i,

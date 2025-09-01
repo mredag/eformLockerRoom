@@ -1,0 +1,834 @@
+{
+  "timestamp": "2025-09-01T06:40:00.108Z",
+  "schedule": "manual",
+  "dryRun": false,
+  "results": {
+    "filesProcessed": 1868,
+    "filesRemoved": 0,
+    "filesReorganized": 116,
+    "issuesFound": 0,
+    "warnings": 1,
+    "actions": [
+      {
+        "type": "reorganize",
+        "source": ".kiro\\specs\\repository-cleanup-v3\\design.md",
+        "target": "docs\\design.md",
+        "reason": "Move design.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": ".kiro\\specs\\repository-cleanup-v3\\requirements.md",
+        "target": "docs\\requirements.md",
+        "reason": "Move requirements.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": ".kiro\\specs\\system-modernization-v2\\tasks.md",
+        "target": "docs\\tasks.md",
+        "reason": "Move tasks.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": ".kiro\\steering\\clean-work-etiquette.md",
+        "target": "docs\\clean-work-etiquette.md",
+        "reason": "Move clean-work-etiquette.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": ".kiro\\steering\\development-environment.md",
+        "target": "docs\\development-environment.md",
+        "reason": "Move development-environment.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": ".kiro\\steering\\maksisoft-spec-help.md",
+        "target": "docs\\maksisoft-spec-help.md",
+        "reason": "Move maksisoft-spec-help.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": ".kiro\\steering\\project-development-guide.md",
+        "target": "docs\\project-development-guide.md",
+        "reason": "Move project-development-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": ".kiro\\TODO.MD",
+        "target": "docs\\TODO.MD",
+        "reason": "Move TODO.MD to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\accessibility-validation-report.md",
+        "target": "docs\\accessibility-validation-report.md",
+        "reason": "Move accessibility-validation-report.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\ACCESSIBILITY_VALIDATION_SUMMARY.md",
+        "target": "docs\\ACCESSIBILITY_VALIDATION_SUMMARY.md",
+        "reason": "Move ACCESSIBILITY_VALIDATION_SUMMARY.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\admin-panel-hardware-config.md",
+        "target": "docs\\admin-panel-hardware-config.md",
+        "reason": "Move admin-panel-hardware-config.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\API_REFERENCE.md",
+        "target": "docs\\API_REFERENCE.md",
+        "reason": "Move API_REFERENCE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\archived-incidents-summary.md",
+        "target": "docs\\archived-incidents-summary.md",
+        "reason": "Move archived-incidents-summary.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\BACKUP_INVENTORY.md",
+        "target": "docs\\BACKUP_INVENTORY.md",
+        "reason": "Move BACKUP_INVENTORY.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\card-assignment-testing-guide.md",
+        "target": "docs\\card-assignment-testing-guide.md",
+        "reason": "Move card-assignment-testing-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\CLEANUP_DECISION_REASONING.md",
+        "target": "docs\\CLEANUP_DECISION_REASONING.md",
+        "reason": "Move CLEANUP_DECISION_REASONING.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\CLEANUP_TRACKING_REPORT.md",
+        "target": "docs\\CLEANUP_TRACKING_REPORT.md",
+        "reason": "Move CLEANUP_TRACKING_REPORT.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\COMPLETE_MULTI_PI_SOLUTION.md",
+        "target": "docs\\COMPLETE_MULTI_PI_SOLUTION.md",
+        "reason": "Move COMPLETE_MULTI_PI_SOLUTION.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\configuration-system.md",
+        "target": "docs\\configuration-system.md",
+        "reason": "Move configuration-system.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\CONTRIBUTING.md",
+        "target": "docs\\CONTRIBUTING.md",
+        "reason": "Move CONTRIBUTING.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\CROSS_PLATFORM_IMPROVEMENTS.md",
+        "target": "docs\\CROSS_PLATFORM_IMPROVEMENTS.md",
+        "reason": "Move CROSS_PLATFORM_IMPROVEMENTS.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\database-architecture-and-troubleshooting.md",
+        "target": "docs\\database-architecture-and-troubleshooting.md",
+        "reason": "Move database-architecture-and-troubleshooting.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\DEPLOYMENT.md",
+        "target": "docs\\DEPLOYMENT.md",
+        "reason": "Move DEPLOYMENT.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\DEPLOYMENT_README.md",
+        "target": "docs\\DEPLOYMENT_README.md",
+        "reason": "Move DEPLOYMENT_README.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\DEVELOPER_ONBOARDING_GUIDE.md",
+        "target": "docs\\DEVELOPER_ONBOARDING_GUIDE.md",
+        "reason": "Move DEVELOPER_ONBOARDING_GUIDE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\DEVELOPMENT_ENVIRONMENT_SETUP.md",
+        "target": "docs\\DEVELOPMENT_ENVIRONMENT_SETUP.md",
+        "reason": "Move DEVELOPMENT_ENVIRONMENT_SETUP.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\DIRECTORY_STRUCTURE.md",
+        "target": "docs\\DIRECTORY_STRUCTURE.md",
+        "reason": "Move DIRECTORY_STRUCTURE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\dynamic-layout-deployment-guide.md",
+        "target": "docs\\dynamic-layout-deployment-guide.md",
+        "reason": "Move dynamic-layout-deployment-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\dynamic-locker-layout-implementation.md",
+        "target": "docs\\dynamic-locker-layout-implementation.md",
+        "reason": "Move dynamic-locker-layout-implementation.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\DYNAMIC_LAYOUT_IMPLEMENTATION_COMPLETE.md",
+        "target": "docs\\DYNAMIC_LAYOUT_IMPLEMENTATION_COMPLETE.md",
+        "reason": "Move DYNAMIC_LAYOUT_IMPLEMENTATION_COMPLETE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\FILE_CONSOLIDATION_MAPPING.md",
+        "target": "docs\\FILE_CONSOLIDATION_MAPPING.md",
+        "reason": "Move FILE_CONSOLIDATION_MAPPING.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\FRONTEND_DEVELOPER_QUICK_START.md",
+        "target": "docs\\FRONTEND_DEVELOPER_QUICK_START.md",
+        "reason": "Move FRONTEND_DEVELOPER_QUICK_START.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\hardware-configuration-guide.md",
+        "target": "docs\\hardware-configuration-guide.md",
+        "reason": "Move hardware-configuration-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\hardware-integration-guide.md",
+        "target": "docs\\hardware-integration-guide.md",
+        "reason": "Move hardware-integration-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\how-to-manage-pi.md",
+        "target": "docs\\how-to-manage-pi.md",
+        "reason": "Move how-to-manage-pi.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\ip-conflicts-and-multi-pi-solutions.md",
+        "target": "docs\\ip-conflicts-and-multi-pi-solutions.md",
+        "reason": "Move ip-conflicts-and-multi-pi-solutions.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\kiosk-startup-troubleshooting.md",
+        "target": "docs\\kiosk-startup-troubleshooting.md",
+        "reason": "Move kiosk-startup-troubleshooting.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\kiosk-troubleshooting-guide.md",
+        "target": "docs\\kiosk-troubleshooting-guide.md",
+        "reason": "Move kiosk-troubleshooting-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\MAINTENANCE_SYSTEM_TEST_RESULTS.md",
+        "target": "docs\\MAINTENANCE_SYSTEM_TEST_RESULTS.md",
+        "reason": "Move MAINTENANCE_SYSTEM_TEST_RESULTS.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\maksi-config.md",
+        "target": "docs\\maksi-config.md",
+        "reason": "Move maksi-config.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\maksi-test-summary.md",
+        "target": "docs\\maksi-test-summary.md",
+        "reason": "Move maksi-test-summary.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\maksisoft-integration-guide.md",
+        "target": "docs\\maksisoft-integration-guide.md",
+        "reason": "Move maksisoft-integration-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\MAKSISOFT_MVP_VALIDATION_REPORT.md",
+        "target": "docs\\MAKSISOFT_MVP_VALIDATION_REPORT.md",
+        "reason": "Move MAKSISOFT_MVP_VALIDATION_REPORT.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\MONITORING_GUIDE.md",
+        "target": "docs\\MONITORING_GUIDE.md",
+        "reason": "Move MONITORING_GUIDE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\multi-pi-deployment-guide.md",
+        "target": "docs\\multi-pi-deployment-guide.md",
+        "reason": "Move multi-pi-deployment-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\multiple-relay-cards-setup.md",
+        "target": "docs\\multiple-relay-cards-setup.md",
+        "reason": "Move multiple-relay-cards-setup.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\operational-runbook.md",
+        "target": "docs\\operational-runbook.md",
+        "reason": "Move operational-runbook.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\performance-monitoring-guide.md",
+        "target": "docs\\performance-monitoring-guide.md",
+        "reason": "Move performance-monitoring-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\pi-configuration-guide.md",
+        "target": "docs\\pi-configuration-guide.md",
+        "reason": "Move pi-configuration-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\PRODUCTION_READY_SUMMARY.md",
+        "target": "docs\\PRODUCTION_READY_SUMMARY.md",
+        "reason": "Move PRODUCTION_READY_SUMMARY.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\project-structure.md",
+        "target": "docs\\project-structure.md",
+        "reason": "Move project-structure.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\QUICK_REFERENCE.md",
+        "target": "docs\\QUICK_REFERENCE.md",
+        "reason": "Move QUICK_REFERENCE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\raspberry-pi-deployment-guide.md",
+        "target": "docs\\raspberry-pi-deployment-guide.md",
+        "reason": "Move raspberry-pi-deployment-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\raspberry-pi-performance-optimizations.md",
+        "target": "docs\\raspberry-pi-performance-optimizations.md",
+        "reason": "Move raspberry-pi-performance-optimizations.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\raspberry-pi-setup-guide-v2.md",
+        "target": "docs\\raspberry-pi-setup-guide-v2.md",
+        "reason": "Move raspberry-pi-setup-guide-v2.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\raspberry-pi-setup-guide.md",
+        "target": "docs\\raspberry-pi-setup-guide.md",
+        "reason": "Move raspberry-pi-setup-guide.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\raspberry-pi-startup-system.md",
+        "target": "docs\\raspberry-pi-startup-system.md",
+        "reason": "Move raspberry-pi-startup-system.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\RASPBERRY_PI_ENVIRONMENT_SETUP.md",
+        "target": "docs\\RASPBERRY_PI_ENVIRONMENT_SETUP.md",
+        "reason": "Move RASPBERRY_PI_ENVIRONMENT_SETUP.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\RASPBERRY_PI_STARTUP_SYSTEM_COMPLETE.md",
+        "target": "docs\\RASPBERRY_PI_STARTUP_SYSTEM_COMPLETE.md",
+        "reason": "Move RASPBERRY_PI_STARTUP_SYSTEM_COMPLETE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\repository-organization-complete.md",
+        "target": "docs\\repository-organization-complete.md",
+        "reason": "Move repository-organization-complete.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\REPOSITORY_CLEANUP_REPORT.md",
+        "target": "docs\\REPOSITORY_CLEANUP_REPORT.md",
+        "reason": "Move REPOSITORY_CLEANUP_REPORT.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\REPOSITORY_INTEGRITY_VALIDATION_REPORT.md",
+        "target": "docs\\REPOSITORY_INTEGRITY_VALIDATION_REPORT.md",
+        "reason": "Move REPOSITORY_INTEGRITY_VALIDATION_REPORT.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\REPOSITORY_MAINTENANCE_GUIDE.md",
+        "target": "docs\\REPOSITORY_MAINTENANCE_GUIDE.md",
+        "reason": "Move REPOSITORY_MAINTENANCE_GUIDE.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\REPOSITORY_STANDARDIZATION_SUMMARY.md",
+        "target": "docs\\REPOSITORY_STANDARDIZATION_SUMMARY.md",
+        "reason": "Move REPOSITORY_STANDARDIZATION_SUMMARY.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\rollback-procedures.md",
+        "target": "docs\\rollback-procedures.md",
+        "reason": "Move rollback-procedures.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\scripts-audit-report.md",
+        "target": "docs\\scripts-audit-report.md",
+        "reason": "Move scripts-audit-report.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\system-fixes-reference.md",
+        "target": "docs\\system-fixes-reference.md",
+        "reason": "Move system-fixes-reference.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\SYSTEM_DOCUMENTATION.md",
+        "target": "docs\\SYSTEM_DOCUMENTATION.md",
+        "reason": "Move SYSTEM_DOCUMENTATION.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\task-8.4-implementation-summary.md",
+        "target": "docs\\task-8.4-implementation-summary.md",
+        "reason": "Move task-8.4-implementation-summary.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "docs\\TASK_10_CLEANUP_SUMMARY.md",
+        "target": "docs\\TASK_10_CLEANUP_SUMMARY.md",
+        "reason": "Move TASK_10_CLEANUP_SUMMARY.md to docs",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\deployment\\health-check.sh",
+        "target": "scripts\\maintenance\\health-check.sh",
+        "reason": "Move health-check.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\deployment\\network-setup.sh",
+        "target": "scripts\\maintenance\\network-setup.sh",
+        "reason": "Move network-setup.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\deployment\\pull-updates.sh",
+        "target": "scripts\\maintenance\\pull-updates.sh",
+        "reason": "Move pull-updates.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\auto-deploy.sh",
+        "target": "scripts\\maintenance\\auto-deploy.sh",
+        "reason": "Move auto-deploy.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\backup.sh",
+        "target": "scripts\\maintenance\\backup.sh",
+        "reason": "Move backup.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\canary-deploy.sh",
+        "target": "scripts\\maintenance\\canary-deploy.sh",
+        "reason": "Move canary-deploy.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\configure-pi-model.sh",
+        "target": "scripts\\maintenance\\configure-pi-model.sh",
+        "reason": "Move configure-pi-model.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\daily-cleanup.sh",
+        "target": "scripts\\maintenance\\daily-cleanup.sh",
+        "reason": "Move daily-cleanup.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\deploy-kiosk-ui.sh",
+        "target": "scripts\\maintenance\\deploy-kiosk-ui.sh",
+        "reason": "Move deploy-kiosk-ui.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\deploy-maksisoft-to-pi.sh",
+        "target": "scripts\\maintenance\\deploy-maksisoft-to-pi.sh",
+        "reason": "Move deploy-maksisoft-to-pi.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\deploy-to-pi.sh",
+        "target": "scripts\\maintenance\\deploy-to-pi.sh",
+        "reason": "Move deploy-to-pi.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\deploy.sh",
+        "target": "scripts\\maintenance\\deploy.sh",
+        "reason": "Move deploy.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\deployment-monitor.sh",
+        "target": "scripts\\maintenance\\deployment-monitor.sh",
+        "reason": "Move deployment-monitor.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\emergency-database-consolidation.sh",
+        "target": "scripts\\maintenance\\emergency-database-consolidation.sh",
+        "reason": "Move emergency-database-consolidation.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\hardware-init.sh",
+        "target": "scripts\\maintenance\\hardware-init.sh",
+        "reason": "Move hardware-init.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\health-check-kiosk.sh",
+        "target": "scripts\\maintenance\\health-check-kiosk.sh",
+        "reason": "Move health-check-kiosk.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\health-check.sh",
+        "target": "scripts\\maintenance\\health-check.sh",
+        "reason": "Move health-check.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\init-database-manual.sh",
+        "target": "scripts\\maintenance\\init-database-manual.sh",
+        "reason": "Move init-database-manual.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\install-git-hooks.sh",
+        "target": "scripts\\maintenance\\install-git-hooks.sh",
+        "reason": "Move install-git-hooks.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\install-production.sh",
+        "target": "scripts\\maintenance\\install-production.sh",
+        "reason": "Move install-production.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\install-startup-system.sh",
+        "target": "scripts\\maintenance\\install-startup-system.sh",
+        "reason": "Move install-startup-system.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\package.sh",
+        "target": "scripts\\maintenance\\package.sh",
+        "reason": "Move package.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\pi-boot-setup.sh",
+        "target": "scripts\\maintenance\\pi-boot-setup.sh",
+        "reason": "Move pi-boot-setup.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\pi-startup-system.sh",
+        "target": "scripts\\maintenance\\pi-startup-system.sh",
+        "reason": "Move pi-startup-system.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\prepare-release.sh",
+        "target": "scripts\\maintenance\\prepare-release.sh",
+        "reason": "Move prepare-release.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\quick-deploy.sh",
+        "target": "scripts\\maintenance\\quick-deploy.sh",
+        "reason": "Move quick-deploy.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\repository-health-check.sh",
+        "target": "scripts\\maintenance\\repository-health-check.sh",
+        "reason": "Move repository-health-check.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\restart-services.sh",
+        "target": "scripts\\maintenance\\restart-services.sh",
+        "reason": "Move restart-services.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\restore.sh",
+        "target": "scripts\\maintenance\\restore.sh",
+        "reason": "Move restore.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\run-comprehensive-tests.sh",
+        "target": "scripts\\maintenance\\run-comprehensive-tests.sh",
+        "reason": "Move run-comprehensive-tests.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\run-cookie-diagnostics.sh",
+        "target": "scripts\\maintenance\\run-cookie-diagnostics.sh",
+        "reason": "Move run-cookie-diagnostics.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\run-system-validation.sh",
+        "target": "scripts\\maintenance\\run-system-validation.sh",
+        "reason": "Move run-system-validation.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\setup-database.sh",
+        "target": "scripts\\maintenance\\setup-database.sh",
+        "reason": "Move setup-database.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\setup-logs-dir.sh",
+        "target": "scripts\\maintenance\\setup-logs-dir.sh",
+        "reason": "Move setup-logs-dir.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\setup-maintenance-schedule.sh",
+        "target": "scripts\\maintenance\\setup-maintenance-schedule.sh",
+        "reason": "Move setup-maintenance-schedule.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\setup-pi-environment.sh",
+        "target": "scripts\\maintenance\\setup-pi-environment.sh",
+        "reason": "Move setup-pi-environment.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\sign-package.sh",
+        "target": "scripts\\maintenance\\sign-package.sh",
+        "reason": "Move sign-package.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\start-all-clean.sh",
+        "target": "scripts\\maintenance\\start-all-clean.sh",
+        "reason": "Move start-all-clean.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\start-kiosk-clean.sh",
+        "target": "scripts\\maintenance\\start-kiosk-clean.sh",
+        "reason": "Move start-kiosk-clean.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\startup-services.sh",
+        "target": "scripts\\maintenance\\startup-services.sh",
+        "reason": "Move startup-services.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\stop-services.sh",
+        "target": "scripts\\maintenance\\stop-services.sh",
+        "reason": "Move stop-services.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\system-monitor.sh",
+        "target": "scripts\\maintenance\\system-monitor.sh",
+        "reason": "Move system-monitor.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\test-admin-panel-e2e.sh",
+        "target": "scripts\\maintenance\\test-admin-panel-e2e.sh",
+        "reason": "Move test-admin-panel-e2e.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\uninstall.sh",
+        "target": "scripts\\maintenance\\uninstall.sh",
+        "reason": "Move uninstall.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\upgrade-nodejs.sh",
+        "target": "scripts\\maintenance\\upgrade-nodejs.sh",
+        "reason": "Move upgrade-nodejs.sh to scripts/maintenance",
+        "executed": true
+      },
+      {
+        "type": "reorganize",
+        "source": "scripts\\maintenance\\validate-deployment.sh",
+        "target": "scripts\\maintenance\\validate-deployment.sh",
+        "reason": "Move validate-deployment.sh to scripts/maintenance",
+        "executed": true
+      }
+    ]
+  },
+  "summary": {
+    "filesProcessed": 1868,
+    "filesRemoved": 0,
+    "filesReorganized": 116,
+    "issuesFound": 0,
+    "warnings": 1,
+    "actionsCount": 116
+  }
+}

@@ -1,24 +1,31 @@
 {
-  "timestamp": "2025-09-01T05:54:16.278Z",
+  "timestamp": "2025-09-01T06:40:05.579Z",
   "stats": {
-    "totalFiles": 507,
+    "totalFiles": 516,
     "categorized": {
       "app": 176,
-      "docs": 68,
-      "scripts": 105,
+      "docs": 72,
+      "scripts": 111,
       "tests": 15,
       "config": 5,
-      "other": 138
+      "other": 137
     },
     "violations": {
-      "naming": 154,
+      "naming": 155,
       "structure": 0,
-      "temporary": 0,
+      "temporary": 1,
       "large": 0,
       "misplaced": 120
     }
   },
-  "issues": [],
+  "issues": [
+    {
+      "type": "temporary",
+      "severity": "error",
+      "message": "Temporary file detected: maintenance-report-2025-09-01.json",
+      "path": "scripts\\maintenance\\maintenance-report-2025-09-01.json"
+    }
+  ],
   "warnings": [
     {
       "type": "naming",
@@ -1025,6 +1032,12 @@
     {
       "type": "naming",
       "severity": "warning",
+      "message": "Filename not in kebab-case: COMPLETE_MULTI_PI_SOLUTION",
+      "path": "docs\\COMPLETE_MULTI_PI_SOLUTION.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
       "message": "Filename not in kebab-case: CONTRIBUTING",
       "path": "docs\\CONTRIBUTING.md"
     },
@@ -1367,8 +1380,26 @@
     {
       "type": "naming",
       "severity": "warning",
+      "message": "Unusual file extension: .bat",
+      "path": "scripts\\deployment\\discover-pis.bat"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\deployment\\manage-all-pis.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
       "message": "Unusual file extension: .ps1",
       "path": "scripts\\deployment\\manage-pi.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .bat",
+      "path": "scripts\\deployment\\multi-pi-status.bat"
     },
     {
       "type": "naming",
@@ -1966,8 +1997,8 @@
     }
   ],
   "summary": {
-    "totalIssues": 0,
-    "totalWarnings": 324,
+    "totalIssues": 1,
+    "totalWarnings": 328,
     "healthScore": 0
   }
 }
