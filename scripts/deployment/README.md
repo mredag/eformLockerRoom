@@ -309,3 +309,146 @@ telnet 192.168.1.8 22
 ```
 
 For additional support, check the main project documentation or contact the development team.
+---
+
+
+## 🚀 Raspberry Pi Startup System
+
+### **Complete Installation**
+```bash
+# Install everything (run as root on Pi)
+sudo bash scripts/deployment/install-startup-system.sh
+```
+
+### **Individual Components**
+
+#### **Systemd Services**
+```bash
+# Install systemd services
+sudo bash scripts/deployment/pi-startup-system.sh
+sudo systemctl daemon-reload
+sudo systemctl enable eform-locker eform-hardware-init eform-monitor
+```
+
+#### **Boot Optimizations**
+```bash
+# Optimize Pi boot configuration
+sudo bash scripts/deployment/pi-boot-setup.sh
+sudo reboot
+```
+
+#### **Service Management**
+```bash
+# Start services
+bash scripts/deployment/startup-services.sh
+
+# Stop services
+bash scripts/deployment/stop-services.sh
+
+# Restart services
+bash scripts/deployment/restart-services.sh
+
+# Health check
+bash scripts/deployment/health-check.sh
+```
+
+## 📋 Startup System Scripts
+
+### **New Startup System Scripts**
+- `install-startup-system.sh` - **Complete installation script**
+- `pi-startup-system.sh` - Install systemd services
+- `pi-boot-setup.sh` - Optimize Pi boot configuration
+- `startup-services.sh` - Start all eForm services
+- `stop-services.sh` - Stop all services gracefully
+- `restart-services.sh` - Restart all services
+- `hardware-init.sh` - Initialize hardware on boot
+- `system-monitor.sh` - Continuous system monitoring
+- `health-check.sh` - Quick health verification
+
+## 🎯 Quick Start for New Pi Setup
+
+### **Complete Pi Setup**
+```bash
+# 1. Clone project to Pi
+git clone <repository> /home/pi/eform-locker
+cd /home/pi/eform-locker
+
+# 2. Install startup system
+sudo bash scripts/deployment/install-startup-system.sh
+
+# 3. Reboot
+sudo reboot
+
+# 4. Check status
+eform-status
+```
+
+### **Service Management Commands**
+```bash
+# Check status
+sudo systemctl status eform-locker
+eform-status
+
+# Control services
+sudo systemctl start/stop/restart eform-locker
+
+# View logs
+eform-logs
+sudo journalctl -u eform-locker -f
+
+# Health check
+eform-health
+```
+
+## 🔧 Startup System Configuration
+
+### **Systemd Services**
+- `eform-locker.service` - Main application service
+- `eform-hardware-init.service` - Hardware initialization
+- `eform-monitor.service` - System monitoring
+
+### **Monitoring Features**
+- Health checks every 5 minutes
+- Service auto-restart on failure
+- Resource monitoring (CPU, memory, temperature)
+- Log rotation and cleanup
+- Hardware connectivity checks
+
+### **Quick Commands (Available after installation)**
+```bash
+eform-status    # Status dashboard
+eform-health    # Health check
+eform-logs      # View all logs
+eform-start     # Start services
+eform-stop      # Stop services
+eform-restart   # Restart services
+```
+
+## 📊 Status and Monitoring Files
+
+### **Status Files**
+```bash
+/home/pi/eform-locker/.startup-success      # Startup completion
+/home/pi/eform-locker/.system-status        # Current system status
+/home/pi/eform-locker/.system-alerts        # System alerts
+/home/pi/eform-locker/.hardware-init-status # Hardware status
+```
+
+### **Log Files**
+```bash
+/home/pi/eform-locker/logs/gateway.log       # Gateway service
+/home/pi/eform-locker/logs/kiosk.log         # Kiosk service
+/home/pi/eform-locker/logs/panel.log         # Panel service
+/home/pi/eform-locker/logs/system-monitor.log # System monitor
+/home/pi/eform-locker/logs/health-check.log  # Health checks
+```
+
+## 📚 Additional Documentation
+
+- **Complete Startup Guide**: `docs/raspberry-pi-startup-system.md`
+- **Troubleshooting**: `docs/kiosk-troubleshooting-guide.md`
+- **Performance**: `docs/raspberry-pi-performance-optimizations.md`
+
+---
+
+**For complete Pi startup system installation, run:** `sudo bash scripts/deployment/install-startup-system.sh`
