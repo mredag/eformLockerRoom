@@ -10,7 +10,7 @@ param(
 # Configuration
 $DEFAULT_HOSTNAME = "pi-eform-locker"
 $DEFAULT_IP = "192.168.1.8"
-$KNOWN_IPS = @("192.168.1.8", "192.168.1.10", "192.168.1.20", "192.168.1.30", "192.168.1.40")
+$KNOWN_IPS = @("192.168.1.8", "192.168.1.8", "192.168.1.8", "192.168.1.8", "192.168.1.8")
 $NETWORK_BASE = "192.168.1"
 
 # Colors for output
@@ -149,7 +149,7 @@ function Show-Help {
     Write-Host "Examples:" -ForegroundColor Yellow
     Write-Host "  .\scripts\deployment\smart-pi-manager.ps1 discover" -ForegroundColor Gray
     Write-Host "  .\scripts\deployment\smart-pi-manager.ps1 status" -ForegroundColor Gray
-    Write-Host "  .\scripts\deployment\smart-pi-manager.ps1 restart -ForceIP 192.168.1.15" -ForegroundColor Gray
+    Write-Host "  .\scripts\deployment\smart-pi-manager.ps1 restart -ForceIP 192.168.1.8" -ForegroundColor Gray
     Write-Host ""
 }
 

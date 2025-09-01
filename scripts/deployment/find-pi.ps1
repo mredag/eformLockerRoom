@@ -3,7 +3,7 @@ param(
     [string]$Command = "discover"
 )
 
-$KNOWN_IPS = @("192.168.1.8", "192.168.1.10", "192.168.1.20", "192.168.1.30", "192.168.1.40")
+$KNOWN_IPS = @("192.168.1.8", "192.168.1.8", "192.168.1.8", "192.168.1.8", "192.168.1.8")
 
 Write-Host "🔍 Finding eForm Pi..." -ForegroundColor Blue
 
@@ -62,6 +62,6 @@ else {
     Write-Host ""
     Write-Host "💡 Solutions:" -ForegroundColor Yellow
     Write-Host "  1. Check your router's DHCP client list" -ForegroundColor Gray
-    Write-Host "  2. Use: nmap -sn 192.168.1.0/24 | grep -B2 'Raspberry Pi'" -ForegroundColor Gray
+    Write-Host "  2. Use: nmap -sn 192.168.1.8/24 | grep -B2 'Raspberry Pi'" -ForegroundColor Gray
     Write-Host "  3. Connect monitor/keyboard to Pi and run: hostname -I" -ForegroundColor Gray
 }

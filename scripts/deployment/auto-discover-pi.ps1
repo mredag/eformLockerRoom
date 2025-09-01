@@ -10,7 +10,7 @@ param(
 # Configuration
 $DEFAULT_HOSTNAME = "pi-eform-locker"
 $DEFAULT_IP = "192.168.1.8"
-$KNOWN_IPS = @("192.168.1.8", "192.168.1.10", "192.168.1.20", "192.168.1.30", "192.168.1.40")
+$KNOWN_IPS = @("192.168.1.8", "192.168.1.8", "192.168.1.8", "192.168.1.8", "192.168.1.8")
 
 Write-Host "🔍 eForm Pi Auto-Discovery Manager" -ForegroundColor Magenta
 Write-Host "=================================" -ForegroundColor Magenta
@@ -209,7 +209,7 @@ switch ($Command.ToLower()) {
         Write-Host "💡 Examples:" -ForegroundColor Yellow
         Write-Host "  .\scripts\deployment\auto-discover-pi.ps1 discover" -ForegroundColor Gray
         Write-Host "  .\scripts\deployment\auto-discover-pi.ps1 status" -ForegroundColor Gray
-        Write-Host "  .\scripts\deployment\auto-discover-pi.ps1 restart -ForceIP 192.168.1.15" -ForegroundColor Gray
+        Write-Host "  .\scripts\deployment\auto-discover-pi.ps1 restart -ForceIP 192.168.1.8" -ForegroundColor Gray
         Write-Host ""
     }
 }

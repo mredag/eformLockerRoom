@@ -13,22 +13,22 @@ param(
 # Configuration - Add your Pi locations here
 $PI_LOCATIONS = @{
     "mens" = @{
-        "ip" = "192.168.1.10"
+        "ip" = "192.168.1.8"
         "hostname" = "pi-eform-mens"
         "description" = "Men's Locker Room"
     }
     "womens" = @{
-        "ip" = "192.168.1.20"
+        "ip" = "192.168.1.8"
         "hostname" = "pi-eform-womens"
         "description" = "Women's Locker Room"
     }
     "staff" = @{
-        "ip" = "192.168.1.30"
+        "ip" = "192.168.1.8"
         "hostname" = "pi-eform-staff"
         "description" = "Staff Area"
     }
     "vip" = @{
-        "ip" = "192.168.1.40"
+        "ip" = "192.168.1.8"
         "hostname" = "pi-eform-vip"
         "description" = "VIP Area"
     }
