@@ -1,31 +1,24 @@
 {
-  "timestamp": "2025-08-28T23:46:54.208Z",
+  "timestamp": "2025-09-01T05:54:16.278Z",
   "stats": {
-    "totalFiles": 466,
+    "totalFiles": 507,
     "categorized": {
-      "app": 180,
-      "docs": 33,
-      "scripts": 80,
+      "app": 176,
+      "docs": 68,
+      "scripts": 105,
       "tests": 15,
       "config": 5,
-      "other": 153
+      "other": 138
     },
     "violations": {
-      "naming": 149,
+      "naming": 154,
       "structure": 0,
-      "temporary": 1,
+      "temporary": 0,
       "large": 0,
-      "misplaced": 144
+      "misplaced": 120
     }
   },
-  "issues": [
-    {
-      "type": "temporary",
-      "severity": "error",
-      "message": "Temporary file detected: debug-pi-commands.sh",
-      "path": "scripts\\emergency\\debug-pi-commands.sh"
-    }
-  ],
+  "issues": [],
   "warnings": [
     {
       "type": "naming",
@@ -36,122 +29,8 @@
     {
       "type": "placement",
       "severity": "warning",
-      "message": "Documentation file outside docs/ directory: maksisoft-spec-help.md",
-      "path": ".kiro\\maksisoft-spec-help.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: tasks.md",
-      "path": ".kiro\\specs\\admin-panel-relay-control\\tasks.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: design.md",
-      "path": ".kiro\\specs\\admin-panel-ui-improvements\\design.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: requirements.md",
-      "path": ".kiro\\specs\\admin-panel-ui-improvements\\requirements.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: tasks.md",
-      "path": ".kiro\\specs\\admin-panel-ui-improvements\\tasks.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: design.md",
-      "path": ".kiro\\specs\\eform-locker-system\\design.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: requirements.md",
-      "path": ".kiro\\specs\\eform-locker-system\\requirements.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: tasks.md",
-      "path": ".kiro\\specs\\eform-locker-system\\tasks.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: tasks.md",
-      "path": ".kiro\\specs\\kiosk-ui-overhaul\\tasks.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: design.md",
-      "path": ".kiro\\specs\\maksisoft-integration\\design.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: requirements.md",
-      "path": ".kiro\\specs\\maksisoft-integration\\requirements.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: tasks.md",
-      "path": ".kiro\\specs\\maksisoft-integration\\tasks.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: design.md",
-      "path": ".kiro\\specs\\repository-cleanup-v3\\design.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: requirements.md",
-      "path": ".kiro\\specs\\repository-cleanup-v3\\requirements.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: tasks.md",
-      "path": ".kiro\\specs\\repository-cleanup-v3\\tasks.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: tasks.md",
-      "path": ".kiro\\specs\\system-modernization-v2\\tasks.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: clean-work-etiquette.md",
-      "path": ".kiro\\steering\\clean-work-etiquette.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: development-environment.md",
-      "path": ".kiro\\steering\\development-environment.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: project-development-guide.md",
-      "path": ".kiro\\steering\\project-development-guide.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: scripts-audit-report.md",
-      "path": "analysis-reports\\scripts-audit-report.md"
+      "message": "Script file outside scripts/ directory: add-missing-lockers.js",
+      "path": "add-missing-lockers.js"
     },
     {
       "type": "naming",
@@ -792,6 +671,12 @@
     {
       "type": "placement",
       "severity": "warning",
+      "message": "Script file outside scripts/ directory: hardware-config-routes.ts",
+      "path": "app\\panel\\src\\routes\\hardware-config-routes.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
       "message": "Script file outside scripts/ directory: locker-naming-routes.ts",
       "path": "app\\panel\\src\\routes\\locker-naming-routes.ts"
     },
@@ -836,12 +721,6 @@
       "severity": "warning",
       "message": "Script file outside scripts/ directory: authorization-service.ts",
       "path": "app\\panel\\src\\services\\authorization-service.ts"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: maksi-config.md",
-      "path": "app\\panel\\src\\services\\maksi-config.md"
     },
     {
       "type": "placement",
@@ -896,18 +775,6 @@
       "severity": "warning",
       "message": "Script file outside scripts/ directory: simple-validation.js",
       "path": "app\\panel\\src\\validation\\simple-validation.js"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: task-8.4-implementation-summary",
-      "path": "app\\panel\\src\\validation\\task-8.4-implementation-summary.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: task-8.4-implementation-summary.md",
-      "path": "app\\panel\\src\\validation\\task-8.4-implementation-summary.md"
     },
     {
       "type": "placement",
@@ -988,24 +855,6 @@
       "path": "app\\panel\\src\\__tests__\\maksi-service.test.ts"
     },
     {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: maksi-test-summary.md",
-      "path": "app\\panel\\src\\__tests__\\maksi-test-summary.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: MAKSISOFT_MVP_VALIDATION_REPORT",
-      "path": "app\\panel\\src\\__tests__\\MAKSISOFT_MVP_VALIDATION_REPORT.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: MAKSISOFT_MVP_VALIDATION_REPORT.md",
-      "path": "app\\panel\\src\\__tests__\\MAKSISOFT_MVP_VALIDATION_REPORT.md"
-    },
-    {
       "type": "naming",
       "severity": "warning",
       "message": "Filename not in kebab-case: panel-performance.test",
@@ -1024,28 +873,10 @@
       "path": "app\\panel\\src\\__tests__\\session-manager.test.ts"
     },
     {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: accessibility-validation-report.md",
-      "path": "app\\panel\\src\\__tests__\\ui-improvements\\accessibility-validation-report.md"
-    },
-    {
       "type": "naming",
       "severity": "warning",
       "message": "Filename not in kebab-case: accessibility-validation.test",
       "path": "app\\panel\\src\\__tests__\\ui-improvements\\accessibility-validation.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: ACCESSIBILITY_VALIDATION_SUMMARY",
-      "path": "app\\panel\\src\\__tests__\\ui-improvements\\ACCESSIBILITY_VALIDATION_SUMMARY.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: ACCESSIBILITY_VALIDATION_SUMMARY.md",
-      "path": "app\\panel\\src\\__tests__\\ui-improvements\\ACCESSIBILITY_VALIDATION_SUMMARY.md"
     },
     {
       "type": "naming",
@@ -1102,58 +933,46 @@
       "path": "app\\panel\\vitest.config.ts"
     },
     {
-      "type": "naming",
+      "type": "placement",
       "severity": "warning",
-      "message": "Filename not in kebab-case: BACKUP_INVENTORY",
-      "path": "BACKUP_INVENTORY.md"
+      "message": "Script file outside scripts/ directory: check-all-databases.js",
+      "path": "check-all-databases.js"
     },
     {
       "type": "placement",
       "severity": "warning",
-      "message": "Documentation file outside docs/ directory: BACKUP_INVENTORY.md",
-      "path": "BACKUP_INVENTORY.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: CLEANUP_DECISION_REASONING",
-      "path": "CLEANUP_DECISION_REASONING.md"
+      "message": "Script file outside scripts/ directory: check-current-state.js",
+      "path": "check-current-state.js"
     },
     {
       "type": "placement",
       "severity": "warning",
-      "message": "Documentation file outside docs/ directory: CLEANUP_DECISION_REASONING.md",
-      "path": "CLEANUP_DECISION_REASONING.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: CLEANUP_TRACKING_REPORT",
-      "path": "CLEANUP_TRACKING_REPORT.md"
+      "message": "Script file outside scripts/ directory: check-locker-statuses.js",
+      "path": "check-locker-statuses.js"
     },
     {
       "type": "placement",
       "severity": "warning",
-      "message": "Documentation file outside docs/ directory: CLEANUP_TRACKING_REPORT.md",
-      "path": "CLEANUP_TRACKING_REPORT.md"
+      "message": "Script file outside scripts/ directory: check-table-structure.js",
+      "path": "check-table-structure.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: check-tables.js",
+      "path": "check-tables.js"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: check-vip-lockers.js",
+      "path": "check-vip-lockers.js"
     },
     {
       "type": "naming",
       "severity": "warning",
       "message": "Filename not in kebab-case: README",
       "path": "config\\README.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: CONTRIBUTING",
-      "path": "CONTRIBUTING.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: CONTRIBUTING.md",
-      "path": "CONTRIBUTING.md"
     },
     {
       "type": "naming",
@@ -1176,32 +995,38 @@
     {
       "type": "naming",
       "severity": "warning",
-      "message": "Filename not in kebab-case: DEVELOPER_ONBOARDING_GUIDE",
-      "path": "DEVELOPER_ONBOARDING_GUIDE.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: DEVELOPER_ONBOARDING_GUIDE.md",
-      "path": "DEVELOPER_ONBOARDING_GUIDE.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: DIRECTORY_STRUCTURE",
-      "path": "DIRECTORY_STRUCTURE.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: DIRECTORY_STRUCTURE.md",
-      "path": "DIRECTORY_STRUCTURE.md"
+      "message": "Filename not in kebab-case: ACCESSIBILITY_VALIDATION_SUMMARY",
+      "path": "docs\\ACCESSIBILITY_VALIDATION_SUMMARY.md"
     },
     {
       "type": "naming",
       "severity": "warning",
       "message": "Filename not in kebab-case: API_REFERENCE",
       "path": "docs\\API_REFERENCE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: BACKUP_INVENTORY",
+      "path": "docs\\BACKUP_INVENTORY.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: CLEANUP_DECISION_REASONING",
+      "path": "docs\\CLEANUP_DECISION_REASONING.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: CLEANUP_TRACKING_REPORT",
+      "path": "docs\\CLEANUP_TRACKING_REPORT.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: CONTRIBUTING",
+      "path": "docs\\CONTRIBUTING.md"
     },
     {
       "type": "naming",
@@ -1224,8 +1049,50 @@
     {
       "type": "naming",
       "severity": "warning",
+      "message": "Filename not in kebab-case: DEVELOPER_ONBOARDING_GUIDE",
+      "path": "docs\\DEVELOPER_ONBOARDING_GUIDE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
       "message": "Filename not in kebab-case: DEVELOPMENT_ENVIRONMENT_SETUP",
       "path": "docs\\DEVELOPMENT_ENVIRONMENT_SETUP.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: DIRECTORY_STRUCTURE",
+      "path": "docs\\DIRECTORY_STRUCTURE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: DYNAMIC_LAYOUT_IMPLEMENTATION_COMPLETE",
+      "path": "docs\\DYNAMIC_LAYOUT_IMPLEMENTATION_COMPLETE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: FILE_CONSOLIDATION_MAPPING",
+      "path": "docs\\FILE_CONSOLIDATION_MAPPING.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: FRONTEND_DEVELOPER_QUICK_START",
+      "path": "docs\\FRONTEND_DEVELOPER_QUICK_START.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: MAINTENANCE_SYSTEM_TEST_RESULTS",
+      "path": "docs\\MAINTENANCE_SYSTEM_TEST_RESULTS.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: MAKSISOFT_MVP_VALIDATION_REPORT",
+      "path": "docs\\MAKSISOFT_MVP_VALIDATION_REPORT.md"
     },
     {
       "type": "naming",
@@ -1254,8 +1121,26 @@
     {
       "type": "naming",
       "severity": "warning",
+      "message": "Filename not in kebab-case: RASPBERRY_PI_STARTUP_SYSTEM_COMPLETE",
+      "path": "docs\\RASPBERRY_PI_STARTUP_SYSTEM_COMPLETE.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
       "message": "Filename not in kebab-case: README",
       "path": "docs\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: REPOSITORY_CLEANUP_REPORT",
+      "path": "docs\\REPOSITORY_CLEANUP_REPORT.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: REPOSITORY_INTEGRITY_VALIDATION_REPORT",
+      "path": "docs\\REPOSITORY_INTEGRITY_VALIDATION_REPORT.md"
     },
     {
       "type": "naming",
@@ -1278,14 +1163,38 @@
     {
       "type": "naming",
       "severity": "warning",
+      "message": "Filename not in kebab-case: task-8.4-implementation-summary",
+      "path": "docs\\task-8.4-implementation-summary.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
       "message": "Filename not in kebab-case: TASK_10_CLEANUP_SUMMARY",
       "path": "docs\\TASK_10_CLEANUP_SUMMARY.md"
     },
     {
       "type": "naming",
       "severity": "warning",
+      "message": "Uppercase file extension: .MD",
+      "path": "docs\\TODO.MD"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: TODO.MD",
+      "path": "docs\\TODO.MD"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
       "message": "Filename not in kebab-case: README",
       "path": "docs\\troubleshooting\\README.md"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: extract-api-lockers.js",
+      "path": "extract-api-lockers.js"
     },
     {
       "type": "naming",
@@ -1300,28 +1209,16 @@
       "path": "favicon.svg"
     },
     {
-      "type": "naming",
+      "type": "placement",
       "severity": "warning",
-      "message": "Filename not in kebab-case: FILE_CONSOLIDATION_MAPPING",
-      "path": "FILE_CONSOLIDATION_MAPPING.md"
+      "message": "Script file outside scripts/ directory: final-verification.js",
+      "path": "final-verification.js"
     },
     {
       "type": "placement",
       "severity": "warning",
-      "message": "Documentation file outside docs/ directory: FILE_CONSOLIDATION_MAPPING.md",
-      "path": "FILE_CONSOLIDATION_MAPPING.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: FRONTEND_DEVELOPER_QUICK_START",
-      "path": "FRONTEND_DEVELOPER_QUICK_START.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: FRONTEND_DEVELOPER_QUICK_START.md",
-      "path": "FRONTEND_DEVELOPER_QUICK_START.md"
+      "message": "Script file outside scripts/ directory: fix-corrupted-database.js",
+      "path": "fix-corrupted-database.js"
     },
     {
       "type": "placement",
@@ -1446,44 +1343,8 @@
     {
       "type": "naming",
       "severity": "warning",
-      "message": "Filename not in kebab-case: MAINTENANCE_SYSTEM_TEST_RESULTS",
-      "path": "MAINTENANCE_SYSTEM_TEST_RESULTS.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: MAINTENANCE_SYSTEM_TEST_RESULTS.md",
-      "path": "MAINTENANCE_SYSTEM_TEST_RESULTS.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
       "message": "Filename not in kebab-case: README",
       "path": "README.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: REPOSITORY_CLEANUP_REPORT",
-      "path": "REPOSITORY_CLEANUP_REPORT.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: REPOSITORY_CLEANUP_REPORT.md",
-      "path": "REPOSITORY_CLEANUP_REPORT.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: REPOSITORY_INTEGRITY_VALIDATION_REPORT",
-      "path": "REPOSITORY_INTEGRITY_VALIDATION_REPORT.md"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Documentation file outside docs/ directory: REPOSITORY_INTEGRITY_VALIDATION_REPORT.md",
-      "path": "REPOSITORY_INTEGRITY_VALIDATION_REPORT.md"
     },
     {
       "type": "naming",
@@ -1495,13 +1356,67 @@
       "type": "naming",
       "severity": "warning",
       "message": "Unusual file extension: .ps1",
+      "path": "scripts\\deployment\\auto-deploy.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
       "path": "scripts\\deployment\\deploy-maksisoft-to-pi.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\deployment\\manage-pi.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .bat",
+      "path": "scripts\\deployment\\pi-health.bat"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\deployment\\pi-manager.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .bat",
+      "path": "scripts\\deployment\\pi-restart.bat"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .bat",
+      "path": "scripts\\deployment\\pi-status.bat"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .ps1",
+      "path": "scripts\\deployment\\quick-deploy.ps1"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Filename not in kebab-case: README",
+      "path": "scripts\\deployment\\README.md"
     },
     {
       "type": "naming",
       "severity": "warning",
       "message": "Filename not in kebab-case: README",
       "path": "scripts\\emergency\\README.md"
+    },
+    {
+      "type": "naming",
+      "severity": "warning",
+      "message": "Unusual file extension: .log",
+      "path": "scripts\\maintenance\\automated-maintenance.log"
     },
     {
       "type": "naming",
@@ -1794,6 +1709,12 @@
     {
       "type": "placement",
       "severity": "warning",
+      "message": "Script file outside scripts/ directory: locker-layout-service.ts",
+      "path": "shared\\services\\locker-layout-service.ts"
+    },
+    {
+      "type": "placement",
+      "severity": "warning",
       "message": "Script file outside scripts/ directory: locker-naming-service.ts",
       "path": "shared\\services\\locker-naming-service.ts"
     },
@@ -1954,6 +1875,12 @@
       "path": "shared\\types\\system-config.ts"
     },
     {
+      "type": "placement",
+      "severity": "warning",
+      "message": "Script file outside scripts/ directory: sync-databases.js",
+      "path": "sync-databases.js"
+    },
+    {
       "type": "naming",
       "severity": "warning",
       "message": "Filename not in kebab-case: accessibility-requirements.test",
@@ -2039,8 +1966,8 @@
     }
   ],
   "summary": {
-    "totalIssues": 1,
-    "totalWarnings": 335,
+    "totalIssues": 0,
+    "totalWarnings": 324,
     "healthScore": 0
   }
 }
