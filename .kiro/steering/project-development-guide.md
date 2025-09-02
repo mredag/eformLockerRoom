@@ -21,7 +21,8 @@ This is a **distributed eForm Locker System** with hardware relay control:
 
 ### **Key Features (Latest)**
 
-- **✅ Multi-User RFID Support**: Session-based card management with 5-minute timeout
+- **✅ Multi-User RFID Support**: Session-based card management (no automatic timeout)
+- **✅ Power Interruption Resilience**: Locker assignments survive power outages and system restarts
 - **✅ Real-time Hardware Control**: Direct relay activation via Modbus RTU
 - **✅ Web Administration**: Complete locker management and monitoring
 - **✅ Fault Tolerance**: Automatic service recovery and health monitoring
@@ -134,10 +135,11 @@ eform-locker-system/
 
 **✅ WORKING IMPLEMENTATION:**
 
-- **Session Creation**: Each RFID card scan creates unique session with 5-minute timeout
+- **Session Creation**: Each RFID card scan creates unique session (no automatic timeout)
 - **Multi-User Support**: Different cards can operate simultaneously without conflicts
 - **Session Format**: `kiosk-{kioskId}-{cardId}-{timestamp}`
-- **Automatic Cleanup**: Expired sessions automatically removed
+- **Power Resilience**: Locker assignments persist through power outages and system restarts
+- **Database Integrity**: SQLite WAL mode ensures data durability during power interruptions
 
 **Session Flow**:
 

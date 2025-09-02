@@ -6,8 +6,7 @@ import { LockerNamingService } from './locker-naming-service';
 export class LockerStateManager {
   private db: DatabaseConnection;
   private dbManager: any;
-  private cleanupInterval: NodeJS.Timeout | null = null;
-  private readonly RESERVE_TIMEOUT_SECONDS = 90;
+  // Automatic cleanup disabled - no timeout variables needed
   private namingService: LockerNamingService;
 
   // Define valid state transitions supporting both Turkish and English state names
@@ -15,7 +14,6 @@ export class LockerStateManager {
     // Turkish status transitions
     { from: 'Free', to: 'Owned', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
     { from: 'Owned', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
-    { from: 'Owned', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
     { from: 'Owned', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
@@ -31,7 +29,6 @@ export class LockerStateManager {
     // English status transitions (for database compatibility)
     { from: 'Free', to: 'Owned', trigger: 'assign', conditions: ['not_vip', 'no_existing_ownership'] },
     { from: 'Owned', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
-    { from: 'Owned', to: 'Free', trigger: 'timeout', conditions: ['expired_90_seconds'] },
     { from: 'Owned', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
@@ -53,8 +50,11 @@ export class LockerStateManager {
       this.db = DatabaseConnection.getInstance();
     }
     this.namingService = new LockerNamingService(this.db);
-    this.startCleanupTimer();
+    // Automatic cleanup disabled - lockers will only be released manually
+    console.log('🔒 Automatic locker timeout disabled - manual release only');
   }
+
+
 
   /**
    * Broadcast locker state update via WebSocket
@@ -80,27 +80,20 @@ export class LockerStateManager {
   }
 
   /**
-   * Start automatic cleanup of expired reservations
+   * Start automatic cleanup of expired reservations - DISABLED
+   * Automatic timeout feature has been removed per user request
    */
   private startCleanupTimer(): void {
-    // Run cleanup every 30 seconds
-    this.cleanupInterval = setInterval(async () => {
-      try {
-        await this.cleanupExpiredReservations();
-      } catch (error) {
-        console.error('Error during automatic cleanup:', error);
-      }
-    }, 30000);
+    // Automatic cleanup disabled - lockers will only be released manually
+    console.log('🚫 Automatic locker cleanup timer disabled');
   }
 
   /**
-   * Stop automatic cleanup timer
+   * Stop automatic cleanup timer - DISABLED
+   * No cleanup timer to stop since automatic timeout is disabled
    */
   public stopCleanupTimer(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
+    console.log('🚫 No cleanup timer to stop - automatic timeout disabled');
   }
 
   /**
@@ -620,58 +613,12 @@ export class LockerStateManager {
   }
 
   /**
-   * Clean up expired reservations (Owned > 90 seconds -> Free)
-   * Automatic timeout transition as per state machine
+   * Clean up expired reservations - DISABLED
+   * This method has been disabled per user request - no automatic timeouts
    */
   async cleanupExpiredReservations(): Promise<number> {
-    const expiredThreshold = new Date(Date.now() - this.RESERVE_TIMEOUT_SECONDS * 1000);
-    
-    try {
-      // First, get the expired reservations for logging
-      const expiredLockers = await this.db.all<Locker>(
-        `SELECT * FROM lockers 
-         WHERE status = 'Owned' AND reserved_at < ?`,
-        [expiredThreshold.toISOString()]
-      );
-
-      // Ensure expiredLockers is an array
-      if (!Array.isArray(expiredLockers) || expiredLockers.length === 0) {
-        return 0;
-      }
-
-      // Update expired reservations to Boş status
-      const now = new Date().toISOString();
-      const result = await this.db.run(
-        `UPDATE lockers 
-         SET status = 'Free', owner_type = NULL, owner_key = NULL, 
-             reserved_at = NULL, version = version + 1, updated_at = ?
-         WHERE status = 'Owned' AND reserved_at < ?`,
-        [now, expiredThreshold.toISOString()]
-      );
-
-      // Log cleanup events and broadcast updates for each expired locker
-      for (const locker of expiredLockers) {
-        // Broadcast state update
-        await this.broadcastStateUpdate(locker.kiosk_id, locker.id, 'Free');
-        
-        await this.logEvent(locker.kiosk_id, locker.id, EventType.RFID_RELEASE, {
-          owner_type: locker.owner_type,
-          owner_key: locker.owner_key,
-          previous_status: 'Owned',
-          reason: 'timeout_cleanup',
-          timeout_seconds: this.RESERVE_TIMEOUT_SECONDS
-        });
-      }
-
-      if (result.changes > 0) {
-        console.log(`Cleaned up ${result.changes} expired reservations`);
-      }
-
-      return result.changes;
-    } catch (error) {
-      console.error('Error cleaning up expired reservations:', error);
-      return 0;
-    }
+    console.log('🚫 Automatic cleanup disabled - lockers will only be released manually');
+    return 0;
   }
 
   /**

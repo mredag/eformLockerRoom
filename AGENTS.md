@@ -64,12 +64,12 @@
 - **Accessibility**: Comprehensive WCAG compliance testing with automated reports
 - **Performance**: Monitor response times, memory usage, and system resource consumption
 - **Multi-language**: Validate Turkish character support and UI translation accuracy
-- **RFID sessions**: Test multi-user card management and 5-minute timeout behavior
+- **RFID sessions**: Test multi-user card management (no automatic timeout)
 
 ## Commit & Pull Request Guidelines
 
 - **Conventional commits**: `feat(scope): …`, `fix(scope): …`, `docs: …`, `chore: …`, `style(scope): …`
-  - Example: `feat(kiosk): add RFID session management with 5-minute timeout`
+  - Example: `feat(kiosk): add RFID session management without automatic timeout`
   - Example: `fix(modbus): resolve CRC16 calculation for relay control`
 - **PRs**: clear description, linked issue, screenshots/logs for UI/CLI, test notes, and call out config/migration changes
 - **Pre-commit validation**: Git hooks automatically run quality checks and file organization validation
@@ -109,7 +109,7 @@
 
 ## Key Features & Capabilities
 
-- **Multi-User RFID**: Session-based card management with 5-minute timeout
+- **Multi-User RFID**: Session-based card management (no automatic timeout)
 - **Real-time Hardware Control**: Direct relay activation via Modbus RTU
 - **Turkish Localization**: Complete UI translation with character support
 - **Performance Monitoring**: System resource tracking and health checks

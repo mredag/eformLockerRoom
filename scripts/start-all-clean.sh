@@ -30,6 +30,19 @@ fi
 # Create logs directory
 mkdir -p logs
 
+# Run power interruption recovery
+echo "🔌 Running power interruption recovery..."
+if [ -f "scripts/power-interruption-recovery.js" ]; then
+    node scripts/power-interruption-recovery.js
+    if [ $? -eq 0 ]; then
+        echo "✅ Power interruption recovery completed"
+    else
+        echo "⚠️  Power interruption recovery had issues - check logs"
+    fi
+else
+    echo "ℹ️  Power interruption recovery script not found"
+fi
+
 # Build all services
 echo "🔨 Building services..."
 npm run build

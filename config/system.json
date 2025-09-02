@@ -112,7 +112,6 @@
   },
   "lockers": {
     "total_count": 16,
-    "reserve_ttl_seconds": 120,
     "offline_threshold_seconds": 60,
     "bulk_operation_interval_ms": 500,
     "master_lockout_fails": 3,
