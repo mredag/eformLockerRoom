@@ -6,6 +6,14 @@ echo "====================================================="
 # Ensure we're in the right directory
 cd /home/pi/eform-locker
 
+# Run IP management first
+echo "🔍 Checking for IP changes..."
+if [ -f "scripts/network/dynamic-ip-manager.js" ]; then
+    node scripts/network/dynamic-ip-manager.js run
+else
+    echo "ℹ️  IP management not installed yet"
+fi
+
 # Kill any existing services
 echo "🛑 Stopping existing services..."
 sudo killall node 2>/dev/null || true

@@ -6,7 +6,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
 // Use SerialPort with working commands (same as Kiosk fix)
-const { SerialPort } = require('serialport');
+import { SerialPort } from 'serialport';
 
 class SimpleRelayService {
   private serialPort: any;
@@ -29,7 +29,7 @@ class SimpleRelayService {
     return Date.now() - this.lastConnectionTime > this.connectionTimeout;
   }
 
-  private async refreshConnection(): Promise<void> {
+  public async refreshConnection(): Promise<void> {
     if (this.isConnected && this.isConnectionStale()) {
       console.log('🔄 Connection is stale, refreshing...');
       await this.disconnect();
@@ -74,7 +74,7 @@ class SimpleRelayService {
       });
 
       // Add error handlers to prevent crashes
-      this.serialPort.on('error', (err: any) => {
+      this.serialPort.on('error', (err: Error) => {
         console.error('❌ Serial port error:', err.message);
         this.isConnected = false;
       });
@@ -89,7 +89,7 @@ class SimpleRelayService {
           reject(new Error('Connection timeout'));
         }, this.config.timeout);
 
-        this.serialPort.open((err: any) => {
+        this.serialPort.open((err: Error | null) => {
           clearTimeout(timeout);
           if (err) {
             reject(new Error(`Failed to open relay port: ${err.message}`));
@@ -133,7 +133,7 @@ class SimpleRelayService {
       try {
         await new Promise<void>((resolve) => {
           if (this.serialPort.isOpen) {
-            this.serialPort.close((err: any) => {
+            this.serialPort.close((err: Error | null) => {
               if (err) {
                 console.warn('⚠️ Error closing serial port:', err.message);
               }
@@ -203,7 +203,7 @@ class SimpleRelayService {
         reject(new Error('Write command timeout'));
       }, this.config.timeout);
 
-      this.serialPort.write(command, (err: any) => {
+      this.serialPort.write(command, (err: Error | null) => {
         clearTimeout(timeout);
         if (err) {
           reject(new Error(`Write failed: ${err.message}`));
@@ -241,7 +241,8 @@ class SimpleRelayService {
         return false;
       }
     } catch (error) {
-      console.error(`❌ Gateway API error for relay ${relayNumber}:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ Gateway API error for relay ${relayNumber}:`, errorMessage);
       return false;
     }
   }
@@ -308,7 +309,8 @@ class SimpleRelayService {
           // Don't retry the actual relay activation to avoid infinite loops
           console.log('🔄 Reconnection successful, but not retrying activation to avoid loops');
         } catch (reconnectError) {
-          console.error('❌ Reconnection failed:', reconnectError.message);
+          const reconnectErrorMessage = reconnectError instanceof Error ? reconnectError.message : 'Unknown error';
+          console.error('❌ Reconnection failed:', reconnectErrorMessage);
         }
       }
       
@@ -331,17 +333,18 @@ class SimpleRelayService {
       try {
         const success = await this.activateRelay(relayNumber);
         if (success) {
-          results.success.push(relayNumber);
+          (results.success as number[]).push(relayNumber);
         } else {
-          results.failed.push(relayNumber);
+          (results.failed as number[]).push(relayNumber);
         }
         
         if (i < relayNumbers.length - 1) {
           await new Promise(resolve => setTimeout(resolve, intervalMs));
         }
       } catch (error) {
-        console.error(`❌ Error activating relay ${relayNumber}:`, error.message);
-        results.failed.push(relayNumber);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`❌ Error activating relay ${relayNumber}:`, errorMessage);
+        (results.failed as number[]).push(relayNumber);
       }
     }
     
@@ -483,10 +486,11 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
       }
       
     } catch (error) {
-      console.error('❌ Relay test error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Relay test error:', errorMessage);
       return reply.status(500).send({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       });
     }
   });
@@ -532,9 +536,9 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
       }
       
     } catch (error) {
-      console.error('❌ Single relay activation error:', error);
-      
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Single relay activation error:', errorMessage);
+      
       const isPortConflict = errorMessage.includes('Resource temporarily unavailable') || 
                             errorMessage.includes('Cannot lock port') ||
                             errorMessage.includes('in use by Kiosk service') ||
@@ -594,10 +598,11 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
       });
       
     } catch (error) {
-      console.error('❌ Bulk relay activation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Bulk relay activation error:', errorMessage);
       return reply.status(500).send({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       });
     }
   });
@@ -623,10 +628,11 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
       });
       
     } catch (error) {
-      console.error('❌ Relay status error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Relay status error:', errorMessage);
       return reply.status(500).send({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage
       });
     }
   });

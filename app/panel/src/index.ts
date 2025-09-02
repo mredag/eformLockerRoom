@@ -60,7 +60,7 @@ async function startPanelService() {
         scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for now, still detects extensions
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "ws:", "wss:"],
         fontSrc: ["'self'"],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],

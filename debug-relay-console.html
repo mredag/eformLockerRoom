@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relay Debug Console</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #444;
+            border-radius: 5px;
+        }
+        .debug-section h3 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .error {
+            color: #f44336;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .warning {
+            color: #ff9800;
+        }
+        #log {
+            background: #000;
+            padding: 10px;
+            border-radius: 3px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Relay Debug Console</h1>
+    <p>This tool will help diagnose relay control issues by testing all endpoints and logging detailed information.</p>
+
+    <div class="debug-section">
+        <h3>1. Service Health Checks</h3>
+        <button onclick="checkAllServices()">Check All Services</button>
+        <button onclick="checkRelayStatus()">Check Relay Status</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>2. Relay Tests</h3>
+        <button onclick="testSingleRelay()">Test Single Relay (Relay 1)</button>
+        <button onclick="testKioskAPI()">Test Kiosk API</button>
+        <button onclick="testPanelAPI()">Test Panel API</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>3. Network Diagnostics</h3>
+        <button onclick="testNetworkConnectivity()">Test Network</button>
+        <button onclick="checkCORS()">Check CORS</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>4. Debug Log</h3>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            
+            logElement.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            // Also log to browser console
+            console.log(`[Relay Debug] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        async function checkAllServices() {
+            log('🔍 Checking all service health...', 'info');
+            
+            const services = [
+                { name: 'Gateway', url: 'http://192.168.1.8:3000/health' },
+                { name: 'Kiosk', url: 'http://192.168.1.8:3002/health' },
+                { name: 'Panel', url: 'http://192.168.1.8:3001/health' }
+            ];
+            
+            for (const service of services) {
+                try {
+                    const response = await fetch(service.url, {
+                        method: 'GET',
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        log(`${service.name} service: HEALTHY (${response.status})`, 'success');
+                        log(`  └─ Response: ${JSON.stringify(data)}`, 'info');
+                    } else {
+                        log(`${service.name} service: UNHEALTHY (${response.status})`, 'error');
+                    }
+                } catch (error) {
+                    log(`${service.name} service: ERROR - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function checkRelayStatus() {
+            log('🔍 Checking relay service status...', 'info');
+            
+            try {
+                const response = await fetch('http://192.168.1.8:3001/api/relay/status', {
+                    method: 'GET',
+                    signal: AbortSignal.timeout(5000)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('Relay status: SUCCESS', 'success');
+                    log(`  └─ Connected: ${data.status?.connected}`, 'info');
+                    log(`  └─ Port: ${data.status?.config?.port}`, 'info');
+                    log(`  └─ Baud Rate: ${data.status?.config?.baudRate}`, 'info');
+                } else {
+                    const errorText = await response.text();
+                    log(`Relay status: FAILED (${response.status})`, 'error');
+                    log(`  └─ Error: ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log(`Relay status: ERROR - ${error.message}`, 'error');
+                log(`  └─ This might indicate a network or service issue`, 'warning');
+            }
+        }
+
+        async function testSingleRelay() {
+            log('🔌 Testing single relay activation (Relay 1)...', 'info');
+            
+            try {
+                const response = await fetch('http://192.168.1.8:3001/api/relay/activate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        relay_number: 1,
+                        staff_user: 'debug-console',
+                        reason: 'Debug test'
+                    }),
+                    signal: AbortSignal.timeout(15000)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log('Single relay test: SUCCESS', 'success');
+                    log(`  └─ Message: ${data.message}`, 'success');
+                } else {
+                    log('Single relay test: FAILED', 'error');
+                    log(`  └─ Error: ${data.error}`, 'error');
+                    if (data.suggestion) {
+                        log(`  └─ Suggestion: ${data.suggestion}`, 'warning');
+                    }
+                }
+            } catch (error) {
+                log(`Single relay test: ERROR - ${error.message}`, 'error');
+                
+                if (error.name === 'AbortError') {
+                    log('  └─ Request timed out - possible hardware issue', 'warning');
+                } else if (error.message.includes('fetch')) {
+                    log('  └─ Network connectivity issue', 'warning');
+                }
+            }
+        }
+
+        async function testKioskAPI() {
+            log('🎯 Testing Kiosk API locker opening...', 'info');
+            
+            try {
+                const response = await fetch('http://192.168.1.8:3002/api/locker/open', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        locker_id: 1,
+                        staff_user: 'debug-console',
+                        reason: 'Debug test via Kiosk API'
+                    }),
+                    signal: AbortSignal.timeout(15000)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log('Kiosk API test: SUCCESS', 'success');
+                    log(`  └─ Message: ${data.message}`, 'success');
+                } else {
+                    log('Kiosk API test: FAILED', 'error');
+                    log(`  └─ Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Kiosk API test: ERROR - ${error.message}`, 'error');
+            }
+        }
+
+        async function testPanelAPI() {
+            log('🎛️ Testing Panel relay connection test...', 'info');
+            
+            try {
+                const response = await fetch('http://192.168.1.8:3001/api/relay/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        test_type: 'connection'
+                    }),
+                    signal: AbortSignal.timeout(10000)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log('Panel connection test: SUCCESS', 'success');
+                    log(`  └─ Message: ${data.message}`, 'success');
+                } else {
+                    log('Panel connection test: FAILED', 'error');
+                    log(`  └─ Message: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log(`Panel connection test: ERROR - ${error.message}`, 'error');
+            }
+        }
+
+        async function testNetworkConnectivity() {
+            log('🌐 Testing network connectivity...', 'info');
+            
+            const endpoints = [
+                'http://192.168.1.8:3000',
+                'http://192.168.1.8:3001', 
+                'http://192.168.1.8:3002'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const startTime = Date.now();
+                    const response = await fetch(endpoint, {
+                        method: 'HEAD',
+                        signal: AbortSignal.timeout(3000)
+                    });
+                    const duration = Date.now() - startTime;
+                    
+                    log(`${endpoint}: REACHABLE (${duration}ms)`, 'success');
+                } catch (error) {
+                    log(`${endpoint}: UNREACHABLE - ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function checkCORS() {
+            log('🔒 Checking CORS configuration...', 'info');
+            
+            try {
+                const response = await fetch('http://192.168.1.8:3001/api/relay/status', {
+                    method: 'OPTIONS'
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers')
+                };
+                
+                log('CORS headers:', 'info');
+                Object.entries(corsHeaders).forEach(([key, value]) => {
+                    log(`  └─ ${key}: ${value || 'Not set'}`, value ? 'success' : 'warning');
+                });
+                
+            } catch (error) {
+                log(`CORS check: ERROR - ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-start basic checks
+        window.addEventListener('load', () => {
+            log('🚀 Relay Debug Console loaded', 'success');
+            log('Click buttons above to run diagnostics', 'info');
+            log('Check browser console (F12) for additional details', 'info');
+        });
+    </script>
+</body>
+</html>

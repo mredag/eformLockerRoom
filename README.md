@@ -9,6 +9,7 @@ A comprehensive locker management solution designed for Raspberry Pi with Wavesh
 ### 🥧 Raspberry Pi Management
 
 #### **First Time Setup**
+
 ```bash
 # Clone the project
 git clone https://github.com/mredag/eformLockerRoom.git eform-locker
@@ -30,6 +31,7 @@ sudo reboot
 ```
 
 #### **Daily Pi Management**
+
 ```bash
 # Check system status
 ./scripts/maintenance/health-check.sh
@@ -43,6 +45,7 @@ sudo reboot
 ```
 
 #### **From Windows PC (Remote Management)**
+
 ```powershell
 # Check Pi status remotely
 .\scripts\deployment\pi-manager.ps1 status
@@ -64,6 +67,7 @@ sudo reboot
 ```
 
 #### **Common Issues & Solutions**
+
 ```bash
 # Permission denied error?
 chmod +x scripts/maintenance/health-check.sh
@@ -78,6 +82,7 @@ ls -la /dev/ttyUSB*
 ```
 
 ### For Raspberry Pi Production Deployment
+
 ```bash
 # One-command setup for Raspberry Pi (fully automated)
 git clone https://github.com/mredag/eformLockerRoom.git eform-locker
@@ -94,23 +99,26 @@ sudo ./scripts/install.sh
 Once your Pi is running, access these interfaces:
 
 #### **Production URLs (Default Pi IP: 192.168.1.8)**
+
 - **🔧 Admin Panel**: `http://192.168.1.8:3001` - Complete locker management
 - **👤 Kiosk Interface**: `http://192.168.1.8:3002` - User RFID interface
 - **🔌 Gateway API**: `http://192.168.1.8:3000` - REST API endpoints
 - **⚙️ Hardware Config**: `http://192.168.1.8:3001/hardware-config` - Relay control
 
 #### **Quick Access Commands (After Installation)**
+
 ```bash
 # Available on Pi after startup system installation
 eform-status    # Complete system dashboard
 eform-health    # Health check with diagnostics
 eform-logs      # View all service logs
 eform-start     # Start all services
-eform-stop      # Stop all services  
+eform-stop      # Stop all services
 eform-restart   # Restart all services
 ```
 
 #### **Smart IP Configuration (Automatic)**
+
 ```bash
 # On Pi - automatically configure current IP as static
 sudo bash scripts/maintenance/smart-ip-setup.sh
@@ -127,15 +135,17 @@ bash scripts/maintenance/test-ip-setup.sh
 ```
 
 #### **If Pi IP Address Changes**
+
 ```powershell
-# From Windows PC - discover new IP
-.\scripts\deployment\discover-pi.ps1
+# From Windows PC - discover new IP automatically
+.\scripts\network\simple-ip-manager.ps1 discover
 
 # Or let the Pi auto-configure itself
 ssh pi@OLD_IP "sudo bash /home/pi/eform-locker/scripts/maintenance/smart-ip-setup.sh"
 ```
 
 ### For Development
+
 ```bash
 git clone https://github.com/mredag/eformLockerRoom.git
 cd eformLockerRoom
@@ -145,22 +155,138 @@ npm run migrate
 npm run dev:gateway & npm run dev:kiosk & npm run dev:panel &
 ```
 
+## 🌐 Automatic IP Management System
+
+**Problem Solved**: No more manual IP configuration when your Pi's IP address changes!
+
+The system now includes intelligent IP management that automatically handles network changes without requiring manual updates to scripts, bookmarks, or configurations.
+
+### ✅ **What This System Does**
+
+- **🔍 Automatic Discovery**: Finds your Pi on any network automatically
+- **🔄 Smart Updates**: Updates all scripts and configurations with new IP
+- **📋 Access Info Generation**: Creates ready-to-use connection information
+- **📊 Change Tracking**: Maintains history of IP changes
+- **🖥️ Cross-Platform**: Works seamlessly between Windows and Pi
+
+### 🚀 **Quick Usage**
+
+#### **Windows Development Machine**
+
+```powershell
+# Find your Pi automatically (scans network)
+.\scripts\network\simple-ip-manager.ps1 discover
+
+# Check current status and connection
+.\scripts\network\simple-ip-manager.ps1 status
+
+# Test connection to stored IP
+.\scripts\network\simple-ip-manager.ps1 test
+```
+
+#### **Raspberry Pi (Automatic)**
+
+```bash
+# Manual IP check (runs automatically on startup)
+node scripts/network/dynamic-ip-manager.js run
+
+# View current IP and status
+node scripts/network/dynamic-ip-manager.js status
+
+# Get current IP only
+node scripts/network/dynamic-ip-manager.js current-ip
+```
+
+### 📋 **Generated Files**
+
+After running IP discovery, you'll have:
+
+- **`CURRENT_PI_ACCESS.md`** - Ready-to-use access information with URLs and commands
+- **`config/pi-ip-config.json`** - Stored IP configuration for future reference
+- **Updated scripts** - All deployment scripts automatically updated with current IP
+
+### 🔄 **How It Works**
+
+1. **Network Scanning**: Automatically scans common IP ranges (192.168.1.x, 192.168.0.x, etc.)
+2. **Pi Identification**: Tests SSH connection and verifies eForm project exists
+3. **Configuration Update**: Updates all relevant scripts and configuration files
+4. **Access Info Generation**: Creates current connection information
+5. **Change Tracking**: Logs IP changes with timestamps for troubleshooting
+
+### 🎯 **Real-World Benefits**
+
+#### **Before (Manual Process)**:
+- IP changes → broken bookmarks and scripts
+- Manual network scanning to find Pi
+- Update multiple configuration files manually
+- Risk of missing script updates
+
+#### **After (Automatic Process)**:
+- IP changes → run one command, everything updates
+- Automatic Pi discovery on any network
+- All configurations update automatically
+- Zero risk of missed updates
+
+### 📊 **Example Generated Access Info**
+
+```markdown
+# eForm Pi Access Information
+Generated: 2025-09-02 10:20:39
+IP Address: 192.168.1.11
+
+## Web Interfaces
+Admin Panel:  http://192.168.1.11:3001
+Kiosk UI:     http://192.168.1.11:3002
+Gateway API:  http://192.168.1.11:3000
+
+## SSH Access
+ssh pi@192.168.1.11
+
+## Quick Health Check
+Invoke-WebRequest -Uri "http://192.168.1.11:3000/health" -UseBasicParsing
+Invoke-WebRequest -Uri "http://192.168.1.11:3001/health" -UseBasicParsing  
+Invoke-WebRequest -Uri "http://192.168.1.11:3002/health" -UseBasicParsing
+```
+
+### 🔧 **Integration with Existing Systems**
+
+The IP management system integrates seamlessly with existing workflows:
+
+- **Startup Scripts**: Automatically runs during Pi boot
+- **Deployment Scripts**: All Windows deployment scripts auto-update
+- **Health Checks**: IP discovery integrated with health monitoring
+- **Service Management**: Works with existing service control scripts
+
+### 📚 **Detailed Documentation**
+
+For complete documentation on the IP management system, see:
+- **[Automatic IP Management Guide](docs/automatic-ip-management-system.md)** - Comprehensive system documentation
+- **Configuration files**: `scripts/network/` directory
+- **Generated access info**: `CURRENT_PI_ACCESS.md` (auto-generated)
+
+### 🎉 **Result**
+
+Your eForm Locker System is now **network-agnostic** and will work seamlessly regardless of IP address changes. No more manual configuration headaches!
+
 ## 🤖 Automation Scripts
 
 The system includes comprehensive automation for production deployment:
 
 ### 🔧 Installation & Setup
+
 - **`quick-setup.sh`** - Complete Raspberry Pi setup in one command
 - **`install.sh`** - Production installation with security hardening
 - **`setup-config.js`** - Automated configuration generation
 
 ### 📦 Package Management
+
 - **`package.sh`** - Create deployment packages with checksums
 - **`sign-package.sh`** - Digital signing for secure distribution
 - **`deploy.sh`** - Zero-downtime deployment with rollback
 - **`canary-deploy.sh`** - Gradual rollout deployment
 
 ### 🔍 Monitoring & Maintenance
+
 - **`health-check.sh`** - Comprehensive system health validation
 - **`backup.sh`** - Automated backup with retention policies
 - **`deployment-monitor.sh`** - Real-time deployment monitoring
@@ -222,8 +348,9 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
 **Complete documentation is available in the [`docs/`](docs/) folder:**
 
 ### **📋 Essential Documentation (7 Core Files)**
+
 - **[📋 Documentation Overview](docs/README.md)** - Start here for navigation
-- **[🚀 Deployment Guide](docs/DEPLOYMENT_README.md)** - Production deployment procedures  
+- **[🚀 Deployment Guide](docs/DEPLOYMENT_README.md)** - Production deployment procedures
 - **[📡 API Reference](docs/API_REFERENCE.md)** - Comprehensive API documentation
 - **[📊 Performance Monitoring](docs/performance-monitoring-guide.md)** - System monitoring and optimization
 - **[🔧 Kiosk Troubleshooting](docs/kiosk-troubleshooting-guide.md)** - Hardware and software issues
@@ -231,6 +358,7 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
 - **[🔄 Rollback Procedures](docs/rollback-procedures.md)** - Emergency recovery procedures
 
 ### **🔧 Health Monitoring & Diagnostics**
+
 - **`scripts/deployment/health-check.sh`** - Comprehensive system health validation
   - Service status monitoring (Gateway, Panel, Kiosk)
   - Hardware connectivity checks (USB-RS485 port)
@@ -242,24 +370,28 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
   - Automated troubleshooting recommendations
 
 ### **🗂️ Specialized Documentation**
+
 - **[🔗 Integrations](docs/integrations/)** - External system integrations (Maksisoft)
 - **[🔧 Troubleshooting](docs/troubleshooting/)** - Issue resolution guides and incident reports
 - **[⚙️ Maintenance](docs/maintenance/)** - System maintenance procedures and fixes
 
 ### **🎯 File Organization Principles**
 
-**Documentation Strategy**: 
+**Documentation Strategy**:
+
 - Essential docs in root `docs/` for quick access
 - Specialized guides in categorized subdirectories
 - Historical incidents preserved for learning
 
 **Script Organization**:
+
 - 60 essential scripts organized by purpose in `scripts/`
 - Emergency procedures in `scripts/emergency/`
 - Deployment automation in `scripts/deployment/`
 - Testing utilities in `scripts/testing/`
 
 **Code Structure**:
+
 - Microservices in `app/` with independent build systems
 - Shared utilities in `shared/` to prevent duplication
 - Tests co-located with code and in dedicated `tests/` directory
@@ -267,17 +399,20 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
 ## 🎯 System Overview
 
 ### **Architecture**
+
 - **Gateway Service** (Port 3000): API coordination and admin management
-- **Kiosk Service** (Port 3002): Hardware control and RFID processing  
+- **Kiosk Service** (Port 3002): Hardware control and RFID processing
 - **Panel Service** (Port 3001): Web administration and direct relay control
 
 ### **Hardware Integration**
+
 - **Raspberry Pi 4**: Main controller with Linux OS
 - **USB-RS485 Adapter**: Modbus RTU communication
 - **Waveshare Relay Cards**: Physical locker control (30 lockers)
 - **Sycreader RFID Reader**: Card-based authentication
 
 ### **Key Features**
+
 - ✅ **Multi-User RFID Support**: Session-based card management
 - ✅ **Real-time Hardware Control**: Direct relay activation via Modbus
 - ✅ **Web Administration**: Complete locker management interface
@@ -288,6 +423,7 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
 ### **🎯 New Developer Quick Start**
 
 **1. Repository Navigation**
+
 ```bash
 # Clone and explore the repository structure
 git clone https://github.com/mredag/eformLockerRoom.git eform-locker
@@ -301,13 +437,14 @@ ls docs/                             # Browse documentation
 ```
 
 **2. Development Environment Setup**
+
 ```bash
 # Install dependencies for all services
 npm install
 
 # Build all services
 npm run build:gateway
-npm run build:kiosk  
+npm run build:kiosk
 npm run build:panel
 
 # Set up development environment
@@ -316,16 +453,18 @@ npm run migrate                      # Set up database
 ```
 
 **3. Understanding the Codebase**
+
 - **Start with**: `docs/README.md` for documentation navigation
 - **Architecture**: Each service in `app/` is independent with its own build system
 - **Shared Code**: Common utilities in `shared/` prevent duplication
 - **Testing**: Integration tests in `tests/`, unit tests co-located with code
 
 **4. Running Services Locally**
+
 ```bash
 # Development mode (with hot reload)
 npm run dev:gateway &               # API Gateway (Port 3000)
-npm run dev:kiosk &                 # Kiosk Service (Port 3002)  
+npm run dev:kiosk &                 # Kiosk Service (Port 3002)
 npm run dev:panel &                 # Admin Panel (Port 3001)
 
 # Check service health
@@ -335,6 +474,7 @@ curl http://localhost:3001/health   # Panel
 ```
 
 **5. Key Development Resources**
+
 - **API Testing**: Use Postman with endpoints in `docs/API_REFERENCE.md`
 - **Hardware Testing**: Scripts in `scripts/testing/` for relay control
 - **Troubleshooting**: `docs/troubleshooting/` for common issues
@@ -342,32 +482,38 @@ curl http://localhost:3001/health   # Panel
 
 ### **🗺️ Repository Navigation Map**
 
-**For Frontend Development**: 
+**For Frontend Development**:
+
 - `app/panel/src/views/` - Admin interface templates
 - `app/kiosk/src/ui/` - Kiosk user interface
 - `shared/services/` - Shared frontend utilities
 
 **For Backend Development**:
+
 - `app/*/src/routes/` - API endpoints
 - `app/*/src/controllers/` - Business logic
 - `shared/services/` - Shared backend services
 
 **For Hardware Integration**:
+
 - `app/kiosk/src/hardware/` - Modbus and relay control
 - `scripts/testing/` - Hardware testing utilities
 - `docs/troubleshooting/hardware-integration-guide.md` - Hardware guides
 
 **For Testing**:
+
 - `tests/integration/` - Cross-service tests
 - `app/*/src/__tests__/` - Service-specific unit tests
 - `scripts/testing/` - Test execution utilities
 
 **For Deployment**:
+
 - `scripts/deployment/` - Deployment automation
 - `docs/DEPLOYMENT_README.md` - Deployment procedures
 - `config/` - Environment configurations
 
 ### 🛠️ Hardware Validation
+
 - **`validate-waveshare-hardware.js`** - Waveshare relay card testing
 - **`hardware-diagnostics.js`** - Complete hardware diagnostics
 
@@ -382,6 +528,7 @@ sudo ./scripts/deploy.sh deploy package.tar.gz # Deploy with rollback
 ## 🚀 Features
 
 ### Core Functionality
+
 - **🔐 Secure Kiosk Provisioning**: Token-based registration with HMAC authentication
 - **⚙️ Configuration Management**: Centralized configuration distribution with version control and hash verification
 - **📡 Real-time Monitoring**: Heartbeat monitoring and comprehensive status tracking
@@ -390,6 +537,7 @@ sudo ./scripts/deploy.sh deploy package.tar.gz # Deploy with rollback
 - **🌐 Web Interface**: Browser-based management panel for monitoring and control
 
 ### Technical Highlights
+
 - **Version Control**: SHA256-based configuration versioning
 - **Rollback Capability**: Automatic and manual rollback for failed deployments
 - **Zone Management**: Deploy configurations to specific zones or individual kiosks
@@ -525,20 +673,20 @@ The system supports comprehensive configuration management with the following pa
 
 ```typescript
 interface SystemConfig {
-  BULK_INTERVAL_MS: number;           // Bulk operation interval
-  RESERVE_TTL_SECONDS: number;        // Reservation time-to-live
-  OPEN_PULSE_MS: number;              // Locker open pulse duration
-  OPEN_BURST_SECONDS: number;         // Open burst duration
-  OPEN_BURST_INTERVAL_MS: number;     // Interval between bursts
-  MASTER_LOCKOUT_FAILS: number;       // Failed attempts before lockout
-  MASTER_LOCKOUT_MINUTES: number;     // Lockout duration
-  HEARTBEAT_SEC: number;              // Heartbeat interval
-  OFFLINE_SEC: number;                // Offline threshold
-  LOG_RETENTION_DAYS: number;         // Log retention period
-  RATE_LIMIT_IP_PER_MIN: number;      // IP rate limiting
-  RATE_LIMIT_CARD_PER_MIN: number;    // Card rate limiting
-  RATE_LIMIT_LOCKER_PER_MIN: number;  // Locker rate limiting
-  RATE_LIMIT_DEVICE_PER_SEC: number;  // Device rate limiting
+  BULK_INTERVAL_MS: number; // Bulk operation interval
+  RESERVE_TTL_SECONDS: number; // Reservation time-to-live
+  OPEN_PULSE_MS: number; // Locker open pulse duration
+  OPEN_BURST_SECONDS: number; // Open burst duration
+  OPEN_BURST_INTERVAL_MS: number; // Interval between bursts
+  MASTER_LOCKOUT_FAILS: number; // Failed attempts before lockout
+  MASTER_LOCKOUT_MINUTES: number; // Lockout duration
+  HEARTBEAT_SEC: number; // Heartbeat interval
+  OFFLINE_SEC: number; // Offline threshold
+  LOG_RETENTION_DAYS: number; // Log retention period
+  RATE_LIMIT_IP_PER_MIN: number; // IP rate limiting
+  RATE_LIMIT_CARD_PER_MIN: number; // Card rate limiting
+  RATE_LIMIT_LOCKER_PER_MIN: number; // Locker rate limiting
+  RATE_LIMIT_DEVICE_PER_SEC: number; // Device rate limiting
 }
 ```
 
@@ -571,24 +719,28 @@ npm start
 ### **📋 Development Workflow**
 
 1. **Fork and Branch**
+
    ```bash
    git fork https://github.com/mredag/eformLockerRoom.git
    git checkout -b feature/descriptive-feature-name
    ```
 
 2. **Follow Repository Structure**
+
    - Place new services in `app/` with proper structure
    - Add shared utilities to `shared/` to prevent duplication
    - Put operational scripts in appropriate `scripts/` subdirectories
    - Add documentation to `docs/` with proper categorization
 
 3. **Code Standards**
+
    - Follow existing naming conventions (kebab-case for files)
    - Include unit tests for new functionality
    - Update documentation for any new features
    - Ensure services build successfully: `npm run build:all`
 
 4. **Testing Requirements**
+
    ```bash
    # Run tests before committing
    npm test                          # Unit tests
@@ -605,6 +757,7 @@ npm start
 ### **🗂️ File Organization Rules**
 
 **DO:**
+
 - ✅ Place files in appropriate directories following `DIRECTORY_STRUCTURE.md`
 - ✅ Use descriptive, kebab-case file names
 - ✅ Include proper documentation for new features
@@ -612,6 +765,7 @@ npm start
 - ✅ Follow existing code patterns and conventions
 
 **DON'T:**
+
 - ❌ Add temporary files to the repository (use `.gitignore`)
 - ❌ Create new root-level directories without discussion
 - ❌ Duplicate functionality that exists in `shared/`
@@ -621,12 +775,14 @@ npm start
 ### **🧹 Repository Cleanliness**
 
 **Automated Prevention**: The repository uses enhanced `.gitignore` patterns to prevent accumulation of:
+
 - Build artifacts (`dist/`, `build/`, `*.tsbuildinfo`)
 - Temporary files (`temp-*`, `debug-*`, `*-summary.md`)
 - Log files (`logs/`, `*.log`)
 - Environment files (`.env`, but not `.env.example`)
 
 **Manual Maintenance**:
+
 - Remove temporary debugging files after use
 - Consolidate related documentation instead of creating multiple files
 - Use existing scripts in `scripts/` before creating new ones
@@ -635,6 +791,7 @@ npm start
 ### **🔄 Pull Request Process**
 
 1. **Pre-submission Checklist**
+
    - [ ] Code follows repository structure guidelines
    - [ ] All tests pass (`npm test`)
    - [ ] Documentation updated for changes
@@ -642,11 +799,12 @@ npm start
    - [ ] Services build successfully
 
 2. **Commit Message Format**
+
    ```
    type(scope): brief description
-   
+
    Detailed explanation if needed
-   
+
    - Specific change 1
    - Specific change 2
    ```
@@ -667,18 +825,21 @@ npm start
 ### **🎯 Contribution Areas**
 
 **High Priority**:
+
 - Bug fixes and stability improvements
 - Performance optimizations
 - Documentation improvements
 - Test coverage expansion
 
 **Medium Priority**:
+
 - New feature development
 - UI/UX enhancements
 - Integration improvements
 - Monitoring and logging enhancements
 
 **Guidelines for Specific Areas**:
+
 - **Hardware Integration**: Test on actual Raspberry Pi hardware
 - **API Changes**: Update `docs/API_REFERENCE.md`
 - **UI Changes**: Ensure accessibility and mobile compatibility
@@ -701,6 +862,7 @@ The repository underwent comprehensive cleanup and organization:
 **Detailed cleanup report**: [REPOSITORY_CLEANUP_REPORT.md](REPOSITORY_CLEANUP_REPORT.md)
 
 ### **🎯 Current Status**
+
 - **Repository**: Clean, organized, production-ready
 - **Documentation**: Comprehensive with clear navigation
 - **Code Quality**: Standardized structure and conventions
@@ -743,6 +905,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🚨 Troubleshooting & Common Issues
 
 ### **Permission Denied Errors**
+
 ```bash
 # Fix script permissions after Git clone
 chmod +x scripts/maintenance/*.sh
@@ -754,6 +917,7 @@ bash scripts/maintenance/health-check.sh
 ```
 
 ### **Services Won't Start**
+
 ```bash
 # Check systemd service status
 sudo systemctl status eform-locker
@@ -768,6 +932,7 @@ sudo netstat -tulpn | grep :300
 ```
 
 ### **Hardware Issues**
+
 ```bash
 # Check USB serial devices
 ls -la /dev/ttyUSB*
@@ -781,19 +946,26 @@ sudo ./scripts/maintenance/hardware-init.sh
 ```
 
 ### **Pi IP Address Changed**
+
 ```powershell
-# From Windows PC - discover new IP
+# From Windows PC - automatically discover new IP
+.\scripts\network\simple-ip-manager.ps1 discover
+
+# Check current status and test connection
+.\scripts\network\simple-ip-manager.ps1 status
+.\scripts\network\simple-ip-manager.ps1 test
+
+# Legacy method (still works)
 .\scripts\deployment\discover-pi.ps1
 
 # Test connection with new IP
 .\scripts\deployment\pi-manager.ps1 health
-
-# Update pi-manager with new IP if needed
-# Edit scripts/deployment/pi-manager.ps1:
-# $PI_HOST = "pi@NEW_IP_ADDRESS"
 ```
 
+**Note**: The new IP management system automatically updates all scripts, so manual editing is no longer needed!
+
 ### **Web Interface Not Loading**
+
 ```bash
 # Check if services are running
 ./scripts/deployment/health-check.sh
@@ -812,6 +984,7 @@ sudo ufw allow 3000:3002/tcp
 ```
 
 ### **Database Issues**
+
 ```bash
 # Check database integrity
 node scripts/database-health-check.js
@@ -821,6 +994,7 @@ node fix-corrupted-database.js
 ```
 
 ### **High Resource Usage**
+
 ```bash
 # Check system resources
 ./scripts/maintenance/health-check.sh
@@ -833,6 +1007,7 @@ cat /home/pi/eform-locker/.system-alerts
 ```
 
 ### **Getting Help**
+
 - **📚 Documentation**: Check `docs/` folder for detailed guides
 - **🔍 Logs**: View logs with `./scripts/maintenance/health-check.sh`
 - **⚙️ Scripts**: Use `scripts/maintenance/` for common tasks
