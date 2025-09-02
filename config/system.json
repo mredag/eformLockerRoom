@@ -68,7 +68,15 @@
         "channels": 16,
         "type": "waveshare_16ch",
         "dip_switches": "00000001",
-        "description": "Main Locker Bank 1-16",
+        "description": "Locker Bank 1-16 (Card 1)",
+        "enabled": true
+      },
+      {
+        "slave_address": 2,
+        "channels": 16,
+        "type": "waveshare_16ch",
+        "dip_switches": "00000010",
+        "description": "Locker Bank 17-32 (Card 2)",
         "enabled": true
       }
     ],
@@ -111,7 +119,7 @@
     }
   },
   "lockers": {
-    "total_count": 16,
+    "total_count": 32,
     "offline_threshold_seconds": 60,
     "bulk_operation_interval_ms": 500,
     "master_lockout_fails": 3,
@@ -119,7 +127,7 @@
     "auto_release_hours": 24,
     "maintenance_mode": false,
     "layout": {
-      "rows": 4,
+      "rows": 8,
       "columns": 4,
       "numbering_scheme": "sequential"
     }
