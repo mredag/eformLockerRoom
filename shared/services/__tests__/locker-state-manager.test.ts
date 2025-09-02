@@ -410,12 +410,12 @@ describe('LockerStateManager', () => {
   describe('Automatic Cleanup Timer', () => {
     it('should start cleanup timer on initialization', () => {
       // Timer should be running (tested indirectly by checking it exists)
-      expect(stateManager['cleanupInterval']).not.toBeNull();
+      expect((stateManager as any)['cleanupInterval']).not.toBeNull();
     });
 
     it('should stop cleanup timer on shutdown', async () => {
       await stateManager.shutdown();
-      expect(stateManager['cleanupInterval']).toBeNull();
+      expect((stateManager as any)['cleanupInterval']).toBeNull();
     });
   });
 
