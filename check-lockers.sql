@@ -1,0 +1,1 @@
+SELECT id, status, owner_type, owner_key, updated_at FROM lockers WHERE kiosk_id='kiosk-1' ORDER BY id LIMIT 5;

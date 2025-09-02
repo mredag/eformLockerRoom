@@ -91,6 +91,16 @@ export class WebSocketService {
       data: update
     };
 
+    console.log(`📡 WebSocket broadcasting state update:`, {
+      type: message.type,
+      kioskId: update.kioskId,
+      lockerId: update.lockerId,
+      state: update.state,
+      ownerKey: update.ownerKey,
+      ownerType: update.ownerType,
+      connectedClients: this.clients.size
+    });
+
     this.broadcast(message);
   }
 

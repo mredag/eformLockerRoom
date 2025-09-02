@@ -61,6 +61,8 @@ export class LockerStateManager {
    */
   private async broadcastStateUpdate(kioskId: string, lockerId: number, newState: LockerStatus, ownerKey?: string, ownerType?: OwnerType): Promise<void> {
     try {
+      // Always fetch current locker data to ensure accuracy
+      const currentLocker = await this.getLocker(kioskId, lockerId);
       const displayName = await this.namingService.getDisplayName(kioskId, lockerId);
       
       const update: LockerStateUpdate = {
@@ -69,9 +71,16 @@ export class LockerStateManager {
         displayName,
         state: newState,
         lastChanged: new Date(),
-        ownerKey,
-        ownerType
+        // Use current locker data if available, fallback to parameters
+        ownerKey: currentLocker?.owner_key || ownerKey,
+        ownerType: currentLocker?.owner_type || ownerType
       };
+
+      console.log(`🔄 Broadcasting state update for locker ${kioskId}-${lockerId}:`, {
+        state: update.state,
+        ownerKey: update.ownerKey,
+        ownerType: update.ownerType
+      });
 
       webSocketService.broadcastStateUpdate(update);
     } catch (error) {
