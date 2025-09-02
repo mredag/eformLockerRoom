@@ -1295,6 +1295,20 @@ export class UiController {
   }
 
   /**
+   * Public method to get hardware status (for health endpoint)
+   */
+  public getHardwareStatusForHealth() {
+    return this.modbusController.getHardwareStatus();
+  }
+
+  /**
+   * Test hardware connectivity
+   */
+  public async testHardwareConnectivity() {
+    return await this.modbusController.testHardwareConnectivity();
+  }
+
+  /**
    * Normalize database status values to UI-friendly status values
    */
   private normalizeStatusForUI(dbStatus: string): string {

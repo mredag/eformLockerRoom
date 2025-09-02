@@ -284,14 +284,45 @@ fastify.post('/api/locker/close', async (request, reply) => {
   }
 });
 
-// Health check endpoint
+// Health check endpoint with hardware status
 fastify.get("/health", async (request, reply) => {
+  const hardwareStatus = uiController.getHardwareStatusForHealth();
+  
   return {
-    status: "healthy",
+    status: hardwareStatus.available ? "healthy" : "degraded",
     kiosk_id: KIOSK_ID,
     timestamp: new Date().toISOString(),
     version: "1.0.0",
+    hardware: {
+      available: hardwareStatus.available,
+      connected: hardwareStatus.connected,
+      health_status: hardwareStatus.health.status,
+      error_rate: hardwareStatus.health.error_rate_percent,
+      last_successful_command: hardwareStatus.health.last_successful_command,
+      uptime_seconds: hardwareStatus.health.uptime_seconds
+    }
   };
+});
+
+// Hardware connectivity test endpoint
+fastify.get("/api/hardware/test", async (request, reply) => {
+  try {
+    const testResult = await uiController.testHardwareConnectivity();
+    
+    return {
+      success: testResult.success,
+      message: testResult.message,
+      details: testResult.details,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    reply.code(500);
+    return {
+      success: false,
+      message: `Hardware test failed: ${error instanceof Error ? error.message : String(error)}`,
+      timestamp: new Date().toISOString()
+    };
+  }
 });
 
 // Performance tracking proxy endpoint to avoid CSP issues
