@@ -56,6 +56,10 @@ async function broadcastLockerUpdate(lockerStateManager: LockerStateManager, kio
         lockerId,
         status: updatedLocker.status,
         ownerKey: updatedLocker.owner_key,
+        ownerType: updatedLocker.owner_type,
+        displayName: updatedLocker.display_name,
+        isVip: updatedLocker.is_vip,
+        updatedAt: updatedLocker.updated_at,
         timestamp: new Date()
       });
     }

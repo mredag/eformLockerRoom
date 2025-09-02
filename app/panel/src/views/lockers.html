@@ -1537,9 +1537,13 @@
                 const previousState = lockers[lockerIndex].status;
                 const previousOwner = lockers[lockerIndex].owner_key;
                 
-                // Update the locker data with enhanced information
-                lockers[lockerIndex].status = update.state;
-                lockers[lockerIndex].updated_at = update.lastChanged || new Date().toISOString();
+                // Handle both message formats: from locker-state-manager (state, lastChanged) and panel routes (status, timestamp)
+                const newStatus = update.status || update.state;
+                const newTimestamp = update.updatedAt || update.lastChanged || update.timestamp || new Date().toISOString();
+                
+                // Update the locker data with flexible field mapping
+                lockers[lockerIndex].status = newStatus;
+                lockers[lockerIndex].updated_at = newTimestamp;
                 lockers[lockerIndex].owner_key = update.ownerKey || null;
                 lockers[lockerIndex].owner_type = update.ownerType || null;
                 lockers[lockerIndex].display_name = update.displayName || lockers[lockerIndex].display_name;
@@ -1552,9 +1556,9 @@
                 updateStatistics();
                 
                 // Show visual feedback with enhanced animation
-                showLockerUpdateAnimation(update, previousState !== update.state);
+                showLockerUpdateAnimation(update, previousState !== newStatus);
                 
-                console.log(`✅ Real-time update applied for locker ${update.kioskId}-${update.lockerId}: ${previousState} → ${update.state}`);
+                console.log(`✅ Real-time update applied for locker ${update.kioskId}-${update.lockerId}: ${previousState} → ${newStatus}`);
             } else {
                 console.warn(`⚠️ Locker not found for update: ${update.kioskId}-${update.lockerId}`);
                 // If locker not found, trigger a full refresh
