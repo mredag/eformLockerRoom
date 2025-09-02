@@ -44,23 +44,75 @@ const relayId = ((lockerNumber - 1) % 16) + 1;  // 1-16 on each card
 - Locker 17 → Card 2, Relay 1
 - Locker 32 → Card 2, Relay 16
 
-## Physical DIP Switch Setup
+## Software-Based Slave Address Configuration
 
-### Waveshare Relay Cards
-Each card has 8 DIP switches for setting the slave address:
+### Waveshare Modbus RTU Relay 16CH (Official Method)
+The Waveshare Modbus RTU Relay 16CH does **NOT use DIP switches** for slave address configuration. Instead, the slave address is set via software using Modbus commands.
 
-**Card 1:** Set to address 1
-```
-DIP: 1 2 3 4 5 6 7 8
-     ↑ ↓ ↓ ↓ ↓ ↓ ↓ ↓
-     ON OFF OFF OFF OFF OFF OFF OFF
+**Key Facts:**
+- **Default slave address**: 1 (factory setting)
+- **Address storage**: Register 0x4000 in each device
+- **Configuration method**: Write Single Register (Function 0x06)
+- **Address range**: 1-255 (0 is reserved for broadcast)
+
+### Configuration Process
+
+**CRITICAL**: Connect only **ONE relay card at a time** when setting addresses!
+
+#### Step 1: Configure Card 1 (Slave Address 1)
+```bash
+# Connect only Card 1 to USB-RS485 adapter
+# Run configuration script
+cd /home/pi/eform-locker
+node scripts/configure-relay-slave-addresses.js 1
 ```
 
-**Card 2:** Set to address 2
+#### Step 2: Configure Card 2 (Slave Address 2)  
+```bash
+# Disconnect Card 1, connect only Card 2
+# Run configuration script
+node scripts/configure-relay-slave-addresses.js 2
 ```
-DIP: 1 2 3 4 5 6 7 8
-     ↓ ↑ ↓ ↓ ↓ ↓ ↓ ↓
-     OFF ON OFF OFF OFF OFF OFF OFF
+
+#### Step 3: Connect Both Cards
+After both cards are configured with unique addresses, connect both to the RS485 bus.
+
+### Manual Configuration Commands
+
+If you prefer manual configuration using SSCOM or similar tools:
+
+**Set Card to Slave Address 1:**
+```
+Command: 00 06 40 00 00 01 5C 1B
+- 00: Broadcast address (all devices respond)
+- 06: Write Single Register function
+- 40 00: Register 0x4000 (slave address storage)
+- 00 01: New slave address (1)
+- 5C 1B: CRC16 checksum
+```
+
+**Set Card to Slave Address 2:**
+```
+Command: 00 06 40 00 00 02 1C 1A
+- 00: Broadcast address
+- 06: Write Single Register function  
+- 40 00: Register 0x4000
+- 00 02: New slave address (2)
+- 1C 1A: CRC16 checksum
+```
+
+### Verification Commands
+
+**Read slave address from Card 1:**
+```
+Command: 01 03 40 00 00 01 [CRC]
+Response: 01 03 02 00 01 [CRC] (address = 1)
+```
+
+**Read slave address from Card 2:**
+```
+Command: 02 03 40 00 00 01 [CRC]  
+Response: 02 03 02 00 02 [CRC] (address = 2)
 ```
 
 ## Testing Commands
@@ -95,45 +147,56 @@ curl -X POST http://192.168.1.8:3002/api/locker/open \
    ```
 5. **Test each card separately** using the commands above
 
+## Official Waveshare Testing Tools
+
+### SSCOM Serial Port Debugging Assistant (Recommended for first test)
+Download SSCOM and test individual cards:
+1. Open SSCOM, set port to your USB-RS485 adapter
+2. Set baud rate to 9600
+3. Use SendHEX mode with ModbusCRC16 checksum
+4. Test Card 1: Send `01 05 00 04 FF 00` (will auto-add CRC)
+5. Test Card 2: Send `02 05 00 04 FF 00` (will auto-add CRC)
+
+### Modbus Poll Software
+For visual register monitoring:
+1. Setup -> Read/Write Definition
+2. Set Slave ID to 1 (for Card 1) or 2 (for Card 2)  
+3. Function: 01 Read Coils, Quantity: 16
+4. Connection -> Connect, set baud rate 9600, 8 data bits, no parity
+
 ## Troubleshooting
 
 ### If both cards still respond:
-- Check DIP switch settings
+- **Check DIP switch settings** - This is the most common issue
 - Ensure cards are powered off when changing DIP switches
-- Verify wiring (A+, B-, GND connections)
+- Verify wiring (A-A, B-B connections as per Waveshare docs)
+- Test with SSCOM tool to verify each card responds to correct slave address
 
 ### If no cards respond:
 - Check USB-RS485 adapter connection
 - Verify `/dev/ttyUSB0` exists: `ls -la /dev/ttyUSB*`
 - Check service logs: `tail -f logs/kiosk.log`
+- Ensure proper RS485 level conversion (not direct Pi serial connection)
 
 ### Test individual cards:
 ```bash
-# Test basic relay control
-node scripts/test-basic-relay-control.js
+# Test basic relay control (if services are stopped)
+node scripts/testing/test-basic-relay-control.js
 
-# Test specific locker ranges
-node -e "
-const { ModbusController } = require('./app/kiosk/dist/hardware/modbus-controller.js');
-const config = require('./config/system.json');
+# Test with official Waveshare commands (using SSCOM or direct serial)
+# Card 1, Relay 5 ON:  01 05 00 04 FF 00 [CRC auto-calculated]
+# Card 1, Relay 5 OFF: 01 05 00 04 00 00 [CRC auto-calculated]
+# Card 2, Relay 5 ON:  02 05 00 04 FF 00 [CRC auto-calculated]
+# Card 2, Relay 5 OFF: 02 05 00 04 00 00 [CRC auto-calculated]
 
-async function test() {
-  const controller = new ModbusController(config.hardware.modbus);
-  await controller.initialize();
-  
-  // Test Card 1
-  console.log('Testing Card 1 (Locker 5)...');
-  await controller.openLocker(5);
-  
-  await new Promise(r => setTimeout(r, 2000));
-  
-  // Test Card 2  
-  console.log('Testing Card 2 (Locker 20)...');
-  await controller.openLocker(20);
-}
+# Test via our API (services running)
+curl -X POST http://192.168.1.8:3002/api/locker/open \
+  -H "Content-Type: application/json" \
+  -d '{"locker_id": 5, "staff_user": "test", "reason": "testing card 1"}'
 
-test().catch(console.error);
-"
+curl -X POST http://192.168.1.8:3002/api/locker/open \
+  -H "Content-Type: application/json" \
+  -d '{"locker_id": 20, "staff_user": "test", "reason": "testing card 2"}'
 ```
 
 ## Configuration Updated

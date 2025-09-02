@@ -1,1 +1,0 @@
-SELECT locker_id, event_type, staff_user, details, timestamp FROM events WHERE kiosk_id='kiosk-1' AND locker_id=1 ORDER BY timestamp DESC LIMIT 5;
