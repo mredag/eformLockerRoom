@@ -17,11 +17,11 @@ export async function wizardRoutes(
   const { dbManager } = options;
 
   // Initialize services
-  const wizardOrchestration = new WizardOrchestrationService(dbManager);
-  const wizardSecurity = new WizardSecurityService(dbManager);
-  const hardwareDetection = new HardwareDetectionService();
-  const slaveAddressService = new SlaveAddressService();
-  const hardwareTestingService = new HardwareTestingService();
+  const wizardOrchestration = WizardOrchestrationService.getInstance(dbManager);
+  const wizardSecurity = WizardSecurityService.getInstance(dbManager);
+  const hardwareDetection = HardwareDetectionService.getInstance();
+  const slaveAddressService = SlaveAddressService.getInstance();
+  const hardwareTestingService = HardwareTestingService.getInstance();
 
   // Wizard session management
   fastify.post('/session/start', async (request, reply) => {
