@@ -279,6 +279,19 @@ async function startPanelService() {
       console.error("❌ Failed to register hardware configuration routes:", error);
     }
 
+    // Register hardware wizard routes
+    try {
+      const { wizardRoutes, registerWizardPageRoutes } = await import("./routes/wizard-routes");
+      await fastify.register(wizardRoutes, {
+        prefix: "/api/wizard",
+        dbManager,
+      });
+      await registerWizardPageRoutes(fastify);
+      console.log("✅ Hardware wizard routes registered successfully");
+    } catch (error) {
+      console.error("❌ Failed to register hardware wizard routes:", error);
+    }
+
     // Register performance monitoring routes - TEMPORARILY DISABLED
     // TODO: Fix database connection issue in PerformanceMonitor
     /*
