@@ -67,7 +67,8 @@ fi
 
 echo ""
 echo "🖥️  Starting Kiosk service (port 3002)..."
-nohup npm run start:kiosk > logs/kiosk.log 2>&1 &
+# Ensure kiosk WebSocket uses 8080 (default)
+WEBSOCKET_PORT=8080 nohup npm run start:kiosk > logs/kiosk.log 2>&1 &
 KIOSK_PID=$!
 echo "Kiosk PID: $KIOSK_PID"
 
@@ -84,7 +85,8 @@ fi
 
 echo ""
 echo "📊 Starting Panel service (port 3001)..."
-nohup npm run start:panel > logs/panel.log 2>&1 &
+# Avoid WebSocket port conflict with Kiosk by using 8081 for Panel
+WEBSOCKET_PORT=8081 nohup npm run start:panel > logs/panel.log 2>&1 &
 PANEL_PID=$!
 echo "Panel PID: $PANEL_PID"
 

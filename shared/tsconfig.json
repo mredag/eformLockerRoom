@@ -13,6 +13,8 @@
     "dist",
     "**/__tests__/**",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    // Exclude wizard services that depend on app/panel to prevent cross-root compilation errors
+    "services/wizard*.ts"
   ]
 }
