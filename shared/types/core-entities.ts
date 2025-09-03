@@ -571,7 +571,8 @@ export interface ExtendedSystemConfig extends SystemConfig {
 export interface WebSocketMessage {
   type: 'state_update' | 'connection_status' | 'heartbeat' | 'error' | 
         'hardware_detection' | 'hardware_testing' | 'hardware_configuration' | 
-        'wizard_progress' | 'hardware_error' | 'hardware_recovery';
+        'wizard_progress' | 'hardware_error' | 'hardware_recovery' |
+        'hardware_status' | 'session_subscribed';
   timestamp: Date;
   data: any;
 }

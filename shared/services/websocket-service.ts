@@ -461,23 +461,23 @@ export class WebSocketService {
       const delay = this.reconnectionDelay * Math.pow(2, attempts); // Exponential backoff
       
       setTimeout(() => {
-        if (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.CLOSED) {
+        const state = ws.readyState;
+        if (state === WebSocket.CONNECTING || state === WebSocket.CLOSED) {
           console.log(`🔄 Attempting reconnection ${attempts + 1}/${this.maxReconnectionAttempts} for client`);
-          
-          // Send reconnection status to client if still connected
-          if (ws.readyState === WebSocket.OPEN) {
-            this.sendToClient(ws, {
-              type: 'connection_status',
-              timestamp: new Date(),
-              data: {
-                status: 'reconnecting',
-                lastUpdate: new Date(),
-                connectedClients: this.clients.size,
-                reconnectionAttempt: attempts + 1,
-                maxAttempts: this.maxReconnectionAttempts
-              }
-            });
-          }
+        }
+        // Send reconnection status to client if it is open
+        if (state === WebSocket.OPEN) {
+          this.sendToClient(ws, {
+            type: 'connection_status',
+            timestamp: new Date(),
+            data: {
+              status: 'reconnecting',
+              lastUpdate: new Date(),
+              connectedClients: this.clients.size,
+              reconnectionAttempt: attempts + 1,
+              maxAttempts: this.maxReconnectionAttempts
+            }
+          });
         }
       }, delay);
     } else {
