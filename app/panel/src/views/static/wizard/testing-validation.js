@@ -674,7 +674,7 @@ class TestingValidation {
         const startTime = Date.now();
 
         try {
-            const response = await fetch('/api/hardware-config/test-card', {
+            const response = await fetch('/api/wizard/test-card', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -733,7 +733,7 @@ class TestingValidation {
             const startTime = Date.now();
 
             try {
-                const response = await fetch('/api/hardware-config/test-relay', {
+                const response = await fetch('/api/wizard/test-relay', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -793,7 +793,7 @@ class TestingValidation {
             for (let i = 0; i < iterations; i++) {
                 const iterationStart = Date.now();
                 
-                const response = await fetch('/api/hardware-config/test-card', {
+                const response = await fetch('/api/wizard/test-card', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -844,7 +844,7 @@ class TestingValidation {
         try {
             this.updateCategoryStatus(null, 'integration', 'running');
             
-            const response = await fetch('/api/hardware-config/validate-setup', {
+            const response = await fetch('/api/wizard/validate-setup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1593,7 +1593,7 @@ class TestingValidation {
         this.logTestMessage('Otomatik tanılama başlatıldı...', 'info');
         
         try {
-            const response = await fetch('/api/hardware-config/run-diagnostics', {
+            const response = await fetch('/api/wizard/run-diagnostics', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

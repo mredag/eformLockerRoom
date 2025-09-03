@@ -681,7 +681,7 @@ class AddressConfiguration {
             }
             
             // Configure using broadcast command
-            const response = await fetch('/api/hardware-config/set-slave-address', {
+            const response = await fetch('/api/wizard/set-slave-address', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -732,7 +732,7 @@ class AddressConfiguration {
      */
     async verifyAddressConfiguration(address) {
         try {
-            const response = await fetch('/api/hardware-config/read-slave-address', {
+            const response = await fetch('/api/wizard/read-slave-address', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -804,7 +804,7 @@ class AddressConfiguration {
      */
     async validateConfiguration() {
         try {
-            const response = await fetch('/api/hardware-config/validate-setup', {
+            const response = await fetch('/api/wizard/validate-setup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -848,7 +848,7 @@ class AddressConfiguration {
         if (this.addressConflicts.length === 0) return;
         
         try {
-            const response = await fetch('/api/hardware-config/resolve-conflicts', {
+            const response = await fetch('/api/wizard/resolve-conflicts', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
