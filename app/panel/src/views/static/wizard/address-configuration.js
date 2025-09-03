@@ -320,7 +320,7 @@ class AddressConfiguration {
      */
     async fetchDetectedDevices() {
         try {
-            const response = await fetch('/api/hardware-config/detect-new-cards');
+            const response = await fetch('/api/wizard/detect-new-cards');
             const result = await response.json();
             
             if (result.success) {
@@ -339,7 +339,7 @@ class AddressConfiguration {
      */
     async findAvailableAddresses() {
         try {
-            const response = await fetch('/api/hardware-config/find-next-address');
+            const response = await fetch('/api/wizard/find-next-address');
             const result = await response.json();
             
             if (result.success) {
@@ -373,7 +373,7 @@ class AddressConfiguration {
      */
     async checkAddressConflicts() {
         try {
-            const response = await fetch('/api/hardware-config/detect-conflicts');
+            const response = await fetch('/api/wizard/detect-conflicts');
             const result = await response.json();
             
             if (result.success) {

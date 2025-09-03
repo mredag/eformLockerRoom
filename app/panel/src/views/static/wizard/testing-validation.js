@@ -354,7 +354,7 @@ class TestingValidation {
      */
     async fetchConfiguredDevices() {
         try {
-            const response = await fetch('/api/hardware-config/wizard/session/' + wizard.sessionId);
+            const response = await fetch('/api/wizard/session/' + wizard.sessionId);
             const result = await response.json();
             
             if (result.success && result.session) {

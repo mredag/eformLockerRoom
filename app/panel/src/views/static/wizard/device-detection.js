@@ -259,7 +259,7 @@ class DeviceDetection {
      */
     async scanSerialPorts() {
         try {
-            const response = await fetch('/api/hardware-config/scan-ports');
+            const response = await fetch('/api/wizard/scan-ports');
             const result = await response.json();
             
             if (result.success) {
@@ -281,7 +281,7 @@ class DeviceDetection {
      */
     async scanModbusDevices() {
         try {
-            const response = await fetch('/api/hardware-config/scan-devices');
+            const response = await fetch('/api/wizard/scan-devices');
             const result = await response.json();
             
             if (result.success) {
@@ -302,7 +302,7 @@ class DeviceDetection {
      */
     async detectNewDevices() {
         try {
-            const response = await fetch('/api/hardware-config/detect-new-cards');
+            const response = await fetch('/api/wizard/detect-new-cards');
             const result = await response.json();
             
             if (result.success) {
