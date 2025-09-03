@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Wizard Performance Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .card-icon {
+            width: 24px;
+            height: 24px;
+            opacity: 0.7;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-healthy { background-color: #28a745; }
+        .status-warning { background-color: #ffc107; }
+        .status-error { background-color: #dc3545; }
+        .status-critical { background-color: #6f42c1; }
+
+        .alert-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            background: #f8f9fa;
+            border-left: 4px solid #6c757d;
+        }
+
+        .alert-item.warning { border-left-color: #ffc107; }
+        .alert-item.error { border-left-color: #dc3545; }
+        .alert-item.critical { border-left-color: #6f42c1; }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-message {
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .alert-time {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .recommendation-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .recommendation-item {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+
+        .recommendation-item.high { border-left-color: #dc3545; }
+        .recommendation-item.medium { border-left-color: #ffc107; }
+        .recommendation-item.low { border-left-color: #28a745; }
+
+        .recommendation-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+
+        .recommendation-description {
+            margin-bottom: 0.75rem;
+            color: #495057;
+        }
+
+        .recommendation-impact {
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .chart-container {
+            height: 300px;
+            margin-top: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .refresh-button {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+            transition: all 0.2s ease;
+        }
+
+        .refresh-button:hover {
+            background: #0056b3;
+            transform: scale(1.1);
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: #e9ecef;
+            border-radius: 6px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #007bff;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .metric-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Hardware Wizard Performance</h1>
+        <p>Real-time monitoring and optimization dashboard</p>
+    </div>
+
+    <div class="container">
+        <div class="dashboard-grid">
+            <!-- Performance Overview -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Performance Overview</h2>
+                    <span class="status-indicator status-healthy" id="overall-status"></span>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="avg-wizard-time">--</div>
+                        <div class="metric-label">Avg Wizard Time</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="success-rate">--</div>
+                        <div class="metric-label">Success Rate</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="active-operations">--</div>
+                        <div class="metric-label">Active Operations</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="total-operations">--</div>
+                        <div class="metric-label">Total Operations</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operation Timing -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Operation Timing</h2>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="device-scan-time">--</div>
+                        <div class="metric-label">Device Scan</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="address-config-time">--</div>
+                        <div class="metric-label">Address Config</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="hardware-test-time">--</div>
+                        <div class="metric-label">Hardware Test</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="integration-time">--</div>
+                        <div class="metric-label">Integration</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resource Usage -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Resource Usage</h2>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="memory-usage">--</div>
+                        <div class="metric-label">Memory Usage</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="cpu-usage">--</div>
+                        <div class="metric-label">CPU Usage</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="cache-hit-rate">--</div>
+                        <div class="metric-label">Cache Hit Rate</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="network-latency">--</div>
+                        <div class="metric-label">Network Latency</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Alerts -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Performance Alerts</h2>
+                    <span id="alert-count" class="metric-value" style="font-size: 1.2rem;">0</span>
+                </div>
+                <div class="alert-list" id="alert-list">
+                    <div style="text-align: center; color: #6c757d; padding: 2rem;">
+                        No active alerts
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimization Recommendations -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Optimization Recommendations</h2>
+                    <span id="recommendation-count" class="metric-value" style="font-size: 1.2rem;">0</span>
+                </div>
+                <div class="recommendation-list" id="recommendation-list">
+                    <div style="text-align: center; color: #6c757d; padding: 2rem;">
+                        No recommendations available
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cache Statistics -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Cache Performance</h2>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric">
+                        <div class="metric-value" id="device-cache-hit">--</div>
+                        <div class="metric-label">Device Cache</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="session-cache-hit">--</div>
+                        <div class="metric-label">Session Cache</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="config-cache-hit">--</div>
+                        <div class="metric-label">Config Cache</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="cache-memory">--</div>
+                        <div class="metric-label">Cache Memory</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <button class="btn btn-secondary" onclick="invalidateCache()">Clear Cache</button>
+                    <button class="btn btn-primary" onclick="triggerGC()">Garbage Collect</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto-refresh controls -->
+        <div class="auto-refresh">
+            <label class="switch">
+                <input type="checkbox" id="auto-refresh-toggle" checked>
+                <span class="slider"></span>
+            </label>
+            <span>Auto-refresh every 30 seconds</span>
+            <span id="last-update" style="margin-left: auto; color: #6c757d;"></span>
+        </div>
+    </div>
+
+    <button class="refresh-button" onclick="refreshData()" title="Refresh Data">
+        <span id="refresh-icon">🔄</span>
+    </button>
+
+    <script>
+        let autoRefreshInterval;
+        let isRefreshing = false;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+            setupAutoRefresh();
+        });
+
+        // Setup auto-refresh
+        function setupAutoRefresh() {
+            const toggle = document.getElementById('auto-refresh-toggle');
+            
+            if (toggle.checked) {
+                startAutoRefresh();
+            }
+            
+            toggle.addEventListener('change', function() {
+                if (this.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Clear any existing interval
+            autoRefreshInterval = setInterval(refreshData, 30000); // 30 seconds
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Refresh all data
+        async function refreshData() {
+            if (isRefreshing) return;
+            
+            isRefreshing = true;
+            const refreshIcon = document.getElementById('refresh-icon');
+            refreshIcon.innerHTML = '<div class="loading"></div>';
+            
+            try {
+                await Promise.all([
+                    loadPerformanceMetrics(),
+                    loadAlerts(),
+                    loadRecommendations(),
+                    loadCacheStats(),
+                    loadResourceStats()
+                ]);
+                
+                updateLastRefreshTime();
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+            } finally {
+                isRefreshing = false;
+                refreshIcon.innerHTML = '🔄';
+            }
+        }
+
+        // Load performance metrics
+        async function loadPerformanceMetrics() {
+            try {
+                const response = await fetch('/api/wizard/performance/metrics?hours=24');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updatePerformanceMetrics(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading performance metrics:', error);
+            }
+        }
+
+        // Update performance metrics display
+        function updatePerformanceMetrics(metrics) {
+            // Overall metrics
+            const avgWizardTime = metrics.totalWizardTime.length > 0 ? 
+                Math.round(metrics.totalWizardTime.reduce((a, b) => a + b, 0) / metrics.totalWizardTime.length / 1000) : 0;
+            document.getElementById('avg-wizard-time').textContent = avgWizardTime + 's';
+            document.getElementById('success-rate').textContent = metrics.wizardCompletionRate.toFixed(1) + '%';
+            document.getElementById('total-operations').textContent = 
+                metrics.deviceScanTime.length + metrics.addressConfigTime.length + 
+                metrics.hardwareTestTime.length + metrics.systemIntegrationTime.length;
+
+            // Operation timing
+            document.getElementById('device-scan-time').textContent = 
+                metrics.deviceScanTime.length > 0 ? 
+                Math.round(metrics.deviceScanTime.reduce((a, b) => a + b, 0) / metrics.deviceScanTime.length / 1000) + 's' : '--';
+            
+            document.getElementById('address-config-time').textContent = 
+                metrics.addressConfigTime.length > 0 ? 
+                Math.round(metrics.addressConfigTime.reduce((a, b) => a + b, 0) / metrics.addressConfigTime.length / 1000) + 's' : '--';
+            
+            document.getElementById('hardware-test-time').textContent = 
+                metrics.hardwareTestTime.length > 0 ? 
+                Math.round(metrics.hardwareTestTime.reduce((a, b) => a + b, 0) / metrics.hardwareTestTime.length / 1000) + 's' : '--';
+            
+            document.getElementById('integration-time').textContent = 
+                metrics.systemIntegrationTime.length > 0 ? 
+                Math.round(metrics.systemIntegrationTime.reduce((a, b) => a + b, 0) / metrics.systemIntegrationTime.length / 1000) + 's' : '--';
+
+            // Resource usage
+            document.getElementById('memory-usage').textContent = 
+                metrics.memoryUsage.length > 0 ? 
+                Math.round(metrics.memoryUsage.reduce((a, b) => a + b, 0) / metrics.memoryUsage.length) + '%' : '--';
+            
+            document.getElementById('cpu-usage').textContent = 
+                metrics.cpuUsage.length > 0 ? 
+                Math.round(metrics.cpuUsage.reduce((a, b) => a + b, 0) / metrics.cpuUsage.length) + '%' : '--';
+            
+            document.getElementById('network-latency').textContent = 
+                metrics.networkLatency.length > 0 ? 
+                Math.round(metrics.networkLatency.reduce((a, b) => a + b, 0) / metrics.networkLatency.length) + 'ms' : '--';
+
+            // Update overall status
+            const overallStatus = document.getElementById('overall-status');
+            if (metrics.wizardCompletionRate >= 95) {
+                overallStatus.className = 'status-indicator status-healthy';
+            } else if (metrics.wizardCompletionRate >= 85) {
+                overallStatus.className = 'status-indicator status-warning';
+            } else {
+                overallStatus.className = 'status-indicator status-error';
+            }
+        }
+
+        // Load alerts
+        async function loadAlerts() {
+            try {
+                const response = await fetch('/api/wizard/performance/alerts');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateAlerts(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+
+        // Update alerts display
+        function updateAlerts(alerts) {
+            const alertList = document.getElementById('alert-list');
+            const alertCount = document.getElementById('alert-count');
+            
+            alertCount.textContent = alerts.length;
+            
+            if (alerts.length === 0) {
+                alertList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 2rem;">No active alerts</div>';
+                return;
+            }
+            
+            alertList.innerHTML = alerts.map(alert => `
+                <div class="alert-item ${alert.type}">
+                    <div class="alert-content">
+                        <div class="alert-message">${alert.message}</div>
+                        <div class="alert-time">${new Date(alert.timestamp).toLocaleString()}</div>
+                    </div>
+                    <div class="alert-actions">
+                        <button class="btn btn-secondary" onclick="acknowledgeAlert('${alert.id}')">
+                            Acknowledge
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load recommendations
+        async function loadRecommendations() {
+            try {
+                const response = await fetch('/api/wizard/performance/recommendations');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateRecommendations(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading recommendations:', error);
+            }
+        }
+
+        // Update recommendations display
+        function updateRecommendations(recommendations) {
+            const recommendationList = document.getElementById('recommendation-list');
+            const recommendationCount = document.getElementById('recommendation-count');
+            
+            recommendationCount.textContent = recommendations.length;
+            
+            if (recommendations.length === 0) {
+                recommendationList.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 2rem;">No recommendations available</div>';
+                return;
+            }
+            
+            recommendationList.innerHTML = recommendations.map(rec => `
+                <div class="recommendation-item ${rec.priority}">
+                    <div class="recommendation-title">${rec.title}</div>
+                    <div class="recommendation-description">${rec.description}</div>
+                    <div class="recommendation-impact">Impact: ${rec.impact}</div>
+                    <div style="margin-top: 0.5rem;">
+                        <button class="btn btn-success" onclick="implementRecommendation('${rec.id}')">
+                            Mark as Implemented
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load cache statistics
+        async function loadCacheStats() {
+            try {
+                const response = await fetch('/api/wizard/performance/cache/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateCacheStats(data.data);
+                }
+            } catch (error) {
+                console.error('Error loading cache stats:', error);
+            }
+        }
+
+        // Update cache statistics display
+        function updateCacheStats(stats) {
+            document.getElementById('device-cache-hit').textContent = stats.device.hitRate.toFixed(1) + '%';
+            document.getElementById('session-cache-hit').textContent = stats.session.hitRate.toFixed(1) + '%';
+            document.getElementById('config-cache-hit').textContent = stats.config.hitRate.toFixed(1) + '%';
+            document.getElementById('cache-memory').textContent = formatBytes(stats.memoryUsage.total);
+            
+            // Update overall cache hit rate
+            const overallHitRate = (stats.device.hitRate + stats.session.hitRate + stats.config.hitRate) / 3;
+            document.getElementById('cache-hit-rate').textContent = overallHitRate.toFixed(1) + '%';
+        }
+
+        // Load resource statistics
+        async function loadResourceStats() {
+            try {
+                const response = await fetch('/api/wizard/performance/resources/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Resource stats are already updated in updatePerformanceMetrics
+                    // This could be used for additional resource-specific metrics
+                }
+            } catch (error) {
+                console.error('Error loading resource stats:', error);
+            }
+        }
+
+        // Acknowledge alert
+        async function acknowledgeAlert(alertId) {
+            try {
+                const response = await fetch(`/api/wizard/performance/alerts/${alertId}/acknowledge`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    await loadAlerts(); // Refresh alerts
+                }
+            } catch (error) {
+                console.error('Error acknowledging alert:', error);
+            }
+        }
+
+        // Implement recommendation
+        async function implementRecommendation(recommendationId) {
+            try {
+                const response = await fetch(`/api/wizard/performance/recommendations/${recommendationId}/implement`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    await loadRecommendations(); // Refresh recommendations
+                }
+            } catch (error) {
+                console.error('Error implementing recommendation:', error);
+            }
+        }
+
+        // Invalidate cache
+        async function invalidateCache() {
+            try {
+                const response = await fetch('/api/wizard/performance/cache/invalidate?type=all', {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    await loadCacheStats(); // Refresh cache stats
+                }
+            } catch (error) {
+                console.error('Error invalidating cache:', error);
+            }
+        }
+
+        // Trigger garbage collection
+        async function triggerGC() {
+            try {
+                const response = await fetch('/api/wizard/performance/gc', {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    await loadResourceStats(); // Refresh resource stats
+                }
+            } catch (error) {
+                console.error('Error triggering garbage collection:', error);
+            }
+        }
+
+        // Update last refresh time
+        function updateLastRefreshTime() {
+            const lastUpdate = document.getElementById('last-update');
+            lastUpdate.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        // Format bytes to human readable
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>

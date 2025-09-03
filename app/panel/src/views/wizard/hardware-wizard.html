@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donanım Yapılandırma Sihirbazı - eForm Locker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .wizard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .wizard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .wizard-header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .wizard-header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        /* Progress Bar */
+        .wizard-progress {
+            background: #f8f9fa;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e9ecef;
+            z-index: 1;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            height: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 2;
+            transition: width 0.3s ease;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 3;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 50px;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .step.completed .step-circle {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .step.active .step-circle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .step.pending .step-circle {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+
+        .step-label {
+            font-size: 0.8rem;
+            text-align: center;
+            color: #6c757d;
+            max-width: 100px;
+        }
+
+        .step.active .step-label {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .step.completed .step-label {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        /* Wizard Content */
+        .wizard-content {
+            padding: 2rem;
+            min-height: 500px;
+        }
+
+        .step-content {
+            display: none;
+        }
+
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Navigation */
+        .wizard-navigation {
+            background: #f8f9fa;
+            padding: 1.5rem 2rem;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-wizard {
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-wizard-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-wizard-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .btn-wizard-secondary {
+            background: #6c757d;
+            border: none;
+            color: white;
+        }
+
+        .btn-wizard-secondary:hover {
+            background: #5a6268;
+            color: white;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .wizard-header {
+                padding: 1.5rem;
+            }
+
+            .wizard-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .wizard-progress {
+                padding: 1rem;
+            }
+
+            .progress-steps {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            .step-label {
+                font-size: 0.7rem;
+                max-width: 80px;
+            }
+
+            .wizard-content {
+                padding: 1.5rem;
+            }
+
+            .wizard-navigation {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .btn-wizard {
+                width: 100%;
+            }
+        }
+
+        /* Accessibility */
+        .step-circle:focus {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+        }
+
+        .btn-wizard:focus {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+        }
+
+        /* Loading States */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error States */
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            margin: 1rem 0;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #c3e6cb;
+            margin: 1rem 0;
+        }
+
+        /* Step-specific styles */
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .checklist-item.completed {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            margin-right: 1rem;
+            transform: scale(1.2);
+        }
+
+        .device-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            transition: all 0.3s ease;
+        }
+
+        .device-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .device-status {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .device-status.detected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .device-status.configuring {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .device-status.testing {
+            background: #cce7ff;
+            color: #004085;
+        }
+
+        .device-status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .device-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Address Configuration Specific Styles */
+        .address-configuration-container .device-config-card {
+            transition: all 0.3s ease;
+        }
+
+        .address-configuration-container .device-config-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .address-configuration-container .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .address-configuration-container .result-stat {
+            text-align: center;
+        }
+
+        .address-configuration-container .stat-number {
+            display: block;
+            font-size: 2rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .address-configuration-container .stat-label {
+            display: block;
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        .address-configuration-container .configuration-result {
+            border-left: 4px solid;
+        }
+
+        .address-configuration-container .bg-light-success {
+            background-color: #d4edda !important;
+            border-left-color: #28a745 !important;
+        }
+
+        .address-configuration-container .bg-light-danger {
+            background-color: #f8d7da !important;
+            border-left-color: #dc3545 !important;
+        }
+
+        .address-configuration-container .address-map .badge {
+            margin: 1px;
+            cursor: pointer;
+        }
+
+        .address-configuration-container .address-map .badge:hover {
+            transform: scale(1.1);
+        }
+
+        .address-configuration-container .conflict-item {
+            border-left: 4px solid #ffc107;
+            padding-left: 1rem;
+        }
+
+        .address-configuration-container .manual-configuration-panel {
+            border-top: 3px solid #ffc107;
+        }
+
+        .address-configuration-container .configuration-progress .progress {
+            height: 8px;
+        }
+
+        .address-configuration-container .device-actions .btn {
+            min-width: 100px;
+        }
+
+        /* Responsive adjustments for address configuration */
+        @media (max-width: 768px) {
+            .address-configuration-container .config-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .address-configuration-container .device-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .address-configuration-container .device-actions .btn {
+                width: 100%;
+            }
+
+            .address-configuration-container .address-map .col-1 {
+                flex: 0 0 auto;
+                width: 12.5%;
+            }
+        }
+
+        /* Testing and Validation Specific Styles */
+        .testing-validation-container .test-category-card {
+            transition: all 0.3s ease;
+        }
+
+        .testing-validation-container .test-category-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .testing-validation-container .device-test-card {
+            transition: all 0.3s ease;
+        }
+
+        .testing-validation-container .device-test-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .testing-validation-container .test-log-container {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .testing-validation-container .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .testing-validation-container .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .testing-validation-container .summary-stat {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .testing-validation-container .stat-number {
+            display: block;
+            font-size: 2rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .testing-validation-container .stat-label {
+            display: block;
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        .testing-validation-container .test-result-item {
+            border-left: 4px solid;
+        }
+
+        .testing-validation-container .bg-light-success {
+            background-color: #d4edda !important;
+            border-left-color: #28a745 !important;
+        }
+
+        .testing-validation-container .bg-light-danger {
+            background-color: #f8d7da !important;
+            border-left-color: #dc3545 !important;
+        }
+
+        .testing-validation-container .progress-sm {
+            height: 6px;
+        }
+
+        .testing-validation-container .device-test-progress {
+            margin-top: 0.5rem;
+        }
+
+        .testing-validation-container .test-status .badge {
+            font-size: 0.75rem;
+            padding: 0.35em 0.65em;
+        }
+
+        .testing-validation-container .device-test-actions .btn {
+            min-width: 90px;
+        }
+
+        .testing-validation-container .test-results-detailed .card {
+            margin-bottom: 0.5rem;
+        }
+
+        .testing-validation-container .stat-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .testing-validation-container .stat-card .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .testing-validation-container .stat-card .stat-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        /* Responsive adjustments for testing validation */
+        @media (max-width: 768px) {
+            .testing-validation-container .device-test-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .testing-validation-container .device-test-actions .btn {
+                width: 100%;
+            }
+
+            .testing-validation-container .test-log-container {
+                height: 150px !important;
+                font-size: 11px;
+            }
+
+            .testing-validation-container .summary-stat {
+                padding: 0.5rem;
+            }
+
+            .testing-validation-container .stat-number {
+                font-size: 1.5rem !important;
+            }
+        }
+
+        /* System Integration Specific Styles */
+        .system-integration-container .integration-step-card {
+            transition: all 0.3s ease;
+        }
+
+        .system-integration-container .integration-step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .system-integration-container .device-summary-item {
+            transition: all 0.3s ease;
+        }
+
+        .system-integration-container .device-summary-item:hover {
+            background-color: #f8f9fa !important;
+        }
+
+        .system-integration-container .locker-range-item {
+            transition: all 0.3s ease;
+        }
+
+        .system-integration-container .locker-range-item:hover {
+            background-color: #e9ecef !important;
+        }
+
+        .system-integration-container .integration-log-container {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .system-integration-container .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .system-integration-container .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .system-integration-container .result-stat {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .system-integration-container .stat-number {
+            display: block;
+            font-size: 2rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .system-integration-container .stat-label {
+            display: block;
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        .system-integration-container .success-message {
+            animation: fadeInScale 0.5s ease;
+        }
+
+        @keyframes fadeInScale {
+            from { 
+                opacity: 0; 
+                transform: scale(0.9);
+            }
+            to { 
+                opacity: 1; 
+                transform: scale(1);
+            }
+        }
+
+        .system-integration-container .locker-range-display {
+            transition: all 0.3s ease;
+        }
+
+        .system-integration-container .locker-range-display:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .system-integration-container .locker-range-numbers .badge {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+        }
+
+        .system-integration-container .next-actions .btn-group {
+            gap: 0.5rem;
+        }
+
+        .system-integration-container .step-progress .progress {
+            height: 6px;
+        }
+
+        .system-integration-container .integration-step-card .card {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .system-integration-container .integration-step-card .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Responsive adjustments for system integration */
+        @media (max-width: 768px) {
+            .system-integration-container .next-actions .btn-group {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .system-integration-container .next-actions .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+
+            .system-integration-container .integration-log-container {
+                height: 150px !important;
+                font-size: 11px;
+            }
+
+            .system-integration-container .result-stat {
+                padding: 0.5rem;
+            }
+
+            .system-integration-container .stat-number {
+                font-size: 1.5rem !important;
+            }
+
+            .system-integration-container .locker-range-numbers .badge {
+                font-size: 0.9rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wizard-container">
+        <!-- Header -->
+        <div class="wizard-header">
+            <h1><i class="fas fa-magic me-2"></i>Donanım Yapılandırma Sihirbazı</h1>
+            <p>Yeni Modbus röle kartınızı adım adım yapılandırın</p>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="wizard-progress">
+            <div class="progress-steps">
+                <div class="progress-line" id="progressLine"></div>
+                
+                <div class="step active" data-step="1" tabindex="0" role="button" aria-label="Adım 1: Ön Hazırlık">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">Ön Hazırlık</div>
+                </div>
+                
+                <div class="step pending" data-step="2" tabindex="0" role="button" aria-label="Adım 2: Cihaz Tespiti">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">Cihaz Tespiti</div>
+                </div>
+                
+                <div class="step pending" data-step="3" tabindex="0" role="button" aria-label="Adım 3: Adres Yapılandırması">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">Adres Yapılandırması</div>
+                </div>
+                
+                <div class="step pending" data-step="4" tabindex="0" role="button" aria-label="Adım 4: Test ve Doğrulama">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">Test ve Doğrulama</div>
+                </div>
+                
+                <div class="step pending" data-step="5" tabindex="0" role="button" aria-label="Adım 5: Sistem Entegrasyonu">
+                    <div class="step-circle">5</div>
+                    <div class="step-label">Sistem Entegrasyonu</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="wizard-content">
+            <!-- Step 1: Pre-Setup Checklist -->
+            <div class="step-content active" id="step1">
+                <h3><i class="fas fa-clipboard-check me-2"></i>Ön Hazırlık Kontrol Listesi</h3>
+                <p class="text-muted mb-4">Donanım kurulumuna başlamadan önce aşağıdaki adımları tamamlayın:</p>
+                
+                <div id="checklistItems">
+                    <!-- Checklist items will be populated by JavaScript -->
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Önemli:</strong> Tüm kontrol listesi öğelerini tamamlamadan sonraki adıma geçemezsiniz.
+                </div>
+            </div>
+
+            <!-- Step 2: Device Detection -->
+            <div class="step-content" id="step2">
+                <h3><i class="fas fa-search me-2"></i>Cihaz Tespiti</h3>
+                <p class="text-muted mb-4">Sistem otomatik olarak yeni Modbus cihazlarını tespit ediyor...</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <button class="btn btn-outline-primary" onclick="startDeviceScan()">
+                            <i class="fas fa-sync-alt me-1"></i>Yeniden Tara
+                        </button>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div id="scanProgress" class="d-none">
+                            <span class="loading-spinner me-2"></span>
+                            Taranıyor... <span id="scanProgressText">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="detectedDevices">
+                    <!-- Detected devices will be populated by JavaScript -->
+                </div>
+                
+                <div id="troubleshootingGuide" class="mt-4 d-none">
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>Cihaz Bulunamadı?</h5>
+                        <ul class="mb-0">
+                            <li>USB-RS485 adaptörünün doğru bağlandığından emin olun</li>
+                            <li>Röle kartının güç kaynağının bağlı olduğunu kontrol edin</li>
+                            <li>Modbus kablolarının doğru bağlandığından emin olun</li>
+                            <li>Cihazın varsayılan adres ayarlarını kontrol edin</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Address Configuration -->
+            <div class="step-content" id="step3">
+                <h3><i class="fas fa-network-wired me-2"></i>Adres Yapılandırması</h3>
+                <p class="text-muted mb-4">Tespit edilen cihazlar için slave adresleri otomatik olarak yapılandırılıyor...</p>
+                
+                <div id="addressConfiguration">
+                    <!-- Address configuration will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Step 4: Testing and Validation -->
+            <div class="step-content" id="step4">
+                <h3><i class="fas fa-vial me-2"></i>Test ve Doğrulama</h3>
+                <p class="text-muted mb-4">Yapılandırılan donanım test ediliyor ve doğrulanıyor...</p>
+                
+                <div id="testingValidation">
+                    <!-- Testing and validation will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Step 5: System Integration -->
+            <div class="step-content" id="step5">
+                <h3><i class="fas fa-cogs me-2"></i>Sistem Entegrasyonu</h3>
+                <p class="text-muted mb-4">Yeni donanım sistem yapılandırmasına entegre ediliyor...</p>
+                
+                <div id="integrationStatus">
+                    <!-- Integration status will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="wizard-navigation">
+            <div>
+                <button class="btn btn-wizard btn-wizard-secondary" id="prevBtn" onclick="previousStep()" disabled>
+                    <i class="fas fa-arrow-left me-1"></i>Önceki
+                </button>
+            </div>
+            
+            <div>
+                <button class="btn btn-outline-secondary me-2" onclick="cancelWizard()">
+                    <i class="fas fa-times me-1"></i>İptal
+                </button>
+                <button class="btn btn-wizard btn-wizard-primary" id="nextBtn" onclick="nextStep()" disabled>
+                    Sonraki <i class="fas fa-arrow-right ms-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong class="me-auto">Bildirim</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastBody"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/wizard/pre-setup-checklist.js"></script>
+    <script src="/static/wizard/device-detection.js"></script>
+    <script src="/static/wizard/address-configuration.js"></script>
+    <script src="/static/wizard/testing-validation.js"></script>
+    <script src="/static/wizard/system-integration.js"></script>
+    <script src="/static/wizard/wizard-container.js"></script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+/* Connection Status Indicator Component Styles */
+
+.connection-status-indicator {
+  background: #ffffff;
+  border: 1px solid #e1e5e9;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.connection-status-indicator--compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+/* Header */
+.connection-status-indicator__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.connection-status-indicator__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.connection-status-indicator__icon {
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.connection-status-indicator__text {
+  font-weight: 600;
+}
+
+.connection-status-indicator__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.connection-status-indicator__refresh,
+.connection-status-indicator__reconnect {
+  background: transparent;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.connection-status-indicator__refresh:hover,
+.connection-status-indicator__reconnect:hover {
+  background: #f8f9fa;
+  border-color: #adb5bd;
+  transform: translateY(-1px);
+}
+
+.connection-status-indicator__refresh:active,
+.connection-status-indicator__reconnect:active {
+  transform: translateY(0);
+}
+
+/* Error display */
+.connection-status-indicator__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #721c24;
+}
+
+.connection-status-indicator__error-icon {
+  font-size: 1.1em;
+}
+
+.connection-status-indicator__error-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+/* Details section */
+.connection-status-indicator__details,
+.connection-status-indicator__stats {
+  border-top: 1px solid #e9ecef;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.connection-status-indicator__stats-title {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.connection-status-indicator__detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.connection-status-indicator__detail:last-child {
+  margin-bottom: 0;
+}
+
+.connection-status-indicator__detail-label {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.connection-status-indicator__detail-value {
+  color: #495057;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+/* Status-specific colors */
+.connection-status-indicator__text[style*="color: rgb(40, 167, 69)"] {
+  color: #28a745 !important;
+}
+
+.connection-status-indicator__text[style*="color: rgb(255, 193, 7)"] {
+  color: #ffc107 !important;
+}
+
+.connection-status-indicator__text[style*="color: rgb(220, 53, 69)"] {
+  color: #dc3545 !important;
+}
+
+.connection-status-indicator__text[style*="color: rgb(108, 117, 125)"] {
+  color: #6c757d !important;
+}
+
+/* Animations */
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+/* Compact mode specific styles */
+.connection-status-indicator--compact .connection-status-indicator__text {
+  font-size: inherit;
+  font-weight: 500;
+}
+
+.connection-status-indicator--compact .connection-status-indicator__dot {
+  width: 6px;
+  height: 6px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .connection-status-indicator {
+    font-size: 13px;
+  }
+  
+  .connection-status-indicator__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .connection-status-indicator__detail {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  
+  .connection-status-indicator__detail-label {
+    font-size: 11px;
+  }
+  
+  .connection-status-indicator__detail-value {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .connection-status-indicator--compact {
+    font-size: 11px;
+  }
+  
+  .connection-status-indicator--compact .connection-status-indicator__text {
+    display: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .connection-status-indicator {
+    border-width: 2px;
+  }
+  
+  .connection-status-indicator__error {
+    border-width: 2px;
+  }
+  
+  .connection-status-indicator__refresh,
+  .connection-status-indicator__reconnect {
+    border-width: 2px;
+  }
+  
+  .connection-status-indicator__dot {
+    border: 1px solid #000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .connection-status-indicator__dot {
+    animation: none;
+  }
+  
+  .connection-status-indicator__refresh:hover,
+  .connection-status-indicator__reconnect:hover {
+    transform: none;
+  }
+  
+  .connection-status-indicator__refresh:active,
+  .connection-status-indicator__reconnect:active {
+    transform: none;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .connection-status-indicator {
+    background: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+  }
+  
+  .connection-status-indicator__error {
+    background: #742a2a;
+    border-color: #9b2c2c;
+    color: #fed7d7;
+  }
+  
+  .connection-status-indicator__details,
+  .connection-status-indicator__stats {
+    border-color: #4a5568;
+  }
+  
+  .connection-status-indicator__detail-label {
+    color: #a0aec0;
+  }
+  
+  .connection-status-indicator__detail-value {
+    color: #e2e8f0;
+  }
+  
+  .connection-status-indicator__refresh,
+  .connection-status-indicator__reconnect {
+    border-color: #4a5568;
+    color: #e2e8f0;
+  }
+  
+  .connection-status-indicator__refresh:hover,
+  .connection-status-indicator__reconnect:hover {
+    background: #4a5568;
+  }
+}

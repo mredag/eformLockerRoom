@@ -569,7 +569,9 @@ export interface ExtendedSystemConfig extends SystemConfig {
 // ============================================================================
 
 export interface WebSocketMessage {
-  type: 'state_update' | 'connection_status' | 'heartbeat' | 'error';
+  type: 'state_update' | 'connection_status' | 'heartbeat' | 'error' | 
+        'hardware_detection' | 'hardware_testing' | 'hardware_configuration' | 
+        'wizard_progress' | 'hardware_error' | 'hardware_recovery';
   timestamp: Date;
   data: any;
 }
@@ -588,6 +590,103 @@ export interface ConnectionStatus {
   status: 'online' | 'offline' | 'reconnecting';
   lastUpdate: Date;
   connectedClients: number;
+}
+
+// Hardware wizard WebSocket message types
+export interface HardwareDetectionUpdate {
+  sessionId: string;
+  phase: 'scanning_ports' | 'scanning_devices' | 'identifying_devices' | 'complete';
+  progress: number; // 0-100
+  currentOperation: string;
+  detectedDevices?: ModbusDevice[];
+  serialPorts?: SerialPortInfo[];
+  errors?: string[];
+}
+
+export interface HardwareTestingUpdate {
+  sessionId: string;
+  deviceAddress: number;
+  testType: 'communication' | 'relay_activation' | 'full_test';
+  testName: string;
+  status: 'running' | 'passed' | 'failed' | 'skipped';
+  progress: number; // 0-100
+  duration?: number;
+  error?: string;
+  details?: any;
+}
+
+export interface HardwareConfigurationUpdate {
+  sessionId: string;
+  operation: 'address_assignment' | 'address_verification' | 'conflict_resolution';
+  deviceAddress?: number;
+  newAddress?: number;
+  status: 'in_progress' | 'success' | 'failed';
+  progress: number; // 0-100
+  message: string;
+  error?: string;
+}
+
+export interface WizardProgressUpdate {
+  sessionId: string;
+  currentStep: number;
+  stepName: string;
+  stepStatus: 'not_started' | 'in_progress' | 'completed' | 'failed';
+  overallProgress: number; // 0-100
+  canProceed: boolean;
+  errors?: string[];
+  warnings?: string[];
+}
+
+export interface HardwareErrorUpdate {
+  sessionId?: string;
+  errorType: 'communication' | 'device_not_found' | 'address_conflict' | 'test_failure' | 'system_error';
+  severity: 'info' | 'warning' | 'error' | 'critical';
+  message: string;
+  details?: any;
+  recoverable: boolean;
+  suggestedAction?: string;
+}
+
+export interface HardwareRecoveryUpdate {
+  sessionId?: string;
+  recoveryAction: 'retry' | 'skip' | 'rollback' | 'manual_intervention';
+  status: 'attempting' | 'success' | 'failed';
+  message: string;
+  nextSteps?: string[];
+}
+
+// Hardware device interfaces for WebSocket messages
+export interface ModbusDevice {
+  address: number;
+  type: DeviceType;
+  capabilities: DeviceCapabilities;
+  status: 'responding' | 'timeout' | 'error';
+  responseTime: number;
+  lastSeen: Date;
+}
+
+export interface DeviceType {
+  manufacturer: 'waveshare' | 'generic' | 'unknown';
+  model: string;
+  channels: number;
+  features: string[];
+}
+
+export interface DeviceCapabilities {
+  maxRelays: number;
+  supportedFunctions: number[];
+  firmwareVersion?: string;
+  addressConfigurable: boolean;
+  timedPulseSupport: boolean;
+}
+
+export interface SerialPortInfo {
+  path: string;
+  manufacturer?: string;
+  serialNumber?: string;
+  vendorId?: string;
+  productId?: string;
+  available: boolean;
 }
 
 // ============================================================================

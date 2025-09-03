@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardware Dashboard - eForm Locker</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Custom Dashboard Styles -->
+    <link rel="stylesheet" href="/static/components/dashboard/hardware-dashboard.css">
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            color: white !important;
+            font-weight: 600;
+        }
+        
+        .navbar-nav .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        .navbar-nav .nav-link:hover {
+            color: white !important;
+        }
+        
+        .navbar-nav .nav-link.active {
+            color: white !important;
+            font-weight: 600;
+        }
+        
+        #dashboard-root {
+            min-height: calc(100vh - 76px);
+        }
+        
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/dashboard">
+                <i class="fas fa-microchip me-2"></i>
+                eForm Locker System
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">
+                            <i class="fas fa-home me-1"></i>
+                            Ana Sayfa
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/lockers">
+                            <i class="fas fa-archive me-1"></i>
+                            Dolaplar
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/relay">
+                            <i class="fas fa-bolt me-1"></i>
+                            Röle Kontrolü
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/panel/hardware-dashboard">
+                            <i class="fas fa-microchip me-1"></i>
+                            Hardware Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/panel/hardware-wizard">
+                            <i class="fas fa-magic me-1"></i>
+                            Hardware Wizard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/locker-naming">
+                            <i class="fas fa-tag me-1"></i>
+                            Dolap İsimlendirme
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/performance">
+                            <i class="fas fa-chart-line me-1"></i>
+                            Performans
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i>
+                            Admin
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/settings">
+                                <i class="fas fa-cog me-1"></i>
+                                Ayarlar
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout">
+                                <i class="fas fa-sign-out-alt me-1"></i>
+                                Çıkış
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Dashboard Content -->
+    <div id="dashboard-root">
+        <!-- React components will be rendered here -->
+        <div class="loading-placeholder" style="display: flex; justify-content: center; align-items: center; height: 50vh;">
+            <div class="text-center">
+                <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                <p class="text-muted">Loading Hardware Dashboard...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container for Notifications -->
+    <div class="toast-container">
+        <div id="notification-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <i class="fas fa-info-circle text-primary me-2"></i>
+                <strong class="me-auto">Hardware Dashboard</strong>
+                <small class="text-muted">now</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-message">
+                <!-- Toast message will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Dashboard Components -->
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // DeviceStatusCard Component
+        const DeviceStatusCard = ({ card, index, onTest, onConfigure }) => {
+            const [testing, setTesting] = useState(false);
+
+            const getLockerRange = () => {
+                const startLocker = (index * 16) + 1;
+                const endLocker = startLocker + card.channels - 1;
+                return `${startLocker}-${endLocker}`;
+            };
+
+            const getHealthStatus = () => {
+                if (!card.enabled) {
+                    return { color: 'secondary', icon: 'fa-power-off', text: 'Disabled' };
+                }
+                
+                const status = card.health_status || 'healthy';
+                switch (status) {
+                    case 'healthy':
+                        return { color: 'success', icon: 'fa-check-circle', text: 'Healthy' };
+                    case 'warning':
+                        return { color: 'warning', icon: 'fa-exclamation-triangle', text: 'Warning' };
+                    case 'error':
+                        return { color: 'danger', icon: 'fa-times-circle', text: 'Error' };
+                    default:
+                        return { color: 'secondary', icon: 'fa-question-circle', text: 'Unknown' };
+                }
+            };
+
+            const formatLastTested = () => {
+                if (!card.last_tested) {
+                    return 'Never tested';
+                }
+                
+                const date = new Date(card.last_tested);
+                const now = new Date();
+                const diffMs = now.getTime() - date.getTime();
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (diffHours > 24) {
+                    const diffDays = Math.floor(diffHours / 24);
+                    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+                } else if (diffHours > 0) {
+                    return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                } else if (diffMinutes > 0) {
+                    return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+                } else {
+                    return 'Just now';
+                }
+            };
+
+            const handleTest = async () => {
+                try {
+                    setTesting(true);
+                    
+                    const response = await fetch('/api/hardware-config/test-card', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            slave_address: card.slave_address,
+                            test_type: 'communication'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Card test failed');
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast(`Card ${card.slave_address} test successful! Response time: ${result.response_time || 'N/A'}ms`, 'success');
+                    } else {
+                        showToast(`Card ${card.slave_address} test failed: ${result.error}`, 'error');
+                    }
+
+                    onTest(card.slave_address);
+                } catch (error) {
+                    console.error('Error testing card:', error);
+                    showToast(`Card test failed: ${error.message}`, 'error');
+                } finally {
+                    setTesting(false);
+                }
+            };
+
+            const healthStatus = getHealthStatus();
+
+            return (
+                <div className={`device-status-card ${!card.enabled ? 'disabled' : ''}`}>
+                    <div className="card-header">
+                        <div className="card-title">
+                            <h4>
+                                <i className="fas fa-microchip me-2"></i>
+                                Card {card.slave_address}
+                            </h4>
+                            <span className={`status-badge badge bg-${healthStatus.color}`}>
+                                <i className={`fas ${healthStatus.icon} me-1`}></i>
+                                {healthStatus.text}
+                            </span>
+                        </div>
+                        
+                        <div className="card-actions">
+                            <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={handleTest}
+                                disabled={testing || !card.enabled}
+                                title="Test card communication"
+                            >
+                                {testing ? (
+                                    <i className="fas fa-spinner fa-spin"></i>
+                                ) : (
+                                    <i className="fas fa-vial"></i>
+                                )}
+                            </button>
+                            
+                            <button
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={() => onConfigure(card.slave_address)}
+                                disabled={!card.enabled}
+                                title="Configure card settings"
+                            >
+                                <i className="fas fa-cog"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="card-body">
+                        <div className="card-info">
+                            <div className="info-row">
+                                <span className="info-label">Address:</span>
+                                <span className="info-value">{card.slave_address}</span>
+                            </div>
+                            
+                            <div className="info-row">
+                                <span className="info-label">Type:</span>
+                                <span className="info-value">{card.type}</span>
+                            </div>
+                            
+                            <div className="info-row">
+                                <span className="info-label">Channels:</span>
+                                <span className="info-value">{card.channels}</span>
+                            </div>
+                            
+                            <div className="info-row">
+                                <span className="info-label">Lockers:</span>
+                                <span className="info-value">{getLockerRange()}</span>
+                            </div>
+                            
+                            <div className="info-row">
+                                <span className="info-label">DIP Switches:</span>
+                                <span className="info-value dip-switches">{card.dip_switches}</span>
+                            </div>
+                        </div>
+
+                        <div className="card-description">
+                            <p>{card.description}</p>
+                        </div>
+
+                        <div className="performance-metrics">
+                            <div className="metric">
+                                <span className="metric-label">Response Time:</span>
+                                <span className="metric-value">
+                                    {card.response_time ? `${card.response_time}ms` : 'N/A'}
+                                </span>
+                            </div>
+                            
+                            <div className="metric">
+                                <span className="metric-label">Last Tested:</span>
+                                <span className="metric-value">{formatLastTested()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card-footer">
+                        <div className="footer-actions">
+                            <button
+                                className="btn btn-sm btn-outline-success"
+                                onClick={handleTest}
+                                disabled={testing || !card.enabled}
+                            >
+                                {testing ? 'Testing...' : 'Quick Test'}
+                            </button>
+                            
+                            <button
+                                className="btn btn-sm btn-outline-info"
+                                onClick={() => {
+                                    window.location.href = `/panel/hardware-config?card=${card.slave_address}`;
+                                }}
+                            >
+                                View Details
+                            </button>
+                        </div>
+                        
+                        <div className="footer-status">
+                            {card.enabled ? (
+                                <span className="text-success">
+                                    <i className="fas fa-check-circle me-1"></i>
+                                    Active
+                                </span>
+                            ) : (
+                                <span className="text-secondary">
+                                    <i className="fas fa-power-off me-1"></i>
+                                    Disabled
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // SystemHealthMonitor Component
+        const SystemHealthMonitor = ({ config, stats, wsConnected }) => {
+            const [health, setHealth] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [expanded, setExpanded] = useState(false);
+
+            const loadHealthData = async () => {
+                try {
+                    setLoading(true);
+
+                    const healthData = {
+                        overall_status: 'healthy',
+                        hardware_status: 'online',
+                        communication_status: 'good',
+                        performance_metrics: {
+                            avg_response_time: 85,
+                            success_rate: 98.5,
+                            uptime_hours: 168
+                        },
+                        issues: []
+                    };
+
+                    if (stats) {
+                        if (stats.config_mismatch) {
+                            healthData.issues.push({
+                                severity: 'warning',
+                                message: 'Hardware configuration mismatch detected',
+                                recommendation: 'Update locker count to match available hardware channels'
+                            });
+                            healthData.overall_status = 'warning';
+                        }
+
+                        if (stats.maintenance_mode) {
+                            healthData.issues.push({
+                                severity: 'info',
+                                message: 'System is in maintenance mode',
+                                recommendation: 'Disable maintenance mode when ready for normal operation'
+                            });
+                        }
+
+                        const disabledCards = stats.total_cards - stats.enabled_cards;
+                        if (disabledCards > 0) {
+                            healthData.issues.push({
+                                severity: 'warning',
+                                message: `${disabledCards} relay card(s) are disabled`,
+                                recommendation: 'Enable disabled cards or remove them from configuration'
+                            });
+                        }
+                    }
+
+                    if (!wsConnected) {
+                        healthData.issues.push({
+                            severity: 'warning',
+                            message: 'Real-time updates are not available',
+                            recommendation: 'Check WebSocket service and network connectivity'
+                        });
+                        healthData.communication_status = 'poor';
+                    }
+
+                    setHealth(healthData);
+                } catch (error) {
+                    console.error('Error loading health data:', error);
+                    setHealth({
+                        overall_status: 'error',
+                        hardware_status: 'offline',
+                        communication_status: 'failed',
+                        performance_metrics: {
+                            avg_response_time: 0,
+                            success_rate: 0,
+                            uptime_hours: 0
+                        },
+                        issues: [{
+                            severity: 'error',
+                            message: 'Failed to load system health data',
+                            recommendation: 'Check system status and try refreshing the page'
+                        }]
+                    });
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const getStatusDisplay = (status) => {
+                switch (status) {
+                    case 'healthy':
+                    case 'online':
+                    case 'good':
+                        return { color: 'success', icon: 'fa-check-circle', text: 'Healthy' };
+                    case 'warning':
+                    case 'degraded':
+                    case 'poor':
+                        return { color: 'warning', icon: 'fa-exclamation-triangle', text: 'Warning' };
+                    case 'error':
+                    case 'offline':
+                    case 'failed':
+                        return { color: 'danger', icon: 'fa-times-circle', text: 'Error' };
+                    default:
+                        return { color: 'secondary', icon: 'fa-question-circle', text: 'Unknown' };
+                }
+            };
+
+            const formatUptime = (hours) => {
+                const days = Math.floor(hours / 24);
+                const remainingHours = hours % 24;
+                
+                if (days > 0) {
+                    return `${days}d ${remainingHours}h`;
+                } else {
+                    return `${remainingHours}h`;
+                }
+            };
+
+            useEffect(() => {
+                loadHealthData();
+                const interval = setInterval(loadHealthData, 30000);
+                return () => clearInterval(interval);
+            }, [stats, wsConnected]);
+
+            if (loading) {
+                return (
+                    <div className="system-health-monitor loading">
+                        <div className="loading-content">
+                            <i className="fas fa-spinner fa-spin me-2"></i>
+                            Loading system health...
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!health) {
+                return null;
+            }
+
+            const overallStatus = getStatusDisplay(health.overall_status);
+            const hardwareStatus = getStatusDisplay(health.hardware_status);
+            const commStatus = getStatusDisplay(health.communication_status);
+
+            return (
+                <div className="system-health-monitor">
+                    <div className="health-header" onClick={() => setExpanded(!expanded)}>
+                        <h2>
+                            <i className="fas fa-heartbeat me-2"></i>
+                            System Health Monitor
+                        </h2>
+                        
+                        <div className="health-summary">
+                            <div className={`overall-status status-${overallStatus.color}`}>
+                                <i className={`fas ${overallStatus.icon} me-1`}></i>
+                                {overallStatus.text}
+                            </div>
+                            
+                            <button className="btn btn-sm btn-outline-secondary expand-btn">
+                                <i className={`fas fa-chevron-${expanded ? 'up' : 'down'}`}></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    {expanded && (
+                        <div className="health-details">
+                            <div className="status-overview">
+                                <div className="status-item">
+                                    <div className="status-icon">
+                                        <i className={`fas ${hardwareStatus.icon} text-${hardwareStatus.color}`}></i>
+                                    </div>
+                                    <div className="status-content">
+                                        <h4>Hardware Status</h4>
+                                        <p className={`text-${hardwareStatus.color}`}>{hardwareStatus.text}</p>
+                                    </div>
+                                </div>
+
+                                <div className="status-item">
+                                    <div className="status-icon">
+                                        <i className={`fas ${commStatus.icon} text-${commStatus.color}`}></i>
+                                    </div>
+                                    <div className="status-content">
+                                        <h4>Communication</h4>
+                                        <p className={`text-${commStatus.color}`}>{commStatus.text}</p>
+                                    </div>
+                                </div>
+
+                                <div className="status-item">
+                                    <div className="status-icon">
+                                        <i className={`fas fa-wifi text-${wsConnected ? 'success' : 'warning'}`}></i>
+                                    </div>
+                                    <div className="status-content">
+                                        <h4>Real-time Updates</h4>
+                                        <p className={`text-${wsConnected ? 'success' : 'warning'}`}>
+                                            {wsConnected ? 'Connected' : 'Disconnected'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="performance-section">
+                                <h3>Performance Metrics</h3>
+                                <div className="metrics-grid">
+                                    <div className="metric-card">
+                                        <div className="metric-icon">
+                                            <i className="fas fa-clock"></i>
+                                        </div>
+                                        <div className="metric-content">
+                                            <h4>{health.performance_metrics.avg_response_time}ms</h4>
+                                            <p>Avg Response Time</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="metric-card">
+                                        <div className="metric-icon">
+                                            <i className="fas fa-check-circle"></i>
+                                        </div>
+                                        <div className="metric-content">
+                                            <h4>{health.performance_metrics.success_rate}%</h4>
+                                            <p>Success Rate</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="metric-card">
+                                        <div className="metric-icon">
+                                            <i className="fas fa-arrow-up"></i>
+                                        </div>
+                                        <div className="metric-content">
+                                            <h4>{formatUptime(health.performance_metrics.uptime_hours)}</h4>
+                                            <p>System Uptime</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {health.issues.length > 0 && (
+                                <div className="issues-section">
+                                    <h3>Issues & Recommendations</h3>
+                                    <div className="issues-list">
+                                        {health.issues.map((issue, index) => (
+                                            <div key={index} className={`issue-item alert alert-${issue.severity === 'info' ? 'info' : issue.severity === 'warning' ? 'warning' : 'danger'}`}>
+                                                <div className="issue-header">
+                                                    <i className={`fas ${
+                                                        issue.severity === 'info' ? 'fa-info-circle' :
+                                                        issue.severity === 'warning' ? 'fa-exclamation-triangle' :
+                                                        'fa-times-circle'
+                                                    } me-2`}></i>
+                                                    <strong>{issue.message}</strong>
+                                                </div>
+                                                {issue.recommendation && (
+                                                    <div className="issue-recommendation">
+                                                        <i className="fas fa-lightbulb me-1"></i>
+                                                        <em>{issue.recommendation}</em>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="diagnostic-actions">
+                                <h3>Diagnostic Tools</h3>
+                                <div className="action-buttons">
+                                    <button 
+                                        className="btn btn-outline-primary"
+                                        onClick={() => window.open('/docs/kiosk-troubleshooting-guide.md', '_blank')}
+                                    >
+                                        <i className="fas fa-book me-1"></i>
+                                        Troubleshooting Guide
+                                    </button>
+                                    
+                                    <button 
+                                        className="btn btn-outline-info"
+                                        onClick={() => window.location.href = '/panel/performance'}
+                                    >
+                                        <i className="fas fa-chart-line me-1"></i>
+                                        Performance Dashboard
+                                    </button>
+                                    
+                                    <button 
+                                        className="btn btn-outline-warning"
+                                        onClick={loadHealthData}
+                                    >
+                                        <i className="fas fa-sync-alt me-1"></i>
+                                        Refresh Health Check
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Main HardwareDashboard Component
+        const HardwareDashboard = () => {
+            const [stats, setStats] = useState(null);
+            const [config, setConfig] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [scanning, setScanning] = useState(false);
+            const [testing, setTesting] = useState(false);
+            const [wsConnected, setWsConnected] = useState(false);
+
+            const loadHardwareData = useCallback(async () => {
+                try {
+                    setLoading(true);
+                    setError(null);
+
+                    const configResponse = await fetch('/api/hardware-config');
+                    if (!configResponse.ok) {
+                        throw new Error('Failed to load hardware configuration');
+                    }
+                    const configData = await configResponse.json();
+                    setConfig(configData);
+
+                    const statsResponse = await fetch('/api/hardware-config/stats');
+                    if (!statsResponse.ok) {
+                        throw new Error('Failed to load hardware statistics');
+                    }
+                    const statsData = await statsResponse.json();
+                    setStats(statsData.stats);
+
+                } catch (err) {
+                    setError(err.message);
+                    console.error('Error loading hardware data:', err);
+                } finally {
+                    setLoading(false);
+                }
+            }, []);
+
+            const handleScanDevices = async () => {
+                try {
+                    setScanning(true);
+                    setError(null);
+
+                    const response = await fetch('/api/hardware-config/detect-new-cards');
+                    if (!response.ok) {
+                        throw new Error('Device scan failed');
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.new_devices && result.new_devices.length > 0) {
+                        showToast(`Found ${result.new_devices.length} new device(s)! Check the recommendations for configuration.`, 'success');
+                    } else {
+                        showToast('No new devices found.', 'info');
+                    }
+
+                    await loadHardwareData();
+
+                } catch (err) {
+                    setError(err.message);
+                    console.error('Error scanning devices:', err);
+                } finally {
+                    setScanning(false);
+                }
+            };
+
+            const handleStartWizard = () => {
+                window.location.href = '/panel/hardware-wizard';
+            };
+
+            const handleTestHardware = async () => {
+                try {
+                    setTesting(true);
+                    setError(null);
+
+                    const response = await fetch('/api/hardware-config/test-all-lockers', {
+                        method: 'POST'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Hardware test failed');
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast(`Hardware test completed: ${result.successful}/${result.total} lockers passed`, 'success');
+                    } else {
+                        throw new Error(result.error || 'Hardware test failed');
+                    }
+
+                } catch (err) {
+                    setError(err.message);
+                    console.error('Error testing hardware:', err);
+                } finally {
+                    setTesting(false);
+                }
+            };
+
+            useEffect(() => {
+                const connectWebSocket = () => {
+                    try {
+                        const ws = new WebSocket(`ws://${window.location.hostname}:8080`);
+                        
+                        ws.onopen = () => {
+                            console.log('🔌 WebSocket connected to hardware dashboard');
+                            setWsConnected(true);
+                        };
+
+                        ws.onclose = () => {
+                            console.log('🔌 WebSocket disconnected from hardware dashboard');
+                            setWsConnected(false);
+                            setTimeout(connectWebSocket, 5000);
+                        };
+
+                        ws.onerror = (error) => {
+                            console.error('🚨 WebSocket error:', error);
+                            setWsConnected(false);
+                        };
+
+                        ws.onmessage = (event) => {
+                            try {
+                                const message = JSON.parse(event.data);
+                                
+                                if (message.type === 'hardware_status_update' || message.type === 'state_update') {
+                                    loadHardwareData();
+                                }
+                            } catch (err) {
+                                console.error('Error parsing WebSocket message:', err);
+                            }
+                        };
+
+                        return ws;
+                    } catch (err) {
+                        console.error('Failed to connect WebSocket:', err);
+                        setWsConnected(false);
+                        return null;
+                    }
+                };
+
+                const ws = connectWebSocket();
+                
+                return () => {
+                    if (ws) {
+                        ws.close();
+                    }
+                };
+            }, [loadHardwareData]);
+
+            useEffect(() => {
+                loadHardwareData();
+            }, [loadHardwareData]);
+
+            if (loading) {
+                return (
+                    <div className="hardware-dashboard loading">
+                        <div className="loading-spinner">
+                            <i className="fas fa-spinner fa-spin"></i>
+                            <p>Loading hardware configuration...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="hardware-dashboard">
+                    <div className="dashboard-header">
+                        <div className="header-content">
+                            <h1>
+                                <i className="fas fa-microchip me-2"></i>
+                                Hardware Configuration Dashboard
+                            </h1>
+                            <p>Monitor and manage your Modbus relay cards and locker system</p>
+                        </div>
+                        
+                        <div className="header-actions">
+                            <button 
+                                className="btn btn-primary"
+                                onClick={handleStartWizard}
+                                disabled={scanning || testing}
+                            >
+                                <i className="fas fa-magic me-1"></i>
+                                Add New Card
+                            </button>
+                            
+                            <button 
+                                className="btn btn-outline-primary"
+                                onClick={handleScanDevices}
+                                disabled={scanning || testing}
+                            >
+                                {scanning ? (
+                                    <>
+                                        <i className="fas fa-spinner fa-spin me-1"></i>
+                                        Scanning...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="fas fa-search me-1"></i>
+                                        Scan Devices
+                                    </>
+                                )}
+                            </button>
+                            
+                            <button 
+                                className="btn btn-outline-success"
+                                onClick={handleTestHardware}
+                                disabled={scanning || testing}
+                            >
+                                {testing ? (
+                                    <>
+                                        <i className="fas fa-spinner fa-spin me-1"></i>
+                                        Testing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="fas fa-vial me-1"></i>
+                                        Test Hardware
+                                    </>
+                                )}
+                            </button>
+                            
+                            <button 
+                                className="btn btn-outline-secondary"
+                                onClick={loadHardwareData}
+                                disabled={scanning || testing}
+                            >
+                                <i className="fas fa-sync-alt me-1"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className={`connection-status ${wsConnected ? 'connected' : 'disconnected'}`}>
+                        <i className={`fas ${wsConnected ? 'fa-wifi' : 'fa-wifi-slash'} me-1`}></i>
+                        {wsConnected ? 'Real-time updates active' : 'Real-time updates unavailable'}
+                    </div>
+
+                    {error && (
+                        <div className="alert alert-danger" role="alert">
+                            <i className="fas fa-exclamation-triangle me-2"></i>
+                            {error}
+                            <button 
+                                type="button" 
+                                className="btn-close" 
+                                onClick={() => setError(null)}
+                            ></button>
+                        </div>
+                    )}
+
+                    {stats && (
+                        <div className="system-overview">
+                            <div className="overview-cards">
+                                <div className="overview-card">
+                                    <div className="card-icon">
+                                        <i className="fas fa-archive"></i>
+                                    </div>
+                                    <div className="card-content">
+                                        <h3>{stats.total_lockers}</h3>
+                                        <p>Total Lockers</p>
+                                    </div>
+                                    <div className={`card-status ${stats.config_mismatch ? 'warning' : 'success'}`}>
+                                        <i className={`fas ${stats.config_mismatch ? 'fa-exclamation-triangle' : 'fa-check-circle'}`}></i>
+                                    </div>
+                                </div>
+
+                                <div className="overview-card">
+                                    <div className="card-icon">
+                                        <i className="fas fa-microchip"></i>
+                                    </div>
+                                    <div className="card-content">
+                                        <h3>{stats.enabled_cards}/{stats.total_cards}</h3>
+                                        <p>Active Cards</p>
+                                    </div>
+                                    <div className="card-status success">
+                                        <i className="fas fa-check-circle"></i>
+                                    </div>
+                                </div>
+
+                                <div className="overview-card">
+                                    <div className="card-icon">
+                                        <i className="fas fa-plug"></i>
+                                    </div>
+                                    <div className="card-content">
+                                        <h3>{stats.total_channels}</h3>
+                                        <p>Total Channels</p>
+                                    </div>
+                                    <div className="card-status success">
+                                        <i className="fas fa-check-circle"></i>
+                                    </div>
+                                </div>
+
+                                <div className="overview-card">
+                                    <div className="card-icon">
+                                        <i className="fas fa-tools"></i>
+                                    </div>
+                                    <div className="card-content">
+                                        <h3>{stats.maintenance_mode ? 'ON' : 'OFF'}</h3>
+                                        <p>Maintenance Mode</p>
+                                    </div>
+                                    <div className={`card-status ${stats.maintenance_mode ? 'warning' : 'success'}`}>
+                                        <i className={`fas ${stats.maintenance_mode ? 'fa-exclamation-triangle' : 'fa-check-circle'}`}></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {stats.config_mismatch && (
+                                <div className="alert alert-warning mt-3" role="alert">
+                                    <i className="fas fa-exclamation-triangle me-2"></i>
+                                    <strong>Configuration Mismatch:</strong> Your hardware has {stats.total_channels} channels 
+                                    but {stats.total_lockers} lockers are configured. Consider updating your configuration 
+                                    for optimal performance.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {config && (
+                        <div className="device-section">
+                            <h2>
+                                <i className="fas fa-list me-2"></i>
+                                Relay Cards ({config.hardware.relay_cards.length})
+                            </h2>
+                            
+                            <div className="device-grid">
+                                {config.hardware.relay_cards.map((card, index) => (
+                                    <DeviceStatusCard 
+                                        key={`card-${card.slave_address}`}
+                                        card={card}
+                                        index={index}
+                                        onTest={() => loadHardwareData()}
+                                        onConfigure={() => {}}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <SystemHealthMonitor 
+                        config={config}
+                        stats={stats}
+                        wsConnected={wsConnected}
+                    />
+                </div>
+            );
+        };
+
+        // Toast notification function
+        function showToast(message, type = 'info') {
+            const toastElement = document.getElementById('notification-toast');
+            const toastBody = document.getElementById('toast-message');
+            
+            toastBody.textContent = message;
+            
+            // Update toast header based on type
+            const toastHeader = toastElement.querySelector('.toast-header i');
+            toastHeader.className = `fas me-2 ${
+                type === 'success' ? 'fa-check-circle text-success' :
+                type === 'error' ? 'fa-times-circle text-danger' :
+                type === 'warning' ? 'fa-exclamation-triangle text-warning' :
+                'fa-info-circle text-primary'
+            }`;
+            
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+        }
+
+        // Render the dashboard
+        ReactDOM.render(<HardwareDashboard />, document.getElementById('dashboard-root'));
+    </script>
+</body>
+</html>

@@ -732,6 +732,7 @@ export class ModbusController extends EventEmitter {
 
   /**
    * Scan Modbus bus for active slave devices (Waveshare relay cards)
+   * Enhanced version with device identification and progress reporting
    */
   async scanBus(startAddress: number = 1, endAddress: number = 10): Promise<number[]> {
     const activeSlaves: number[] = [];
@@ -754,6 +755,161 @@ export class ModbusController extends EventEmitter {
     }
     
     return activeSlaves;
+  }
+
+  /**
+   * Enhanced bus scanning with device identification and progress reporting
+   * Used by Hardware Detection Service for wizard functionality
+   */
+  async scanBusDetailed(
+    startAddress: number = 1, 
+    endAddress: number = 255,
+    progressCallback?: (progress: number, currentAddress: number) => void
+  ): Promise<Array<{address: number, responseTime: number, deviceInfo?: any}>> {
+    const detectedDevices: Array<{address: number, responseTime: number, deviceInfo?: any}> = [];
+    const totalAddresses = endAddress - startAddress + 1;
+    let scannedCount = 0;
+    
+    console.log(`🔍 ModbusController: Enhanced bus scan ${startAddress}-${endAddress} (${totalAddresses} addresses)`);
+    
+    for (let address = startAddress; address <= endAddress; address++) {
+      const startTime = Date.now();
+      scannedCount++;
+      
+      try {
+        // Try to read coil status from each potential slave
+        const command = this.buildReadCoilsCommand(address, 0, 1);
+        await this.writeCommand(command);
+        
+        const responseTime = Date.now() - startTime;
+        
+        // Device responded - try to get additional info
+        const deviceInfo = await this.probeDeviceInfo(address);
+        
+        detectedDevices.push({
+          address,
+          responseTime,
+          deviceInfo
+        });
+        
+        console.log(`✅ Device found at address ${address} (${responseTime}ms)`);
+        
+      } catch (error) {
+        // Slave not responding or error - continue scanning
+      }
+      
+      // Report progress
+      if (progressCallback) {
+        const progress = Math.round((scannedCount / totalAddresses) * 100);
+        progressCallback(progress, address);
+      }
+      
+      // Small delay between scan attempts
+      await this.delay(50);
+    }
+    
+    console.log(`✅ Enhanced bus scan complete: ${detectedDevices.length} devices found`);
+    return detectedDevices;
+  }
+
+  /**
+   * Probe device for additional information
+   * Attempts to identify device type and capabilities
+   */
+  private async probeDeviceInfo(address: number): Promise<any> {
+    const deviceInfo: any = {
+      supportsMultipleCoils: false,
+      supportsReadCoils: true, // We know this works since we got here
+      channelCount: 16, // Default assumption
+      deviceType: 'unknown'
+    };
+
+    try {
+      // Test multiple coils support (Function 0x0F)
+      const multipleCoilsCommand = this.buildWriteMultipleCoilsCommand(address, 0, 1, [false]);
+      await this.writeCommand(multipleCoilsCommand);
+      deviceInfo.supportsMultipleCoils = true;
+      
+      // If multiple coils work, likely a Waveshare device
+      if (deviceInfo.supportsMultipleCoils) {
+        deviceInfo.deviceType = 'waveshare_likely';
+        
+        // Try to detect channel count by testing different coil ranges
+        const channelTests = [16, 8, 32, 4];
+        for (const testChannels of channelTests) {
+          try {
+            const testCommand = this.buildReadCoilsCommand(address, 0, testChannels);
+            await this.writeCommand(testCommand);
+            deviceInfo.channelCount = testChannels;
+            break; // First successful test determines channel count
+          } catch (error) {
+            // Continue testing other channel counts
+          }
+        }
+      }
+      
+    } catch (error) {
+      // Multiple coils not supported - likely generic device
+      deviceInfo.deviceType = 'generic';
+    }
+
+    return deviceInfo;
+  }
+
+  /**
+   * Test communication with specific device address
+   * Used for device validation during wizard setup
+   */
+  async testDeviceCommunication(address: number, timeout: number = 2000): Promise<{
+    success: boolean;
+    responseTime: number;
+    error?: string;
+    deviceInfo?: any;
+  }> {
+    const startTime = Date.now();
+    
+    try {
+      // Save original timeout
+      const originalTimeout = this.config.timeout_ms;
+      this.config.timeout_ms = timeout;
+      
+      try {
+        // Test basic communication
+        const command = this.buildReadCoilsCommand(address, 0, 1);
+        await this.writeCommand(command);
+        
+        const responseTime = Date.now() - startTime;
+        
+        // Get device info if communication successful
+        const deviceInfo = await this.probeDeviceInfo(address);
+        
+        return {
+          success: true,
+          responseTime,
+          deviceInfo
+        };
+        
+      } finally {
+        // Restore original timeout
+        this.config.timeout_ms = originalTimeout;
+      }
+      
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      return {
+        success: false,
+        responseTime,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Disconnect and cleanup (alias for close method)
+   * Used by Hardware Detection Service
+   */
+  async disconnect(): Promise<void> {
+    await this.close();
   }
 
   /**

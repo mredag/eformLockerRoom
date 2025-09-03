@@ -1,0 +1,166 @@
+/* Real-Time Progress Indicator Component Styles */
+
+.real-time-progress-indicator {
+  position: relative;
+}
+
+.real-time-progress-indicator__connection-warning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  font-size: 0.85em;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.real-time-progress-indicator__connection-warning::before {
+  content: '⚠️';
+  font-size: 1.1em;
+}
+
+.real-time-progress-indicator__error-details {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 0.85em;
+  color: #721c24;
+}
+
+.real-time-progress-indicator__error-type,
+.real-time-progress-indicator__error-severity,
+.real-time-progress-indicator__suggested-action {
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.real-time-progress-indicator__error-type {
+  color: #dc3545;
+}
+
+.real-time-progress-indicator__error-severity {
+  color: #6c757d;
+}
+
+.real-time-progress-indicator__suggested-action {
+  color: #007bff;
+  font-style: italic;
+}
+
+.real-time-progress-indicator__error-details-expand {
+  margin-top: 8px;
+  border-top: 1px solid #f5c6cb;
+  padding-top: 8px;
+}
+
+.real-time-progress-indicator__error-details-expand summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: #495057;
+  padding: 4px 0;
+}
+
+.real-time-progress-indicator__error-details-expand summary:hover {
+  color: #007bff;
+}
+
+.real-time-progress-indicator__error-details-expand pre {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 8px;
+  font-size: 0.8em;
+  color: #495057;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Connection status indicator */
+.real-time-progress-indicator::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #28a745;
+  box-shadow: 0 0 4px rgba(40, 167, 69, 0.5);
+  z-index: 10;
+}
+
+.real-time-progress-indicator--disconnected::before {
+  background: #dc3545;
+  box-shadow: 0 0 4px rgba(220, 53, 69, 0.5);
+  animation: pulse-error 2s ease-in-out infinite;
+}
+
+.real-time-progress-indicator--connecting::before {
+  background: #ffc107;
+  box-shadow: 0 0 4px rgba(255, 193, 7, 0.5);
+  animation: pulse-warning 1.5s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes pulse-error {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .real-time-progress-indicator__error-details {
+    font-size: 0.8em;
+  }
+  
+  .real-time-progress-indicator__error-details-expand pre {
+    font-size: 0.75em;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .real-time-progress-indicator__connection-warning {
+    border-width: 2px;
+  }
+  
+  .real-time-progress-indicator__error-details {
+    border-width: 2px;
+  }
+  
+  .real-time-progress-indicator::before {
+    border: 1px solid #000;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .real-time-progress-indicator--disconnected::before,
+  .real-time-progress-indicator--connecting::before {
+    animation: none;
+  }
+}
