@@ -613,8 +613,8 @@ export class RecoveryActionSystem {
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-  // 
-Manual intervention guide generators
+
+  // Manual intervention guide generators
   private generateSerialPortInterventionGuide(
     error: WizardError,
     context: RecoveryContext

@@ -492,8 +492,8 @@ export class ErrorHandler {
 
     return actions[code] || 'Try the operation again.';
   }
-  // R
-ecovery action methods
+
+  // Recovery action methods
   private getSerialPortRecoveryActions(error: WizardError): RecoveryAction[] {
     const actions: RecoveryAction[] = [];
 
