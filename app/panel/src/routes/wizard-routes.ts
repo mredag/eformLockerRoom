@@ -80,8 +80,15 @@ export async function wizardRoutes(
         });
       }
 
-      // Perform hardware detection
-      const detectionResult = await hardwareDetection.detectHardware();
+      // Perform hardware detection - scan serial ports and detect new devices
+      const serialPorts = await hardwareDetection.scanSerialPorts();
+      const newDevices = await hardwareDetection.detectNewDevices();
+      
+      const detectionResult = {
+        serialPorts,
+        newDevices,
+        timestamp: new Date()
+      };
       
       // Update session with detection results
       await wizardOrchestration.updateWizardSession(sessionId, {
@@ -121,8 +128,22 @@ export async function wizardRoutes(
         });
       }
 
-      // Configure slave addresses
-      const configurationResult = await slaveAddressService.configureSlaveAddresses(addresses);
+      // Initialize slave address service
+      await slaveAddressService.initialize();
+      
+      // Configure slave addresses sequentially
+      const configurationResults = [];
+      for (const addressConfig of addresses) {
+        const result = await slaveAddressService.configureBroadcastAddress(addressConfig.slaveAddress);
+        configurationResults.push({
+          cardId: addressConfig.cardId,
+          slaveAddress: addressConfig.slaveAddress,
+          ...result
+        });
+      }
+      
+      // Close slave address service
+      await slaveAddressService.close();
       
       // Update session
       await wizardOrchestration.updateWizardSession(sessionId, {
@@ -133,11 +154,11 @@ export async function wizardRoutes(
       // Log security event
       await wizardSecurity.logSecurityEvent(sessionId, 'addresses_configured', {
         addresses,
-        result: configurationResult,
+        result: configurationResults,
         ip: request.ip
       });
 
-      return { success: true, configurationResult };
+      return { success: true, configurationResult: configurationResults };
     } catch (error) {
       fastify.log.error('Address configuration failed:', error);
       return reply.code(500).send({ 
@@ -151,6 +172,7 @@ export async function wizardRoutes(
   fastify.post('/session/:sessionId/test-hardware', async (request, reply) => {
     try {
       const { sessionId } = request.params as { sessionId: string };
+      const { addresses } = request.body as { addresses?: number[] };
       
       // Validate session
       const session = await wizardOrchestration.getWizardSession(sessionId);
@@ -161,23 +183,49 @@ export async function wizardRoutes(
         });
       }
 
-      // Run hardware tests
-      const testResults = await hardwareTestingService.runComprehensiveTests();
+      // Initialize hardware testing service with default config
+      await hardwareTestingService.initialize({
+        port: '/dev/ttyUSB0',
+        baudrate: 9600,
+        timeout_ms: 5000,
+        max_retries: 3
+      });
+      
+      // Run hardware tests for each address
+      const testResults = [];
+      const testAddresses = addresses || [1, 2]; // Default test addresses
+      
+      for (const address of testAddresses) {
+        const fullTest = await hardwareTestingService.runFullHardwareTest(address);
+        testResults.push(fullTest);
+      }
+      
+      // Run system integration test
+      const integrationResult = await hardwareTestingService.validateSystemIntegration();
+      
+      const allResults = {
+        hardwareTests: testResults,
+        integrationTest: integrationResult,
+        timestamp: new Date()
+      };
+      
+      // Clean up testing service
+      await hardwareTestingService.cleanup();
       
       // Update session with test results
       await wizardOrchestration.updateWizardSession(sessionId, {
         current_step: 4,
         max_completed_step: Math.max(session.max_completed_step, 3),
-        test_results: JSON.stringify(testResults)
+        test_results: JSON.stringify(allResults)
       });
 
       // Log security event
       await wizardSecurity.logSecurityEvent(sessionId, 'hardware_tested', {
-        testResults,
+        testResults: allResults,
         ip: request.ip
       });
 
-      return { success: true, testResults };
+      return { success: true, testResults: allResults };
     } catch (error) {
       fastify.log.error('Hardware testing failed:', error);
       return reply.code(500).send({ 

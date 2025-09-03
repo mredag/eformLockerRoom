@@ -82,12 +82,24 @@ export interface ReliabilityTestOptions {
 // ============================================================================
 
 export class HardwareTestingService extends EventEmitter {
+  private static instance: HardwareTestingService | null = null;
+  
   private modbusController: ModbusController | null = null;
   private isInitialized = false;
 
   constructor() {
     super();
     this.setMaxListeners(20);
+  }
+
+  /**
+   * Get singleton instance of HardwareTestingService
+   */
+  public static getInstance(): HardwareTestingService {
+    if (!HardwareTestingService.instance) {
+      HardwareTestingService.instance = new HardwareTestingService();
+    }
+    return HardwareTestingService.instance;
   }
 
   /**

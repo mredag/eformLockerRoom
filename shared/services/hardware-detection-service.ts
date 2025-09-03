@@ -98,6 +98,8 @@ export interface ScanOptions {
 // ============================================================================
 
 export class HardwareDetectionService extends EventEmitter {
+  private static instance: HardwareDetectionService | null = null;
+  
   private knownDevices: Map<number, ModbusDevice> = new Map();
   private deviceCache: Map<string, ModbusDevice[]> = new Map();
   private cacheTimeout = 5 * 60 * 1000; // 5 minutes
@@ -106,7 +108,13 @@ export class HardwareDetectionService extends EventEmitter {
   private monitorInterval: NodeJS.Timeout | null = null;
 
   constructor(
-    private config: ModbusConfig,
+    private config: ModbusConfig = { 
+      port: '/dev/ttyUSB0', 
+      baudRate: 9600, 
+      dataBits: 8, 
+      parity: 'none', 
+      stopBits: 1 
+    },
     private existingCards: RelayCard[] = []
   ) {
     super();
@@ -114,6 +122,19 @@ export class HardwareDetectionService extends EventEmitter {
     
     // Initialize known devices from existing configuration
     this.initializeKnownDevices();
+  }
+
+  /**
+   * Get singleton instance of HardwareDetectionService
+   */
+  public static getInstance(
+    config?: ModbusConfig,
+    existingCards?: RelayCard[]
+  ): HardwareDetectionService {
+    if (!HardwareDetectionService.instance) {
+      HardwareDetectionService.instance = new HardwareDetectionService(config, existingCards);
+    }
+    return HardwareDetectionService.instance;
   }
 
   // ============================================================================

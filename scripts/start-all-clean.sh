@@ -58,12 +58,22 @@ echo "⏳ Waiting for Gateway to initialize..."
 sleep 5
 
 # Check if Gateway is running
-if curl -s http://localhost:3000/health --connect-timeout 3 > /dev/null; then
-    echo "✅ Gateway started successfully"
-else
-    echo "❌ Gateway failed to start"
-    exit 1
-fi
+GATEWAY_ATTEMPTS=0
+while [ $GATEWAY_ATTEMPTS -lt 6 ]; do
+    if curl -s http://localhost:3000/health --connect-timeout 3 > /dev/null; then
+        echo "✅ Gateway started successfully"
+        break
+    else
+        GATEWAY_ATTEMPTS=$((GATEWAY_ATTEMPTS + 1))
+        if [ $GATEWAY_ATTEMPTS -lt 6 ]; then
+            echo "⏳ Gateway not ready yet, waiting... (attempt $GATEWAY_ATTEMPTS/6)"
+            sleep 2
+        else
+            echo "❌ Gateway failed to start after 6 attempts"
+            echo "📝 Check logs: tail -10 logs/gateway.log"
+        fi
+    fi
+done
 
 echo ""
 echo "🖥️  Starting Kiosk service (port 3002)..."
@@ -72,16 +82,28 @@ WEBSOCKET_PORT=8080 nohup npm run start:kiosk > logs/kiosk.log 2>&1 &
 KIOSK_PID=$!
 echo "Kiosk PID: $KIOSK_PID"
 
-# Wait for Kiosk to start
-echo "⏳ Waiting for Kiosk to initialize..."
-sleep 5
+# Wait for Kiosk to start (needs extra time for hardware initialization)
+echo "⏳ Waiting for Kiosk to initialize (hardware + WebSocket setup)..."
+sleep 8
 
-# Check if Kiosk is running
-if curl -s http://localhost:3002/health --connect-timeout 3 > /dev/null; then
-    echo "✅ Kiosk started successfully"
-else
-    echo "❌ Kiosk failed to start"
-fi
+# Check if Kiosk is running (Kiosk needs more time due to hardware initialization)
+KIOSK_ATTEMPTS=0
+while [ $KIOSK_ATTEMPTS -lt 10 ]; do
+    if curl -s http://localhost:3002/health --connect-timeout 5 > /dev/null; then
+        echo "✅ Kiosk started successfully"
+        break
+    else
+        KIOSK_ATTEMPTS=$((KIOSK_ATTEMPTS + 1))
+        if [ $KIOSK_ATTEMPTS -lt 10 ]; then
+            echo "⏳ Kiosk not ready yet, waiting... (attempt $KIOSK_ATTEMPTS/10)"
+            sleep 3
+        else
+            echo "❌ Kiosk failed to start after 10 attempts"
+            echo "📝 Check logs: tail -10 logs/kiosk.log"
+            # Don't exit - continue with other services
+        fi
+    fi
+done
 
 echo ""
 echo "📊 Starting Panel service (port 3001)..."
@@ -92,33 +114,50 @@ echo "Panel PID: $PANEL_PID"
 
 # Wait for Panel to start
 echo "⏳ Waiting for Panel to initialize..."
-sleep 5
+PANEL_ATTEMPTS=0
+while [ $PANEL_ATTEMPTS -lt 6 ]; do
+    if curl -s http://localhost:3001/health --connect-timeout 3 > /dev/null; then
+        echo "✅ Panel started successfully"
+        break
+    else
+        PANEL_ATTEMPTS=$((PANEL_ATTEMPTS + 1))
+        if [ $PANEL_ATTEMPTS -lt 6 ]; then
+            echo "⏳ Panel not ready yet, waiting... (attempt $PANEL_ATTEMPTS/6)"
+            sleep 2
+        else
+            echo "❌ Panel failed to start after 6 attempts"
+            echo "📝 Check logs: tail -10 logs/panel.log"
+        fi
+    fi
+done
 
 # Final status check
 echo ""
 echo "🔍 Final Service Status:"
 echo "========================"
 
-# Check Gateway
-if curl -s http://localhost:3000/health --connect-timeout 3 > /dev/null; then
-    echo "✅ Gateway (port 3000): Running"
-else
-    echo "❌ Gateway (port 3000): Not responding"
-fi
+# Give services a moment to fully initialize
+sleep 3
 
-# Check Panel  
-if curl -s http://localhost:3001 --connect-timeout 3 > /dev/null; then
-    echo "✅ Panel (port 3001): Running"
-else
-    echo "❌ Panel (port 3001): Not responding"
-fi
+# Function to check service health
+check_service() {
+    local service_name=$1
+    local port=$2
+    local endpoint=$3
+    
+    if curl -s "http://localhost:$port$endpoint" --connect-timeout 10 --max-time 15 >/dev/null 2>&1; then
+        echo "✅ $service_name (port $port): Running"
+        return 0
+    else
+        echo "❌ $service_name (port $port): Not responding"
+        return 1
+    fi
+}
 
-# Check Kiosk
-if curl -s http://localhost:3002/health --connect-timeout 3 > /dev/null; then
-    echo "✅ Kiosk (port 3002): Running"
-else
-    echo "❌ Kiosk (port 3002): Not responding"
-fi
+# Check all services
+check_service "Gateway" "3000" "/health"
+check_service "Panel" "3001" "/health"  
+check_service "Kiosk" "3002" "/health"
 
 echo ""
 echo "🎯 Services Started! Access URLs:"

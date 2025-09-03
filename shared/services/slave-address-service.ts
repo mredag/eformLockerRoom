@@ -75,13 +75,31 @@ export interface SlaveAddressConfig {
  * - Systematic address scanning techniques
  */
 export class SlaveAddressService extends EventEmitter {
+  private static instance: SlaveAddressService | null = null;
+  
   private serialPort: SerialPort | null = null;
   private config: SlaveAddressConfig;
   private knownDevices = new Map<number, ModbusDevice>();
 
-  constructor(config: SlaveAddressConfig) {
+  constructor(config: SlaveAddressConfig = {
+    port: '/dev/ttyUSB0',
+    baudRate: 9600,
+    timeout: 1000,
+    retries: 3,
+    addressRange: { start: 1, end: 247 }
+  }) {
     super();
     this.config = config;
+  }
+
+  /**
+   * Get singleton instance of SlaveAddressService
+   */
+  public static getInstance(config?: SlaveAddressConfig): SlaveAddressService {
+    if (!SlaveAddressService.instance) {
+      SlaveAddressService.instance = new SlaveAddressService(config);
+    }
+    return SlaveAddressService.instance;
   }
 
   /**

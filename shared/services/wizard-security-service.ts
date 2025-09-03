@@ -125,8 +125,24 @@ export class WizardSecurityService {
     [WizardOperation.IMPORT_CONFIGURATION]: { maxRequests: 5, windowMs: 60000 }
   };
 
+  private static instance: WizardSecurityService | null = null;
+  
   private auditLog: AuditLogEntry[] = [];
   private rateLimitStore: Map<string, { count: number; resetTime: number }> = new Map();
+
+  private constructor() {
+    // Private constructor for singleton pattern
+  }
+
+  /**
+   * Get singleton instance of WizardSecurityService
+   */
+  public static getInstance(): WizardSecurityService {
+    if (!WizardSecurityService.instance) {
+      WizardSecurityService.instance = new WizardSecurityService();
+    }
+    return WizardSecurityService.instance;
+  }
 
   /**
    * Create security context from request
