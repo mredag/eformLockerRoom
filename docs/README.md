@@ -15,6 +15,16 @@ Welcome to the comprehensive documentation for the eForm Locker System. This dir
 - **[🥧 Raspberry Pi Setup](raspberry-pi-setup-guide-v2.md)** - Pi-specific configuration
 - **[🔄 Rollback Procedures](rollback-procedures.md)** - Emergency recovery procedures
 
+### **🧙‍♂️ Hardware Configuration Wizard (NEW!)**
+- **[🧙‍♂️ Hardware Wizard User Guide](HARDWARE_WIZARD_USER_GUIDE.md)** - Complete usage guide
+- **[🚀 Hardware Wizard Deployment](HARDWARE_WIZARD_DEPLOYMENT.md)** - Installation and setup
+- **[🎉 Hardware Wizard Implementation](../HARDWARE_WIZARD_IMPLEMENTATION_COMPLETE.md)** - Feature overview
+- **[📡 Wizard API Documentation](hardware-wizard-api-documentation.md)** - Technical API reference
+- **[🔧 Wizard Troubleshooting](hardware-wizard-troubleshooting.md)** - Issue resolution
+- **[👨‍💻 Wizard Developer Guide](hardware-wizard-developer-guide.md)** - Technical implementation
+- **[❓ Wizard FAQ](hardware-wizard-faq.md)** - Frequently asked questions
+- **[🚨 Wizard Error Codes](hardware-wizard-error-codes.md)** - Error reference
+
 ### **📡 API & Integration**
 - **[📋 API Reference](API_REFERENCE.md)** - Comprehensive API documentation
 - **[🔗 Integrations](integrations/)** - External system integrations
@@ -64,6 +74,7 @@ docs/
 1. Start with the [Main README](../README.md) for project overview
 2. Follow the [Deployment Guide](DEPLOYMENT_README.md) for setup
 3. Use the [Quick Reference](QUICK_REFERENCE.md) for common operations
+4. **NEW!** Try the [Hardware Wizard](HARDWARE_WIZARD_USER_GUIDE.md) for guided hardware setup
 
 ### **For Developers**
 1. Review [System Documentation](SYSTEM_DOCUMENTATION.md) for architecture
@@ -74,6 +85,7 @@ docs/
 1. Use [Monitoring Guide](MONITORING_GUIDE.md) for operations
 2. Reference [Hardware Integration Guide](troubleshooting/hardware-integration-guide.md) for hardware issues
 3. Follow [System Maintenance Reference](maintenance/system-fixes-reference.md) for troubleshooting
+4. **NEW!** Access the [Hardware Wizard Security Dashboard](HARDWARE_WIZARD_USER_GUIDE.md#security-features) for security monitoring
 
 ### **For Troubleshooting**
 1. Check [Hardware Integration Guide](troubleshooting/hardware-integration-guide.md) for hardware issues
@@ -84,9 +96,11 @@ docs/
 
 ### **By Topic**
 - **Hardware Issues**: `troubleshooting/hardware-integration-guide.md`
+- **Hardware Configuration**: `HARDWARE_WIZARD_USER_GUIDE.md` (**NEW!**)
 - **API Integration**: `API_REFERENCE.md` and `integrations/`
 - **System Maintenance**: `maintenance/system-fixes-reference.md`
 - **Performance**: `performance-monitoring-guide.md`
+- **Security Monitoring**: `HARDWARE_WIZARD_USER_GUIDE.md#security-features` (**NEW!**)
 - **Deployment**: `DEPLOYMENT_README.md`
 
 ### **By User Role**
@@ -100,6 +114,8 @@ docs/
 - **Kiosk Service**: Kiosk Troubleshooting Guide, Hardware Integration Guide
 - **Panel Service**: System Documentation, Maksisoft Integration Guide (Production Ready)
 - **Hardware**: Hardware Integration Guide, Pi Configuration Guide
+- **Hardware Wizard**: Hardware Wizard User Guide, Wizard API Documentation (**NEW!**)
+- **Security System**: Hardware Wizard Security Features (**NEW!**)
 
 ## 📊 Documentation Status
 

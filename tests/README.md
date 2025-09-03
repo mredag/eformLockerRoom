@@ -19,6 +19,10 @@ Integration tests are centralized in the main `tests/integration/` directory and
 - `admin-panel-ui-improvements.test.ts` - Admin panel UI tests
 - `websocket-realtime-ui-updates.test.ts` - Real-time UI updates
 
+#### Hardware Configuration Wizard Tests (NEW!)
+- `hardware-wizard-api.test.ts` - Wizard API endpoint testing
+- `wizard-performance-monitoring.test.ts` - Performance monitoring integration
+
 #### Service Integration Tests  
 - `vip-workflow-integration.test.ts` - VIP contract workflows
 - `rfid-qr-integration.test.ts` - RFID and QR code integration
@@ -57,6 +61,21 @@ Unit tests are organized within each service's `__tests__` directory:
 - Configuration manager tests
 - Rate limiter tests
 
+#### Hardware Wizard Services (`shared/services/__tests__/`)
+- `wizard-security-service.test.ts` - Security service (26 tests ✅)
+- `wizard-security-service-enhanced.test.ts` - Enhanced security features
+- `wizard-security-monitor.test.ts` - Security monitoring and alerts
+- `wizard-input-validator.test.ts` - Input validation and sanitization
+- `wizard-orchestration-service.test.ts` - Wizard workflow orchestration
+- `wizard-performance-monitor.test.ts` - Performance monitoring
+- `wizard-cache-service.test.ts` - Caching and resource management
+- `hardware-detection-service.test.ts` - Hardware detection and scanning
+- `hardware-testing-service.test.ts` - Hardware testing and validation
+- `slave-address-service.test.ts` - Slave address configuration
+- `troubleshooting-integration-service.test.ts` - Troubleshooting automation
+- `recovery-action-system.test.ts` - Automatic error recovery
+- `error-handler.test.ts` - Error handling and logging
+
 ## Running Tests
 
 ### All Integration Tests
@@ -81,6 +100,25 @@ npx vitest run app/kiosk/src/__tests__/**/*.test.ts
 
 # Shared service unit tests
 npx vitest run shared/services/__tests__/**/*.test.ts
+```
+
+### Hardware Wizard Tests
+```bash
+# Run all wizard tests
+npm test -- --testPathPattern="wizard.*test\.ts"
+
+# Run wizard security tests specifically
+npm test shared/services/__tests__/wizard-security-service.test.ts
+
+# Run wizard integration tests
+npx vitest run tests/integration/hardware-wizard-api.test.ts
+npx vitest run tests/integration/wizard-performance-monitoring.test.ts
+
+# Run wizard unit tests
+npx vitest run tests/unit/wizard-services.test.ts
+
+# Run wizard end-to-end tests
+npx vitest run tests/e2e/hardware-wizard-flow.test.ts
 ```
 
 ### All Tests

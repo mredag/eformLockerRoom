@@ -17,6 +17,7 @@ Scripts for testing, validation, and quality assurance.
 - System validation and compatibility checks
 - End-to-end testing suites
 - WebSocket and real-time functionality testing
+- **Hardware Wizard Testing**: Comprehensive wizard functionality validation
 
 ### `/maintenance/` - System Maintenance
 Scripts for ongoing system maintenance and monitoring.
@@ -24,6 +25,7 @@ Scripts for ongoing system maintenance and monitoring.
 - Backup and restore operations
 - Service startup and cleanup
 - Performance monitoring and upgrades
+- **Wizard Security Monitoring**: Security audit and threat detection scripts
 
 ### `/emergency/` - Emergency & Diagnostics
 Scripts for emergency procedures and troubleshooting.
