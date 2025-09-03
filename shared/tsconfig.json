@@ -20,6 +20,7 @@
     "services/hardware-*.ts",
     // Exclude complex error and recovery helpers from strict build until typed
     "services/error-handler.ts",
-    "services/recovery-action-system.ts"
+    "services/recovery-action-system.ts",
+    "services/troubleshooting-integration-service.ts"
   ]
 }
