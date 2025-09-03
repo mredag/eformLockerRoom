@@ -121,11 +121,15 @@ fi
 echo ""
 echo "🎯 Services Started! Access URLs:"
 echo "================================="
-echo "📊 Admin Panel:  http://192.168.1.8:3001"
-echo "🔧 Relay Control: http://192.168.1.8:3001/relay"
-echo "📋 Lockers:      http://192.168.1.8:3001/lockers"
-echo "🌐 Gateway API:  http://192.168.1.8:3000"
-echo "🖥️  Kiosk UI:     http://192.168.1.8:3002"
+CURRENT_IP=$(node scripts/network/dynamic-ip-manager.js current-ip 2>/dev/null || hostname -I | awk '{print $1}')
+if [ -z "$CURRENT_IP" ]; then
+  CURRENT_IP="localhost"
+fi
+echo "📊 Admin Panel:  http://$CURRENT_IP:3001"
+echo "🔧 Relay Control: http://$CURRENT_IP:3001/relay"
+echo "📋 Lockers:      http://$CURRENT_IP:3001/lockers"
+echo "🌐 Gateway API:  http://$CURRENT_IP:3000"
+echo "🖥️  Kiosk UI:     http://$CURRENT_IP:3002"
 echo ""
 echo "📝 View logs with:"
 echo "tail -f logs/gateway.log"
