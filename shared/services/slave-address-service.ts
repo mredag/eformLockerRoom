@@ -85,8 +85,8 @@ export class SlaveAddressService extends EventEmitter {
     port: '/dev/ttyUSB0',
     baudRate: 9600,
     timeout: 1000,
-    retries: 3,
-    addressRange: { start: 1, end: 247 }
+    maxRetries: 3,
+    retryDelay: 100
   }) {
     super();
     this.config = config;
