@@ -567,7 +567,9 @@ class PreSetupChecklist {
         
         // Create Bootstrap modal instance
         const modalElement = document.getElementById(modalId);
-        const modal = new bootstrap.Modal(modalElement);
+        // Simple modal show without Bootstrap
+        modalElement.style.display = 'block';
+        modalElement.classList.add('show');
         
         // Clean up modal when hidden
         modalElement.addEventListener('hidden.bs.modal', () => {

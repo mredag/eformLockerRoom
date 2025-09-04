@@ -1410,8 +1410,9 @@ class AddressConfiguration {
         
         return {
             show: () => {
-                const modal = new bootstrap.Modal(modalElement);
-                modal.show();
+                // Simple modal show without Bootstrap
+                modalElement.style.display = 'block';
+                modalElement.classList.add('show');
                 
                 // Clean up when modal is hidden
                 modalElement.addEventListener('hidden.bs.modal', () => {

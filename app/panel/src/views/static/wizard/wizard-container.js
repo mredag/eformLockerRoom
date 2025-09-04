@@ -56,7 +56,8 @@ class HardwareWizard {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({})
             });
 
             if (!response.ok) {
@@ -643,8 +644,15 @@ class HardwareWizard {
         // Update toast styling based on type
         toast.className = `toast ${type === 'error' ? 'bg-danger text-white' : ''}`;
         
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
+        // Simple toast show without Bootstrap
+        toast.style.display = 'block';
+        toast.classList.add('show');
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            toast.style.display = 'none';
+            toast.classList.remove('show');
+        }, 5000);
     }
 
     /**
