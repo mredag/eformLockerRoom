@@ -80,6 +80,8 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         request.url.startsWith('/api/relay/') ||  // Allow all relay API routes
         request.url.startsWith('/api/heartbeat/') ||  // Allow all heartbeat API routes
         request.url.startsWith('/api/maksi/') ||  // Allow Maksisoft API routes (public access)
+        request.url.startsWith('/api/wizard/scan-') ||  // Allow wizard hardware detection endpoints
+        request.url.startsWith('/api/wizard/detect-') ||  // Allow wizard device detection endpoints
         request.url.endsWith('.css') ||
         request.url.endsWith('.js') ||
         request.url.endsWith('.ico')) {

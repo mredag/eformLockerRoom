@@ -313,6 +313,80 @@ export async function wizardRoutes(
       });
     }
   });
+
+  // Direct API endpoints for frontend compatibility
+  
+  // Scan serial ports endpoint
+  fastify.get('/scan-ports', async (request, reply) => {
+    try {
+      const ports = await hardwareDetection.scanSerialPorts();
+      return { 
+        success: true, 
+        ports: ports || []
+      };
+    } catch (error) {
+      fastify.log.error('Serial port scan failed:', error);
+      return reply.code(500).send({ 
+        success: false, 
+        error: 'Serial port scan failed',
+        ports: []
+      });
+    }
+  });
+
+  // Scan Modbus devices endpoint
+  fastify.get('/scan-devices', async (request, reply) => {
+    try {
+      // First get available serial ports
+      const ports = await hardwareDetection.scanSerialPorts();
+      const availablePorts = ports.filter(p => p.available);
+      
+      if (availablePorts.length === 0) {
+        return { 
+          success: true, 
+          devices: [],
+          message: 'No available serial ports found'
+        };
+      }
+
+      // Scan devices on the first available port (typically /dev/ttyUSB0)
+      const primaryPort = availablePorts.find(p => p.path.includes('ttyUSB0')) || availablePorts[0];
+      const devices = await hardwareDetection.scanModbusDevices(primaryPort.path, {
+        addressRange: { start: 1, end: 10 }, // Scan common addresses
+        timeout: 2000
+      });
+      
+      return { 
+        success: true, 
+        devices: devices || []
+      };
+    } catch (error) {
+      fastify.log.error('Modbus device scan failed:', error);
+      return reply.code(500).send({ 
+        success: false, 
+        error: 'Modbus device scan failed',
+        devices: []
+      });
+    }
+  });
+
+  // Detect new cards endpoint
+  fastify.get('/detect-new-cards', async (request, reply) => {
+    try {
+      const newDevices = await hardwareDetection.detectNewDevices();
+      return { 
+        success: true, 
+        new_devices: newDevices || []
+      };
+    } catch (error) {
+      fastify.log.error('New device detection failed:', error);
+      return reply.code(500).send({ 
+        success: false, 
+        error: 'New device detection failed',
+        new_devices: []
+      });
+    }
+  });
 }
 
 // Register wizard page routes
