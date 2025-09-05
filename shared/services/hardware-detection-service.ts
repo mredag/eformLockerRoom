@@ -110,10 +110,12 @@ export class HardwareDetectionService extends EventEmitter {
   constructor(
     private config: ModbusConfig = { 
       port: '/dev/ttyUSB0', 
-      baudRate: 9600, 
-      dataBits: 8, 
-      parity: 'none', 
-      stopBits: 1 
+      baudrate: 9600, 
+      timeout_ms: 2000,
+      pulse_duration_ms: 500,
+      burst_duration_seconds: 1,
+      burst_interval_ms: 100,
+      command_interval_ms: 50
     },
     private existingCards: RelayCard[] = []
   ) {
@@ -305,7 +307,8 @@ export class HardwareDetectionService extends EventEmitter {
         port: portPath,
         timeout_ms: timeout,
         max_retries: retries,
-        test_mode: true // Disable queue processor
+        test_mode: true, // Disable queue processor
+        baudrate: this.config.baudrate || 9600
       };
 
       const scanner = new ModbusController(scanConfig);
