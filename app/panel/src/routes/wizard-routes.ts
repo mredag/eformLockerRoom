@@ -340,12 +340,27 @@ export async function wizardRoutes(
       // First get available serial ports
       const ports = await hardwareDetection.scanSerialPorts();
       const availablePorts = ports.filter(p => p.available);
+      const busyPorts = ports.filter(p => !p.available);
       
       if (availablePorts.length === 0) {
+        // Check if there are USB serial ports that are busy
+        const usbPorts = busyPorts.filter(p => p.path.includes('ttyUSB'));
+        if (usbPorts.length > 0) {
+          return { 
+            success: false, 
+            devices: [],
+            error: 'Serial ports are busy (likely used by Kiosk service)',
+            message: 'Please stop other services before scanning for devices',
+            busyPorts: usbPorts.map(p => p.path),
+            suggestion: 'Run: sudo pkill -f "node.*kiosk" to stop Kiosk service'
+          };
+        }
+        
         return { 
-          success: true, 
+          success: false, 
           devices: [],
-          message: 'No available serial ports found'
+          error: 'No available serial ports found',
+          message: 'Please check USB-RS485 adapter connection'
         };
       }
 
@@ -358,15 +373,36 @@ export async function wizardRoutes(
       
       return { 
         success: true, 
-        devices: devices || []
+        devices: devices || [],
+        scannedPort: primaryPort.path,
+        message: `Scanned ${devices?.length || 0} devices on ${primaryPort.path}`
       };
     } catch (error) {
       fastify.log.error('Modbus device scan failed:', error);
-      return reply.code(500).send({ 
+      
+      // Provide more specific error messages
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      let userFriendlyMessage = 'Modbus device scan failed';
+      let suggestion = '';
+      
+      if (errorMessage.includes('EBUSY') || errorMessage.includes('Resource temporarily unavailable')) {
+        userFriendlyMessage = 'Serial port is busy (likely used by another service)';
+        suggestion = 'Please stop the Kiosk service before scanning';
+      } else if (errorMessage.includes('ENOENT') || errorMessage.includes('No such file')) {
+        userFriendlyMessage = 'Serial port not found';
+        suggestion = 'Please check USB-RS485 adapter connection';
+      } else if (errorMessage.includes('timeout')) {
+        userFriendlyMessage = 'Device scan timeout';
+        suggestion = 'Check hardware connections and try again';
+      }
+      
+      return { 
         success: false, 
-        error: 'Modbus device scan failed',
-        devices: []
-      });
+        error: userFriendlyMessage,
+        devices: [],
+        suggestion,
+        technicalError: errorMessage
+      };
     }
   });
 
@@ -376,15 +412,29 @@ export async function wizardRoutes(
       const newDevices = await hardwareDetection.detectNewDevices();
       return { 
         success: true, 
-        new_devices: newDevices || []
+        new_devices: newDevices || [],
+        message: `Found ${newDevices?.length || 0} new devices`
       };
     } catch (error) {
       fastify.log.error('New device detection failed:', error);
-      return reply.code(500).send({ 
+      
+      // Provide helpful error messages
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      let userFriendlyMessage = 'New device detection failed';
+      let suggestion = '';
+      
+      if (errorMessage.includes('No available serial ports')) {
+        userFriendlyMessage = 'No available serial ports for device detection';
+        suggestion = 'Stop other services or check USB connections';
+      }
+      
+      return { 
         success: false, 
-        error: 'New device detection failed',
-        new_devices: []
-      });
+        error: userFriendlyMessage,
+        new_devices: [],
+        suggestion,
+        technicalError: errorMessage
+      };
     }
   });
 }
