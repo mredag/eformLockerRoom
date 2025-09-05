@@ -37,7 +37,11 @@ export async function wizardRoutes(
       return { 
         success: true, 
         sessionId: session.sessionId,
-        currentStep: session.currentStep 
+        currentStep: session.currentStep,
+        session: {
+          sessionId: session.sessionId,
+          currentStep: session.currentStep
+        }
       };
     } catch (error) {
       fastify.log.error('Failed to start wizard session:', error);

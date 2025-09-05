@@ -565,18 +565,44 @@ class PreSetupChecklist {
         // Add modal to DOM
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         
-        // Create Bootstrap modal instance
+        // Get modal element and show it
         const modalElement = document.getElementById(modalId);
+        
         // Simple modal show without Bootstrap
         modalElement.style.display = 'block';
         modalElement.classList.add('show');
+        modalElement.style.backgroundColor = 'rgba(0,0,0,0.5)';
         
-        // Clean up modal when hidden
-        modalElement.addEventListener('hidden.bs.modal', () => {
-            modalElement.remove();
+        // Add close button functionality
+        const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"]');
+        closeButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                modalElement.style.display = 'none';
+                modalElement.classList.remove('show');
+                modalElement.remove();
+            });
+        });
+        
+        // Close on backdrop click
+        modalElement.addEventListener('click', (e) => {
+            if (e.target === modalElement) {
+                modalElement.style.display = 'none';
+                modalElement.classList.remove('show');
+                modalElement.remove();
+            }
         });
 
-        return modal;
+        return {
+            show: () => {
+                modalElement.style.display = 'block';
+                modalElement.classList.add('show');
+            },
+            hide: () => {
+                modalElement.style.display = 'none';
+                modalElement.classList.remove('show');
+                modalElement.remove();
+            }
+        };
     }
 
     /**
