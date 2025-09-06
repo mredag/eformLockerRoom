@@ -113,13 +113,13 @@ export class SessionManager extends EventEmitter {
     }
 
     // Fall back to regular session management for manual mode
-    return this.createRegularSession(kioskId, cardId, availableLockers);
+    return await this.createRegularSession(kioskId, cardId, availableLockers);
   }
 
   /**
    * Create a regular RFID session (manual mode)
    */
-  private createRegularSession(kioskId: string, cardId: string, availableLockers?: number[]): RfidSession {
+  private async createRegularSession(kioskId: string, cardId: string, availableLockers?: number[]): Promise<RfidSession> {
     // Cancel any existing session for this kiosk (one-session-per-kiosk rule)
     const existingSessionId = this.kioskSessions.get(kioskId);
     if (existingSessionId) {
