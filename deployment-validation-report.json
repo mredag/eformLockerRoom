@@ -1,0 +1,286 @@
+{
+  "timestamp": "2025-09-06T14:35:26.212Z",
+  "summary": {
+    "total_checks": 48,
+    "passed": 41,
+    "failed": 4,
+    "warnings": 3,
+    "success_rate": 91
+  },
+  "details": [
+    {
+      "timestamp": "2025-09-06T14:35:26.160Z",
+      "type": "info",
+      "message": "Validating file structure..."
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.161Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: package.json"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.161Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: app/gateway/package.json"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.162Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: app/kiosk/package.json"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.162Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: app/panel/package.json"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.162Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: shared/package.json"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.163Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: migrations"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.163Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: scripts/deployment"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.163Z",
+      "type": "green",
+      "message": "✓ Required file/directory exists: config/system.json"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.164Z",
+      "type": "green",
+      "message": "✓ Deployment script exists: scripts/deployment/smart-assignment-migration.sql"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.164Z",
+      "type": "green",
+      "message": "✓ Deployment script exists: scripts/deployment/smart-assignment-rollback.sql"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.165Z",
+      "type": "green",
+      "message": "✓ Deployment script exists: scripts/deployment/deploy-smart-assignment.sh"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.165Z",
+      "type": "green",
+      "message": "✓ Deployment script exists: scripts/deployment/rollback-smart-assignment.sh"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.166Z",
+      "type": "info",
+      "message": "Validating configuration files..."
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.167Z",
+      "type": "green",
+      "message": "✓ Configuration file is valid JSON"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.167Z",
+      "type": "green",
+      "message": "✓ Configuration has 'lockers' section"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.168Z",
+      "type": "green",
+      "message": "✓ Configuration has 'hardware' section"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.168Z",
+      "type": "red",
+      "message": "✗ Configuration missing 'rate_limits' section"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.168Z",
+      "type": "yellow",
+      "message": "⚠ Configuration missing smart_assignment section"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.168Z",
+      "type": "yellow",
+      "message": "⚠ Pulse duration may be too short: 400ms"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.168Z",
+      "type": "yellow",
+      "message": "⚠ Retry backoff not configured"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.168Z",
+      "type": "info",
+      "message": "Validating database schema and data..."
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.173Z",
+      "type": "green",
+      "message": "✓ Database connection successful"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.184Z",
+      "type": "green",
+      "message": "✓ Table 'lockers' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.184Z",
+      "type": "green",
+      "message": "✓ Table 'settings_global' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.185Z",
+      "type": "green",
+      "message": "✓ Table 'settings_kiosk' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.185Z",
+      "type": "green",
+      "message": "✓ Table 'config_version' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.185Z",
+      "type": "green",
+      "message": "✓ Table 'config_history' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.185Z",
+      "type": "green",
+      "message": "✓ Table 'smart_sessions' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.185Z",
+      "type": "green",
+      "message": "✓ Table 'assignment_metrics' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.185Z",
+      "type": "green",
+      "message": "✓ Table 'alerts' exists"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.186Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'free_since'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.186Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'recent_owner'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.186Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'recent_owner_time'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.186Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'quarantine_until'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.187Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'wear_count'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.187Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'overdue_from'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.187Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'overdue_reason'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.187Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'suspected_occupied'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.188Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'cleared_by'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.188Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'cleared_at'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.188Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'return_hold_until'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.188Z",
+      "type": "green",
+      "message": "✓ Lockers table has column 'owner_hot_until'"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.189Z",
+      "type": "green",
+      "message": "✓ Configuration seeded with 26 entries"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.190Z",
+      "type": "green",
+      "message": "✓ Smart assignment is disabled by default (safe)"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.190Z",
+      "type": "info",
+      "message": "Validating service availability..."
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.208Z",
+      "type": "red",
+      "message": "✗ Kiosk service not running (Port 3002)"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.209Z",
+      "type": "red",
+      "message": "✗ Gateway service not running (Port 3000)"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.209Z",
+      "type": "red",
+      "message": "✗ Panel service not running (Port 3001)"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.209Z",
+      "type": "info",
+      "message": "Validating backup and rollback capability..."
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.210Z",
+      "type": "green",
+      "message": "✓ Backup directory accessible"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.211Z",
+      "type": "green",
+      "message": "✓ Database file ready for backup (736KB)"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.211Z",
+      "type": "green",
+      "message": "✓ Rollback SQL script appears complete"
+    },
+    {
+      "timestamp": "2025-09-06T14:35:26.211Z",
+      "type": "info",
+      "message": "Generating validation report..."
+    }
+  ],
+  "recommendations": [
+    "Address all failed checks before proceeding with deployment",
+    "Review warnings and consider addressing them"
+  ]
+}

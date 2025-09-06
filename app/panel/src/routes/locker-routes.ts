@@ -990,5 +990,34 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     }
   });
 
+  // Get all kiosks for dropdown filters
+  fastify.get('/kiosks', {
+    preHandler: [requirePermission(Permission.VIEW_LOCKERS)]
+  }, async (request, reply) => {
+    try {
+      const db = dbManager.getConnection();
+      
+      // Get distinct kiosk IDs from lockers table
+      const kiosks = db.prepare(`
+        SELECT DISTINCT kiosk_id as id, kiosk_id as name
+        FROM lockers 
+        ORDER BY kiosk_id
+      `).all();
+
+      fastify.log.info({
+        route: '/api/lockers/kiosks',
+        count: kiosks.length,
+        message: 'Kiosks retrieved successfully'
+      });
+
+      reply.send(kiosks);
+    } catch (error) {
+      fastify.log.error('Failed to retrieve kiosks:', error);
+      reply.code(500).send({
+        code: 'server_error',
+        message: 'Failed to retrieve kiosks'
+      });
+    }
+  });
 
 }

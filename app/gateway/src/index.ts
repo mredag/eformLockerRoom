@@ -13,6 +13,7 @@ import { provisioningRoutes } from "./routes/provisioning.js";
 import { configurationRoutes } from "./routes/configuration.js";
 import { heartbeatRoutes } from "./routes/heartbeat.js";
 import { registerAdminRoutes } from "./routes/admin.js";
+import { configRoutes } from "./routes/config.js";
 import { mkdirSync } from "fs";
 
 const fastify = Fastify({
@@ -42,6 +43,7 @@ async function initializeDatabase() {
 fastify.register(provisioningRoutes, { prefix: "/api/provisioning" });
 fastify.register(configurationRoutes, { prefix: "/api/configuration" });
 fastify.register(heartbeatRoutes, { prefix: "/api/heartbeat" });
+fastify.register(configRoutes, { prefix: "/api" });
 
 // Register admin routes
 fastify.register(async function (fastify) {

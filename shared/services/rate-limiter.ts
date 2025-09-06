@@ -1,497 +1,393 @@
-import { RateLimitBucket, RateLimitViolation, EventType } from '../types/core-entities';
-import { EventRepository } from '../database/event-repository';
+/**
+ * Rate Limiting Service for Smart Locker Assignment
+ * 
+ * Implements multiple rate limiting strategies with central configuration:
+ * - Card-based: Configurable interval between opens per card
+ * - Locker-based: Configurable opens per window per locker
+ * - Command cooldown: Configurable seconds between relay commands
+ * - User reports: Configurable daily cap per card
+ */
+
+import { getConfigurationManager } from './configuration-manager';
 
 export interface RateLimitConfig {
-  ip: { maxTokens: number; refillRate: number; blockThreshold: number; blockDuration: number };
-  card: { maxTokens: number; refillRate: number; blockThreshold: number; blockDuration: number };
-  locker: { maxTokens: number; refillRate: number; blockThreshold: number; blockDuration: number };
-  device: { maxTokens: number; refillRate: number; blockThreshold: number; blockDuration: number };
-  cleanupInterval: number; // minutes
-  violationLogThreshold: number; // log after this many violations
+  card_open_min_interval_sec: number;     // 1-60 seconds
+  locker_opens_window_sec: number;        // 10-300 seconds
+  locker_opens_max_per_window: number;    // 1-10 opens
+  command_cooldown_sec: number;           // 1-10 seconds
+  user_report_daily_cap: number;          // 0-10 reports
 }
 
 export interface RateLimitResult {
   allowed: boolean;
-  reason?: string;
-  retryAfter?: number;
-  remainingTokens?: number;
-  resetTime?: Date;
+  type: 'card_rate' | 'locker_rate' | 'command_cooldown' | 'user_report_rate';
+  key: string;
+  retry_after_seconds?: number;
+  message: string;
+}
+
+export interface RateLimitViolation {
+  type: string;
+  key: string;
+  timestamp: Date;
+  retry_after: number;
 }
 
 export class RateLimiter {
-  private buckets: Map<string, RateLimitBucket> = new Map();
-  private violations: Map<string, RateLimitViolation> = new Map();
-  private eventRepository: EventRepository;
-  private cleanupTimer?: NodeJS.Timeout;
-  private config: RateLimitConfig;
+  private card_last_open: Map<string, number> = new Map();
+  private locker_open_history: Map<number, number[]> = new Map();
+  private last_command_time: number = 0;
+  private user_report_history: Map<string, number[]> = new Map();
+  private violations: RateLimitViolation[] = [];
+  private config_manager = getConfigurationManager();
 
-  constructor(config: RateLimitConfig, eventRepository: EventRepository) {
-    this.config = config;
-    this.eventRepository = eventRepository;
-    this.startCleanupTimer();
-  }
+  constructor(private fallback_config?: RateLimitConfig) {}
 
   /**
-   * Update rate limiting configuration
+   * Get current rate limit configuration with validation bounds
    */
-  updateConfig(newConfig: Partial<RateLimitConfig>): void {
-    this.config = { ...this.config, ...newConfig };
-    
-    // Restart cleanup timer if interval changed
-    if (newConfig.cleanupInterval) {
-      this.stopCleanupTimer();
-      this.startCleanupTimer();
-    }
-  }
-
-  /**
-   * Check rate limit for IP address
-   */
-  async checkIpRateLimit(ip: string, kioskId?: string): Promise<RateLimitResult> {
-    const key = `ip:${ip}`;
-    const result = await this.checkRateLimit(key, 'ip', kioskId);
-    if (result.allowed) {
-      await this.consumeToken(key, 'ip', kioskId);
-    }
-    return result;
-  }
-
-  /**
-   * Check rate limit for RFID card
-   */
-  async checkCardRateLimit(cardId: string, kioskId?: string): Promise<RateLimitResult> {
-    const key = `card:${cardId}`;
-    const result = await this.checkRateLimit(key, 'card', kioskId);
-    if (result.allowed) {
-      await this.consumeToken(key, 'card', kioskId);
-    }
-    return result;
-  }
-
-  /**
-   * Check rate limit for locker
-   */
-  async checkLockerRateLimit(lockerId: number, kioskId: string): Promise<RateLimitResult> {
-    const key = `locker:${kioskId}:${lockerId}`;
-    const result = await this.checkRateLimit(key, 'locker', kioskId);
-    if (result.allowed) {
-      await this.consumeToken(key, 'locker', kioskId);
-    }
-    return result;
-  }
-
-  /**
-   * Check rate limit for device (QR access)
-   */
-  async checkDeviceRateLimit(deviceId: string, kioskId?: string): Promise<RateLimitResult> {
-    const key = `device:${deviceId}`;
-    const result = await this.checkRateLimit(key, 'device', kioskId);
-    if (result.allowed) {
-      await this.consumeToken(key, 'device', kioskId);
-    }
-    return result;
-  }
-
-  /**
-   * Check comprehensive rate limits for QR access
-   */
-  async checkQrRateLimits(
-    ip: string,
-    lockerId: number,
-    deviceId: string,
-    kioskId: string
-  ): Promise<RateLimitResult> {
-    // Check all limits first without consuming tokens
-    const ipResult = await this.checkRateLimit(`ip:${ip}`, 'ip', kioskId);
-    if (!ipResult.allowed) {
-      return { ...ipResult, reason: 'ip rate limit exceeded' };
-    }
-
-    const lockerResult = await this.checkRateLimit(`locker:${kioskId}:${lockerId}`, 'locker', kioskId);
-    if (!lockerResult.allowed) {
-      return { ...lockerResult, reason: 'locker rate limit exceeded' };
-    }
-
-    const deviceResult = await this.checkRateLimit(`device:${deviceId}`, 'device', kioskId);
-    if (!deviceResult.allowed) {
-      return { ...deviceResult, reason: 'device rate limit exceeded' };
-    }
-
-    // All checks passed, consume tokens
-    await this.consumeToken(`ip:${ip}`, 'ip', kioskId);
-    await this.consumeToken(`locker:${kioskId}:${lockerId}`, 'locker', kioskId);
-    await this.consumeToken(`device:${deviceId}`, 'device', kioskId);
-
-    return { allowed: true };
-  }
-
-  /**
-   * Check comprehensive rate limits for RFID access
-   */
-  async checkRfidRateLimits(cardId: string, kioskId: string): Promise<RateLimitResult> {
-    const cardResult = await this.checkRateLimit(`card:${cardId}`, 'card', kioskId);
-    if (!cardResult.allowed) {
-      return { ...cardResult, reason: 'card rate limit exceeded' };
-    }
-
-    // Consume token
-    await this.consumeToken(`card:${cardId}`, 'card', kioskId);
-    return { allowed: true };
-  }
-
-  /**
-   * Core rate limiting logic using token bucket algorithm
-   */
-  private async checkRateLimit(
-    key: string,
-    limitType: keyof Omit<RateLimitConfig, 'cleanupInterval' | 'violationLogThreshold'>,
-    kioskId?: string
-  ): Promise<RateLimitResult> {
-    const now = new Date();
-
-    // Check if key is currently blocked
-    if (this.isBlocked(key)) {
-      const violation = this.violations.get(key);
-      const retryAfter = violation?.block_expires_at 
-        ? Math.ceil((violation.block_expires_at.getTime() - now.getTime()) / 1000)
-        : 300; // Default 5 minutes
-
-      return {
-        allowed: false,
-        reason: `Temporarily blocked due to rate limit violations`,
-        retryAfter
-      };
-    }
-
-    let bucket = this.buckets.get(key);
-    const config = this.config[limitType];
-
-    if (!bucket) {
-      bucket = {
-        key,
-        tokens: config.maxTokens,
-        last_refill: now,
-        max_tokens: config.maxTokens,
-        refill_rate: config.refillRate
-      };
-      this.buckets.set(key, bucket);
-    }
-
-    // Refill tokens based on time elapsed
-    const timeDiff = (now.getTime() - bucket.last_refill.getTime()) / 1000; // seconds
-    const tokensToAdd = Math.floor(timeDiff * bucket.refill_rate);
-    
-    if (tokensToAdd > 0) {
-      bucket.tokens = Math.min(bucket.max_tokens, bucket.tokens + tokensToAdd);
-      bucket.last_refill = now;
-    }
-
-    // Check if we have enough tokens
-    if (bucket.tokens >= 1) {
-      // Don't consume token here, just check availability
-      return {
-        allowed: true,
-        remainingTokens: bucket.tokens - 1,
-        resetTime: new Date(now.getTime() + (bucket.max_tokens - bucket.tokens + 1) / bucket.refill_rate * 1000)
-      };
-    } else {
-      // Rate limit exceeded, record violation
-      await this.recordViolation(key, limitType, now, kioskId);
-      
-      // Calculate retry after time
-      const tokensNeeded = 1 - bucket.tokens;
-      const retryAfter = Math.ceil(tokensNeeded / bucket.refill_rate);
-      
-      return {
-        allowed: false,
-        reason: `${limitType} rate limit exceeded`,
-        retryAfter,
-        resetTime: new Date(now.getTime() + retryAfter * 1000)
-      };
-    }
-  }
-
-  /**
-   * Consume a token from the bucket
-   */
-  private async consumeToken(key: string, limitType: string, kioskId?: string): Promise<void> {
-    const bucket = this.buckets.get(key);
-    if (bucket && bucket.tokens >= 1) {
-      bucket.tokens -= 1;
-    }
-  }
-
-  /**
-   * Record rate limit violation with enhanced logging
-   */
-  private async recordViolation(
-    key: string,
-    limitType: string,
-    now: Date,
-    kioskId?: string
-  ): Promise<void> {
-    let violation = this.violations.get(key);
-    
-    if (!violation) {
-      violation = {
-        id: Date.now(),
-        key,
-        limit_type: limitType as any,
-        violation_count: 1,
-        first_violation: now,
-        last_violation: now,
-        is_blocked: false
-      };
-    } else {
-      violation.violation_count += 1;
-      violation.last_violation = now;
-    }
-
-    const config = this.config[limitType as keyof Omit<RateLimitConfig, 'cleanupInterval' | 'violationLogThreshold'>];
-    
-    // Block if threshold exceeded
-    if (violation.violation_count >= config.blockThreshold) {
-      violation.is_blocked = true;
-      violation.block_expires_at = new Date(now.getTime() + config.blockDuration * 1000);
-    }
-
-    this.violations.set(key, violation);
-
-    // Log violation if threshold reached
-    if (violation.violation_count >= this.config.violationLogThreshold) {
-      await this.logRateLimitViolation(violation, kioskId);
-    }
-
-    // Console warning for immediate feedback
-    console.warn(
-      `Rate limit violation: ${key} (${limitType}) - Count: ${violation.violation_count}` +
-      (violation.is_blocked ? ` - BLOCKED until ${violation.block_expires_at}` : '')
-    );
-  }
-
-  /**
-   * Log rate limit violation to database
-   */
-  private async logRateLimitViolation(violation: RateLimitViolation, kioskId?: string): Promise<void> {
+  private async get_rate_limit_config(kiosk_id?: string): Promise<RateLimitConfig> {
     try {
-      await this.eventRepository.logEvent(
-        kioskId || 'system',
-        EventType.SYSTEM_RESTARTED, // Using existing event type, should add RATE_LIMIT_VIOLATION
-        {
-          rate_limit_violation: {
-            key: violation.key,
-            limit_type: violation.limit_type,
-            violation_count: violation.violation_count,
-            is_blocked: violation.is_blocked,
-            block_expires_at: violation.block_expires_at?.toISOString(),
-            first_violation: violation.first_violation.toISOString(),
-            last_violation: violation.last_violation.toISOString()
-          }
-        }
-      );
+      const config = kiosk_id 
+        ? await this.config_manager.getEffectiveConfig(kiosk_id)
+        : await this.config_manager.getGlobalConfig();
+
+      // Apply validation bounds and defaults
+      return {
+        card_open_min_interval_sec: this.clamp_value(
+          config.card_open_min_interval_sec ?? 10, 1, 60
+        ),
+        locker_opens_window_sec: this.clamp_value(
+          config.locker_opens_window_sec ?? 60, 10, 300
+        ),
+        locker_opens_max_per_window: this.clamp_value(
+          config.locker_opens_max_per_window ?? 3, 1, 10
+        ),
+        command_cooldown_sec: this.clamp_value(
+          config.command_cooldown_sec ?? 3, 1, 10
+        ),
+        user_report_daily_cap: this.clamp_value(
+          config.user_report_daily_cap ?? 2, 0, 10
+        )
+      };
     } catch (error) {
-      console.error('Failed to log rate limit violation:', error);
+      console.warn('Failed to load rate limit config, using fallback:', error);
+      return this.fallback_config || DEFAULT_RATE_LIMIT_CONFIG;
     }
   }
 
   /**
-   * Check if key is currently blocked
+   * Clamp value within bounds
    */
-  isBlocked(key: string): boolean {
-    const violation = this.violations.get(key);
-    if (!violation || !violation.is_blocked) {
-      return false;
-    }
-
-    // Check if block has expired
-    if (violation.block_expires_at && new Date() > violation.block_expires_at) {
-      violation.is_blocked = false;
-      violation.block_expires_at = undefined;
-      return false;
-    }
-
-    return true;
+  private clamp_value(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
   }
 
   /**
-   * Get current bucket status (for monitoring/debugging)
+   * Check if card can open a locker (configurable interval)
    */
-  getBucketStatus(key: string): RateLimitBucket | null {
-    return this.buckets.get(key) || null;
-  }
+  async check_card_rate(card_id: string, kiosk_id?: string): Promise<RateLimitResult> {
+    const config = await this.get_rate_limit_config(kiosk_id);
+    const now = Date.now();
+    const last_open = this.card_last_open.get(card_id) || 0;
+    const time_since_last_open = (now - last_open) / 1000;
 
-  /**
-   * Get violation history (for monitoring/debugging)
-   */
-  getViolationHistory(key: string): RateLimitViolation | null {
-    return this.violations.get(key) || null;
-  }
-
-  /**
-   * Get all current violations (for monitoring)
-   */
-  getAllViolations(): RateLimitViolation[] {
-    return Array.from(this.violations.values());
-  }
-
-  /**
-   * Get all active blocks (for monitoring)
-   */
-  getActiveBlocks(): RateLimitViolation[] {
-    return Array.from(this.violations.values()).filter(v => v.is_blocked);
-  }
-
-  /**
-   * Reset rate limits for a key (admin function)
-   */
-  async resetLimits(key: string, adminUser?: string, kioskId?: string): Promise<void> {
-    const hadViolation = this.violations.has(key);
-    const hadBucket = this.buckets.has(key);
-
-    this.buckets.delete(key);
-    this.violations.delete(key);
-
-    // Log reset action
-    if (hadViolation || hadBucket) {
-      try {
-        await this.eventRepository.logEvent(
-          kioskId || 'system',
-          EventType.STAFF_OPEN, // Using existing event type, should add RATE_LIMIT_RESET
-          {
-            rate_limit_reset: {
-              key,
-              had_violation: hadViolation,
-              had_bucket: hadBucket,
-              reset_by: adminUser
-            }
-          },
-          undefined, // lockerId
-          undefined, // rfidCard
-          undefined, // deviceId
-          adminUser // staffUser
-        );
-      } catch (error) {
-        console.error('Failed to log rate limit reset:', error);
-      }
-    }
-  }
-
-  /**
-   * Cleanup old buckets and violations
-   */
-  cleanup(): void {
-    const now = new Date();
-    const cleanupThreshold = new Date(now.getTime() - this.config.cleanupInterval * 60 * 1000);
-
-    let bucketsRemoved = 0;
-    let violationsRemoved = 0;
-
-    // Clean old buckets
-    for (const [key, bucket] of this.buckets.entries()) {
-      if (bucket.last_refill < cleanupThreshold) {
-        this.buckets.delete(key);
-        bucketsRemoved++;
-      }
-    }
-
-    // Clean old violations (but keep blocked ones until they expire)
-    for (const [key, violation] of this.violations.entries()) {
-      const shouldRemove = violation.last_violation < cleanupThreshold && 
-                          (!violation.is_blocked || 
-                           (violation.block_expires_at && violation.block_expires_at < now));
+    if (time_since_last_open < config.card_open_min_interval_sec) {
+      const retry_after = Math.ceil(config.card_open_min_interval_sec - time_since_last_open);
       
-      if (shouldRemove) {
-        this.violations.delete(key);
-        violationsRemoved++;
-      }
+      this.record_violation('card_rate', this.anonymize_card_id(card_id), retry_after);
+      
+      return {
+        allowed: false,
+        type: 'card_rate',
+        key: this.anonymize_card_id(card_id),
+        retry_after_seconds: retry_after,
+        message: 'Lütfen birkaç saniye sonra deneyin.'
+      };
     }
 
-    if (bucketsRemoved > 0 || violationsRemoved > 0) {
-      console.log(`Rate limiter cleanup: removed ${bucketsRemoved} buckets, ${violationsRemoved} violations`);
-    }
-  }
-
-  /**
-   * Get rate limiter statistics
-   */
-  getStatistics(): {
-    buckets: number;
-    violations: number;
-    activeBlocks: number;
-    config: RateLimitConfig;
-  } {
     return {
-      buckets: this.buckets.size,
-      violations: this.violations.size,
-      activeBlocks: this.getActiveBlocks().length,
-      config: this.config
+      allowed: true,
+      type: 'card_rate',
+      key: this.anonymize_card_id(card_id),
+      message: 'Rate limit passed.'
     };
   }
 
   /**
-   * Start cleanup timer
+   * Check if locker can be opened (configurable opens per window)
    */
-  private startCleanupTimer(): void {
-    this.cleanupTimer = setInterval(() => {
-      this.cleanup();
-    }, this.config.cleanupInterval * 60 * 1000); // Convert minutes to milliseconds
-  }
-
-  /**
-   * Stop cleanup timer
-   */
-  private stopCleanupTimer(): void {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-      this.cleanupTimer = undefined;
+  async check_locker_rate(locker_id: number, kiosk_id?: string): Promise<RateLimitResult> {
+    const config = await this.get_rate_limit_config(kiosk_id);
+    const now = Date.now();
+    const history = this.locker_open_history.get(locker_id) || [];
+    
+    // Remove entries older than window
+    const cutoff = now - (config.locker_opens_window_sec * 1000);
+    const recent_opens = history.filter(time => time > cutoff);
+    
+    if (recent_opens.length >= config.locker_opens_max_per_window) {
+      const oldest_recent_open = Math.min(...recent_opens);
+      const retry_after = Math.ceil((oldest_recent_open + (config.locker_opens_window_sec * 1000) - now) / 1000);
+      
+      this.record_violation('locker_rate', locker_id.toString(), retry_after);
+      
+      return {
+        allowed: false,
+        type: 'locker_rate',
+        key: locker_id.toString(),
+        retry_after_seconds: retry_after,
+        message: 'Lütfen birkaç saniye sonra deneyin.'
+      };
     }
+
+    return {
+      allowed: true,
+      type: 'locker_rate',
+      key: locker_id.toString(),
+      message: 'Rate limit passed.'
+    };
   }
 
   /**
-   * Shutdown rate limiter
+   * Check command cooldown (configurable seconds between relay commands)
    */
-  shutdown(): void {
-    this.stopCleanupTimer();
-    this.buckets.clear();
-    this.violations.clear();
+  async check_command_cooldown(kiosk_id?: string): Promise<RateLimitResult> {
+    const config = await this.get_rate_limit_config(kiosk_id);
+    const now = Date.now();
+    const time_since_last_command = (now - this.last_command_time) / 1000;
+
+    if (time_since_last_command < config.command_cooldown_sec) {
+      const retry_after = Math.ceil(config.command_cooldown_sec - time_since_last_command);
+      
+      this.record_violation('command_cooldown', 'global', retry_after);
+      
+      return {
+        allowed: false,
+        type: 'command_cooldown',
+        key: 'global',
+        retry_after_seconds: retry_after,
+        message: 'Lütfen birkaç saniye sonra deneyin.'
+      };
+    }
+
+    return {
+      allowed: true,
+      type: 'command_cooldown',
+      key: 'global',
+      message: 'Rate limit passed.'
+    };
+  }
+
+  /**
+   * Check user report rate limit (configurable daily cap per card)
+   */
+  async check_user_report_rate(card_id: string, kiosk_id?: string): Promise<RateLimitResult> {
+    const config = await this.get_rate_limit_config(kiosk_id);
+    
+    // If daily cap is 0, reports are disabled
+    if (config.user_report_daily_cap === 0) {
+      this.record_violation('user_report_rate', this.anonymize_card_id(card_id), 86400);
+      
+      return {
+        allowed: false,
+        type: 'user_report_rate',
+        key: this.anonymize_card_id(card_id),
+        retry_after_seconds: 86400,
+        message: 'Lütfen birkaç saniye sonra deneyin.' // Don't show daily limit message on kiosks
+      };
+    }
+
+    const now = Date.now();
+    const history = this.user_report_history.get(card_id) || [];
+    
+    // Remove entries older than 24 hours
+    const cutoff = now - (24 * 60 * 60 * 1000);
+    const recent_reports = history.filter(time => time > cutoff);
+    
+    if (recent_reports.length >= config.user_report_daily_cap) {
+      const oldest_report = Math.min(...recent_reports);
+      const retry_after = Math.ceil((oldest_report + (24 * 60 * 60 * 1000) - now) / 1000);
+      
+      this.record_violation('user_report_rate', this.anonymize_card_id(card_id), retry_after);
+      
+      return {
+        allowed: false,
+        type: 'user_report_rate',
+        key: this.anonymize_card_id(card_id),
+        retry_after_seconds: retry_after,
+        message: 'Lütfen birkaç saniye sonra deneyin.' // Don't show daily limit message on kiosks
+      };
+    }
+
+    return {
+      allowed: true,
+      type: 'user_report_rate',
+      key: this.anonymize_card_id(card_id),
+      message: 'Rate limit passed.'
+    };
+  }
+
+  /**
+   * Anonymize card ID for logging (security requirement)
+   */
+  private anonymize_card_id(card_id: string): string {
+    if (card_id.length <= 4) return '****';
+    return card_id.substring(0, 2) + '****' + card_id.substring(card_id.length - 2);
+  }
+
+  /**
+   * Record successful card open
+   */
+  record_card_open(card_id: string): void {
+    this.card_last_open.set(card_id, Date.now());
+  }
+
+  /**
+   * Record successful locker open
+   */
+  async record_locker_open(locker_id: number, kiosk_id?: string): Promise<void> {
+    const config = await this.get_rate_limit_config(kiosk_id);
+    const now = Date.now();
+    const history = this.locker_open_history.get(locker_id) || [];
+    
+    // Add current time and clean old entries
+    history.push(now);
+    const cutoff = now - (config.locker_opens_window_sec * 1000);
+    const recent_history = history.filter(time => time > cutoff);
+    
+    this.locker_open_history.set(locker_id, recent_history);
+  }
+
+  /**
+   * Record successful command execution
+   */
+  record_command(): void {
+    this.last_command_time = Date.now();
+  }
+
+  /**
+   * Record successful user report
+   */
+  record_user_report(card_id: string): void {
+    const now = Date.now();
+    const history = this.user_report_history.get(card_id) || [];
+    
+    // Add current time and clean old entries
+    history.push(now);
+    const cutoff = now - (24 * 60 * 60 * 1000);
+    const recent_history = history.filter(time => time > cutoff);
+    
+    this.user_report_history.set(card_id, recent_history);
+  }
+
+  /**
+   * Check all applicable rate limits for a card open operation
+   */
+  async check_all_limits(card_id: string, locker_id: number, kiosk_id?: string): Promise<RateLimitResult> {
+    // Check card rate limit
+    const card_check = await this.check_card_rate(card_id, kiosk_id);
+    if (!card_check.allowed) {
+      return card_check;
+    }
+
+    // Check locker rate limit
+    const locker_check = await this.check_locker_rate(locker_id, kiosk_id);
+    if (!locker_check.allowed) {
+      return locker_check;
+    }
+
+    // Check command cooldown
+    const command_check = await this.check_command_cooldown(kiosk_id);
+    if (!command_check.allowed) {
+      return command_check;
+    }
+
+    return {
+      allowed: true,
+      type: 'card_rate',
+      key: this.anonymize_card_id(card_id),
+      message: 'All rate limits passed.'
+    };
+  }
+
+  /**
+   * Record successful operation (updates all relevant counters)
+   */
+  async record_successful_open(card_id: string, locker_id: number, kiosk_id?: string): Promise<void> {
+    this.record_card_open(card_id);
+    await this.record_locker_open(locker_id, kiosk_id);
+    this.record_command();
+  }
+
+  /**
+   * Get recent violations for monitoring
+   */
+  get_recent_violations(minutes: number = 10): RateLimitViolation[] {
+    const cutoff = new Date(Date.now() - (minutes * 60 * 1000));
+    return this.violations.filter(v => v.timestamp > cutoff);
+  }
+
+  /**
+   * Clear old violations (cleanup)
+   */
+  cleanup_violations(): void {
+    const cutoff = new Date(Date.now() - (60 * 60 * 1000)); // Keep 1 hour
+    this.violations = this.violations.filter(v => v.timestamp > cutoff);
+  }
+
+  /**
+   * Record a rate limit violation
+   */
+  private record_violation(type: string, key: string, retry_after: number): void {
+    this.violations.push({
+      type,
+      key,
+      timestamp: new Date(),
+      retry_after
+    });
+
+    // Log the violation (key is already anonymized for card IDs)
+    console.log(`Rate limit exceeded: type=${type}, key=${key}`);
+  }
+
+  /**
+   * Get current state for debugging
+   */
+  get_state() {
+    return {
+      card_last_open: Object.fromEntries(this.card_last_open),
+      locker_open_history: Object.fromEntries(this.locker_open_history),
+      last_command_time: this.last_command_time,
+      user_report_history: Object.fromEntries(this.user_report_history),
+      recent_violations: this.get_recent_violations()
+    };
   }
 }
 
-/**
- * Create rate limiter with configuration from system config
- */
-export function createRateLimiter(
-  systemConfig: any,
-  eventRepository: EventRepository
-): RateLimiter {
-  const config: RateLimitConfig = {
-    ip: {
-      maxTokens: systemConfig.security?.rate_limits?.ip_per_minute || 30,
-      refillRate: (systemConfig.security?.rate_limits?.ip_per_minute || 30) / 60, // per second
-      blockThreshold: 10,
-      blockDuration: 300 // 5 minutes
-    },
-    card: {
-      maxTokens: systemConfig.security?.rate_limits?.card_per_minute || 60,
-      refillRate: (systemConfig.security?.rate_limits?.card_per_minute || 60) / 60, // per second
-      blockThreshold: 20,
-      blockDuration: 600 // 10 minutes
-    },
-    locker: {
-      maxTokens: systemConfig.security?.rate_limits?.locker_per_minute || 6,
-      refillRate: (systemConfig.security?.rate_limits?.locker_per_minute || 6) / 60, // per second
-      blockThreshold: 15,
-      blockDuration: 300 // 5 minutes
-    },
-    device: {
-      maxTokens: 1,
-      refillRate: 1 / (systemConfig.security?.rate_limits?.device_per_20_seconds || 20), // per second
-      blockThreshold: 5,
-      blockDuration: 1200 // 20 minutes
-    },
-    cleanupInterval: 60, // 1 hour
-    violationLogThreshold: 3 // Log after 3 violations
-  };
+// Default configuration with validation bounds
+export const DEFAULT_RATE_LIMIT_CONFIG: RateLimitConfig = {
+  card_open_min_interval_sec: 10,    // 1-60 seconds
+  locker_opens_window_sec: 60,       // 10-300 seconds  
+  locker_opens_max_per_window: 3,    // 1-10 opens
+  command_cooldown_sec: 3,           // 1-10 seconds
+  user_report_daily_cap: 2           // 0-10 reports
+};
 
-  return new RateLimiter(config, eventRepository);
+// Singleton instance
+let rate_limiter_instance: RateLimiter | null = null;
+
+export function get_rate_limiter(fallback_config?: RateLimitConfig): RateLimiter {
+  if (!rate_limiter_instance) {
+    rate_limiter_instance = new RateLimiter(fallback_config || DEFAULT_RATE_LIMIT_CONFIG);
+  }
+  return rate_limiter_instance;
 }
+
+export function reset_rate_limiter(): void {
+  rate_limiter_instance = null;
+}
+
+// Legacy compatibility functions (deprecated)
+export const getRateLimiter = get_rate_limiter;
+export const resetRateLimiter = reset_rate_limiter;

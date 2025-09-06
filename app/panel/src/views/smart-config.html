@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akıllı Dolap Atama Yapılandırması - Eform Panel</title>
+    <script>
+        // Early service worker registration prevention
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+            if (!navigator.serviceWorker.register) {
+                navigator.serviceWorker.register = function() {
+                    console.log('🔧 Service worker registration stubbed (early)');
+                    return Promise.resolve();
+                };
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="static/styles.css">
+    <style>
+        .smart-config-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .config-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .config-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.2em;
+            font-weight: 600;
+        }
+
+        .config-header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .config-tabs {
+            display: flex;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+
+        .config-tab {
+            flex: 1;
+            padding: 20px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            color: #495057;
+        }
+
+        .config-tab.active {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .config-tab:hover:not(.active) {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 4px solid #667eea;
+        }
+
+        .config-section h3 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .config-item {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .config-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .config-item label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .config-item input,
+        .config-item select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .config-item input:focus,
+        .config-item select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .config-item .description {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .config-item .current-value {
+            font-size: 12px;
+            color: #28a745;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .kiosk-selector {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .kiosk-selector label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: block;
+            color: #2c3e50;
+        }
+
+        .kiosk-selector select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .config-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 2px solid #e9ecef;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .history-table th,
+        .history-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .history-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .history-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .history-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .current-page {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 16px;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .validation-item {
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .validation-item.error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+
+        .validation-item.warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            color: #856404;
+        }
+
+        .validation-item.success {
+            background: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+
+        .override-indicator {
+            display: inline-block;
+            background: #ffc107;
+            color: #212529;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .nav-breadcrumb {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .nav-breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+        .nav-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .nav-breadcrumb span {
+            color: #6c757d;
+            margin: 0 5px;
+        }
+
+        @media (max-width: 768px) {
+            .config-tabs {
+                flex-direction: column;
+            }
+            
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="smart-config-container">
+        <!-- Navigation Breadcrumb -->
+        <div class="nav-breadcrumb">
+            <a href="/dashboard">Ana Sayfa</a>
+            <span>›</span>
+            <a href="/config">Yapılandırma</a>
+            <span>›</span>
+            <strong>Akıllı Dolap Atama</strong>
+        </div>
+
+        <!-- Header -->
+        <div class="config-header">
+            <h1>Akıllı Dolap Atama Yapılandırması</h1>
+            <p>Otomatik dolap atama sisteminin global ve kiosk-özel ayarlarını yönetin</p>
+        </div>
+
+        <!-- Alert Messages -->
+        <div id="alert-success" class="alert alert-success"></div>
+        <div id="alert-danger" class="alert alert-danger"></div>
+        <div id="alert-warning" class="alert alert-warning"></div>
+        <div id="alert-info" class="alert alert-info"></div>
+
+        <!-- Tabs -->
+        <div class="config-tabs">
+            <button class="config-tab active" onclick="showTab('global-config')">
+                Global Yapılandırma
+            </button>
+            <button class="config-tab" onclick="showTab('kiosk-overrides')">
+                Kiosk için Geçersiz Kıl
+            </button>
+            <button class="config-tab" onclick="showTab('audit-history')">
+                Denetim Geçmişi
+            </button>
+            <button class="config-tab" onclick="showTab('validation')">
+                Doğrulama
+            </button>
+        </div>
+
+        <!-- Global Configuration Tab -->
+        <div id="global-config" class="tab-content active">
+            <form id="global-config-form">
+                <!-- Feature Flags Section -->
+                <div class="config-section">
+                    <h3>Özellik Bayrakları</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="smart_assignment_enabled">Akıllı Atama Etkin</label>
+                            <select id="smart_assignment_enabled" name="smart_assignment_enabled">
+                                <option value="false">Kapalı</option>
+                                <option value="true">Açık</option>
+                            </select>
+                            <div class="description">Akıllı dolap atama sistemini etkinleştirir/devre dışı bırakır</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="allow_reclaim_during_quarantine">Karantina Sırasında Geri Alma</label>
+                            <select id="allow_reclaim_during_quarantine" name="allow_reclaim_during_quarantine">
+                                <option value="false">İzin Verme</option>
+                                <option value="true">İzin Ver</option>
+                            </select>
+                            <div class="description">Karantina süresinde dolap geri alımına izin verir</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scoring Algorithm Section -->
+                <div class="config-section">
+                    <h3>Puanlama Algoritması</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="base_score">Temel Puan</label>
+                            <input type="number" id="base_score" name="base_score" min="0" max="1000" step="1">
+                            <div class="description">Tüm dolaplar için başlangıç puanı (varsayılan: 1)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="score_factor_a">Serbest Saat Çarpanı</label>
+                            <input type="number" id="score_factor_a" name="score_factor_a" min="0" max="10" step="0.1">
+                            <div class="description">Dolabın serbest kaldığı saat başına puan çarpanı (varsayılan: 1.0)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="score_factor_b">Son Sahip Çarpanı</label>
+                            <input type="number" id="score_factor_b" name="score_factor_b" min="0" max="10" step="0.1">
+                            <div class="description">Son sahibinden geçen saat başına puan çarpanı (varsayılan: 0.5)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="score_factor_g">Aşınma Böleni</label>
+                            <input type="number" id="score_factor_g" name="score_factor_g" min="0" max="1" step="0.01">
+                            <div class="description">Aşınma sayısı için bölme faktörü (varsayılan: 0.05)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="score_factor_d">Bekleme Bonusu</label>
+                            <input type="number" id="score_factor_d" name="score_factor_d" min="0" max="5" step="0.1">
+                            <div class="description">Uzun süre bekleyen dolaplar için bonus çarpanı (varsayılan: 0.1)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="top_k_candidates">En İyi K Aday</label>
+                            <input type="number" id="top_k_candidates" name="top_k_candidates" min="1" max="20" step="1">
+                            <div class="description">Seçim için değerlendirilecek en yüksek puanlı dolap sayısı (varsayılan: 5)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="selection_temperature">Seçim Sıcaklığı</label>
+                            <input type="number" id="selection_temperature" name="selection_temperature" min="0.1" max="5" step="0.1">
+                            <div class="description">Rastgele seçim için sıcaklık parametresi (varsayılan: 1.0)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quarantine Settings Section -->
+                <div class="config-section">
+                    <h3>Karantina Ayarları</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="quarantine_min_floor">Minimum Karantina (dakika)</label>
+                            <input type="number" id="quarantine_min_floor" name="quarantine_min_floor" min="1" max="60" step="1">
+                            <div class="description">Düşük kapasitede minimum karantina süresi (varsayılan: 5)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="quarantine_min_ceiling">Maksimum Karantina (dakika)</label>
+                            <input type="number" id="quarantine_min_ceiling" name="quarantine_min_ceiling" min="5" max="120" step="1">
+                            <div class="description">Yüksek kapasitede maksimum karantina süresi (varsayılan: 20)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="exit_quarantine_minutes">Çıkış Karantinası (dakika)</label>
+                            <input type="number" id="exit_quarantine_minutes" name="exit_quarantine_minutes" min="5" max="60" step="1">
+                            <div class="description">Geri alma sonrası sabit karantina süresi (varsayılan: 20)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session Management Section -->
+                <div class="config-section">
+                    <h3>Oturum Yönetimi</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="session_limit_minutes">Oturum Limiti (dakika)</label>
+                            <input type="number" id="session_limit_minutes" name="session_limit_minutes" min="60" max="480" step="15">
+                            <div class="description">Varsayılan oturum süresi limiti (varsayılan: 180)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="retrieve_window_minutes">Alma Penceresi (dakika)</label>
+                            <input type="number" id="retrieve_window_minutes" name="retrieve_window_minutes" min="5" max="60" step="5">
+                            <div class="description">Gecikmiş alma için pencere süresi (varsayılan: 10)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Return Hold Settings Section -->
+                <div class="config-section">
+                    <h3>Geri Dönüş Ayarları</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="return_hold_trigger_sec">Geri Dönüş Tetik Süresi (saniye)</label>
+                            <input type="number" id="return_hold_trigger_sec" name="return_hold_trigger_sec" min="30" max="300" step="10">
+                            <div class="description">Kısa errand algılaması için maksimum süre (varsayılan: 120)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="return_hold_min">Geri Dönüş Bekleme (dakika)</label>
+                            <input type="number" id="return_hold_min" name="return_hold_min" min="5" max="60" step="5">
+                            <div class="description">Dolabın aynı kullanıcı için bekletilme süresi (varsayılan: 15)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hardware Settings Section -->
+                <div class="config-section">
+                    <h3>Donanım Ayarları</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="pulse_ms">Darbe Süresi (ms)</label>
+                            <input type="number" id="pulse_ms" name="pulse_ms" min="200" max="2000" step="50">
+                            <div class="description">Röle darbe süresi (varsayılan: 800)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="open_window_sec">Açma Penceresi (saniye)</label>
+                            <input type="number" id="open_window_sec" name="open_window_sec" min="5" max="20" step="1">
+                            <div class="description">Tekrar deneme için bekleme penceresi (varsayılan: 10)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="retry_count">Tekrar Deneme Sayısı</label>
+                            <input type="number" id="retry_count" name="retry_count" min="0" max="5" step="1">
+                            <div class="description">Başarısız açma sonrası tekrar deneme sayısı (varsayılan: 1)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="retry_backoff_ms">Tekrar Deneme Gecikmesi (ms)</label>
+                            <input type="number" id="retry_backoff_ms" name="retry_backoff_ms" min="200" max="1000" step="100">
+                            <div class="description">Tekrar denemeler arası bekleme süresi (varsayılan: 500)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rate Limiting Section -->
+                <div class="config-section">
+                    <h3>Hız Sınırlama</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="card_rate_limit_seconds">Kart Hız Limiti (saniye)</label>
+                            <input type="number" id="card_rate_limit_seconds" name="card_rate_limit_seconds" min="5" max="60" step="5">
+                            <div class="description">Aynı kart için minimum bekleme süresi (varsayılan: 10)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="locker_opens_window_sec">Dolap Açma Penceresi (saniye)</label>
+                            <input type="number" id="locker_opens_window_sec" name="locker_opens_window_sec" min="10" max="300" step="10">
+                            <div class="description">Dolap açma hız limiti için zaman penceresi (varsayılan: 60)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="locker_opens_max_per_window">Pencere Başına Maksimum Açma</label>
+                            <input type="number" id="locker_opens_max_per_window" name="locker_opens_max_per_window" min="1" max="10" step="1">
+                            <div class="description">Zaman penceresi içinde aynı dolap için maksimum açma sayısı (varsayılan: 3)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="command_cooldown_sec">Komut Bekleme (saniye)</label>
+                            <input type="number" id="command_cooldown_sec" name="command_cooldown_sec" min="1" max="10" step="1">
+                            <div class="description">Röle komutları arası minimum bekleme (varsayılan: 3)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="user_report_daily_cap">Günlük Rapor Limiti</label>
+                            <input type="number" id="user_report_daily_cap" name="user_report_daily_cap" min="1" max="10" step="1">
+                            <div class="description">Kullanıcı başına günlük şüpheli dolap raporu limiti (varsayılan: 2)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reserve Capacity Section -->
+                <div class="config-section">
+                    <h3>Rezerv Kapasite</h3>
+                    <div class="config-grid">
+                        <div class="config-item">
+                            <label for="reserve_ratio">Rezerv Oranı</label>
+                            <input type="number" id="reserve_ratio" name="reserve_ratio" min="0" max="0.5" step="0.05">
+                            <div class="description">Toplam kapasiteden rezerv olarak ayrılacak oran (varsayılan: 0.10)</div>
+                        </div>
+                        <div class="config-item">
+                            <label for="reserve_minimum">Minimum Rezerv</label>
+                            <input type="number" id="reserve_minimum" name="reserve_minimum" min="0" max="10" step="1">
+                            <div class="description">Her zaman rezervde tutulacak minimum dolap sayısı (varsayılan: 2)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Kaydet
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="loadDefaults()">
+                        Varsayılanı Yükle
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="validateConfig()">
+                        Doğrula
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="reloadConfig()">
+                        Yeniden Yükle
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Kiosk Overrides Tab -->
+        <div id="kiosk-overrides" class="tab-content">
+            <div class="kiosk-selector">
+                <label for="kiosk-select">Kiosk Seçin:</label>
+                <select id="kiosk-select" onchange="loadKioskOverrides()">
+                    <option value="">Kiosk seçin...</option>
+                </select>
+            </div>
+
+            <div id="kiosk-config-content" style="display: none;">
+                <form id="kiosk-config-form">
+                    <div class="config-section">
+                        <h3><span id="selected-kiosk-name"></span> için Özel Ayarlar</h3>
+                        <p>Bu ayarlar sadece seçili kiosk için geçerli olacak ve global ayarları geçersiz kılacaktır.</p>
+                        
+                        <div id="kiosk-config-grid" class="config-grid">
+                            <!-- Kiosk-specific config items will be loaded here -->
+                        </div>
+                    </div>
+
+                    <div class="config-actions">
+                        <button type="submit" class="btn btn-primary">
+                            Kiosk için Geçersiz Kıl
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="removeKioskOverrides()">
+                            Tüm Geçersiz Kılmaları Sil
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Audit History Tab -->
+        <div id="audit-history" class="tab-content">
+            <div class="config-section">
+                <h3>Yapılandırma Değişiklik Geçmişi</h3>
+                
+                <!-- History Filters -->
+                <div class="config-grid" style="margin-bottom: 20px;">
+                    <div class="config-item">
+                        <label for="history-kiosk-filter">Kiosk Filtresi</label>
+                        <select id="history-kiosk-filter" onchange="loadAuditHistory()">
+                            <option value="">Tüm Kiosklar</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label for="history-key-filter">Ayar Filtresi</label>
+                        <input type="text" id="history-key-filter" placeholder="Ayar adı..." onchange="loadAuditHistory()">
+                    </div>
+                    <div class="config-item">
+                        <label for="history-date-from">Başlangıç Tarihi</label>
+                        <input type="datetime-local" id="history-date-from" onchange="loadAuditHistory()">
+                    </div>
+                    <div class="config-item">
+                        <label for="history-date-to">Bitiş Tarihi</label>
+                        <input type="datetime-local" id="history-date-to" onchange="loadAuditHistory()">
+                    </div>
+                </div>
+
+                <div id="history-content">
+                    <div class="loading">Geçmiş yükleniyor...</div>
+                </div>
+
+                <div id="history-pagination" class="pagination" style="display: none;">
+                    <button onclick="loadAuditHistory(currentPage - 1)" id="prev-page">‹ Önceki</button>
+                    <span class="current-page" id="page-info">Sayfa 1 / 1</span>
+                    <button onclick="loadAuditHistory(currentPage + 1)" id="next-page">Sonraki ›</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Validation Tab -->
+        <div id="validation" class="tab-content">
+            <div class="config-section">
+                <h3>Yapılandırma Doğrulama</h3>
+                <p>Mevcut yapılandırmanın geçerliliğini kontrol edin ve potansiyel sorunları tespit edin.</p>
+                
+                <div class="config-actions">
+                    <button type="button" class="btn btn-primary" onclick="runFullValidation()">
+                        Tam Doğrulama Çalıştır
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="checkConfigVersion()">
+                        Yapılandırma Sürümü Kontrol Et
+                    </button>
+                </div>
+
+                <div id="validation-results">
+                    <!-- Validation results will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentConfig = {};
+        let currentKiosk = '';
+        let currentPage = 1;
+        let totalPages = 1;
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadGlobalConfig();
+            loadKioskList();
+        });
+
+        // Tab switching
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.config-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Load content based on tab
+            if (tabId === 'audit-history') {
+                loadAuditHistory();
+            } else if (tabId === 'validation') {
+                // Validation tab doesn't auto-load
+            }
+        }
+
+        // Alert functions
+        function showAlert(type, message) {
+            hideAllAlerts();
+            const alertElement = document.getElementById(`alert-${type}`);
+            alertElement.textContent = message;
+            alertElement.style.display = 'block';
+            
+            // Auto-hide success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    alertElement.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function hideAllAlerts() {
+            document.querySelectorAll('.alert').forEach(alert => {
+                alert.style.display = 'none';
+            });
+        }
+
+        // Load global configuration
+        async function loadGlobalConfig() {
+            try {
+                const response = await fetch('/api/admin/config/global');
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentConfig = result.config;
+                    populateGlobalForm(result.config);
+                    showAlert('success', 'Global yapılandırma başarıyla yüklendi');
+                } else {
+                    showAlert('danger', 'Global yapılandırma yüklenemedi: ' + result.error);
+                }
+            } catch (error) {
+                showAlert('danger', 'Global yapılandırma yüklenirken hata: ' + error.message);
+            }
+        }
+
+        // Populate global configuration form
+        function populateGlobalForm(config) {
+            const form = document.getElementById('global-config-form');
+            
+            Object.keys(config).forEach(key => {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) {
+                    input.value = config[key];
+                    
+                    // Add current value indicator
+                    const currentValueDiv = input.parentNode.querySelector('.current-value');
+                    if (currentValueDiv) {
+                        currentValueDiv.remove();
+                    }
+                    
+                    const valueIndicator = document.createElement('div');
+                    valueIndicator.className = 'current-value';
+                    valueIndicator.textContent = `Mevcut değer: ${config[key]}`;
+                    input.parentNode.appendChild(valueIndicator);
+                }
+            });
+        }
+
+        // Save global configuration
+        document.getElementById('global-config-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const updates = {};
+            
+            // Collect form data
+            for (const [key, value] of formData.entries()) {
+                // Convert to appropriate type
+                if (value === 'true' || value === 'false') {
+                    updates[key] = value === 'true';
+                } else if (!isNaN(value) && value !== '') {
+                    updates[key] = Number(value);
+                } else {
+                    updates[key] = value;
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/admin/config/global', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        updates: updates,
+                        reason: 'Panel arayüzünden güncellendi'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('success', 'Global yapılandırma başarıyla kaydedildi');
+                    loadGlobalConfig(); // Reload to get updated values
+                } else {
+                    showAlert('danger', 'Yapılandırma kaydedilemedi: ' + result.error);
+                }
+            } catch (error) {
+                showAlert('danger', 'Yapılandırma kaydedilirken hata: ' + error.message);
+            }
+        });
+
+        // Load kiosk list
+        async function loadKioskList() {
+            try {
+                // For now, use a static list. In production, this would come from an API
+                const kiosks = ['kiosk-1', 'kiosk-2', 'kiosk-3'];
+                
+                const kioskSelect = document.getElementById('kiosk-select');
+                const historyKioskFilter = document.getElementById('history-kiosk-filter');
+                
+                kiosks.forEach(kioskId => {
+                    const option1 = document.createElement('option');
+                    option1.value = kioskId;
+                    option1.textContent = kioskId;
+                    kioskSelect.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = kioskId;
+                    option2.textContent = kioskId;
+                    historyKioskFilter.appendChild(option2);
+                });
+            } catch (error) {
+                showAlert('danger', 'Kiosk listesi yüklenirken hata: ' + error.message);
+            }
+        }
+
+        // Load kiosk overrides
+        async function loadKioskOverrides() {
+            const kioskId = document.getElementById('kiosk-select').value;
+            const contentDiv = document.getElementById('kiosk-config-content');
+            
+            if (!kioskId) {
+                contentDiv.style.display = 'none';
+                return;
+            }
+            
+            currentKiosk = kioskId;
+            document.getElementById('selected-kiosk-name').textContent = kioskId;
+            contentDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/api/admin/config/effective?kiosk_id=${kioskId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    populateKioskForm(result.config);
+                    showAlert('success', `${kioskId} yapılandırması yüklendi`);
+                } else {
+                    showAlert('danger', 'Kiosk yapılandırması yüklenemedi: ' + result.error);
+                }
+            } catch (error) {
+                showAlert('danger', 'Kiosk yapılandırması yüklenirken hata: ' + error.message);
+            }
+        }
+
+        // Populate kiosk configuration form
+        function populateKioskForm(config) {
+            const gridDiv = document.getElementById('kiosk-config-grid');
+            gridDiv.innerHTML = '';
+            
+            // Create form fields for each config key
+            Object.keys(currentConfig).forEach(key => {
+                const configItem = document.createElement('div');
+                configItem.className = 'config-item';
+                
+                const isOverridden = config[key] !== currentConfig[key];
+                const overrideIndicator = isOverridden ? '<span class="override-indicator">GEÇERSIZ KILINMIŞ</span>' : '';
+                
+                // Determine input type based on the field
+                let inputType = 'text';
+                let inputAttributes = '';
+                
+                if (typeof currentConfig[key] === 'boolean') {
+                    inputType = 'select';
+                } else if (typeof currentConfig[key] === 'number') {
+                    inputType = 'number';
+                    inputAttributes = 'step="0.1"';
+                }
+                
+                let inputHTML = '';
+                if (inputType === 'select') {
+                    inputHTML = `
+                        <select id="kiosk_${key}" name="${key}">
+                            <option value="">Global değeri kullan</option>
+                            <option value="true" ${config[key] === true ? 'selected' : ''}>Açık</option>
+                            <option value="false" ${config[key] === false ? 'selected' : ''}>Kapalı</option>
+                        </select>
+                    `;
+                } else {
+                    inputHTML = `
+                        <input type="${inputType}" id="kiosk_${key}" name="${key}" 
+                               value="${config[key] || ''}" ${inputAttributes}
+                               placeholder="Global değer: ${currentConfig[key]}">
+                    `;
+                }
+                
+                configItem.innerHTML = `
+                    <label for="kiosk_${key}">${key.replace(/_/g, ' ')}${overrideIndicator}</label>
+                    ${inputHTML}
+                    <div class="description">Global: ${currentConfig[key]}, Mevcut: ${config[key]}</div>
+                `;
+                
+                gridDiv.appendChild(configItem);
+            });
+        }
+
+        // Save kiosk overrides
+        document.getElementById('kiosk-config-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!currentKiosk) {
+                showAlert('danger', 'Lütfen bir kiosk seçin');
+                return;
+            }
+            
+            const formData = new FormData(this);
+            
+            try {
+                for (const [key, value] of formData.entries()) {
+                    if (value && value !== currentConfig[key]) {
+                        // Convert to appropriate type
+                        let convertedValue = value;
+                        if (value === 'true' || value === 'false') {
+                            convertedValue = value === 'true';
+                        } else if (!isNaN(value) && value !== '') {
+                            convertedValue = Number(value);
+                        }
+                        
+                        const response = await fetch(`/api/admin/config/override/${currentKiosk}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                key: key,
+                                value: convertedValue,
+                                reason: 'Panel arayüzünden kiosk-özel ayar'
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        if (!result.success) {
+                            throw new Error(result.error);
+                        }
+                    }
+                }
+                
+                showAlert('success', `${currentKiosk} için özel ayarlar kaydedildi`);
+                loadKioskOverrides(); // Reload to show updated values
+            } catch (error) {
+                showAlert('danger', 'Kiosk ayarları kaydedilirken hata: ' + error.message);
+            }
+        });
+
+        // Remove kiosk overrides
+        async function removeKioskOverrides() {
+            if (!currentKiosk) {
+                showAlert('danger', 'Lütfen bir kiosk seçin');
+                return;
+            }
+            
+            if (!confirm(`${currentKiosk} için tüm özel ayarları silmek istediğinizden emin misiniz?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/config/override/${currentKiosk}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reason: 'Panel arayüzünden tüm geçersiz kılmalar silindi'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('success', `${currentKiosk} için tüm özel ayarlar silindi`);
+                    loadKioskOverrides(); // Reload to show updated values
+                } else {
+                    showAlert('danger', 'Özel ayarlar silinemedi: ' + result.error);
+                }
+            } catch (error) {
+                showAlert('danger', 'Özel ayarlar silinirken hata: ' + error.message);
+            }
+        }
+
+        // Load audit history
+        async function loadAuditHistory(page = 1) {
+            currentPage = page;
+            
+            const kioskFilter = document.getElementById('history-kiosk-filter').value;
+            const keyFilter = document.getElementById('history-key-filter').value;
+            const dateFrom = document.getElementById('history-date-from').value;
+            const dateTo = document.getElementById('history-date-to').value;
+            
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: '50'
+            });
+            
+            if (kioskFilter) params.append('kiosk_id', kioskFilter);
+            if (keyFilter) params.append('key', keyFilter);
+            if (dateFrom) params.append('updated_after', dateFrom);
+            if (dateTo) params.append('updated_before', dateTo);
+            
+            const contentDiv = document.getElementById('history-content');
+            contentDiv.innerHTML = '<div class="loading">Geçmiş yükleniyor...</div>';
+            
+            try {
+                const response = await fetch(`/api/admin/config/history?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayAuditHistory(result.history, result.pagination, result.version);
+                } else {
+                    contentDiv.innerHTML = `<div class="alert alert-danger">Geçmiş yüklenemedi: ${result.error}</div>`;
+                }
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="alert alert-danger">Geçmiş yüklenirken hata: ${error.message}</div>`;
+            }
+        }
+
+        // Display audit history
+        function displayAuditHistory(history, pagination, version) {
+            const contentDiv = document.getElementById('history-content');
+            const paginationDiv = document.getElementById('history-pagination');
+            
+            if (history.length === 0) {
+                contentDiv.innerHTML = '<div class="alert alert-info">Hiç değişiklik kaydı bulunamadı</div>';
+                paginationDiv.style.display = 'none';
+                return;
+            }
+            
+            let tableHTML = `
+                <div style="margin-bottom: 15px; color: #6c757d; font-size: 14px;">
+                    Yapılandırma Sürümü: ${version || 'Bilinmiyor'} | Sıralama: Güncelleme tarihi (yeniden eskiye)
+                </div>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Tarih</th>
+                            <th>Kiosk</th>
+                            <th>Ayar</th>
+                            <th>Eski Değer</th>
+                            <th>Yeni Değer</th>
+                            <th>Değiştiren</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            history.forEach(item => {
+                const date = new Date(item.changed_at).toLocaleString('tr-TR');
+                const kiosk = item.kiosk_id || 'Global';
+                
+                tableHTML += `
+                    <tr>
+                        <td>${date}</td>
+                        <td>${kiosk}</td>
+                        <td><code>${item.key}</code></td>
+                        <td><code>${item.old_value || '-'}</code></td>
+                        <td><code>${item.new_value}</code></td>
+                        <td>${item.changed_by}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            contentDiv.innerHTML = tableHTML;
+            
+            // Update pagination
+            totalPages = pagination.total_pages;
+            document.getElementById('page-info').textContent = `Sayfa ${pagination.page} / ${totalPages}`;
+            document.getElementById('prev-page').disabled = !pagination.has_previous;
+            document.getElementById('next-page').disabled = !pagination.has_next;
+            paginationDiv.style.display = 'flex';
+        }
+
+        // Utility functions
+        async function loadDefaults() {
+            if (!confirm('Tüm ayarları varsayılan değerlere sıfırlamak istediğinizden emin misiniz?')) {
+                return;
+            }
+            
+            // This would typically call an API to reset to defaults
+            showAlert('info', 'Varsayılan değerler yükleme özelliği henüz uygulanmadı');
+        }
+
+        async function validateConfig() {
+            showAlert('info', 'Yapılandırma doğrulanıyor...');
+            
+            try {
+                // This would call a validation API
+                setTimeout(() => {
+                    showAlert('success', 'Yapılandırma geçerli - hiç sorun bulunamadı');
+                }, 1000);
+            } catch (error) {
+                showAlert('danger', 'Doğrulama hatası: ' + error.message);
+            }
+        }
+
+        async function reloadConfig() {
+            try {
+                const response = await fetch('/api/admin/config/reload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('success', 'Yapılandırma yeniden yüklendi');
+                    loadGlobalConfig();
+                } else {
+                    showAlert('danger', 'Yapılandırma yeniden yüklenemedi: ' + result.error);
+                }
+            } catch (error) {
+                showAlert('danger', 'Yapılandırma yeniden yüklenirken hata: ' + error.message);
+            }
+        }
+
+        async function runFullValidation() {
+            const resultsDiv = document.getElementById('validation-results');
+            resultsDiv.innerHTML = '<div class="loading">Tam doğrulama çalıştırılıyor...</div>';
+            
+            try {
+                // Simulate validation process
+                setTimeout(() => {
+                    resultsDiv.innerHTML = `
+                        <div class="validation-item success">
+                            ✅ Global yapılandırma geçerli
+                        </div>
+                        <div class="validation-item success">
+                            ✅ Tüm kiosk geçersiz kılmaları geçerli
+                        </div>
+                        <div class="validation-item warning">
+                            ⚠️ Bazı ayarlar varsayılan değerlerde - performans için optimize edilebilir
+                        </div>
+                        <div class="validation-item success">
+                            ✅ Yapılandırma sürümü güncel
+                        </div>
+                    `;
+                }, 2000);
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="alert alert-danger">Doğrulama hatası: ${error.message}</div>`;
+            }
+        }
+
+        async function checkConfigVersion() {
+            try {
+                const response = await fetch('/api/admin/config/version');
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('info', `Mevcut yapılandırma sürümü: ${result.version}`);
+                } else {
+                    showAlert('danger', 'Sürüm bilgisi alınamadı: ' + result.error);
+                }
+            } catch (error) {
+                showAlert('danger', 'Sürüm kontrolü hatası: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

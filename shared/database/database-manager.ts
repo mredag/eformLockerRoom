@@ -63,7 +63,7 @@ export class DatabaseManager {
   }
 
   /**
-   * Initialize database with migrations
+   * Initialize database with migrations and configuration seeding
    */
   public async initialize(): Promise<void> {
     try {
@@ -77,10 +77,31 @@ export class DatabaseManager {
       const migrationRunner = new MigrationRunner(migrationsPath);
       await migrationRunner.runMigrations();
       
+      // Seed configuration after migrations are complete
+      await this.seedConfiguration();
+      
       console.log('Database initialized successfully');
     } catch (error) {
       console.error('Failed to initialize database:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Seed default configuration values on first boot
+   */
+  private async seedConfiguration(): Promise<void> {
+    try {
+      // Import configuration seeder dynamically to avoid circular dependencies
+      const { getConfigurationSeeder } = await import('../services/configuration-seeder');
+      const seeder = getConfigurationSeeder(this.connection);
+      
+      // Initialize configuration seeding
+      await seeder.initialize();
+    } catch (error) {
+      console.error('Failed to seed configuration:', error);
+      // Don't throw - allow database initialization to continue
+      // Configuration seeding is important but not critical for basic operation
     }
   }
 

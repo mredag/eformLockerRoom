@@ -142,8 +142,8 @@ interface GlobalConfig {
   selection_temperature: number;
   
   // Quarantine settings
-  quarantine_minutes_base: number; // 5 minutes
-  quarantine_minutes_ceiling: number; // 20 minutes
+  quarantine_min_floor: number; // 5 minutes
+  quarantine_min_ceiling: number; // 20 minutes
   exit_quarantine_minutes: number; // 20 minutes fixed
   
   // Return hold settings
@@ -159,9 +159,8 @@ interface GlobalConfig {
   reserve_minimum: number; // Minimum number of lockers to reserve
   
   // Hardware settings
-  sensorless_pulse_ms: number;
-  open_window_seconds: number;
-  retry_count: number;
+  pulse_ms: number;
+  open_window_sec: number;
   retry_backoff_ms: number;
   
   // Rate limits
@@ -284,7 +283,7 @@ ALTER TABLE lockers ADD COLUMN quarantine_until DATETIME;
 ALTER TABLE lockers ADD COLUMN wear_count INTEGER DEFAULT 0;
 ALTER TABLE lockers ADD COLUMN overdue_from DATETIME;
 ALTER TABLE lockers ADD COLUMN overdue_reason TEXT;
-ALTER TABLE lockers ADD COLUMN suspected_occupied BOOLEAN DEFAULT 0;
+ALTER TABLE lockers ADD COLUMN suspected_occupied INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE lockers ADD COLUMN cleared_by TEXT;
 ALTER TABLE lockers ADD COLUMN cleared_at DATETIME;
 ALTER TABLE lockers ADD COLUMN return_hold_until DATETIME;
@@ -376,7 +375,7 @@ CREATE TABLE smart_sessions (
 
 ```sql
 -- Global configuration
-CREATE TABLE global_config (
+CREATE TABLE settings_global (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
   data_type TEXT NOT NULL DEFAULT 'string',
@@ -386,7 +385,7 @@ CREATE TABLE global_config (
 );
 
 -- Per-kiosk overrides
-CREATE TABLE kiosk_config_overrides (
+CREATE TABLE settings_kiosk (
   kiosk_id TEXT NOT NULL,
   key TEXT NOT NULL,
   value TEXT NOT NULL,
@@ -417,7 +416,7 @@ CREATE TABLE config_history (
 );
 
 -- Default configuration seeding
-INSERT OR IGNORE INTO global_config (key, value, data_type) VALUES
+INSERT OR IGNORE INTO settings_global (key, value, data_type) VALUES
   ('base_score', '100', 'number'),
   ('score_factor_a', '2.0', 'number'),
   ('score_factor_b', '1.0', 'number'),
@@ -425,8 +424,8 @@ INSERT OR IGNORE INTO global_config (key, value, data_type) VALUES
   ('score_factor_d', '0.5', 'number'),
   ('top_k_candidates', '5', 'number'),
   ('selection_temperature', '1.0', 'number'),
-  ('quarantine_minutes_base', '5', 'number'),
-  ('quarantine_minutes_ceiling', '20', 'number'),
+  ('quarantine_min_floor', '5', 'number'),
+  ('quarantine_min_ceiling', '20', 'number'),
   ('exit_quarantine_minutes', '20', 'number'),
   ('return_hold_trigger_seconds', '120', 'number'),
   ('return_hold_minutes', '15', 'number'),
@@ -434,9 +433,8 @@ INSERT OR IGNORE INTO global_config (key, value, data_type) VALUES
   ('retrieve_window_minutes', '10', 'number'),
   ('reserve_ratio', '0.1', 'number'),
   ('reserve_minimum', '2', 'number'),
-  ('sensorless_pulse_ms', '800', 'number'),
-  ('open_window_seconds', '10', 'number'),
-  ('retry_count', '1', 'number'),
+  ('pulse_ms', '800', 'number'),
+  ('open_window_sec', '10', 'number'),
   ('retry_backoff_ms', '500', 'number'),
   ('card_rate_limit_seconds', '10', 'number'),
   ('locker_rate_limit_per_minute', '3', 'number'),
@@ -458,7 +456,7 @@ CREATE TABLE assignment_metrics (
   locker_id INTEGER,
   action_type TEXT NOT NULL,
   score_data TEXT, -- JSON with scoring details
-  success BOOLEAN NOT NULL,
+  success INTEGER NOT NULL DEFAULT 0,
   error_code TEXT,
   duration_ms INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -541,35 +539,41 @@ class SensorlessRetryHandler {
 // Concurrency handling with single transaction
 class AssignmentConcurrencyHandler {
   async assignWithConcurrencyControl(request: AssignmentRequest): Promise<AssignmentResult> {
-    return await this.db.transaction(async (tx) => {
-      // Select and claim in single transaction
-      const candidates = await this.scoreAndSelectCandidates(request.kioskId, tx);
-      
-      if (candidates.length === 0) {
-        return { success: false, error: 'no_stock', message: 'Boş dolap yok. Görevliye başvurun' };
-      }
-      
-      // Attempt to claim first candidate
-      const claimed = await this.claimLocker(candidates[0].lockerId, request.cardId, tx);
-      
-      if (!claimed) {
-        // Conflict detected - refresh state once and retry
-        const freshCandidates = await this.scoreAndSelectCandidates(request.kioskId, tx);
+    // First transaction attempt
+    try {
+      return await this.db.transaction(async (tx) => {
+        const candidates = await this.scoreAndSelectCandidates(request.kioskId, tx);
         
-        if (freshCandidates.length > 0) {
-          const retryClaimed = await this.claimLocker(freshCandidates[0].lockerId, request.cardId, tx);
-          
-          if (retryClaimed) {
-            return { success: true, lockerId: freshCandidates[0].lockerId };
-          }
+        if (candidates.length === 0) {
+          return { success: false, error: 'no_stock', message: 'Boş dolap yok. Görevliye başvurun.' };
         }
         
-        // Retry failed - return error
-        throw new Error('Assignment conflict - retry failed');
-      }
-      
-      return { success: true, lockerId: candidates[0].lockerId };
-    });
+        const claimed = await this.claimLocker(candidates[0].lockerId, request.cardId, tx);
+        
+        if (!claimed) {
+          throw new Error('Assignment conflict detected');
+        }
+        
+        return { success: true, lockerId: candidates[0].lockerId };
+      });
+    } catch (error) {
+      // Conflict detected - close transaction and start fresh one for retry
+      return await this.db.transaction(async (tx) => {
+        const freshCandidates = await this.scoreAndSelectCandidates(request.kioskId, tx);
+        
+        if (freshCandidates.length === 0) {
+          return { success: false, error: 'no_stock', message: 'Boş dolap yok. Görevliye başvurun.' };
+        }
+        
+        const retryClaimed = await this.claimLocker(freshCandidates[0].lockerId, request.cardId, tx);
+        
+        if (!retryClaimed) {
+          throw new Error('Assignment conflict - retry failed');
+        }
+        
+        return { success: true, lockerId: freshCandidates[0].lockerId };
+      });
+    }
   }
 }
 ```
@@ -635,46 +639,33 @@ POST /api/rfid/handle-card
 
 // All Turkish UI messages (approved set only)
 const UI_MESSAGES = {
-  idle: "Kartınızı okutun",
-  success_new: "Dolabınız açıldı. Eşyalarınızı yerleştirin",
-  success_existing: "Önceki dolabınız açıldı",
-  retrieve_overdue: "Süreniz doldu. Almanız için açılıyor",
-  reported_occupied: "Dolap dolu bildirildi. Yeni dolap açılıyor",
-  retry: "Tekrar deneniyor",
-  throttled: "Lütfen birkaç saniye sonra deneyin",
-  no_stock: "Boş dolap yok. Görevliye başvurun",
-  error: "Şu an işlem yapılamıyor"
+  idle: "Kartınızı okutun.",
+  success_new: "Dolabınız açıldı. Eşyalarınızı yerleştirin.",
+  success_existing: "Önceki dolabınız açıldı.",
+  retrieve_overdue: "Süreniz doldu. Almanız için açılıyor.",
+  reported_occupied: "Dolap dolu bildirildi. Yeni dolap açılıyor.",
+  retry: "Tekrar deneniyor.",
+  throttled: "Lütfen birkaç saniye sonra deneyin.",
+  no_stock: "Boş dolap yok. Görevliye başvurun.",
+  error: "Şu an işlem yapılamıyor."
 };
 ```
 
 ### Configuration API
 
 ```typescript
-// Get effective configuration
-GET /admin/config/effective/{kioskId}
-{
-  "global": { /* global config */ },
-  "overrides": { /* kiosk overrides */ },
-  "effective": { /* merged config */ },
-  "version": 42
-}
-
-// Update global configuration
-PUT /admin/config/global
-{
-  "base_score": 100,
-  "score_factor_a": 2.0,
-  "smart_assignment_enabled": true
-}
-
-// Set kiosk override
-PUT /admin/config/override/{kioskId}
-{
-  "key": "session_limit_minutes",
-  "value": 180,
-  "updated_by": "admin"
-}
+// Configuration API (unified under /api/admin/config/*)
+GET /api/admin/config/effective/{kioskId}
+GET /api/admin/config/global
+PUT /api/admin/config/global
+PUT /api/admin/config/override/{kioskId}
+DELETE /api/admin/config/override/{kioskId}
+GET /api/admin/config/history
+POST /api/admin/config/reload
+GET /api/admin/config/version
 ```
+
+
 
 ### Admin Panel API
 

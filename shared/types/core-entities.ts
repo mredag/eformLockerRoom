@@ -25,6 +25,20 @@ export interface Locker {
   name_updated_by?: string; // Who updated the display name
   created_at: Date;
   updated_at: Date;
+  
+  // Smart assignment fields (added by migration 021)
+  free_since?: Date; // When locker became free
+  recent_owner?: string; // Last owner's card ID
+  recent_owner_time?: Date; // When last owner released the locker
+  quarantine_until?: Date; // Quarantine expiration time
+  wear_count?: number; // Number of times locker has been used
+  return_hold_until?: Date; // Return hold expiration time
+  overdue_from?: Date; // When locker became overdue
+  overdue_reason?: string; // Reason for overdue status ('time_limit' | 'user_report')
+  suspected_occupied?: boolean; // Whether locker is suspected to be occupied
+  cleared_by?: string; // Who cleared the suspected occupied flag
+  cleared_at?: Date; // When suspected occupied flag was cleared
+  owner_hot_until?: Date; // Owner hot window expiration time
 }
 
 export interface LockerStateTransition {

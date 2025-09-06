@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canlı Oturumlar - Eform Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: #f0f0f0;
+        }
+
+        .nav-links a.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .main-content {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .filter-group select, .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .sessions-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .sessions-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sessions-header h3 {
+            color: #333;
+            margin: 0;
+        }
+
+        .refresh-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .refresh-indicator.updating {
+            color: #667eea;
+        }
+
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .sessions-table th,
+        .sessions-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .sessions-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .sessions-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .session-card {
+            display: none; /* Hidden by default, shown on mobile */
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .session-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .session-card-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .session-card-body {
+            display: grid;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .session-card-field {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .session-card-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .session-card-value {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .session-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-overdue {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .remaining-time {
+            font-weight: 600;
+        }
+
+        .remaining-time.warning {
+            color: #ffc107;
+        }
+
+        .remaining-time.danger {
+            color: #dc3545;
+        }
+
+        .remaining-time.normal {
+            color: #28a745;
+        }
+
+        .card-id {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .locker-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .locker-status {
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .locker-status.owned {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .locker-status.free {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .extension-info {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .no-sessions {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .no-sessions-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border: 1px solid #c3e6cb;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 0;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .sessions-table {
+                display: none;
+            }
+
+            .session-card {
+                display: block;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+        }
+
+        /* Real-time update animations */
+        .session-row.updated {
+            animation: highlightUpdate 2s ease-in-out;
+        }
+
+        .session-card.updated {
+            animation: highlightUpdate 2s ease-in-out;
+        }
+
+        @keyframes highlightUpdate {
+            0% { background-color: #e3f2fd; }
+            100% { background-color: transparent; }
+        }
+
+        /* Auto-refresh indicator */
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .auto-refresh.active {
+            color: #28a745;
+        }
+
+        .refresh-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Canlı Oturumlar</h1>
+        <div class="nav-links">
+            <a href="/dashboard">Ana Sayfa</a>
+            <a href="/lockers">Dolaplar</a>
+            <a href="/live-sessions" class="active">Canlı Oturumlar</a>
+            <a href="/smart-config">Akıllı Atama</a>
+            <a href="/performance">Performans</a>
+            <a href="#" onclick="logout()">Çıkış</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="error-message" class="error-message" style="display: none;"></div>
+        <div id="success-message" class="success-message" style="display: none;"></div>
+
+        <!-- Statistics -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-active">-</div>
+                <div class="stat-label">Aktif Oturumlar</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-total-today">-</div>
+                <div class="stat-label">Bugün Toplam</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-extensions">-</div>
+                <div class="stat-label">Uzatılan Oturumlar</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-avg-duration">-</div>
+                <div class="stat-label">Ortalama Süre (dk)</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="filter-group">
+                <label for="kiosk-filter">Kiosk</label>
+                <select id="kiosk-filter">
+                    <option value="">Tüm Kiosklar</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="status-filter">Durum</label>
+                <select id="status-filter">
+                    <option value="">Tüm Durumlar</option>
+                    <option value="active">Aktif</option>
+                    <option value="overdue">Gecikmiş</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="card-search">Kart Arama</label>
+                <input type="text" id="card-search" placeholder="Kart ID ara...">
+            </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="applyFilters()">Filtrele</button>
+            </div>
+            <div class="auto-refresh">
+                <div class="refresh-dot"></div>
+                <span>Otomatik yenileme aktif</span>
+            </div>
+        </div>
+
+        <!-- Sessions -->
+        <div class="sessions-container">
+            <div class="sessions-header">
+                <h3>Aktif Oturumlar</h3>
+                <div class="refresh-indicator" id="refresh-indicator">
+                    <span>Son güncelleme: <span id="last-update">-</span></span>
+                </div>
+            </div>
+
+            <!-- Desktop Table View -->
+            <table class="sessions-table" id="sessions-table">
+                <thead>
+                    <tr>
+                        <th>Kart ID</th>
+                        <th>Kiosk</th>
+                        <th>Dolap</th>
+                        <th>Kalan Süre</th>
+                        <th>Uzatma</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="sessions-tbody">
+                    <!-- Sessions will be populated here -->
+                </tbody>
+            </table>
+
+            <!-- Mobile Card View -->
+            <div id="sessions-cards" class="sessions-cards">
+                <!-- Session cards will be populated here -->
+            </div>
+
+            <!-- No sessions message -->
+            <div id="no-sessions" class="no-sessions" style="display: none;">
+                <div class="no-sessions-icon">🔒</div>
+                <h3>Aktif oturum bulunmuyor</h3>
+                <p>Şu anda hiçbir kullanıcının aktif oturumu yok.</p>
+            </div>
+
+            <!-- Loading indicator -->
+            <div id="loading" class="loading">
+                <p>Oturumlar yükleniyor...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Extend Session Modal -->
+    <div id="extendModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Oturumu Uzat</h3>
+                <button class="close" onclick="closeExtendModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="extend-reason">Uzatma Nedeni</label>
+                    <textarea id="extend-reason" placeholder="Oturum uzatma nedenini açıklayın..." required></textarea>
+                </div>
+                <p><strong>Not:</strong> Oturum 60 dakika uzatılacak. Maksimum toplam süre 240 dakikadır.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="confirmExtendSession()">Oturumu Uzat +60 dk</button>
+                <button class="btn btn-secondary" onclick="closeExtendModal()">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- End Session Modal -->
+    <div id="endModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Oturumu Bitir</h3>
+                <button class="close" onclick="closeEndModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="end-reason">Bitiş Nedeni (İsteğe bağlı)</label>
+                    <textarea id="end-reason" placeholder="Oturum bitiş nedenini açıklayın..."></textarea>
+                </div>
+                <p><strong>Uyarı:</strong> Bu işlem geri alınamaz. Oturum kalıcı olarak sonlandırılacak.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="confirmEndSession()">Oturumu bitir</button>
+                <button class="btn btn-secondary" onclick="closeEndModal()">Vazgeç</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessions = [];
+        let filteredSessions = [];
+        let currentSessionId = null;
+        let refreshInterval = null;
+        let wsConnection = null;
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSessions();
+            loadKiosks();
+            startAutoRefresh();
+            connectWebSocket();
+            
+            // Set up search input
+            document.getElementById('card-search').addEventListener('input', debounce(applyFilters, 300));
+        });
+
+        // Load sessions from API
+        async function loadSessions() {
+            try {
+                showLoading(true);
+                const response = await fetch('/api/admin/sessions?status=Active&page=1&limit=50');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                sessions = data.sessions || [];
+                
+                applyFilters();
+                updateStats();
+                updateLastRefreshTime();
+                
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+                showError('Oturumlar yüklenirken hata oluştu: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Load kiosks for filter dropdown
+        async function loadKiosks() {
+            try {
+                const response = await fetch('/api/lockers/kiosks');
+                if (response.ok) {
+                    const data = await response.json();
+                    const kioskSelect = document.getElementById('kiosk-filter');
+                    
+                    // Clear existing options except "All"
+                    kioskSelect.innerHTML = '<option value="">Tüm Kiosklar</option>';
+                    
+                    data.kiosks.forEach(kiosk => {
+                        const option = document.createElement('option');
+                        option.value = kiosk.kiosk_id;
+                        option.textContent = `${kiosk.kiosk_id} (${kiosk.zone || 'Bilinmiyor'})`;
+                        kioskSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load kiosks:', error);
+            }
+        }
+
+        // Apply filters to sessions
+        function applyFilters() {
+            const kioskFilter = document.getElementById('kiosk-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            const cardSearch = document.getElementById('card-search').value.toLowerCase();
+
+            filteredSessions = sessions.filter(session => {
+                if (kioskFilter && session.kioskId !== kioskFilter) return false;
+                if (statusFilter && session.status !== statusFilter) return false;
+                if (cardSearch && !session.cardId.toLowerCase().includes(cardSearch)) return false;
+                return true;
+            });
+
+            renderSessions();
+        }
+
+        // Render sessions in both table and card views
+        function renderSessions() {
+            const tbody = document.getElementById('sessions-tbody');
+            const cardsContainer = document.getElementById('sessions-cards');
+            const noSessionsDiv = document.getElementById('no-sessions');
+
+            // Clear existing content
+            tbody.innerHTML = '';
+            cardsContainer.innerHTML = '';
+
+            if (filteredSessions.length === 0) {
+                noSessionsDiv.style.display = 'block';
+                return;
+            }
+
+            noSessionsDiv.style.display = 'none';
+
+            filteredSessions.forEach(session => {
+                // Create table row
+                const row = createSessionTableRow(session);
+                tbody.appendChild(row);
+
+                // Create card
+                const card = createSessionCard(session);
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        // Create table row for a session
+        function createSessionTableRow(session) {
+            const row = document.createElement('tr');
+            row.className = 'session-row';
+            row.dataset.sessionId = session.id;
+
+            const remainingClass = getRemainingTimeClass(session.remainingMinutes);
+            const statusClass = session.status === 'active' ? 'status-active' : 'status-overdue';
+
+            row.innerHTML = `
+                <td>
+                    <span class="card-id">****${session.cardHashSuffix}</span>
+                </td>
+                <td>${session.kioskId}</td>
+                <td>
+                    <div class="locker-info">
+                        ${session.lockerId ? session.lockerDisplayName : 'Atanmamış'}
+                        ${session.lockerId ? `<span class="locker-status ${session.lockerStatus?.toLowerCase() || 'unknown'}">${translateStatus(session.lockerStatus)}</span>` : ''}
+                    </div>
+                </td>
+                <td>
+                    <span class="remaining-time ${remainingClass}">
+                        ${session.remainingMinutes} dk
+                    </span>
+                </td>
+                <td>
+                    <span class="extension-info">
+                        ${session.extensionCount}/${session.maxExtensions}
+                    </span>
+                </td>
+                <td>
+                    <span class="status-badge ${statusClass}">
+                        ${session.status === 'active' ? 'Aktif' : 'Gecikmiş'}
+                    </span>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        ${session.canExtend ? `<button class="btn btn-success btn-sm" onclick="showExtendModal('${session.id}')">Oturumu uzat +60 dk</button>` : ''}
+                        <button class="btn btn-danger btn-sm" onclick="showEndModal('${session.id}')">Oturumu bitir</button>
+                    </div>
+                </td>
+            `;
+
+            return row;
+        }
+
+        // Create card for a session (mobile view)
+        function createSessionCard(session) {
+            const card = document.createElement('div');
+            card.className = 'session-card';
+            card.dataset.sessionId = session.id;
+
+            const remainingClass = getRemainingTimeClass(session.remainingMinutes);
+            const statusClass = session.status === 'active' ? 'status-active' : 'status-overdue';
+
+            card.innerHTML = `
+                <div class="session-card-header">
+                    <div class="session-card-title">
+                        <span class="card-id">****${session.cardHashSuffix}</span>
+                    </div>
+                    <span class="status-badge ${statusClass}">
+                        ${session.status === 'active' ? 'Aktif' : 'Süresi Dolmuş'}
+                    </span>
+                </div>
+                <div class="session-card-body">
+                    <div class="session-card-field">
+                        <span class="session-card-label">Kiosk:</span>
+                        <span class="session-card-value">${session.kioskId}</span>
+                    </div>
+                    <div class="session-card-field">
+                        <span class="session-card-label">Dolap:</span>
+                        <span class="session-card-value">
+                            ${session.lockerId ? session.lockerDisplayName : 'Atanmamış'}
+                        </span>
+                    </div>
+                    <div class="session-card-field">
+                        <span class="session-card-label">Kalan Süre:</span>
+                        <span class="session-card-value remaining-time ${remainingClass}">
+                            ${session.remainingMinutes} dk
+                        </span>
+                    </div>
+                    <div class="session-card-field">
+                        <span class="session-card-label">Uzatma:</span>
+                        <span class="session-card-value">${session.extensionCount}/${session.maxExtensions}</span>
+                    </div>
+                </div>
+                <div class="session-card-actions">
+                    ${session.canExtend ? `<button class="btn btn-success btn-sm" onclick="showExtendModal('${session.id}')">Oturumu uzat +60 dk</button>` : ''}
+                    <button class="btn btn-danger btn-sm" onclick="showEndModal('${session.id}')">Oturumu bitir</button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Get CSS class for remaining time
+        function getRemainingTimeClass(minutes) {
+            if (minutes <= 10) return 'danger';
+            if (minutes <= 30) return 'warning';
+            return 'normal';
+        }
+
+        // Translate locker status to Turkish
+        function translateStatus(status) {
+            const translations = {
+                'Free': 'Boş',
+                'Owned': 'Sahipli',
+                'Reserved': 'Rezerve',
+                'Blocked': 'Engelli',
+                'Opening': 'Açılıyor',
+                'Error': 'Hata'
+            };
+            return translations[status] || status;
+        }
+
+        // Update statistics
+        function updateStats() {
+            const activeCount = sessions.filter(s => s.status === 'active').length;
+            const extensionsCount = sessions.reduce((sum, s) => sum + s.extensionCount, 0);
+            
+            document.getElementById('stat-active').textContent = activeCount;
+            document.getElementById('stat-extensions').textContent = extensionsCount;
+            
+            // Load additional stats from analytics API
+            loadAnalytics();
+        }
+
+        // Load analytics data (simplified for production)
+        async function loadAnalytics() {
+            try {
+                // Get today's total from expired sessions
+                const response = await fetch('/api/admin/sessions?status=Expired&page=1&limit=1');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('stat-total-today').textContent = data.pagination?.total || 0;
+                    document.getElementById('stat-avg-duration').textContent = '180'; // Default session length
+                }
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                document.getElementById('stat-total-today').textContent = '0';
+                document.getElementById('stat-avg-duration').textContent = '180';
+            }
+        }
+
+        // Show extend session modal
+        function showExtendModal(sessionId) {
+            currentSessionId = sessionId;
+            document.getElementById('extend-reason').value = '';
+            document.getElementById('extendModal').style.display = 'block';
+        }
+
+        // Close extend modal
+        function closeExtendModal() {
+            document.getElementById('extendModal').style.display = 'none';
+            currentSessionId = null;
+        }
+
+        // Confirm session extension
+        async function confirmExtendSession() {
+            const reason = document.getElementById('extend-reason').value.trim();
+            
+            if (!reason) {
+                showError('Lütfen uzatma nedenini belirtin.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/admin/sessions/${currentSessionId}/extend`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
+                    body: JSON.stringify({ reason })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showSuccess(data.message);
+                    closeExtendModal();
+                    loadSessions(); // Refresh sessions
+                } else {
+                    const error = await response.json();
+                    showError(error.message || 'Oturum uzatma işlemi başarısız');
+                }
+            } catch (error) {
+                console.error('Failed to extend session:', error);
+                showError('Oturum uzatma işlemi başarısız: ' + error.message);
+            }
+        }
+
+        // Show end session modal
+        function showEndModal(sessionId) {
+            currentSessionId = sessionId;
+            document.getElementById('end-reason').value = '';
+            document.getElementById('endModal').style.display = 'block';
+        }
+
+        // Close end modal
+        function closeEndModal() {
+            document.getElementById('endModal').style.display = 'none';
+            currentSessionId = null;
+        }
+
+        // Confirm session end
+        async function confirmEndSession() {
+            const reason = document.getElementById('end-reason').value.trim();
+
+            try {
+                const response = await fetch(`/api/admin/sessions/${currentSessionId}/end`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
+                    body: JSON.stringify({ reason })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    showSuccess(data.message);
+                    closeEndModal();
+                    loadSessions(); // Refresh sessions
+                } else {
+                    const error = await response.json();
+                    showError(error.message || 'Oturum sonlandırma işlemi başarısız');
+                }
+            } catch (error) {
+                console.error('Failed to end session:', error);
+                showError('Oturum sonlandırma işlemi başarısız: ' + error.message);
+            }
+        }
+
+
+
+        // Start auto-refresh
+        function startAutoRefresh() {
+            refreshInterval = setInterval(() => {
+                loadSessions();
+            }, 30000); // Refresh every 30 seconds
+        }
+
+        // Connect to WebSocket for real-time updates
+        function connectWebSocket() {
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}`;
+                wsConnection = new WebSocket(wsUrl);
+
+                wsConnection.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'session_extended' || data.type === 'session_ended') {
+                            // Highlight the updated session
+                            highlightSession(data.sessionId);
+                            // Refresh sessions after a short delay (throttled to ≤1 Hz)
+                            setTimeout(() => loadSessions(), 1000);
+                        }
+                    } catch (error) {
+                        console.error('WebSocket message parsing error:', error);
+                    }
+                };
+
+                wsConnection.onclose = function() {
+                    // Reconnect after 5 seconds
+                    setTimeout(connectWebSocket, 5000);
+                };
+            } catch (error) {
+                console.error('WebSocket connection error:', error);
+            }
+        }
+
+        // Highlight updated session
+        function highlightSession(sessionId) {
+            const row = document.querySelector(`[data-session-id="${sessionId}"]`);
+            if (row) {
+                row.classList.add('updated');
+                setTimeout(() => row.classList.remove('updated'), 2000);
+            }
+        }
+
+        // Update last refresh time
+        function updateLastRefreshTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('tr-TR');
+            document.getElementById('last-update').textContent = timeString;
+        }
+
+        // Show loading state
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        // Get CSRF token
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        }
+
+        // Debounce function for search input
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Çıkış yapmak istediğinizden emin misiniz?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const extendModal = document.getElementById('extendModal');
+            const endModal = document.getElementById('endModal');
+            
+            if (event.target === extendModal) {
+                closeExtendModal();
+            }
+            if (event.target === endModal) {
+                closeEndModal();
+            }
+        };
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            if (wsConnection) {
+                wsConnection.close();
+            }
+        });
+    </script>
+</body>
+</html>

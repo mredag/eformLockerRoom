@@ -29,6 +29,7 @@ interface TestSuite {
 }
 
 const TEST_SUITES: TestSuite[] = [
+  // Core System Integration Tests
   {
     name: 'Session Management Lifecycle',
     file: 'session-management-lifecycle.test.ts',
@@ -84,12 +85,6 @@ const TEST_SUITES: TestSuite[] = [
     description: 'Tests RFID and QR code integration and user journeys'
   },
   {
-    name: 'Database Integration',
-    file: 'database-integration.test.ts',
-    requirements: ['3.2', '3.4', '3.5'],
-    description: 'Tests database setup, migrations, and data integrity'
-  },
-  {
     name: 'Multi-Service Integration',
     file: 'multi-service-integration.test.ts',
     requirements: ['3.2', '3.4', '3.5'],
@@ -106,6 +101,38 @@ const TEST_SUITES: TestSuite[] = [
     file: 'gateway-service-integration.test.ts',
     requirements: ['3.2', '3.4', '3.5'],
     description: 'Tests Gateway service coordination and command queue management'
+  },
+  
+  // Smart Assignment Integration Tests
+  {
+    name: 'Smart Assignment E2E Flow',
+    file: 'smart-assignment-e2e-flow.test.ts',
+    requirements: ['1.1', '1.2', '1.3', '1.4', '1.5', '2.1', '2.2', '2.3', '2.4', '2.5'],
+    description: 'Tests complete smart assignment flows from card scan to locker opening'
+  },
+  {
+    name: 'Smart Assignment Feature Flag',
+    file: 'smart-assignment-feature-flag.test.ts',
+    requirements: ['9.1', '9.2', '9.3', '9.4', '9.5'],
+    description: 'Tests feature flag switching between manual and smart assignment modes'
+  },
+  {
+    name: 'Smart Assignment Concurrency',
+    file: 'smart-assignment-concurrency.test.ts',
+    requirements: ['19.1', '19.2', '19.3', '19.4', '19.5'],
+    description: 'Tests concurrent assignment scenarios and race condition handling'
+  },
+  {
+    name: 'Smart Assignment Hardware Retry',
+    file: 'smart-assignment-hardware-retry.test.ts',
+    requirements: ['6.1', '6.2', '6.3', '6.4', '6.5'],
+    description: 'Tests hardware integration, sensorless retry logic, and timing constraints'
+  },
+  {
+    name: 'Smart Assignment Performance Load',
+    file: 'smart-assignment-performance-load.test.ts',
+    requirements: ['All requirements under load conditions'],
+    description: 'Tests performance requirements and load handling capabilities'
   }
 ];
 

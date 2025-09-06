@@ -4,7 +4,7 @@ param(
     [string]$Command = "help"
 )
 
-$PI_HOST = "pi@192.168.1.8"  # Update this IP if Pi changes
+$PI_HOST = "pi@192.168.1.11"  # Update this IP if Pi changes
 
 function Show-Help {
     Write-Host ""
@@ -28,9 +28,9 @@ function Show-Help {
     Write-Host "  .\scripts\deployment\pi-manager.ps1 restart" -ForegroundColor Gray
     Write-Host ""
     Write-Host "Web Interfaces:" -ForegroundColor Yellow
-    Write-Host "  Admin Panel:   http://192.168.1.8:3001" -ForegroundColor Gray
-    Write-Host "  Kiosk UI:      http://192.168.1.8:3002" -ForegroundColor Gray
-    Write-Host "  Gateway API:   http://192.168.1.8:3000" -ForegroundColor Gray
+    Write-Host "  Admin Panel:   http://192.168.1.11:3001" -ForegroundColor Gray
+    Write-Host "  Kiosk UI:      http://192.168.1.11:3002" -ForegroundColor Gray
+    Write-Host "  Gateway API:   http://192.168.1.11:3000" -ForegroundColor Gray
     Write-Host ""
 }
 

@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gecikmiş ve Şüpheli Dolaplar - Eform Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 1rem 2rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            background: #f8f9fa;
+        }
+
+        .tab-button.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #4c63d2;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        select, input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .btn-success {
+            background: #38a169;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2f855a;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .bulk-actions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .bulk-actions.show {
+            display: block;
+        }
+
+        .bulk-actions h4 {
+            margin-bottom: 0.5rem;
+            color: #856404;
+        }
+
+        .bulk-actions .actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .data-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h3 {
+            margin: 0;
+            color: #495057;
+        }
+
+        .table-stats {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-overdue {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .status-suspected {
+            background: #feebc8;
+            color: #dd6b20;
+        }
+
+        .status-free {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+
+        .status-owned {
+            background: #bee3f8;
+            color: #2b6cb0;
+        }
+
+        .duration {
+            font-weight: 500;
+        }
+
+        .duration.critical {
+            color: #e53e3e;
+        }
+
+        .duration.warning {
+            color: #ed8936;
+        }
+
+        .duration.normal {
+            color: #38a169;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .checkbox-column {
+            width: 40px;
+        }
+
+        .checkbox-column input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6c757d;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .analytics-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .analytics-card h4 {
+            margin-bottom: 1rem;
+            color: #495057;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .metric-value.danger {
+            color: #e53e3e;
+        }
+
+        .metric-value.warning {
+            color: #ed8936;
+        }
+
+        .metric-value.success {
+            color: #38a169;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                justify-content: space-between;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                text-align: center;
+            }
+
+            table {
+                font-size: 0.9rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Gecikmiş ve Şüpheli Dolaplar</h1>
+        <p>Dolap durumlarını yönetin ve sorunları çözün</p>
+    </div>
+
+    <div class="container">
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="overdue">
+                Gecikmiş Dolaplar
+            </button>
+            <button class="tab-button" data-tab="suspected">
+                Şüpheli Dolaplar
+            </button>
+            <button class="tab-button" data-tab="analytics">
+                Raporlar ve Analitik
+            </button>
+        </div>
+
+        <!-- Overdue Lockers Tab -->
+        <div id="overdue-tab" class="tab-content active">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="overdue-kiosk-filter">Kiosk:</label>
+                    <select id="overdue-kiosk-filter">
+                        <option value="">Tüm Kiosklar</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="loadOverdueLockers()">
+                    Yenile
+                </button>
+                <button class="btn btn-warning" onclick="toggleBulkMode('overdue')">
+                    Toplu İşlemler
+                </button>
+            </div>
+
+            <div id="overdue-bulk-actions" class="bulk-actions">
+                <h4>Seçili Dolaplar için Toplu İşlemler</h4>
+                <div class="actions">
+                    <button class="btn btn-danger" onclick="bulkForceOpen()">
+                        Seçilenleri Zorla Aç
+                    </button>
+                    <button class="btn btn-success" onclick="bulkMarkCleared()">
+                        Seçilenleri Temizlendi İşaretle
+                    </button>
+                    <button class="btn btn-primary" onclick="cancelBulkMode('overdue')">
+                        İptal
+                    </button>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <input type="text" id="bulk-reason" placeholder="İşlem sebebi (opsiyonel)" style="width: 300px;">
+                </div>
+            </div>
+
+            <div class="data-table">
+                <div class="table-header">
+                    <h3>Gecikmiş Dolaplar</h3>
+                    <div class="table-stats" id="overdue-stats">
+                        Yükleniyor...
+                    </div>
+                </div>
+                <div id="overdue-content">
+                    <div class="loading">Gecikmiş dolaplar yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suspected Lockers Tab -->
+        <div id="suspected-tab" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="suspected-kiosk-filter">Kiosk:</label>
+                    <select id="suspected-kiosk-filter">
+                        <option value="">Tüm Kiosklar</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="loadSuspectedLockers()">
+                    Yenile
+                </button>
+                <button class="btn btn-warning" onclick="toggleBulkMode('suspected')">
+                    Toplu İşlemler
+                </button>
+            </div>
+
+            <div id="suspected-bulk-actions" class="bulk-actions">
+                <h4>Seçili Dolaplar için Toplu İşlemler</h4>
+                <div class="actions">
+                    <button class="btn btn-success" onclick="bulkClearSuspected()">
+                        Seçili Şüpheli Bayrakları Temizle
+                    </button>
+                    <button class="btn btn-primary" onclick="cancelBulkMode('suspected')">
+                        İptal
+                    </button>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <input type="text" id="suspected-bulk-reason" placeholder="İşlem sebebi (opsiyonel)" style="width: 300px;">
+                </div>
+            </div>
+
+            <div class="data-table">
+                <div class="table-header">
+                    <h3>Şüpheli Dolaplar</h3>
+                    <div class="table-stats" id="suspected-stats">
+                        Yükleniyor...
+                    </div>
+                </div>
+                <div id="suspected-content">
+                    <div class="loading">Şüpheli dolaplar yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics-tab" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="analytics-kiosk-filter">Kiosk:</label>
+                    <select id="analytics-kiosk-filter">
+                        <option value="">Tüm Kiosklar</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="analytics-days">Gün Sayısı:</label>
+                    <select id="analytics-days">
+                        <option value="7">Son 7 Gün</option>
+                        <option value="14">Son 14 Gün</option>
+                        <option value="30">Son 30 Gün</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="loadAnalytics()">
+                    Analitik Yükle
+                </button>
+            </div>
+
+            <div id="analytics-content">
+                <div class="loading">Analitik veriler yükleniyor...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alert-container" style="position: fixed; top: 20px; right: 20px; z-index: 1000;"></div>
+
+    <script>
+        // Global state
+        let currentTab = 'overdue';
+        let bulkMode = {
+            overdue: false,
+            suspected: false
+        };
+        let selectedLockers = {
+            overdue: new Set(),
+            suspected: new Set()
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTabs();
+            loadKioskOptions();
+            loadOverdueLockers();
+        });
+
+        // Tab management
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabName = this.dataset.tab;
+                    switchTab(tabName);
+                });
+            });
+        }
+
+        function switchTab(tabName) {
+            // Update buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+
+            currentTab = tabName;
+
+            // Load data for the active tab
+            switch(tabName) {
+                case 'overdue':
+                    loadOverdueLockers();
+                    break;
+                case 'suspected':
+                    loadSuspectedLockers();
+                    break;
+                case 'analytics':
+                    loadAnalytics();
+                    break;
+            }
+        }
+
+        // Load kiosk options for filters
+        async function loadKioskOptions() {
+            try {
+                const response = await fetch('/api/lockers/kiosks');
+                const kiosks = await response.json();
+                
+                const selectors = [
+                    'overdue-kiosk-filter',
+                    'suspected-kiosk-filter', 
+                    'analytics-kiosk-filter'
+                ];
+                
+                selectors.forEach(selectorId => {
+                    const select = document.getElementById(selectorId);
+                    select.innerHTML = '<option value="">Tüm Kiosklar</option>';
+                    kiosks.forEach(kiosk => {
+                        const option = document.createElement('option');
+                        option.value = kiosk.id;
+                        option.textContent = kiosk.name || kiosk.id;
+                        select.appendChild(option);
+                    });
+                });
+            } catch (error) {
+                console.error('Failed to load kiosk options:', error);
+            }
+        }
+
+        // Load overdue lockers
+        async function loadOverdueLockers() {
+            const kioskId = document.getElementById('overdue-kiosk-filter').value;
+            const content = document.getElementById('overdue-content');
+            const stats = document.getElementById('overdue-stats');
+            
+            content.innerHTML = '<div class="loading">Gecikmiş dolaplar yükleniyor...</div>';
+            
+            try {
+                const url = `/api/admin/overdue-suspected/overdue${kioskId ? `?kioskId=${kioskId}` : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                stats.textContent = `Toplam: ${data.total} gecikmiş dolap`;
+                
+                if (data.lockers.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <h3>Gecikmiş dolap bulunamadı</h3>
+                            <p>Şu anda gecikmiş durumda olan dolap yok.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const table = createOverdueTable(data.lockers);
+                content.innerHTML = table;
+                
+            } catch (error) {
+                console.error('Failed to load overdue lockers:', error);
+                showAlert('Gecikmiş dolaplar yüklenirken hata oluştu', 'danger');
+                content.innerHTML = '<div class="empty-state"><h3>Yükleme hatası</h3></div>';
+            }
+        }
+
+        // Create overdue table
+        function createOverdueTable(lockers) {
+            const showCheckboxes = bulkMode.overdue;
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            ${showCheckboxes ? '<th class="checkbox-column"><input type="checkbox" onchange="toggleAllOverdue(this)"></th>' : ''}
+                            <th>Kiosk</th>
+                            <th>Dolap</th>
+                            <th>Durum</th>
+                            <th>Sahip</th>
+                            <th>Gecikme Süresi</th>
+                            <th>Sebep</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            lockers.forEach(locker => {
+                const duration = formatDuration(locker.overdue_duration_minutes);
+                const durationClass = getDurationClass(locker.overdue_duration_minutes);
+                const lockerId = `${locker.kiosk_id}-${locker.locker_id}`;
+                
+                html += `
+                    <tr>
+                        ${showCheckboxes ? `<td class="checkbox-column"><input type="checkbox" value="${lockerId}" onchange="toggleOverdueSelection(this)"></td>` : ''}
+                        <td>${locker.kiosk_id}</td>
+                        <td>${locker.display_name || locker.locker_id}</td>
+                        <td><span class="status-badge status-overdue">Gecikmiş</span></td>
+                        <td>${locker.owner_hash || '-'}</td>
+                        <td><span class="duration ${durationClass}">${duration}</span></td>
+                        <td>${locker.overdue_reason || '-'}</td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-danger btn-sm" onclick="forceOpenLocker('${locker.kiosk_id}', ${locker.locker_id})">
+                                    Zorla Aç
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="markCleared('${locker.kiosk_id}', ${locker.locker_id})">
+                                    Temizlendi İşaretle
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Load suspected lockers
+        async function loadSuspectedLockers() {
+            const kioskId = document.getElementById('suspected-kiosk-filter').value;
+            const content = document.getElementById('suspected-content');
+            const stats = document.getElementById('suspected-stats');
+            
+            content.innerHTML = '<div class="loading">Şüpheli dolaplar yükleniyor...</div>';
+            
+            try {
+                const url = `/api/admin/overdue-suspected/suspected${kioskId ? `?kioskId=${kioskId}` : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                stats.textContent = `Toplam: ${data.total} şüpheli dolap`;
+                
+                if (data.lockers.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <h3>Şüpheli dolap bulunamadı</h3>
+                            <p>Şu anda şüpheli olarak işaretlenmiş dolap yok.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const table = createSuspectedTable(data.lockers);
+                content.innerHTML = table;
+                
+            } catch (error) {
+                console.error('Failed to load suspected lockers:', error);
+                showAlert('Şüpheli dolaplar yüklenirken hata oluştu', 'danger');
+                content.innerHTML = '<div class="empty-state"><h3>Yükleme hatası</h3></div>';
+            }
+        }
+
+        // Create suspected table
+        function createSuspectedTable(lockers) {
+            const showCheckboxes = bulkMode.suspected;
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            ${showCheckboxes ? '<th class="checkbox-column"><input type="checkbox" onchange="toggleAllSuspected(this)"></th>' : ''}
+                            <th>Kiosk</th>
+                            <th>Dolap</th>
+                            <th>Durum</th>
+                            <th>Sahip</th>
+                            <th>Son Rapor</th>
+                            <th>Günlük Rapor</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            lockers.forEach(locker => {
+                const lockerId = `${locker.kiosk_id}-${locker.locker_id}`;
+                const lastReport = locker.last_report_time ? 
+                    new Date(locker.last_report_time).toLocaleString('tr-TR') : '-';
+                
+                html += `
+                    <tr>
+                        ${showCheckboxes ? `<td class="checkbox-column"><input type="checkbox" value="${lockerId}" onchange="toggleSuspectedSelection(this)"></td>` : ''}
+                        <td>${locker.kiosk_id}</td>
+                        <td>${locker.display_name || locker.locker_id}</td>
+                        <td><span class="status-badge status-suspected">Şüpheli</span></td>
+                        <td>${locker.owner_hash || '-'}</td>
+                        <td>${lastReport}</td>
+                        <td>${locker.report_count}</td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-success btn-sm" onclick="clearSuspected('${locker.kiosk_id}', ${locker.locker_id})">
+                                    Şüpheli Bayrağını Temizle
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Load analytics
+        async function loadAnalytics() {
+            const kioskId = document.getElementById('analytics-kiosk-filter').value;
+            const days = document.getElementById('analytics-days').value;
+            const content = document.getElementById('analytics-content');
+            
+            content.innerHTML = '<div class="loading">Analitik veriler yükleniyor...</div>';
+            
+            try {
+                const params = new URLSearchParams();
+                if (kioskId) params.append('kioskId', kioskId);
+                params.append('days', days);
+                
+                const response = await fetch(`/api/admin/overdue-suspected/analytics?${params}`);
+                const data = await response.json();
+                
+                const analyticsHtml = createAnalyticsView(data);
+                content.innerHTML = analyticsHtml;
+                
+            } catch (error) {
+                console.error('Failed to load analytics:', error);
+                showAlert('Analitik veriler yüklenirken hata oluştu', 'danger');
+                content.innerHTML = '<div class="empty-state"><h3>Yükleme hatası</h3></div>';
+            }
+        }
+
+        // Create analytics view
+        function createAnalyticsView(data) {
+            return `
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <h4>Mevcut Durum Özeti</h4>
+                        <div class="metric">
+                            <span>Gecikmiş Dolaplar</span>
+                            <span class="metric-value danger">${data.status_summary.current_overdue}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Şüpheli Dolaplar</span>
+                            <span class="metric-value warning">${data.status_summary.current_suspected}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Boş Dolaplar</span>
+                            <span class="metric-value success">${data.status_summary.free_lockers}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Sahipli Dolaplar</span>
+                            <span class="metric-value">${data.status_summary.owned_lockers}</span>
+                        </div>
+                        <div class="metric">
+                            <span>Toplam Dolaplar</span>
+                            <span class="metric-value">${data.status_summary.total_lockers}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h4>Sorunlu Dolaplar (Son ${data.period_days} Gün)</h4>
+                        ${data.problematic_lockers.length === 0 ? 
+                            '<p>Sorunlu dolap bulunamadı.</p>' :
+                            data.problematic_lockers.map(locker => `
+                                <div class="metric">
+                                    <span>${locker.kiosk_id} - ${locker.display_name || locker.locker_id}</span>
+                                    <span class="metric-value warning">
+                                        ${locker.suspected_reports + locker.overdue_incidents} sorun
+                                    </span>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                </div>
+                
+                <div class="analytics-grid">
+                    <div class="analytics-card">
+                        <h4>Gecikmiş Dolap Analitikleri</h4>
+                        ${data.overdue_analytics.length === 0 ? 
+                            '<p>Gecikmiş dolap verisi bulunamadı.</p>' :
+                            data.overdue_analytics.map(item => `
+                                <div class="metric">
+                                    <span>${item.date} (${item.overdue_reason || 'Bilinmeyen'})</span>
+                                    <span class="metric-value">${item.count} dolap</span>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                    
+                    <div class="analytics-card">
+                        <h4>Şüpheli Dolap Raporları</h4>
+                        ${data.suspected_analytics.length === 0 ? 
+                            '<p>Şüpheli dolap raporu bulunamadı.</p>' :
+                            data.suspected_analytics.map(item => `
+                                <div class="metric">
+                                    <span>${item.date}</span>
+                                    <span class="metric-value">${item.total_reports} rapor (${item.unique_lockers} dolap)</span>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                </div>
+            `;
+        }
+
+        // Bulk mode management
+        function toggleBulkMode(type) {
+            bulkMode[type] = !bulkMode[type];
+            selectedLockers[type].clear();
+            
+            const bulkActions = document.getElementById(`${type}-bulk-actions`);
+            if (bulkMode[type]) {
+                bulkActions.classList.add('show');
+            } else {
+                bulkActions.classList.remove('show');
+            }
+            
+            // Reload the current data to show/hide checkboxes
+            if (type === 'overdue') {
+                loadOverdueLockers();
+            } else {
+                loadSuspectedLockers();
+            }
+        }
+
+        function cancelBulkMode(type) {
+            bulkMode[type] = false;
+            selectedLockers[type].clear();
+            document.getElementById(`${type}-bulk-actions`).classList.remove('show');
+            
+            if (type === 'overdue') {
+                loadOverdueLockers();
+            } else {
+                loadSuspectedLockers();
+            }
+        }
+
+        // Selection management
+        function toggleAllOverdue(checkbox) {
+            const checkboxes = document.querySelectorAll('#overdue-content input[type="checkbox"]:not(:first-child)');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+                toggleOverdueSelection(cb);
+            });
+        }
+
+        function toggleOverdueSelection(checkbox) {
+            if (checkbox.checked) {
+                selectedLockers.overdue.add(checkbox.value);
+            } else {
+                selectedLockers.overdue.delete(checkbox.value);
+            }
+        }
+
+        function toggleAllSuspected(checkbox) {
+            const checkboxes = document.querySelectorAll('#suspected-content input[type="checkbox"]:not(:first-child)');
+            checkboxes.forEach(cb => {
+                cb.checked = checkbox.checked;
+                toggleSuspectedSelection(cb);
+            });
+        }
+
+        function toggleSuspectedSelection(checkbox) {
+            if (checkbox.checked) {
+                selectedLockers.suspected.add(checkbox.value);
+            } else {
+                selectedLockers.suspected.delete(checkbox.value);
+            }
+        }
+
+        // Individual actions
+        async function forceOpenLocker(kioskId, lockerId) {
+            const reason = prompt('İşlem sebebi (opsiyonel):');
+            
+            try {
+                const response = await fetch(`/api/admin/overdue-suspected/overdue/${kioskId}/${lockerId}/force-open`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
+                    body: JSON.stringify({ reason })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    loadOverdueLockers();
+                } else {
+                    showAlert(result.message || 'İşlem başarısız', 'danger');
+                }
+            } catch (error) {
+                console.error('Force open failed:', error);
+                showAlert('İşlem sırasında hata oluştu', 'danger');
+            }
+        }
+
+        async function markCleared(kioskId, lockerId) {
+            const reason = prompt('İşlem sebebi (opsiyonel):');
+            
+            try {
+                const response = await fetch(`/api/admin/overdue-suspected/overdue/${kioskId}/${lockerId}/mark-cleared`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
+                    body: JSON.stringify({ reason })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    loadOverdueLockers();
+                } else {
+                    showAlert(result.message || 'İşlem başarısız', 'danger');
+                }
+            } catch (error) {
+                console.error('Mark cleared failed:', error);
+                showAlert('İşlem sırasında hata oluştu', 'danger');
+            }
+        }
+
+        async function clearSuspected(kioskId, lockerId) {
+            const reason = prompt('İşlem sebebi (opsiyonel):');
+            
+            try {
+                const response = await fetch(`/api/admin/overdue-suspected/suspected/${kioskId}/${lockerId}/clear`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
+                    body: JSON.stringify({ reason })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    loadSuspectedLockers();
+                } else {
+                    showAlert(result.message || 'İşlem başarısız', 'danger');
+                }
+            } catch (error) {
+                console.error('Clear suspected failed:', error);
+                showAlert('İşlem sırasında hata oluştu', 'danger');
+            }
+        }
+
+        // Bulk actions
+        async function bulkForceOpen() {
+            if (selectedLockers.overdue.size === 0) {
+                showAlert('Lütfen en az bir dolap seçin', 'warning');
+                return;
+            }
+            
+            const reason = document.getElementById('bulk-reason').value;
+            const lockers = Array.from(selectedLockers.overdue).map(id => {
+                const [kioskId, lockerId] = id.split('-');
+                return { kioskId, lockerId: parseInt(lockerId) };
+            });
+            
+            if (!confirm(`${lockers.length} dolapı zorla açmak istediğinizden emin misiniz?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/overdue-suspected/overdue/bulk/force-open', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
+                    body: JSON.stringify({ lockers, reason })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    cancelBulkMode('overdue');
+                    loadOverdueLockers();
+                } else {
+                    showAlert(result.message || 'Toplu işlem başarısız', 'danger');
+                }
+            } catch (error) {
+                console.error('Bulk force open failed:', error);
+                showAlert('Toplu işlem sırasında hata oluştu', 'danger');
+            }
+        }
+
+        async function bulkMarkCleared() {
+            if (selectedLockers.overdue.size === 0) {
+                showAlert('Lütfen en az bir dolap seçin', 'warning');
+                return;
+            }
+            
+            const reason = document.getElementById('bulk-reason').value;
+            const lockers = Array.from(selectedLockers.overdue).map(id => {
+                const [kioskId, lockerId] = id.split('-');
+                return { kioskId, lockerId: parseInt(lockerId) };
+            });
+            
+            if (!confirm(`${lockers.length} dolapı temizlendi olarak işaretlemek istediğinizden emin misiniz?`)) {
+                return;
+            }
+            
+            // Note: This would need a separate bulk endpoint for mark-cleared
+            // For now, we'll do individual calls
+            let successCount = 0;
+            for (const locker of lockers) {
+                try {
+                    const response = await fetch(`/api/admin/overdue-suspected/overdue/${locker.kioskId}/${locker.lockerId}/mark-cleared`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': getCsrfToken()
+                        },
+                        body: JSON.stringify({ reason })
+                    });
+                    
+                    if (response.ok) {
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error('Individual mark cleared failed:', error);
+                }
+            }
+            
+            showAlert(`${successCount} dolap temizlendi olarak işaretlendi`, 'success');
+            cancelBulkMode('overdue');
+            loadOverdueLockers();
+        }
+
+        async function bulkClearSuspected() {
+            if (selectedLockers.suspected.size === 0) {
+                showAlert('Lütfen en az bir dolap seçin', 'warning');
+                return;
+            }
+            
+            const reason = document.getElementById('suspected-bulk-reason').value;
+            const lockers = Array.from(selectedLockers.suspected).map(id => {
+                const [kioskId, lockerId] = id.split('-');
+                return { kioskId, lockerId: parseInt(lockerId) };
+            });
+            
+            if (!confirm(`${lockers.length} dolapın şüpheli bayrağını temizlemek istediğinizden emin misiniz?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/overdue-suspected/suspected/bulk/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': getCsrfToken()
+                    },
+                    body: JSON.stringify({ lockers, reason })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showAlert(result.message, 'success');
+                    cancelBulkMode('suspected');
+                    loadSuspectedLockers();
+                } else {
+                    showAlert(result.message || 'Toplu işlem başarısız', 'danger');
+                }
+            } catch (error) {
+                console.error('Bulk clear suspected failed:', error);
+                showAlert('Toplu işlem sırasında hata oluştu', 'danger');
+            }
+        }
+
+        // Utility functions
+        function formatDuration(minutes) {
+            if (minutes < 60) {
+                return `${minutes} dakika`;
+            } else if (minutes < 1440) {
+                const hours = Math.floor(minutes / 60);
+                const remainingMinutes = minutes % 60;
+                return `${hours} saat ${remainingMinutes} dakika`;
+            } else {
+                const days = Math.floor(minutes / 1440);
+                const remainingHours = Math.floor((minutes % 1440) / 60);
+                return `${days} gün ${remainingHours} saat`;
+            }
+        }
+
+        function getDurationClass(minutes) {
+            if (minutes > 1440) return 'critical'; // > 1 day
+            if (minutes > 360) return 'warning';   // > 6 hours
+            return 'normal';
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertContainer = document.getElementById('alert-container');
+            const alertId = 'alert-' + Date.now();
+            
+            const alertHtml = `
+                <div id="${alertId}" class="alert alert-${type}" style="margin-bottom: 10px;">
+                    ${message}
+                </div>
+            `;
+            
+            alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                const alertElement = document.getElementById(alertId);
+                if (alertElement) {
+                    alertElement.remove();
+                }
+            }, 5000);
+        }
+
+        function getCsrfToken() {
+            // This should be implemented based on your CSRF token strategy
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        }
+    </script>
+</body>
+</html>

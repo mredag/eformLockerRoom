@@ -24,115 +24,103 @@ class SimpleKioskApp {
             connectionStatus: 'online'
         };
 
-        // Comprehensive Turkish Error Message Catalog (Requirements 6.1-6.6)
+        // APPROVED TURKISH MESSAGE WHITELIST - EXACT STRINGS ONLY
+        this.approvedMessages = {
+            idle: "Kartınızı okutun.",
+            success_new: "Dolabınız açıldı. Eşyalarınızı yerleştirin.",
+            success_existing: "Önceki dolabınız açıldı.",
+            retrieve_overdue: "Süreniz doldu. Almanız için açılıyor.",
+            reported_occupied: "Dolap dolu bildirildi. Yeni dolap açılıyor.",
+            retry: "Tekrar deneniyor.",
+            throttled: "Lütfen birkaç saniye sonra deneyin.",
+            no_stock: "Boş dolap yok. Görevliye başvurun.",
+            error: "Şu an işlem yapılamıyor."
+        };
+
+        // Error mapping - all errors map to whitelist messages
         this.errorMessages = {
-            // Card reading errors (Requirement 6.1)
             CARD_READ_FAILED: {
-                message: "Kart okunamadı - Tekrar deneyin",
-                description: "RFID kartınızı okutucuya daha yakın tutun",
-                recovery: "Kartınızı tekrar okutun",
+                message: this.approvedMessages.error,
                 autoRetry: true,
                 retryDelay: 3000
             },
             CARD_INVALID: {
-                message: "Geçersiz kart - Görevliye başvurun",
-                description: "Bu kart sistemde kayıtlı değil",
-                recovery: "Geçerli bir kart kullanın",
+                message: this.approvedMessages.error,
                 autoRetry: false
             },
-            
-            // Locker availability errors (Requirement 6.2)
             NO_LOCKERS_AVAILABLE: {
-                message: "Müsait dolap yok - Daha sonra deneyin",
-                description: "Şu anda tüm dolaplar dolu",
-                recovery: "Birkaç dakika sonra tekrar deneyin",
+                message: this.approvedMessages.no_stock,
                 autoRetry: false
             },
-            
-            // Assignment errors (Requirement 6.3)
             ASSIGNMENT_FAILED: {
-                message: "Dolap atanamadı - Farklı dolap seçin",
-                description: "Seçilen dolap başka bir kullanıcı tarafından alındı",
-                recovery: "Başka bir dolap seçin",
+                message: this.approvedMessages.error,
                 autoRetry: false
             },
             LOCKER_UNAVAILABLE: {
-                message: "Dolap kullanılamıyor - Farklı dolap seçin",
-                description: "Bu dolap şu anda hizmet dışı",
-                recovery: "Yeşil renkli başka bir dolap seçin",
+                message: this.approvedMessages.error,
                 autoRetry: false
             },
-            
-            // Hardware errors (Requirement 6.4)
             HARDWARE_OFFLINE: {
-                message: "Sistem bakımda - Görevliye başvurun",
-                description: "Donanım bağlantısı kesildi",
-                recovery: "Lütfen görevliye haber verin",
+                message: this.approvedMessages.error,
                 autoRetry: false
             },
             HARDWARE_ERROR: {
-                message: "Donanım hatası - Tekrar deneyin",
-                description: "Dolap açma işlemi başarısız",
-                recovery: "İşlemi tekrar deneyin",
+                message: this.approvedMessages.error,
                 autoRetry: true,
                 retryDelay: 2000
             },
             LOCKER_OPEN_FAILED: {
-                message: "Dolap açılamadı - Görevliye başvurun",
-                description: "Mekanik sorun olabilir",
-                recovery: "Görevliden yardım isteyin",
+                message: this.approvedMessages.error,
                 autoRetry: false
             },
-            
-            // Session errors (Requirement 6.5)
             SESSION_EXPIRED: {
-                message: "Süre doldu - Kartınızı tekrar okutun",
-                description: "30 saniye içinde seçim yapılmadı",
-                recovery: "Kartınızı tekrar okutarak başlayın",
+                message: this.approvedMessages.error,
                 autoRetry: true,
                 retryDelay: 5000
             },
             SESSION_INVALID: {
-                message: "Oturum geçersiz - Kartınızı tekrar okutun",
-                description: "Oturum bilgileri kayboldu",
-                recovery: "Yeni bir oturum başlatın",
+                message: this.approvedMessages.error,
                 autoRetry: true,
                 retryDelay: 3000
             },
-            
-            // Network errors
             NETWORK_ERROR: {
-                message: "Bağlantı hatası - Tekrar deneyin",
-                description: "Sunucu ile bağlantı kurulamadı",
-                recovery: "Ağ bağlantısı kontrol ediliyor",
+                message: this.approvedMessages.error,
                 autoRetry: true,
                 retryDelay: 5000
             },
             CONNECTION_LOST: {
-                message: "Bağlantı kesildi - Yeniden bağlanıyor",
-                description: "İnternet bağlantısı kayboldu",
-                recovery: "Bağlantı otomatik olarak yenileniyor",
+                message: this.approvedMessages.error,
                 autoRetry: true,
                 retryDelay: 3000
             },
-            
-            // Server errors
             SERVER_ERROR: {
-                message: "Sunucu hatası - Tekrar deneyin",
-                description: "Sistem geçici olarak kullanılamıyor",
-                recovery: "Birkaç saniye sonra tekrar deneyin",
+                message: this.approvedMessages.error,
                 autoRetry: true,
                 retryDelay: 5000
             },
-            
-            // Unknown errors
+            SMART_ASSIGNMENT_ERROR: {
+                message: this.approvedMessages.error,
+                autoRetry: true,
+                retryDelay: 3000
+            },
+            RATE_LIMITED: {
+                message: this.approvedMessages.throttled,
+                autoRetry: true,
+                retryDelay: 5000
+            },
             UNKNOWN_ERROR: {
-                message: "Bilinmeyen hata - Görevliye başvurun",
-                description: "Beklenmeyen bir sorun oluştu",
-                recovery: "Sistemi yeniden başlatın",
+                message: this.approvedMessages.error,
                 autoRetry: false
             }
         };
+
+        // Feature flag cache
+        this.featureFlagCache = {
+            smartAssignmentEnabled: null,
+            lastUpdated: 0,
+            kioskId: null
+        };
+        this.loadFeatureFlagCache();
 
         // Connection status messages in Turkish
         this.connectionMessages = {
@@ -438,7 +426,7 @@ class SimpleKioskApp {
     }
 
     /**
-     * Handle RFID card scan with session cancellation
+     * Handle RFID card scan with smart assignment support
      */
     async handleCardScan(cardId) {
         try {
@@ -451,15 +439,15 @@ class SimpleKioskApp {
             
             this.showLoadingState('Kart kontrol ediliyor...');
             
-            // Check if card already has a locker assigned
-            const existingLocker = await this.checkExistingLocker(cardId);
+            // Check if smart assignment is enabled for this kiosk
+            const smartAssignmentStatus = await this.checkSmartAssignmentStatus();
             
-            if (existingLocker) {
-                // Open existing locker and release assignment
-                await this.openAndReleaseLocker(cardId, existingLocker.lockerId);
+            if (smartAssignmentStatus && smartAssignmentStatus.smart_assignment_enabled) {
+                console.log('🎯 Smart assignment enabled - using automatic assignment');
+                await this.handleSmartAssignment(cardId);
             } else {
-                // Start new session for locker selection
-                await this.startLockerSelection(cardId);
+                console.log('📋 Manual assignment mode - showing locker selection');
+                await this.handleManualAssignment(cardId);
             }
             
         } catch (error) {
@@ -473,6 +461,208 @@ class SimpleKioskApp {
             } else {
                 this.showErrorState('CARD_READ_FAILED');
             }
+        }
+    }
+
+    /**
+     * Load feature flag cache from localStorage
+     */
+    loadFeatureFlagCache() {
+        try {
+            const stored = localStorage.getItem('kiosk_feature_flags');
+            if (stored) {
+                const data = JSON.parse(stored);
+                if (data[this.kioskId]) {
+                    this.featureFlagCache = data[this.kioskId];
+                    console.log(`🚩 Feature flag cache loaded: smart_assignment=${this.featureFlagCache.smartAssignmentEnabled}`);
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Failed to load feature flag cache:', error);
+        }
+    }
+
+    /**
+     * Save feature flag cache to localStorage
+     */
+    saveFeatureFlagCache() {
+        try {
+            let stored = {};
+            const existing = localStorage.getItem('kiosk_feature_flags');
+            if (existing) {
+                stored = JSON.parse(existing);
+            }
+            
+            stored[this.kioskId] = this.featureFlagCache;
+            localStorage.setItem('kiosk_feature_flags', JSON.stringify(stored));
+        } catch (error) {
+            console.warn('⚠️ Failed to save feature flag cache:', error);
+        }
+    }
+
+    /**
+     * Check smart assignment status with caching - NEVER default to manual if cache exists
+     */
+    async checkSmartAssignmentStatus() {
+        try {
+            const response = await fetch(`/api/feature-flags/smart-assignment?kiosk_id=${this.kioskId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                
+                // Update cache with fresh value
+                this.featureFlagCache = {
+                    smartAssignmentEnabled: result.smart_assignment_enabled,
+                    lastUpdated: Date.now(),
+                    kioskId: this.kioskId
+                };
+                this.saveFeatureFlagCache();
+                
+                console.log(`🚩 Feature flag updated: smart_assignment=${result.smart_assignment_enabled}`);
+                return result;
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+        } catch (error) {
+            console.warn('⚠️ Feature flag check failed, using cached value:', error);
+            
+            // Use cached value if available - NEVER default to manual
+            if (this.featureFlagCache.smartAssignmentEnabled !== null) {
+                console.log(`🚩 Using cached feature flag: smart_assignment=${this.featureFlagCache.smartAssignmentEnabled}`);
+                return { 
+                    smart_assignment_enabled: this.featureFlagCache.smartAssignmentEnabled,
+                    cached: true 
+                };
+            }
+            
+            // Only if no cache exists, default to false
+            console.warn('⚠️ No cached feature flag, defaulting to manual mode');
+            return { smart_assignment_enabled: false };
+        }
+    }
+
+    /**
+     * Validate and map message to approved whitelist
+     */
+    validateMessage(message) {
+        if (!message) return this.approvedMessages.error;
+        
+        // Check if message is in approved whitelist
+        const whitelistValues = Object.values(this.approvedMessages);
+        if (whitelistValues.includes(message)) {
+            return message;
+        }
+        
+        // Map server messages to whitelist
+        const messageMap = {
+            'Boş dolap yok. Görevliye başvurun': this.approvedMessages.no_stock,
+            'Lütfen birkaç saniye sonra deneyin': this.approvedMessages.throttled,
+            'Tekrar deneniyor': this.approvedMessages.retry
+        };
+        
+        if (messageMap[message]) {
+            return messageMap[message];
+        }
+        
+        // Default fallback for unknown messages
+        console.warn(`Unknown message mapped to fallback: "${message}"`);
+        return this.approvedMessages.error;
+    }
+
+    /**
+     * Handle smart assignment flow - NO LOCKER SELECTION UI EVER
+     */
+    async handleSmartAssignment(cardId) {
+        try {
+            // Show spinner only, no text
+            this.showLoadingState(null, true);
+            
+            const response = await fetch('/api/rfid/handle-card', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    card_id: cardId,
+                    kiosk_id: this.kioskId
+                })
+            });
+            
+            if (!response.ok) {
+                if (response.status >= 500) {
+                    throw new Error('SERVER_ERROR');
+                } else if (response.status === 429) {
+                    const result = await response.json();
+                    const validatedMessage = this.validateMessage(result.message);
+                    this.showErrorState('RATE_LIMITED', validatedMessage);
+                    return;
+                } else {
+                    throw new Error('NETWORK_ERROR');
+                }
+            }
+            
+            const result = await response.json();
+            
+            if (result.smart_assignment) {
+                // Handle smart assignment response
+                if (result.success) {
+                    // Validate server message against whitelist
+                    const validatedMessage = this.validateMessage(result.message);
+                    
+                    // Show success message briefly, then return to idle
+                    this.showLoadingState(validatedMessage);
+                    setTimeout(() => {
+                        this.showIdleState();
+                    }, 3000);
+                } else {
+                    // Validate error message against whitelist
+                    const validatedMessage = this.validateMessage(result.message);
+                    this.showErrorState('SMART_ASSIGNMENT_ERROR', validatedMessage);
+                }
+            } else {
+                // Should not happen in smart mode, but handle gracefully
+                console.error('🚨 Smart assignment flag missing in response');
+                this.showErrorState('SMART_ASSIGNMENT_ERROR');
+            }
+            
+        } catch (error) {
+            console.error('🚨 Smart assignment error:', error);
+            
+            if (error.name === 'TypeError' || error.message.includes('fetch')) {
+                this.showErrorState('CONNECTION_LOST');
+            } else if (error.message.includes('timeout')) {
+                this.showErrorState('NETWORK_ERROR');
+            } else {
+                this.showErrorState('SMART_ASSIGNMENT_ERROR');
+            }
+        }
+    }
+
+    /**
+     * Handle manual assignment flow - show locker selection
+     */
+    async handleManualAssignment(cardId) {
+        try {
+            // Check if card already has a locker assigned
+            const existingLocker = await this.checkExistingLocker(cardId);
+            
+            if (existingLocker) {
+                // Open existing locker and release assignment
+                await this.openAndReleaseLocker(cardId, existingLocker.lockerId);
+            } else {
+                // Start new session for locker selection
+                await this.startLockerSelection(cardId);
+            }
+            
+        } catch (error) {
+            console.error('🚨 Manual assignment error:', error);
+            throw error; // Re-throw to be handled by parent
         }
     }
 
@@ -648,18 +838,60 @@ class SimpleKioskApp {
     }
 
     /**
-     * Start session mode with countdown
+     * Start session mode with countdown - ONLY for manual assignment
+     * NEVER render locker grid if smart assignment is cached as enabled
      */
-    startSession() {
+    async startSession() {
+        // CRITICAL: Check if smart assignment is enabled before rendering grid
+        if (this.featureFlagCache.smartAssignmentEnabled === true) {
+            console.error('🚨 BLOCKED: Attempted to start session with smart assignment enabled');
+            this.showErrorState('SMART_ASSIGNMENT_ERROR');
+            return;
+        }
+
         this.state.mode = 'session';
         this.state.countdown = this.sessionTimeoutSeconds;
         
-        this.renderLockerGrid();
+        // Only render grid if smart assignment is definitely disabled
+        await this.renderLockerGridSafely();
         this.showSessionState();
         this.ensureCompactSessionTitle();
         this.startCountdown();
         
         console.log(`⏱️ Session started: ${this.state.sessionId}`);
+    }
+
+    /**
+     * Safely render locker grid - check smart assignment status first
+     */
+    async renderLockerGridSafely() {
+        // Double-check smart assignment status before rendering
+        const status = await this.checkSmartAssignmentStatus();
+        
+        if (status.smart_assignment_enabled) {
+            console.error('🚨 BLOCKED: Locker grid rendering blocked - smart assignment enabled');
+            // Clear any existing grid
+            if (this.elements.lockerGrid) {
+                this.elements.lockerGrid.innerHTML = '';
+            }
+            return;
+        }
+        
+        // Safe to render grid
+        this.renderLockerGrid();
+    }
+
+    /**
+     * Check if locker selection should be shown (never show for smart assignment)
+     */
+    async shouldShowLockerSelection() {
+        try {
+            const smartAssignmentStatus = await this.checkSmartAssignmentStatus();
+            return !smartAssignmentStatus.smart_assignment_enabled;
+        } catch (error) {
+            console.warn('⚠️ Could not check smart assignment status, defaulting to manual mode');
+            return true; // Default to manual mode if check fails
+        }
     }
 
     /**
@@ -1262,17 +1494,68 @@ class SimpleKioskApp {
     }
 
     /**
-     * Show loading state
+     * Show loading state - SPINNER ONLY, no text except during retry
      */
-    showLoadingState(message) {
+    showLoadingState(message = null, showProgress = false) {
         this.state.mode = 'loading';
         
+        // Only show text during retry window
         if (this.elements.loadingText) {
-            this.elements.loadingText.textContent = message;
+            if (message === this.approvedMessages.retry) {
+                this.elements.loadingText.textContent = message;
+                this.elements.loadingText.style.display = 'block';
+            } else {
+                this.elements.loadingText.textContent = '';
+                this.elements.loadingText.style.display = 'none';
+            }
+        }
+        
+        // Add lightweight progress indicator for smart assignment
+        if (showProgress) {
+            this.showProgressIndicator();
         }
         
         this.showScreen('loading');
-        console.log(`⏳ Loading: ${message}`);
+        console.log(`⏳ Loading (spinner only)`);
+    }
+
+    /**
+     * Show lightweight progress indicator - Raspberry Pi optimized
+     */
+    showProgressIndicator() {
+        // Create minimal progress indicator
+        let progressContainer = document.getElementById('progress-container');
+        if (!progressContainer) {
+            progressContainer = document.createElement('div');
+            progressContainer.id = 'progress-container';
+            progressContainer.className = 'progress-container';
+            
+            // Simple progress bar without heavy effects
+            const progressBar = document.createElement('div');
+            progressBar.className = 'progress-bar';
+            
+            const progressFill = document.createElement('div');
+            progressFill.className = 'progress-fill';
+            
+            progressBar.appendChild(progressFill);
+            progressContainer.appendChild(progressBar);
+            
+            // Add to loading screen
+            const loadingScreen = this.elements.loadingScreen;
+            if (loadingScreen) {
+                loadingScreen.appendChild(progressContainer);
+            }
+        }
+        
+        // Lightweight animation - no heavy effects
+        const progressFill = progressContainer.querySelector('.progress-fill');
+        if (progressFill) {
+            progressFill.style.width = '0%';
+            // Simple transition without complex animations
+            setTimeout(() => {
+                progressFill.style.width = '100%';
+            }, 50);
+        }
     }
 
     /**
@@ -1443,6 +1726,30 @@ class SimpleKioskApp {
                 }
             }
         });
+        
+        // Clean up progress indicator when leaving loading screen
+        if (screenName !== 'loading') {
+            this.cleanupProgressIndicator();
+        }
+        
+        // Update session timer visibility
+        if (this.elements.sessionTimer) {
+            if (screenName === 'session') {
+                this.elements.sessionTimer.style.display = 'flex';
+            } else {
+                this.elements.sessionTimer.style.display = 'none';
+            }
+        }
+    }
+
+    /**
+     * Clean up progress indicator
+     */
+    cleanupProgressIndicator() {
+        const progressContainer = document.getElementById('progress-container');
+        if (progressContainer) {
+            progressContainer.remove();
+        }
     }
 
     /**

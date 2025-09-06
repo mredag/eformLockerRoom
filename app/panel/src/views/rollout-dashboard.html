@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akıllı Atama Rollout Yönetimi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .header p {
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .summary-card h3 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #667eea;
+        }
+
+        .summary-card p {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .summary-card.critical h3 {
+            color: #e74c3c;
+        }
+
+        .summary-card.success h3 {
+            color: #27ae60;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .controls h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e67e22;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .input-group input, .input-group select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .kiosks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .kiosk-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .kiosk-header {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .kiosk-id {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-monitoring {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-rolled-back {
+            background: #f5c6cb;
+            color: #721c24;
+        }
+
+        .kiosk-body {
+            padding: 1rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .kiosk-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .kiosk-actions .btn {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .recommendation {
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .recommendation-enable {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .recommendation-disable {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .recommendation-monitor {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .recommendation-rollback {
+            background: #f5c6cb;
+            color: #721c24;
+            border: 1px solid #f1b0b7;
+        }
+
+        .events-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .events-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .events-table th,
+        .events-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .events-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .event-type {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .event-enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .event-disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .event-emergency {
+            background: #f5c6cb;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .emergency-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .emergency-warning strong {
+            color: #721c24;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .kiosks-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                margin: 10% auto;
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Akıllı Atama Rollout Yönetimi</h1>
+        <p>Kiosk bazında akıllı atama sisteminin dağıtımını ve performansını izleyin</p>
+    </div>
+
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3 id="total-kiosks">-</h3>
+                <p>Toplam Kiosk</p>
+            </div>
+            <div class="summary-card success">
+                <h3 id="enabled-kiosks">-</h3>
+                <p>Aktif Kiosk</p>
+            </div>
+            <div class="summary-card">
+                <h3 id="monitoring-kiosks">-</h3>
+                <p>İzlenen Kiosk</p>
+            </div>
+            <div class="summary-card critical">
+                <h3 id="rolled-back-kiosks">-</h3>
+                <p>Geri Alınan</p>
+            </div>
+            <div class="summary-card success">
+                <h3 id="success-rate">-</h3>
+                <p>Genel Başarı Oranı</p>
+            </div>
+            <div class="summary-card critical">
+                <h3 id="critical-issues">-</h3>
+                <p>Kritik Sorun</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <h2>Rollout Kontrolleri</h2>
+            
+            <div class="control-group">
+                <div class="input-group">
+                    <select id="kiosk-select">
+                        <option value="">Kiosk Seçin</option>
+                    </select>
+                    <input type="text" id="admin-user" placeholder="Admin Kullanıcı" value="admin">
+                    <input type="text" id="reason" placeholder="Sebep (isteğe bağlı)">
+                </div>
+                <button class="btn btn-success" onclick="enableKiosk()">Etkinleştir</button>
+                <button class="btn btn-warning" onclick="disableKiosk()">Devre Dışı Bırak</button>
+                <button class="btn btn-primary" onclick="analyzeKiosk()">Analiz Et</button>
+            </div>
+
+            <div class="control-group">
+                <button class="btn btn-primary" onclick="refreshData()">Verileri Yenile</button>
+                <button class="btn btn-warning" onclick="runAutomatedCheck()">Otomatik Kontrol Çalıştır</button>
+                <button class="btn btn-danger" onclick="showEmergencyModal()">ACİL DURUM DURDUR</button>
+            </div>
+        </div>
+
+        <!-- Kiosks Grid -->
+        <div id="kiosks-container">
+            <div class="loading">Veriler yükleniyor...</div>
+        </div>
+
+        <!-- Recent Events -->
+        <div class="events-section">
+            <h2>Son Rollout Olayları</h2>
+            <div id="events-container">
+                <div class="loading">Olaylar yükleniyor...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Disable Modal -->
+    <div id="emergency-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>ACİL DURUM DURDURMA</h3>
+                <span class="close" onclick="closeEmergencyModal()">&times;</span>
+            </div>
+            
+            <div class="emergency-warning">
+                <strong>UYARI:</strong> Bu işlem tüm kiosklarda akıllı atamayı anında devre dışı bırakır. 
+                Bu işlem geri alınamaz ve sistem manuel moda geçer.
+            </div>
+
+            <form id="emergency-form">
+                <div class="form-group">
+                    <label for="emergency-admin">Admin Kullanıcı:</label>
+                    <input type="text" id="emergency-admin" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="emergency-reason">Acil Durum Sebebi:</label>
+                    <textarea id="emergency-reason" required placeholder="Acil durumun detaylı açıklaması..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="emergency-confirmation">Onay Kodu (EMERGENCY_DISABLE yazın):</label>
+                    <input type="text" id="emergency-confirmation" required>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-primary" onclick="closeEmergencyModal()">İptal</button>
+                    <button type="submit" class="btn btn-danger">ACİL DURDUR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let rolloutData = null;
+        let kiosksList = [];
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+            
+            // Set up emergency form
+            document.getElementById('emergency-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                executeEmergencyDisable();
+            });
+            
+            // Auto-refresh every 30 seconds
+            setInterval(refreshData, 30000);
+        });
+
+        async function refreshData() {
+            try {
+                // Fetch rollout status
+                const response = await fetch('/api/admin/rollout/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    rolloutData = result.data;
+                    updateSummaryCards(result.data.summary);
+                    updateKiosksGrid(result.data.kiosks);
+                    updateKioskSelect(result.data.kiosks);
+                } else {
+                    showError('Rollout verileri alınamadı: ' + result.error);
+                }
+                
+                // Fetch recent events
+                await loadRecentEvents();
+                
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showError('Veri yenileme hatası: ' + error.message);
+            }
+        }
+
+        function updateSummaryCards(summary) {
+            document.getElementById('total-kiosks').textContent = summary.totalKiosks;
+            document.getElementById('enabled-kiosks').textContent = summary.enabledKiosks;
+            document.getElementById('monitoring-kiosks').textContent = summary.monitoringKiosks;
+            document.getElementById('rolled-back-kiosks').textContent = summary.rolledBackKiosks;
+            document.getElementById('success-rate').textContent = (summary.overallSuccessRate * 100).toFixed(1) + '%';
+            document.getElementById('critical-issues').textContent = summary.criticalIssues;
+        }
+
+        function updateKioskSelect(kiosks) {
+            const select = document.getElementById('kiosk-select');
+            select.innerHTML = '<option value="">Kiosk Seçin</option>';
+            
+            kiosks.forEach(kiosk => {
+                const option = document.createElement('option');
+                option.value = kiosk.kioskId;
+                option.textContent = kiosk.kioskId;
+                select.appendChild(option);
+            });
+            
+            kiosksList = kiosks;
+        }
+
+        function updateKiosksGrid(kiosks) {
+            const container = document.getElementById('kiosks-container');
+            
+            if (kiosks.length === 0) {
+                container.innerHTML = '<div class="loading">Henüz kiosk verisi yok</div>';
+                return;
+            }
+            
+            const grid = document.createElement('div');
+            grid.className = 'kiosks-grid';
+            
+            kiosks.forEach(kiosk => {
+                const card = createKioskCard(kiosk);
+                grid.appendChild(card);
+            });
+            
+            container.innerHTML = '';
+            container.appendChild(grid);
+        }
+
+        function createKioskCard(kiosk) {
+            const card = document.createElement('div');
+            card.className = 'kiosk-card';
+            
+            const statusClass = `status-${kiosk.phase.replace('_', '-')}`;
+            const statusText = getStatusText(kiosk.phase);
+            
+            const metrics = kiosk.metrics || {};
+            const successRate = metrics.successRate ? (metrics.successRate * 100).toFixed(1) : '0.0';
+            const avgTime = metrics.averageAssignmentTime ? Math.round(metrics.averageAssignmentTime) : 0;
+            
+            card.innerHTML = `
+                <div class="kiosk-header">
+                    <div class="kiosk-id">${kiosk.kioskId}</div>
+                    <div class="status-badge ${statusClass}">${statusText}</div>
+                </div>
+                <div class="kiosk-body">
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <div class="metric-value">${metrics.totalAssignments || 0}</div>
+                            <div class="metric-label">Toplam Atama</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${successRate}%</div>
+                            <div class="metric-label">Başarı Oranı</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${avgTime}ms</div>
+                            <div class="metric-label">Ort. Süre</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${metrics.noStockEvents || 0}</div>
+                            <div class="metric-label">Stok Yok</div>
+                        </div>
+                    </div>
+                    
+                    <div class="kiosk-actions">
+                        ${kiosk.enabled ? 
+                            '<button class="btn btn-warning" onclick="disableSpecificKiosk(\'' + kiosk.kioskId + '\')">Devre Dışı</button>' :
+                            '<button class="btn btn-success" onclick="enableSpecificKiosk(\'' + kiosk.kioskId + '\')">Etkinleştir</button>'
+                        }
+                        <button class="btn btn-primary" onclick="analyzeSpecificKiosk('${kiosk.kioskId}')">Analiz</button>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function getStatusText(phase) {
+            const statusMap = {
+                'disabled': 'Devre Dışı',
+                'enabled': 'Etkin',
+                'monitoring': 'İzleniyor',
+                'rolled_back': 'Geri Alındı'
+            };
+            return statusMap[phase] || phase;
+        }
+
+        async function loadRecentEvents() {
+            try {
+                const response = await fetch('/api/admin/rollout/events?limit=20');
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateEventsTable(result.data);
+                } else {
+                    console.error('Failed to load events:', result.error);
+                }
+            } catch (error) {
+                console.error('Error loading events:', error);
+            }
+        }
+
+        function updateEventsTable(events) {
+            const container = document.getElementById('events-container');
+            
+            if (events.length === 0) {
+                container.innerHTML = '<div class="loading">Henüz olay kaydı yok</div>';
+                return;
+            }
+            
+            const table = document.createElement('table');
+            table.className = 'events-table';
+            
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Zaman</th>
+                        <th>Kiosk</th>
+                        <th>Olay Türü</th>
+                        <th>Tetikleyen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${events.map(event => `
+                        <tr>
+                            <td>${new Date(event.event_time).toLocaleString('tr-TR')}</td>
+                            <td>${event.kiosk_id || 'Tümü'}</td>
+                            <td><span class="event-type event-${event.event_type}">${getEventTypeText(event.event_type)}</span></td>
+                            <td>${event.triggered_by}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            
+            container.innerHTML = '';
+            container.appendChild(table);
+        }
+
+        function getEventTypeText(eventType) {
+            const typeMap = {
+                'enabled': 'Etkinleştirildi',
+                'disabled': 'Devre Dışı',
+                'emergency_disable': 'Acil Durdurma',
+                'automated_rollback': 'Otomatik Geri Alma',
+                'manual_rollback': 'Manuel Geri Alma'
+            };
+            return typeMap[eventType] || eventType;
+        }
+
+        async function enableKiosk() {
+            const kioskId = document.getElementById('kiosk-select').value;
+            const adminUser = document.getElementById('admin-user').value;
+            const reason = document.getElementById('reason').value;
+            
+            if (!kioskId || !adminUser) {
+                alert('Lütfen kiosk ve admin kullanıcı seçin');
+                return;
+            }
+            
+            await executeKioskAction('/api/admin/rollout/enable', {
+                kioskId,
+                enabledBy: adminUser,
+                reason: reason || undefined
+            });
+        }
+
+        async function disableKiosk() {
+            const kioskId = document.getElementById('kiosk-select').value;
+            const adminUser = document.getElementById('admin-user').value;
+            const reason = document.getElementById('reason').value;
+            
+            if (!kioskId || !adminUser || !reason) {
+                alert('Lütfen kiosk, admin kullanıcı ve sebep girin');
+                return;
+            }
+            
+            await executeKioskAction('/api/admin/rollout/disable', {
+                kioskId,
+                disabledBy: adminUser,
+                reason
+            });
+        }
+
+        async function enableSpecificKiosk(kioskId) {
+            const adminUser = prompt('Admin kullanıcı adı:');
+            if (!adminUser) return;
+            
+            const reason = prompt('Sebep (isteğe bağlı):');
+            
+            await executeKioskAction('/api/admin/rollout/enable', {
+                kioskId,
+                enabledBy: adminUser,
+                reason: reason || undefined
+            });
+        }
+
+        async function disableSpecificKiosk(kioskId) {
+            const adminUser = prompt('Admin kullanıcı adı:');
+            if (!adminUser) return;
+            
+            const reason = prompt('Devre dışı bırakma sebebi:');
+            if (!reason) return;
+            
+            await executeKioskAction('/api/admin/rollout/disable', {
+                kioskId,
+                disabledBy: adminUser,
+                reason
+            });
+        }
+
+        async function executeKioskAction(endpoint, data) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    refreshData();
+                } else {
+                    alert('Hata: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error executing action:', error);
+                alert('İşlem hatası: ' + error.message);
+            }
+        }
+
+        async function analyzeKiosk() {
+            const kioskId = document.getElementById('kiosk-select').value;
+            if (!kioskId) {
+                alert('Lütfen analiz edilecek kiosk seçin');
+                return;
+            }
+            
+            await analyzeSpecificKiosk(kioskId);
+        }
+
+        async function analyzeSpecificKiosk(kioskId) {
+            try {
+                const response = await fetch(`/api/admin/rollout/analyze/${kioskId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAnalysisResult(result.data);
+                } else {
+                    alert('Analiz hatası: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error analyzing kiosk:', error);
+                alert('Analiz hatası: ' + error.message);
+            }
+        }
+
+        function showAnalysisResult(decision) {
+            const reasons = decision.reasons.join('\n• ');
+            const confidence = (decision.confidence * 100).toFixed(1);
+            
+            const message = `
+Kiosk: ${decision.kioskId}
+Öneri: ${getRecommendationText(decision.recommendation)}
+Güven: ${confidence}%
+
+Sebepler:
+• ${reasons}
+
+Metrikler:
+• Toplam Atama: ${decision.metrics.totalAssignments}
+• Başarı Oranı: ${(decision.metrics.successRate * 100).toFixed(1)}%
+• Ortalama Süre: ${Math.round(decision.metrics.averageAssignmentTime)}ms
+• Stok Yok Olayları: ${decision.metrics.noStockEvents}
+• Yeniden Deneme: ${decision.metrics.retryEvents}
+• Çakışma: ${decision.metrics.conflictEvents}
+            `;
+            
+            alert(message);
+        }
+
+        function getRecommendationText(recommendation) {
+            const recMap = {
+                'enable': 'Etkinleştir',
+                'disable': 'Devre Dışı Bırak',
+                'monitor': 'İzlemeye Devam Et',
+                'rollback': 'Geri Al'
+            };
+            return recMap[recommendation] || recommendation;
+        }
+
+        async function runAutomatedCheck() {
+            try {
+                const response = await fetch('/api/admin/rollout/check-automated-rollback', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    refreshData();
+                } else {
+                    alert('Otomatik kontrol hatası: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error running automated check:', error);
+                alert('Otomatik kontrol hatası: ' + error.message);
+            }
+        }
+
+        function showEmergencyModal() {
+            document.getElementById('emergency-modal').style.display = 'block';
+        }
+
+        function closeEmergencyModal() {
+            document.getElementById('emergency-modal').style.display = 'none';
+            document.getElementById('emergency-form').reset();
+        }
+
+        async function executeEmergencyDisable() {
+            const adminUser = document.getElementById('emergency-admin').value;
+            const reason = document.getElementById('emergency-reason').value;
+            const confirmation = document.getElementById('emergency-confirmation').value;
+            
+            if (!adminUser || !reason || !confirmation) {
+                alert('Lütfen tüm alanları doldurun');
+                return;
+            }
+            
+            if (confirmation !== 'EMERGENCY_DISABLE') {
+                alert('Onay kodu yanlış. "EMERGENCY_DISABLE" yazmalısınız.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/rollout/emergency-disable', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        disabledBy: adminUser,
+                        reason: reason,
+                        confirmationCode: confirmation
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('ACİL DURUM DURDURMA TAMAMLANDI!\n\n' + result.message);
+                    closeEmergencyModal();
+                    refreshData();
+                } else {
+                    alert('Acil durum durdurma hatası: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error executing emergency disable:', error);
+                alert('Acil durum durdurma hatası: ' + error.message);
+            }
+        }
+
+        function showError(message) {
+            const container = document.getElementById('kiosks-container');
+            container.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('emergency-modal');
+            if (event.target === modal) {
+                closeEmergencyModal();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@
 
 import { SerialPort } from 'serialport';
 import { EventEmitter } from 'events';
+import { SensorlessRetryHandler, createSensorlessRetryHandler, RetryResult } from '../../../../shared/services/sensorless-retry-handler';
 
 export interface ModbusConfig {
   port: string;
@@ -107,6 +108,7 @@ export class ModbusController extends EventEmitter {
   private connectionRetryCount = 0;
   private healthCheckInterval: NodeJS.Timeout | null = null;
   private startTime = Date.now();
+  private sensorlessRetryHandler: SensorlessRetryHandler;
 
   constructor(config: ModbusConfig) {
     super();
@@ -133,6 +135,17 @@ export class ModbusController extends EventEmitter {
       uptime_seconds: 0,
       error_rate_percent: 0
     };
+    
+    // Initialize sensorless retry handler
+    this.sensorlessRetryHandler = createSensorlessRetryHandler({
+      pulse_ms: config.pulse_duration_ms || 800,
+      open_window_sec: 10,
+      retry_backoff_ms: 500,
+      retry_count: 1
+    });
+    
+    // Set up sensorless retry handler events
+    this.setupSensorlessEvents();
     
     // Set max listeners to prevent warnings during testing
     this.setMaxListeners(20);
@@ -213,6 +226,82 @@ export class ModbusController extends EventEmitter {
     // Add jitter to prevent thundering herd
     const jitter = Math.random() * 0.1 * delay;
     return delay + jitter;
+  }
+
+  /**
+   * Open a locker with sensorless retry logic for smart assignment
+   * Requirements: 6.1, 6.2, 6.3, 6.4, 6.5
+   */
+  async openLockerWithSensorlessRetry(lockerId: number, cardId: string, slaveAddress?: number): Promise<RetryResult> {
+    // Get or create per-locker mutex to prevent concurrent operations on same locker
+    if (!this.lockerMutexes.has(lockerId)) {
+      this.lockerMutexes.set(lockerId, new Mutex());
+    }
+    const lockerMutex = this.lockerMutexes.get(lockerId)!;
+    
+    // Acquire per-locker lock
+    await lockerMutex.acquire();
+    
+    try {
+      console.log(`🔧 Sensorless: Starting open attempt for locker ${lockerId}, card ${cardId}`);
+      
+      // Check hardware availability before attempting operation
+      if (!this.isHardwareAvailable()) {
+        console.error(`❌ Sensorless: Hardware unavailable for locker ${lockerId}`);
+        return {
+          success: false,
+          action: 'failed_no_retry',
+          message: 'Şu an işlem yapılamıyor',
+          duration_ms: 0,
+          retry_attempted: false
+        };
+      }
+
+      // Create pulse function for the sensorless handler
+      const pulseFunction = async (lockerId: number): Promise<boolean> => {
+        try {
+          // Map locker_id to cardId and relayId using the specified formulas
+          const cardIdHw = Math.ceil(lockerId / 16);
+          const relayId = ((lockerId - 1) % 16) + 1;
+          const targetSlaveAddress = slaveAddress || cardIdHw;
+
+          console.log(`🔧 Sensorless: Pulse for locker ${lockerId} (card=${cardIdHw}, relay=${relayId}, slave=${targetSlaveAddress})`);
+          
+          // Use the existing sendPulse method
+          return await this.sendPulse(relayId, this.config.pulse_duration_ms, targetSlaveAddress);
+        } catch (error) {
+          console.error(`❌ Sensorless: Pulse error for locker ${lockerId}:`, error);
+          return false;
+        }
+      };
+
+      // Use sensorless retry handler
+      const result = await this.sensorlessRetryHandler.openWithRetry(lockerId, cardId, pulseFunction);
+      
+      // Update health tracking
+      this.updateHealth(result.success);
+      
+      // Log result
+      if (result.success) {
+        console.log(`✅ Sensorless: Locker ${lockerId} opened successfully (${result.action})`);
+      } else {
+        console.error(`❌ Sensorless: Failed to open locker ${lockerId} (${result.action})`);
+      }
+      
+      return result;
+      
+    } finally {
+      // Always release the per-locker mutex
+      lockerMutex.release();
+    }
+  }
+
+  /**
+   * Record card scan for sensorless retry detection
+   * Requirements: 6.2
+   */
+  recordCardScan(cardId: string): void {
+    this.sensorlessRetryHandler.recordCardScan(cardId);
   }
 
   /**
@@ -1177,6 +1266,36 @@ export class ModbusController extends EventEmitter {
   }
 
   /**
+   * Setup sensorless retry handler events
+   */
+  private setupSensorlessEvents(): void {
+    this.sensorlessRetryHandler.on('show_message', (event) => {
+      // Forward message events to ModbusController listeners
+      this.emit('sensorless_message', {
+        lockerId: event.lockerId,
+        cardId: event.cardId,
+        message: event.message,
+        type: event.type,
+        timestamp: new Date()
+      });
+    });
+  }
+
+  /**
+   * Get sensorless retry handler for external access
+   */
+  getSensorlessRetryHandler(): SensorlessRetryHandler {
+    return this.sensorlessRetryHandler;
+  }
+
+  /**
+   * Update sensorless configuration (for hot reload)
+   */
+  updateSensorlessConfig(config: Partial<{ pulse_ms: number; open_window_sec: number; retry_backoff_ms: number }>): void {
+    this.sensorlessRetryHandler.updateConfig(config);
+  }
+
+  /**
    * Close the Modbus connection
    */
   async close(): Promise<void> {
@@ -1187,6 +1306,9 @@ export class ModbusController extends EventEmitter {
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
     }
+    
+    // Clean up sensorless handler
+    this.sensorlessRetryHandler.cleanupOldScans();
     
     if (this.serialPort && this.serialPort.isOpen) {
       await new Promise<void>((resolve) => {

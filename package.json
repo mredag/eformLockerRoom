@@ -51,7 +51,14 @@
     "test:e2e:hardware": "node scripts/e2e-hardware-validation.js",
     "test:e2e:ui": "node scripts/validate-ui-feedback.js",
     "test:e2e:full": "./scripts/test-admin-panel-e2e.sh",
-    "test:e2e:full:windows": "powershell -ExecutionPolicy Bypass -File scripts/test-admin-panel-e2e.ps1"
+    "test:e2e:full:windows": "powershell -ExecutionPolicy Bypass -File scripts/test-admin-panel-e2e.ps1",
+    "test:acceptance": "tsx tests/acceptance/run-acceptance-tests.ts",
+    "test:acceptance:report": "tsx tests/acceptance/run-acceptance-tests.ts && echo 'Report generated in tests/acceptance/reports/'",
+    "test:acceptance:turkish": "vitest run tests/acceptance/turkish-ui-messages.test.ts",
+    "test:acceptance:admin": "vitest run tests/acceptance/admin-panel-workflows.test.ts",
+    "test:acceptance:config": "vitest run tests/acceptance/configuration-edge-cases.test.ts",
+    "test:acceptance:rollout": "vitest run tests/acceptance/rollout-rollback-procedures.test.ts",
+    "test:acceptance:production": "vitest run tests/acceptance/production-readiness.test.ts"
   },
   "dependencies": {
     "argon2": "^0.31.2",
@@ -64,6 +71,7 @@
   "devDependencies": {
     "@types/node": "^20.8.0",
     "@types/uuid": "^9.0.5",
+    "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
     "esbuild": "^0.19.5",
     "tsx": "^3.14.0",

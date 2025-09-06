@@ -1,454 +1,452 @@
-# Automated Deployment Scripts
+# Smart Locker Assignment System - Deployment Artifacts
 
-This directory contains automated deployment scripts for the eForm Locker System that handle the complete deployment workflow: commit changes, push to Git, pull to Raspberry Pi, and restart services.
+## Overview
 
-## Scripts Overview
+This directory contains all deployment artifacts for the Smart Locker Assignment System, including migration scripts, deployment automation, monitoring setup, and rollback procedures.
 
-### 1. Full Deployment Scripts
+## Deployment Artifacts
 
-#### `auto-deploy.ps1` (PowerShell)
-Comprehensive deployment script with full validation and testing.
+### Database Migration Scripts
+
+#### `smart-assignment-migration.sql`
+Complete database schema migration for smart assignment system.
 
 **Features:**
-- Pre-deployment checks (Git status, branch validation)
-- Automatic commit message generation
-- SSH connection testing
-- Service health validation
-- Post-deployment testing
-- Detailed logging and error handling
-
-**Usage:**
-```powershell
-# Basic deployment
-.\scripts\deployment\auto-deploy.ps1
-
-# With custom commit message
-.\scripts\deployment\auto-deploy.ps1 -Message "feat: add new feature"
-
-# Skip post-deployment tests
-.\scripts\deployment\auto-deploy.ps1 -SkipTests
-
-# Force deployment even if no changes
-.\scripts\deployment\auto-deploy.ps1 -Force
-
-# Show help
-.\scripts\deployment\auto-deploy.ps1 -h
-```
-
-#### `auto-deploy.sh` (Bash)
-Linux/macOS version with identical functionality.
+- Extends lockers table with smart assignment columns
+- Creates configuration management tables
+- Sets up session tracking and metrics collection
+- Includes performance optimization indexes
+- Seeds default configuration values
 
 **Usage:**
 ```bash
-# Basic deployment
-./scripts/deployment/auto-deploy.sh
-
-# With custom commit message
-./scripts/deployment/auto-deploy.sh -m "feat: add new feature"
-
-# Skip tests
-./scripts/deployment/auto-deploy.sh --skip-tests
-
-# Force deployment
-./scripts/deployment/auto-deploy.sh --force
-
-# Show help
-./scripts/deployment/auto-deploy.sh --help
+sqlite3 data/eform.db < scripts/deployment/smart-assignment-migration.sql
 ```
 
-### 2. Quick Deployment Scripts
+#### `smart-assignment-rollback.sql`
+Complete rollback of smart assignment database changes.
 
-#### `quick-deploy.ps1` (PowerShell)
-Simplified deployment for rapid iterations.
-
-**Usage:**
-```powershell
-# Quick deployment with default message
-.\scripts\deployment\quick-deploy.ps1
-
-# With custom message
-.\scripts\deployment\quick-deploy.ps1 "fix: update UI"
-```
-
-#### `quick-deploy.sh` (Bash)
-Linux/macOS version of quick deployment.
+**Features:**
+- Removes all smart assignment tables
+- Restores original lockers table schema
+- Preserves original data integrity
+- Creates backup before rollback
 
 **Usage:**
 ```bash
-# Quick deployment with default message
-./scripts/deployment/quick-deploy.sh
-
-# With custom message
-./scripts/deployment/quick-deploy.sh "fix: update UI"
+sqlite3 data/eform.db < scripts/deployment/smart-assignment-rollback.sql
 ```
+
+### Deployment Automation Scripts
+
+#### `deploy-smart-assignment.sh`
+Comprehensive automated deployment script.
+
+**Features:**
+- Pre-deployment validation
+- Automatic backup creation
+- Service management (stop/start)
+- Database migration execution
+- Configuration updates
+- Dependency installation and building
+- Post-deployment verification
+- Deployment reporting
+
+**Usage:**
+```bash
+./scripts/deployment/deploy-smart-assignment.sh
+```
+
+**Output:**
+- Backup directory: `backups/smart-assignment-YYYYMMDD-HHMMSS/`
+- Deployment log: `logs/smart-assignment-deployment.log`
+- Deployment report: `backups/[backup-dir]/deployment-report.txt`
+
+#### `rollback-smart-assignment.sh`
+Automated rollback script for emergency recovery.
+
+**Features:**
+- Service shutdown
+- Database restoration from backup
+- Configuration restoration
+- Service rebuild and restart
+- Rollback verification
+- Rollback reporting
+
+**Usage:**
+```bash
+./scripts/deployment/rollback-smart-assignment.sh <backup_directory>
+```
+
+**Example:**
+```bash
+./scripts/deployment/rollback-smart-assignment.sh backups/smart-assignment-20250109-143022
+```
+
+### Validation and Verification Tools
+
+#### `validate-smart-assignment-deployment.js`
+Comprehensive deployment validation tool.
+
+**Features:**
+- Database schema validation
+- Configuration file validation
+- Service health checks
+- File structure verification
+- Performance testing
+- JSON validation report generation
+
+**Usage:**
+```bash
+node scripts/deployment/validate-smart-assignment-deployment.js
+```
+
+**Output:**
+- Console validation results
+- JSON report: `deployment-validation-report.json`
+- Exit code 0 (success) or 1 (failure)
+
+#### `verify-deployment.sh`
+Post-deployment verification script.
+
+**Features:**
+- Service health verification
+- Database integrity checks
+- API endpoint testing
+- Performance benchmarking
+- Hardware integration testing
+- Comprehensive reporting
+
+**Usage:**
+```bash
+./scripts/deployment/verify-deployment.sh
+```
+
+**Output:**
+- Verification log: `logs/deployment-verification.log`
+- Verification report: `deployment-verification-report.txt`
+
+### Monitoring and Alerting Setup
+
+#### `setup-monitoring.sh`
+Complete monitoring system setup.
+
+**Features:**
+- Health check script creation
+- Performance monitoring setup
+- Alert monitoring configuration
+- Systemd service creation
+- Cron job examples
+- Monitoring dashboard
+- Installation automation
+
+**Usage:**
+```bash
+./scripts/deployment/setup-monitoring.sh
+```
+
+**Created Components:**
+- `monitoring/scripts/health-check.sh`
+- `monitoring/scripts/performance-monitor.sh`
+- `monitoring/scripts/check-alerts.js`
+- `monitoring/scripts/dashboard.sh`
+- `monitoring/config/monitoring.json`
+- Systemd service files
+- Cron job examples
 
 ## Deployment Workflow
 
-All scripts follow this workflow:
-
-1. **Pre-checks** (full scripts only)
-   - Verify Git repository
-   - Check current branch
-   - Validate uncommitted changes
-
-2. **Local Git Operations**
-   - `git add .` - Stage all changes
-   - `git commit -m "message"` - Commit with message
-   - `git push origin main` - Push to remote
-
-3. **Remote Deployment**
-   - Test SSH connection
-   - `git pull origin main` - Pull changes on Pi
-   - `./scripts/start-all-clean.sh` - Restart services
-
-4. **Post-deployment Validation** (full scripts only)
-   - Health check all services
-   - Test API endpoints
-   - Validate layout service
-
-## Configuration
-
-Scripts are configured for the standard eForm Locker setup:
+### 1. Pre-Deployment Preparation
 
 ```bash
-PI_HOST="pi@pi-eform-locker"
-PI_PROJECT_PATH="/home/pi/eform-locker"
-BRANCH="main"
+# Verify system requirements
+./scripts/deployment/validate-smart-assignment-deployment.js
+
+# Create manual backup (optional)
+mkdir -p backups/manual-$(date +%Y%m%d-%H%M%S)
+cp data/eform.db backups/manual-$(date +%Y%m%d-%H%M%S)/
+cp config/system.json backups/manual-$(date +%Y%m%d-%H%M%S)/
 ```
 
-### Service Endpoints Tested:
-- **Gateway**: http://192.168.1.8:3000/health
-- **Panel**: http://192.168.1.8:3001/health
-- **Kiosk**: http://192.168.1.8:3002/health
-
-## Prerequisites
-
-### SSH Setup
-Ensure passwordless SSH access to the Raspberry Pi:
+### 2. Automated Deployment
 
 ```bash
-# Generate SSH key (if not exists)
-ssh-keygen -t rsa -b 4096
+# Run complete deployment
+./scripts/deployment/deploy-smart-assignment.sh
 
-# Copy public key to Pi
-ssh-copy-id pi@pi-eform-locker
-
-# Test connection
-ssh pi@pi-eform-locker "echo 'SSH working'"
+# Monitor deployment progress
+tail -f logs/smart-assignment-deployment.log
 ```
 
-### Git Configuration
-Ensure Git is properly configured:
+### 3. Post-Deployment Verification
 
 ```bash
-git config --global user.name "Your Name"
-git config --global user.email "your.email@example.com"
+# Comprehensive verification
+./scripts/deployment/verify-deployment.sh
+
+# Setup monitoring (optional)
+./scripts/deployment/setup-monitoring.sh
 ```
 
-## Usage Examples
+### 4. Monitoring and Maintenance
 
-### Development Workflow
-```powershell
-# Make code changes...
-# Test locally...
-
-# Deploy with descriptive message
-.\scripts\deployment\auto-deploy.ps1 -Message "feat(ui): improve locker display layout"
-```
-
-### Quick Iterations
-```powershell
-# Make small changes...
-
-# Quick deploy
-.\scripts\deployment\quick-deploy.ps1 "fix: minor UI adjustment"
-```
-
-### Emergency Deployment
-```powershell
-# Force deployment even if no changes detected
-.\scripts\deployment\auto-deploy.ps1 -Force -Message "hotfix: emergency fix"
-```
-
-## Error Handling
-
-### Common Issues and Solutions
-
-#### SSH Connection Failed
 ```bash
-# Test SSH manually
-ssh pi@pi-eform-locker
+# Install monitoring system
+./monitoring/install-monitoring.sh
 
-# Check SSH key
-ssh-add -l
+# View real-time dashboard
+./monitoring/scripts/dashboard.sh
 
-# Re-add SSH key if needed
-ssh-add ~/.ssh/id_rsa
+# Manual health checks
+./monitoring/scripts/health-check.sh
 ```
 
-#### Git Push Failed
+## Rollback Procedures
+
+### Automatic Rollback
+
 ```bash
-# Check remote status
-git remote -v
+# List available backups
+ls -la backups/
 
-# Pull latest changes first
-git pull origin main
-
-# Resolve conflicts and retry
+# Rollback to specific backup
+./scripts/deployment/rollback-smart-assignment.sh backups/smart-assignment-20250109-143022
 ```
 
-#### Service Restart Failed
+### Emergency Rollback
+
 ```bash
-# Check Pi manually
-ssh pi@pi-eform-locker
-cd /home/pi/eform-locker
-
-# Check service status
-ps aux | grep node
-
-# Manual restart
-./scripts/start-all-clean.sh
+# Quick emergency rollback (uses latest backup)
+LATEST_BACKUP=$(ls -t backups/ | head -n1)
+./scripts/deployment/rollback-smart-assignment.sh "backups/$LATEST_BACKUP"
 ```
 
-## Monitoring and Logs
+### Manual Rollback
 
-### View Deployment Logs
-Scripts provide colored output with timestamps and status indicators:
-- 🚀 Blue: Process steps
-- ✅ Green: Success messages
-- ⚠️ Yellow: Warnings
-- ❌ Red: Errors
+If automated rollback fails:
 
-### Monitor Pi Services
 ```bash
-# SSH to Pi and monitor logs
-ssh pi@pi-eform-locker
-cd /home/pi/eform-locker
-tail -f logs/*.log
+# Stop services
+sudo pkill -f "node"
+
+# Restore database
+cp backups/[backup-dir]/eform.db.backup data/eform.db
+
+# Restore configuration
+cp backups/[backup-dir]/system.json.backup config/system.json
+
+# Restart services
+npm run start:gateway &
+npm run start:kiosk &
+npm run start:panel &
 ```
 
-### Health Check URLs
-After deployment, verify services:
-- Admin Panel: http://192.168.1.8:3001
-- Kiosk UI: http://192.168.1.8:3002
-- Gateway API: http://192.168.1.8:3000
-- Hardware Config: http://192.168.1.8:3001/hardware-config
+## Configuration Management
 
-## Integration with Development Workflow
+### Default Configuration
 
-### VS Code Integration
-Add to VS Code tasks.json:
+The deployment automatically seeds these default values:
+
 ```json
 {
-    "label": "Deploy to Pi",
-    "type": "shell",
-    "command": "./scripts/deployment/auto-deploy.ps1",
-    "args": ["-Message", "${input:commitMessage}"],
-    "group": "build",
-    "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "new"
-    }
+  "base_score": 100,
+  "score_factor_a": 2.0,
+  "score_factor_b": 1.0,
+  "score_factor_g": 0.1,
+  "score_factor_d": 0.5,
+  "top_k_candidates": 5,
+  "selection_temperature": 1.0,
+  "quarantine_min_floor": 5,
+  "quarantine_min_ceiling": 20,
+  "exit_quarantine_minutes": 20,
+  "return_hold_trigger_seconds": 120,
+  "return_hold_minutes": 15,
+  "session_limit_minutes": 180,
+  "retrieve_window_minutes": 10,
+  "reserve_ratio": 0.1,
+  "reserve_minimum": 2,
+  "pulse_ms": 800,
+  "open_window_sec": 10,
+  "retry_backoff_ms": 500,
+  "card_rate_limit_seconds": 10,
+  "locker_rate_limit_per_minute": 3,
+  "command_cooldown_seconds": 3,
+  "user_report_daily_cap": 2,
+  "smart_assignment_enabled": false,
+  "allow_reclaim_during_quarantine": false
 }
 ```
 
-### Git Hooks Integration
-Add to `.git/hooks/post-commit`:
+### Feature Flag Management
+
+Smart assignment is **disabled by default** for safe deployment:
+
 ```bash
-#!/bin/bash
-# Auto-deploy after commit (optional)
-# ./scripts/deployment/quick-deploy.sh "$(git log -1 --pretty=%B)"
+# Check feature flag status
+sqlite3 data/eform.db "SELECT value FROM settings_global WHERE key='smart_assignment_enabled';"
+
+# Enable smart assignment (when ready)
+sqlite3 data/eform.db "UPDATE settings_global SET value='true' WHERE key='smart_assignment_enabled';"
+
+# Disable smart assignment (emergency)
+sqlite3 data/eform.db "UPDATE settings_global SET value='false' WHERE key='smart_assignment_enabled';"
 ```
 
-## Best Practices
+## Monitoring and Health Checks
 
-1. **Use Full Scripts for Major Changes**
-   - New features
-   - Bug fixes
-   - Configuration changes
+### Service Health
 
-2. **Use Quick Scripts for Minor Updates**
-   - UI tweaks
-   - Documentation updates
-   - Small fixes
+```bash
+# Check all services
+curl http://localhost:3000/health  # Gateway
+curl http://localhost:3002/health  # Kiosk
+curl http://localhost:3001/health  # Panel
 
-3. **Always Test After Deployment**
-   - Check service health
-   - Verify functionality
-   - Monitor logs for errors
+# Automated health check
+./monitoring/scripts/health-check.sh
+```
 
-4. **Use Descriptive Commit Messages**
-   - Follow conventional commit format
-   - Include scope and description
-   - Reference issue numbers if applicable
+### Database Health
+
+```bash
+# Database integrity
+sqlite3 data/eform.db "PRAGMA integrity_check;"
+
+# Smart assignment tables
+sqlite3 data/eform.db "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('settings_global', 'smart_sessions', 'assignment_metrics', 'alerts');"
+
+# Configuration status
+sqlite3 data/eform.db "SELECT COUNT(*) FROM settings_global;"
+```
+
+### Performance Monitoring
+
+```bash
+# System resources
+./monitoring/scripts/performance-monitor.sh
+
+# Real-time dashboard
+./monitoring/scripts/dashboard.sh
+
+# Alert checking
+node ./monitoring/scripts/check-alerts.js
+```
 
 ## Troubleshooting
 
-### Script Permissions
+### Common Issues
+
+#### Deployment Fails
 ```bash
-# Make scripts executable
-chmod +x scripts/deployment/*.sh
-chmod +x scripts/deployment/*.ps1
+# Check logs
+tail -50 logs/smart-assignment-deployment.log
+
+# Validate prerequisites
+node scripts/deployment/validate-smart-assignment-deployment.js
+
+# Manual deployment steps
+# See docs/smart-assignment-system/deployment-procedures.md
 ```
 
-### PowerShell Execution Policy
-```powershell
-# Allow script execution (Windows)
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-### Network Issues
+#### Services Won't Start
 ```bash
-# Test Pi connectivity
-ping 192.168.1.8
+# Check for port conflicts
+sudo netstat -tulpn | grep -E ":(3000|3001|3002)"
 
-# Test SSH port
-telnet 192.168.1.8 22
+# Check build status
+npm run build:all
+
+# Check dependencies
+cd app/gateway && npm install
+cd app/kiosk && npm install
+cd app/panel && npm install
 ```
 
-For additional support, check the main project documentation or contact the development team.
----
-
-
-## 🚀 Raspberry Pi Startup System
-
-### **Complete Installation**
+#### Database Issues
 ```bash
-# Install everything (run as root on Pi)
-sudo bash scripts/deployment/install-startup-system.sh
+# Check database integrity
+sqlite3 data/eform.db "PRAGMA integrity_check;"
+
+# Restore from backup
+cp backups/[latest]/eform.db.backup data/eform.db
+
+# Re-run migration
+sqlite3 data/eform.db < scripts/deployment/smart-assignment-migration.sql
 ```
 
-### **Individual Components**
+### Emergency Procedures
 
-#### **Systemd Services**
-```bash
-# Install systemd services
-sudo bash scripts/deployment/pi-startup-system.sh
-sudo systemctl daemon-reload
-sudo systemctl enable eform-locker eform-hardware-init eform-monitor
+For critical issues, see:
+- `docs/smart-assignment-system/emergency-procedures.md`
+- `docs/smart-assignment-system/deployment-procedures.md`
+
+## File Structure
+
+```
+scripts/deployment/
+├── README.md                                    # This file
+├── smart-assignment-migration.sql               # Database migration
+├── smart-assignment-rollback.sql                # Database rollback
+├── deploy-smart-assignment.sh                   # Automated deployment
+├── rollback-smart-assignment.sh                 # Automated rollback
+├── validate-smart-assignment-deployment.js      # Deployment validation
+├── verify-deployment.sh                         # Post-deployment verification
+└── setup-monitoring.sh                          # Monitoring setup
+
+monitoring/
+├── scripts/
+│   ├── health-check.sh                         # Service health checks
+│   ├── performance-monitor.sh                  # Performance monitoring
+│   ├── check-alerts.js                         # Alert monitoring
+│   └── dashboard.sh                            # Real-time dashboard
+├── config/
+│   ├── monitoring.json                         # Monitoring configuration
+│   ├── *.service                              # Systemd service files
+│   ├── *.timer                                # Systemd timer files
+│   └── crontab-example                        # Cron job examples
+└── install-monitoring.sh                       # Monitoring installation
+
+docs/smart-assignment-system/
+├── deployment-procedures.md                     # Comprehensive deployment guide
+└── emergency-procedures.md                      # Emergency response procedures
 ```
 
-#### **Boot Optimizations**
-```bash
-# Optimize Pi boot configuration
-sudo bash scripts/deployment/pi-boot-setup.sh
-sudo reboot
-```
+## Security Considerations
 
-#### **Service Management**
-```bash
-# Start services
-bash scripts/deployment/startup-services.sh
+### Backup Security
+- Backups contain sensitive data (RFID card IDs, user sessions)
+- Store backups in secure location with appropriate permissions
+- Consider encryption for long-term backup storage
 
-# Stop services
-bash scripts/deployment/stop-services.sh
+### Configuration Security
+- Configuration contains system parameters
+- Restrict access to configuration files
+- Audit configuration changes
 
-# Restart services
-bash scripts/deployment/restart-services.sh
+### Database Security
+- Database contains user data and system state
+- Use appropriate file permissions (600 or 640)
+- Regular integrity checks and backups
 
-# Health check
-bash scripts/deployment/health-check.sh
-```
+## Support and Documentation
 
-## 📋 Startup System Scripts
+### Additional Documentation
+- `docs/smart-assignment-system/deployment-procedures.md` - Detailed deployment procedures
+- `docs/smart-assignment-system/emergency-procedures.md` - Emergency response procedures
+- `.kiro/specs/smart-locker-assignment/` - Complete system specifications
 
-### **New Startup System Scripts**
-- `install-startup-system.sh` - **Complete installation script**
-- `pi-startup-system.sh` - Install systemd services
-- `pi-boot-setup.sh` - Optimize Pi boot configuration
-- `startup-services.sh` - Start all eForm services
-- `stop-services.sh` - Stop all services gracefully
-- `restart-services.sh` - Restart all services
-- `hardware-init.sh` - Initialize hardware on boot
-- `system-monitor.sh` - Continuous system monitoring
-- `health-check.sh` - Quick health verification
+### Getting Help
+1. Check deployment logs: `logs/smart-assignment-deployment.log`
+2. Run validation: `node scripts/deployment/validate-smart-assignment-deployment.js`
+3. Review troubleshooting section above
+4. Consult emergency procedures for critical issues
 
-## 🎯 Quick Start for New Pi Setup
+### Reporting Issues
+When reporting deployment issues, include:
+- Deployment log file
+- Validation report
+- System information (OS, Node.js version, available disk space)
+- Steps to reproduce the issue
+- Expected vs actual behavior
 
-### **Complete Pi Setup**
-```bash
-# 1. Clone project to Pi
-git clone <repository> /home/pi/eform-locker
-cd /home/pi/eform-locker
-
-# 2. Install startup system
-sudo bash scripts/deployment/install-startup-system.sh
-
-# 3. Reboot
-sudo reboot
-
-# 4. Check status
-eform-status
-```
-
-### **Service Management Commands**
-```bash
-# Check status
-sudo systemctl status eform-locker
-eform-status
-
-# Control services
-sudo systemctl start/stop/restart eform-locker
-
-# View logs
-eform-logs
-sudo journalctl -u eform-locker -f
-
-# Health check
-eform-health
-```
-
-## 🔧 Startup System Configuration
-
-### **Systemd Services**
-- `eform-locker.service` - Main application service
-- `eform-hardware-init.service` - Hardware initialization
-- `eform-monitor.service` - System monitoring
-
-### **Monitoring Features**
-- Health checks every 5 minutes
-- Service auto-restart on failure
-- Resource monitoring (CPU, memory, temperature)
-- Log rotation and cleanup
-- Hardware connectivity checks
-
-### **Quick Commands (Available after installation)**
-```bash
-eform-status    # Status dashboard
-eform-health    # Health check
-eform-logs      # View all logs
-eform-start     # Start services
-eform-stop      # Stop services
-eform-restart   # Restart services
-```
-
-## 📊 Status and Monitoring Files
-
-### **Status Files**
-```bash
-/home/pi/eform-locker/.startup-success      # Startup completion
-/home/pi/eform-locker/.system-status        # Current system status
-/home/pi/eform-locker/.system-alerts        # System alerts
-/home/pi/eform-locker/.hardware-init-status # Hardware status
-```
-
-### **Log Files**
-```bash
-/home/pi/eform-locker/logs/gateway.log       # Gateway service
-/home/pi/eform-locker/logs/kiosk.log         # Kiosk service
-/home/pi/eform-locker/logs/panel.log         # Panel service
-/home/pi/eform-locker/logs/system-monitor.log # System monitor
-/home/pi/eform-locker/logs/health-check.log  # Health checks
-```
-
-## 📚 Additional Documentation
-
-- **Complete Startup Guide**: `docs/raspberry-pi-startup-system.md`
-- **Troubleshooting**: `docs/kiosk-troubleshooting-guide.md`
-- **Performance**: `docs/raspberry-pi-performance-optimizations.md`
-
----
-
-**For complete Pi startup system installation, run:** `sudo bash scripts/deployment/install-startup-system.sh`
+This deployment artifacts package provides comprehensive tools for safe, reliable deployment and management of the Smart Locker Assignment System.

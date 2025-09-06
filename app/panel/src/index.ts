@@ -279,6 +279,15 @@ async function startPanelService() {
       console.error("❌ Failed to register hardware configuration routes:", error);
     }
 
+    // Register rate limit management routes
+    try {
+      const { rateLimitRoutes } = await import('./routes/rate-limit-routes');
+      await fastify.register(rateLimitRoutes);
+      console.log('✅ Rate limit management routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register rate limit routes:', error);
+    }
+
     // Register performance monitoring routes - TEMPORARILY DISABLED
     // TODO: Fix database connection issue in PerformanceMonitor
     /*
@@ -299,6 +308,59 @@ async function startPanelService() {
 
     // Register configuration routes
     await configController.registerRoutes();
+
+    // Register smart assignment configuration routes
+    try {
+      const { smartConfigRoutes } = await import('./routes/smart-config-routes');
+      await fastify.register(smartConfigRoutes, {
+        prefix: '/api/admin/config'
+      });
+      fastify.log.info('Smart assignment configuration routes registered successfully.');
+    } catch (error) {
+      fastify.log.error('Failed to register smart assignment configuration routes:', error);
+    }
+
+    // Register rollout management routes
+    try {
+      const { rolloutRoutes } = await import('./routes/rollout-routes');
+      await fastify.register(rolloutRoutes);
+      console.log('✅ Rollout management routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register rollout routes:', error);
+    }
+
+    // Register overdue and suspected locker management routes
+    try {
+      const { overdueSuspectedRoutes } = await import('./routes/overdue-suspected-routes');
+      await fastify.register(overdueSuspectedRoutes, {
+        prefix: '/api/admin/overdue-suspected',
+        dbManager
+      });
+      console.log('✅ Overdue and suspected locker management routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register overdue-suspected routes:', error);
+    }
+
+    // Register metrics and alerts dashboard routes
+    try {
+      const { metricsDashboardRoutes } = await import('./routes/metrics-dashboard-routes');
+      await fastify.register(metricsDashboardRoutes);
+      console.log('✅ Metrics and alerts dashboard routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register metrics dashboard routes:', error);
+    }
+
+    // Register session monitoring routes
+    try {
+      const { sessionRoutes } = await import('./routes/session-routes');
+      await fastify.register(sessionRoutes, {
+        prefix: '/api/admin/sessions',
+        dbManager
+      });
+      console.log('✅ Session monitoring routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register session routes:', error);
+    }
 
     // Initialize cookie cleanup service (temporarily disabled)
     // const cookieCleanupService = CookieCleanupService.getInstance();
@@ -388,6 +450,36 @@ async function startPanelService() {
     // Hardware configuration route
     fastify.get("/hardware-config", async (_request, reply) => {
       return reply.sendFile("hardware-config.html");
+    });
+
+    // Feature flags route
+    fastify.get("/feature-flags", async (_request, reply) => {
+      return reply.sendFile("feature-flags.html");
+    });
+
+    // Rollout dashboard route
+    fastify.get("/rollout", async (_request, reply) => {
+      return reply.sendFile("rollout-dashboard.html");
+    });
+
+    // Smart configuration route
+    fastify.get("/smart-config", async (_request, reply) => {
+      return reply.sendFile("smart-config.html");
+    });
+
+    // Overdue and suspected lockers management route
+    fastify.get("/overdue-suspected", async (_request, reply) => {
+      return reply.sendFile("overdue-suspected.html");
+    });
+
+    // Metrics and alerts dashboard route
+    fastify.get("/admin/metrics", async (_request, reply) => {
+      return reply.sendFile("metrics-dashboard.html");
+    });
+
+    // Live sessions monitoring route
+    fastify.get("/live-sessions", async (_request, reply) => {
+      return reply.sendFile("live-sessions.html");
     });
 
     // Clear cookies endpoint (fix browser conflicts)

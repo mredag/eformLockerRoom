@@ -1,0 +1,23 @@
+{
+  "rateLimits": {
+    "cardOpenIntervalSeconds": 10,
+    "lockerOpensPer60Seconds": 3,
+    "commandCooldownSeconds": 3,
+    "userReportsPerDay": 2
+  },
+  "messages": {
+    "throttled": "Lütfen birkaç saniye sonra deneyin",
+    "reportLimitReached": "Günlük rapor limitine ulaştınız",
+    "commandCooldown": "Lütfen birkaç saniye sonra deneyin",
+    "lockerBusy": "Lütfen birkaç saniye sonra deneyin"
+  },
+  "monitoring": {
+    "violationRetentionHours": 1,
+    "cleanupIntervalMinutes": 15,
+    "alertThresholds": {
+      "violationsPerMinute": 10,
+      "cardViolationsPerHour": 50,
+      "lockerViolationsPerHour": 30
+    }
+  }
+}

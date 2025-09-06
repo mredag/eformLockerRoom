@@ -1,16 +1,22 @@
 /**
  * Session Manager for Kiosk RFID Sessions
  * Implements requirements 1.1, 1.2, 1.4, 1.5 for session management
+ * Enhanced with smart assignment session tracking (Requirements 16.1-16.5)
  * 
  * Features:
- * - 20-second countdown timer with LARGE badge display
+ * - 20-second countdown timer with LARGE badge display (manual mode)
+ * - Config-driven session limits (180 minutes for smart assignment)
  * - One-session-per-kiosk rule with session cancellation
  * - Session cleanup and timeout handling
  * - Turkish language support for messages
  * - Performance monitoring integration (Requirements 8.1-8.4)
+ * - Smart session integration with extension support
  */
 
 import { EventEmitter } from 'events';
+import { SmartSessionManager, SmartSession } from '../../../shared/services/smart-session-manager';
+import { ConfigurationManager } from '../../../shared/services/configuration-manager';
+import { DatabaseManager } from '../../../shared/services/database-manager';
 
 export interface RfidSession {
   id: string;
@@ -43,8 +49,14 @@ export class SessionManager extends EventEmitter {
   private cleanupTimer: NodeJS.Timeout | null = null;
   private config: SessionManagerConfig;
   private performanceReportingEnabled: boolean = true;
+  private smartSessionManager: SmartSessionManager | null = null;
+  private configManager: ConfigurationManager | null = null;
 
-  constructor(config: Partial<SessionManagerConfig> = {}) {
+  constructor(
+    config: Partial<SessionManagerConfig> = {},
+    smartSessionManager?: SmartSessionManager,
+    configManager?: ConfigurationManager
+  ) {
     super();
     
     this.config = {
@@ -54,18 +66,64 @@ export class SessionManager extends EventEmitter {
       ...config
     };
 
+    this.smartSessionManager = smartSessionManager || null;
+    this.configManager = configManager || null;
+
     this.startCleanupTimer();
   }
 
   /**
    * Create a new RFID session for a kiosk
    * Implements one-session-per-kiosk rule by cancelling existing sessions
+   * Integrates with smart session manager when smart assignment is enabled
    */
-  createSession(kioskId: string, cardId: string, availableLockers?: number[]): RfidSession {
+  async createSession(kioskId: string, cardId: string, availableLockers?: number[]): Promise<RfidSession> {
+    // Check if smart assignment is enabled for this kiosk
+    const isSmartAssignmentEnabled = await this.isSmartAssignmentEnabled(kioskId);
+    
+    if (isSmartAssignmentEnabled && this.smartSessionManager) {
+      // Create smart session instead of regular session
+      const smartSession = await this.smartSessionManager.createSmartSession(cardId, kioskId);
+      
+      // Convert smart session to RFID session format for backward compatibility
+      const rfidSession: RfidSession = {
+        id: smartSession.id,
+        kioskId: smartSession.kioskId,
+        cardId: smartSession.cardId,
+        startTime: smartSession.startTime,
+        timeoutSeconds: this.getRemainingMinutes(smartSession) * 60, // Convert minutes to seconds
+        status: smartSession.status as any,
+        availableLockers
+      };
+
+      console.log(`🔑 Created smart session ${smartSession.id} for card ${cardId} on kiosk ${kioskId} (${this.getRemainingMinutes(smartSession)}min limit)`);
+      
+      this.emit('session_created', {
+        type: 'session_created',
+        sessionId: smartSession.id,
+        data: {
+          session: rfidSession,
+          message: 'Kart okundu. Akıllı atama aktif',
+          timeoutSeconds: rfidSession.timeoutSeconds,
+          isSmartSession: true
+        }
+      });
+
+      return rfidSession;
+    }
+
+    // Fall back to regular session management for manual mode
+    return this.createRegularSession(kioskId, cardId, availableLockers);
+  }
+
+  /**
+   * Create a regular RFID session (manual mode)
+   */
+  private createRegularSession(kioskId: string, cardId: string, availableLockers?: number[]): RfidSession {
     // Cancel any existing session for this kiosk (one-session-per-kiosk rule)
     const existingSessionId = this.kioskSessions.get(kioskId);
     if (existingSessionId) {
-      this.cancelSession(existingSessionId, 'Yeni kart okundu. Önceki oturum kapatıldı.');
+      await this.cancelSession(existingSessionId, 'Yeni kart okundu. Önceki oturum kapatıldı.');
     }
 
     // Create new session
@@ -107,8 +165,27 @@ export class SessionManager extends EventEmitter {
 
   /**
    * Get active session for a kiosk
+   * Checks both regular sessions and smart sessions
    */
-  getKioskSession(kioskId: string): RfidSession | null {
+  async getKioskSession(kioskId: string): Promise<RfidSession | null> {
+    // Check smart sessions first if smart assignment is enabled
+    const isSmartAssignmentEnabled = await this.isSmartAssignmentEnabled(kioskId);
+    
+    if (isSmartAssignmentEnabled && this.smartSessionManager) {
+      const smartSession = await this.smartSessionManager.getKioskSession(kioskId);
+      if (smartSession) {
+        return this.convertSmartSessionToRfid(smartSession);
+      }
+    }
+
+    // Fall back to regular session
+    return this.getRegularKioskSession(kioskId);
+  }
+
+  /**
+   * Get regular kiosk session (manual mode)
+   */
+  private getRegularKioskSession(kioskId: string): RfidSession | null {
     const sessionId = this.kioskSessions.get(kioskId);
     if (!sessionId) return null;
 
@@ -123,16 +200,70 @@ export class SessionManager extends EventEmitter {
 
   /**
    * Get session by ID
+   * Checks both regular sessions and smart sessions
    */
-  getSession(sessionId: string): RfidSession | null {
+  async getSession(sessionId: string): Promise<RfidSession | null> {
+    // Check smart sessions first
+    if (this.smartSessionManager) {
+      const smartSession = await this.smartSessionManager.getSession(sessionId);
+      if (smartSession) {
+        return this.convertSmartSessionToRfid(smartSession);
+      }
+    }
+
+    // Fall back to regular session
+    return this.getRegularSession(sessionId);
+  }
+
+  /**
+   * Get regular session by ID
+   */
+  private getRegularSession(sessionId: string): RfidSession | null {
     const session = this.sessions.get(sessionId);
     return session && session.status === 'active' ? session : null;
   }
 
   /**
    * Complete a session (when locker is selected)
+   * Handles both regular sessions and smart sessions
    */
-  completeSession(sessionId: string, selectedLockerId?: number): boolean {
+  async completeSession(sessionId: string, selectedLockerId?: number): Promise<boolean> {
+    // Check if this is a smart session
+    if (this.smartSessionManager) {
+      const smartSession = await this.smartSessionManager.getSession(sessionId);
+      if (smartSession) {
+        // Update smart session with locker assignment if provided
+        if (selectedLockerId) {
+          await this.smartSessionManager.updateSession(sessionId, { 
+            lockerId: selectedLockerId,
+            lastSeen: new Date()
+          });
+        }
+        
+        await this.smartSessionManager.completeSession(sessionId, 'completed');
+        console.log(`✅ Completed smart session ${sessionId} (locker: ${selectedLockerId})`);
+        
+        this.emit('session_completed', {
+          type: 'session_completed',
+          sessionId,
+          data: {
+            session: this.convertSmartSessionToRfid(smartSession),
+            message: 'Oturum tamamlandı'
+          }
+        });
+        
+        return true;
+      }
+    }
+
+    // Fall back to regular session completion
+    return this.completeRegularSession(sessionId, selectedLockerId);
+  }
+
+  /**
+   * Complete a regular session
+   */
+  private completeRegularSession(sessionId: string, selectedLockerId?: number): boolean {
     const session = this.sessions.get(sessionId);
     if (!session || session.status !== 'active') {
       return false;
@@ -171,8 +302,38 @@ export class SessionManager extends EventEmitter {
 
   /**
    * Cancel a session (when new card is scanned or manual cancellation)
+   * Handles both regular sessions and smart sessions
    */
-  cancelSession(sessionId: string, reason: string = 'Oturum iptal edildi'): boolean {
+  async cancelSession(sessionId: string, reason: string = 'Oturum iptal edildi'): Promise<boolean> {
+    // Check if this is a smart session
+    if (this.smartSessionManager) {
+      const smartSession = await this.smartSessionManager.getSession(sessionId);
+      if (smartSession) {
+        await this.smartSessionManager.completeSession(sessionId, 'cancelled');
+        console.log(`❌ Cancelled smart session ${sessionId}: ${reason}`);
+        
+        this.emit('session_cancelled', {
+          type: 'session_cancelled',
+          sessionId,
+          data: {
+            session: this.convertSmartSessionToRfid(smartSession),
+            reason,
+            message: reason
+          }
+        });
+        
+        return true;
+      }
+    }
+
+    // Fall back to regular session cancellation
+    return this.cancelRegularSession(sessionId, reason);
+  }
+
+  /**
+   * Cancel a regular session
+   */
+  private cancelRegularSession(sessionId: string, reason: string): boolean {
     const session = this.sessions.get(sessionId);
     if (!session || session.status !== 'active') {
       return false;
@@ -473,5 +634,93 @@ export class SessionManager extends EventEmitter {
   setPerformanceReporting(enabled: boolean): void {
     this.performanceReportingEnabled = enabled;
     console.log(`📊 Performance reporting ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Get smart session for a card (smart assignment mode)
+   */
+  async getSmartSession(cardId: string): Promise<SmartSession | null> {
+    if (!this.smartSessionManager) {
+      return null;
+    }
+    return await this.smartSessionManager.getActiveSession(cardId);
+  }
+
+  /**
+   * Extend smart session (admin function)
+   */
+  async extendSmartSession(sessionId: string, adminUser: string, reason: string): Promise<boolean> {
+    if (!this.smartSessionManager) {
+      console.log(`❌ Cannot extend session ${sessionId}: smart session manager not available`);
+      return false;
+    }
+
+    const success = await this.smartSessionManager.extendSession(sessionId, adminUser, reason);
+    
+    if (success) {
+      this.emit('session_extended', { sessionId, adminUser, reason });
+    }
+
+    return success;
+  }
+
+  /**
+   * Get remaining time for smart session in minutes
+   */
+  async getSmartSessionRemainingMinutes(sessionId: string): Promise<number> {
+    if (!this.smartSessionManager) {
+      return 0;
+    }
+
+    const session = await this.smartSessionManager.getSession(sessionId);
+    if (!session) {
+      return 0;
+    }
+
+    return this.smartSessionManager.getRemainingMinutes(session);
+  }
+
+  /**
+   * Check if smart assignment is enabled for a kiosk
+   */
+  private async isSmartAssignmentEnabled(kioskId: string): Promise<boolean> {
+    if (!this.configManager) {
+      return false;
+    }
+
+    try {
+      const config = await this.configManager.getEffectiveConfig(kioskId);
+      return config.smart_assignment_enabled === true;
+    } catch (error) {
+      console.error('Error checking smart assignment config:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Convert SmartSession to RfidSession for backward compatibility
+   */
+  private convertSmartSessionToRfid(smartSession: SmartSession): RfidSession {
+    const remainingMinutes = this.smartSessionManager?.getRemainingMinutes(smartSession) || 0;
+    
+    return {
+      id: smartSession.id,
+      kioskId: smartSession.kioskId,
+      cardId: smartSession.cardId,
+      startTime: smartSession.startTime,
+      timeoutSeconds: remainingMinutes * 60, // Convert minutes to seconds
+      status: smartSession.status as any,
+      selectedLockerId: smartSession.lockerId
+    };
+  }
+
+  /**
+   * Get remaining minutes for a smart session
+   */
+  private getRemainingMinutes(smartSession: SmartSession): number {
+    if (!this.smartSessionManager) {
+      return 0;
+    }
+    return this.smartSessionManager.getRemainingMinutes(smartSession);
   }
 }

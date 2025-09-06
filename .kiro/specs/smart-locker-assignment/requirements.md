@@ -25,7 +25,7 @@ This feature implements a zero-touch automatic locker assignment system that rep
 #### Acceptance Criteria
 
 1. WHEN calculating locker scores THEN the system SHALL use formula: score = base_score + score_factor_a×free_hours + score_factor_b×hours_since_last_owner
-2. WHEN a locker is in quarantine THEN the system SHALL multiply its score by 0.2
+2. WHEN a locker is in quarantine THEN the system SHALL exclude it from the assignment pool
 3. WHEN calculating final score THEN the system SHALL divide by (1 + score_factor_g×wear_count)
 4. WHEN reducing starvation THEN the system SHALL optionally add score_factor_d×waiting_hours to score
 5. WHEN selecting from candidates THEN the system SHALL take top_k_candidates scored lockers and use weighted random selection with selection_temperature
@@ -112,7 +112,9 @@ This feature implements a zero-touch automatic locker assignment system that rep
 2. WHEN feature flag is ON THEN the system SHALL never render locker selection list to DOM
 3. WHEN in either mode THEN existing APIs SHALL continue to work without modification
 4. WHEN switching modes THEN no service restart SHALL be required
-5. WHEN rollback is needed THEN the system SHALL immediately revert to manual mode via configuration
+5. WHEN rollback is needed THEN the system SHALL immediately revert to manual mode via configuration at `/feature-flags`
+6. WHEN feature flag changes THEN system SHALL log "Smart assignment enabled/disabled for kiosk {kioskId} by {editor}" without card data
+7. WHEN default state is set THEN smart assignment SHALL be OFF by default
 
 ### Requirement 10: Administrative Interface and Monitoring
 
@@ -132,11 +134,11 @@ This feature implements a zero-touch automatic locker assignment system that rep
 
 #### Acceptance Criteria
 
-1. WHEN system is idle THEN display SHALL show "Kartınızı okutun"
-2. WHEN new locker is assigned THEN display SHALL show "Dolabınız açıldı. Eşyalarınızı yerleştirin"
-3. WHEN returning to existing locker THEN display SHALL show "Önceki dolabınız açıldı"
-4. WHEN session is overdue THEN display SHALL show "Süreniz doldu. Almanız için açılıyor"
-5. WHEN locker is reported occupied THEN display SHALL show "Dolap dolu bildirildi. Yeni dolap açılıyor"
+1. WHEN system is idle THEN display SHALL show "Kartınızı okutun."
+2. WHEN new locker is assigned THEN display SHALL show "Dolabınız açıldı. Eşyalarınızı yerleştirin."
+3. WHEN returning to existing locker THEN display SHALL show "Önceki dolabınız açıldı."
+4. WHEN session is overdue THEN display SHALL show "Süreniz doldu. Almanız için açılıyor."
+5. WHEN locker is reported occupied THEN display SHALL show "Dolap dolu bildirildi. Yeni dolap açılıyor."
 
 ### Requirement 12: Dynamic Quarantine Management
 
@@ -169,7 +171,7 @@ This feature implements a zero-touch automatic locker assignment system that rep
 #### Acceptance Criteria
 
 1. WHEN free_ratio is ≥ 0.5 THEN owner hot window SHALL be set to 30 minutes
-2. WHEN free_ratio is ≤ 0.1 THEN owner hot window SHALL be set to 10 minutes  
+2. WHEN free_ratio is ≤ 0.1 THEN owner hot window SHALL be disabled  
 3. WHEN free_ratio is between 0.1 and 0.5 THEN system SHALL interpolate linearly between 10 and 30 minutes
 4. WHEN owner hot window is active THEN system SHALL exclude locker from assignment to other users
 5. WHEN owner hot window expires THEN locker SHALL return to general assignment pool

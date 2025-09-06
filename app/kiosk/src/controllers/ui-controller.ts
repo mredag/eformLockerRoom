@@ -6,12 +6,22 @@ import { LockerNamingService } from '../../../../shared/services/locker-naming-s
 import { ModbusController } from '../hardware/modbus-controller';
 import { SessionManager } from './session-manager';
 import { lockerLayoutService } from '../../../../shared/services/locker-layout-service';
+import { getFeatureFlagService } from '../../../../shared/services/feature-flag-service';
+import { AssignmentEngine } from '../../../../shared/services/assignment-engine';
+import { getConfigurationManager } from '../../../../shared/services/configuration-manager';
+import { DatabaseConnection } from '../../../../shared/database/connection';
+import { get_rate_limiter } from '../../../../shared/services/rate-limiter';
+import { check_locker_open_rate_limits, record_successful_operation } from '../../../../shared/middleware/rate-limit-middleware';
+import { UI_MESSAGES, validateAndMapMessage } from '../../../../shared/constants/ui-messages';
 
 export class UiController {
   private lockerStateManager: LockerStateManager;
   private modbusController: ModbusController;
   private lockerNamingService: LockerNamingService;
   private sessionManager: SessionManager;
+  private featureFlagService = getFeatureFlagService();
+  private assignmentEngine: AssignmentEngine;
+  private rateLimiter = get_rate_limiter();
   private masterPin: string = '1234'; // TODO: Load from config
   private pinAttempts: Map<string, { count: number; lockoutEnd?: number }> = new Map();
   private readonly maxAttempts = 5;
@@ -33,8 +43,27 @@ export class UiController {
       maxSessionsPerKiosk: 1
     });
 
+    // Initialize assignment engine for smart assignment
+    const db = DatabaseConnection.getInstance();
+    const configManager = getConfigurationManager(db);
+    this.assignmentEngine = new AssignmentEngine(db, lockerStateManager, configManager);
+
     this.setupSessionManagerEvents();
     this.setupHardwareErrorHandling();
+    this.setupSensorlessMessageHandling();
+  }
+
+  /**
+   * Get static configuration values for MVP
+   * Task requirement: Use static windows for MVP: quarantine_min=20, reclaim_min=60
+   */
+  private getStaticMVPConfig() {
+    return {
+      quarantine_minutes: 20,
+      reclaim_minutes: 60,
+      session_limit_minutes: 180,
+      return_hold_minutes: 15
+    };
   }
 
   /**
@@ -137,6 +166,21 @@ export class UiController {
       return this.getLockerTiles(request, reply);
     });
 
+    // User report endpoint for suspected occupied lockers
+    fastify.post('/api/user/report-occupied', async (request: FastifyRequest, reply: FastifyReply) => {
+      return this.reportOccupiedLocker(request, reply);
+    });
+
+    // Rate limit status endpoint for monitoring
+    fastify.get('/api/rate-limit/status', async (request: FastifyRequest, reply: FastifyReply) => {
+      return this.getRateLimitStatus(request, reply);
+    });
+
+    // Feature flag status endpoint for UI
+    fastify.get('/api/feature-flags/smart-assignment', async (request: FastifyRequest, reply: FastifyReply) => {
+      return this.getSmartAssignmentStatus(request, reply);
+    });
+
     // Register enhanced feedback routes
     await this.registerEnhancedFeedbackRoutes(fastify);
   }
@@ -176,21 +220,265 @@ export class UiController {
 
   private async handleCardScanned(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { card_id, kiosk_id } = request.body as { card_id: string; kiosk_id: string };
+      const { card_id, kiosk_id, timestamp } = request.body as { 
+        card_id: string; 
+        kiosk_id: string; 
+        timestamp?: string;
+      };
       
       if (!card_id || !kiosk_id) {
         reply.code(400);
         return { error: 'card_id and kiosk_id are required' };
       }
 
-      console.log(`🎯 Card scanned: ${card_id} on kiosk ${kiosk_id}`);
+      request.log.info({ action: 'card_scanned', kiosk_id }, 'Card scanned on kiosk');
+
+      // Check card-based rate limiting before assignment
+      const card_rate_check = await this.rateLimiter.check_card_rate(card_id, kiosk_id);
+      if (!card_rate_check.allowed) {
+        request.log.warn({ 
+          action: 'rate_limit_exceeded', 
+          type: card_rate_check.type, 
+          key: card_rate_check.key,
+          kiosk_id 
+        }, 'Rate limit exceeded');
+        
+        const response = {
+          success: false,
+          error: 'rate_limit_exceeded',
+          type: card_rate_check.type,
+          key: card_rate_check.key,
+          message: card_rate_check.message,
+          retry_after_seconds: card_rate_check.retry_after_seconds
+        };
+        
+        // Log API response as required
+        request.log.info({ action: 'rate_limit', message: response.message }, 'API response');
+        
+        reply.code(429);
+        return response;
+      }
+
+      // Record card scan for sensorless retry detection
+      this.modbusController.recordCardScan(card_id);
+
+      // Check feature flag to determine assignment mode
+      const smartAssignmentEnabled = await this.featureFlagService.isSmartAssignmentEnabled(kiosk_id);
+      request.log.info({ 
+        action: 'feature_flag_check', 
+        smart_assignment_enabled: smartAssignmentEnabled,
+        kiosk_id 
+      }, `Smart assignment ${smartAssignmentEnabled ? 'enabled' : 'disabled'} for kiosk`);
+
+      if (smartAssignmentEnabled) {
+        // Route to smart assignment engine
+        request.log.info({ action: 'smart_assignment_start', kiosk_id }, 'Smart assignment mode - routing to assignment engine');
+        
+        try {
+          const assignmentResult = await this.assignmentEngine.assignLocker({
+            cardId: card_id,
+            kioskId: kiosk_id,
+            timestamp: timestamp ? new Date(timestamp) : new Date()
+          });
+
+          if (assignmentResult.success && assignmentResult.lockerId) {
+            // Check all rate limits before relay command
+            const rate_limit_check = await this.rateLimiter.check_all_limits(card_id, assignmentResult.lockerId, kiosk_id);
+            if (!rate_limit_check.allowed) {
+              request.log.warn({ 
+                action: 'rate_limit_exceeded', 
+                type: rate_limit_check.type, 
+                key: rate_limit_check.key,
+                kiosk_id,
+                locker_id: assignmentResult.lockerId
+              }, 'Rate limit exceeded for smart assignment');
+              
+              const response = {
+                success: false,
+                error: 'rate_limit_exceeded',
+                type: rate_limit_check.type,
+                key: rate_limit_check.key,
+                message: rate_limit_check.message,
+                retry_after_seconds: rate_limit_check.retry_after_seconds,
+                mode: 'smart'
+              };
+              
+              // Log API response as required
+              request.log.info({ action: 'rate_limit', message: response.message }, 'API response');
+              
+              return response;
+            }
+
+            // Attempt to open the assigned locker
+            let hardwareSuccess = false;
+            let hardwareError: string | null = null;
+            
+            try {
+              // Use sensorless retry handler for smart assignment
+              const retryResult = await this.modbusController.openLockerWithSensorlessRetry(
+                assignmentResult.lockerId, 
+                card_id
+              );
+              
+              hardwareSuccess = retryResult.success;
+              
+              if (!hardwareSuccess) {
+                hardwareError = `Sensorless open failed: ${retryResult.action}`;
+                request.log.error({ 
+                  action: 'sensorless_open_failed', 
+                  locker_id: assignmentResult.lockerId,
+                  retry_action: retryResult.action,
+                  message: retryResult.message,
+                  kiosk_id
+                }, 'Sensorless open failed for assigned locker');
+              } else {
+                request.log.info({ 
+                  action: 'sensorless_open_success', 
+                  locker_id: assignmentResult.lockerId,
+                  retry_action: retryResult.action,
+                  kiosk_id
+                }, 'Sensorless open successful for assigned locker');
+              }
+            } catch (error) {
+              hardwareError = error instanceof Error ? error.message : String(error);
+              request.log.error({ 
+                action: 'hardware_error', 
+                locker_id: assignmentResult.lockerId,
+                error: hardwareError,
+                kiosk_id
+              }, 'Hardware error opening assigned locker');
+            }
+
+            if (hardwareSuccess) {
+              // Record successful operation for rate limiting
+              await record_successful_operation(card_id, assignmentResult.lockerId, 'open', kiosk_id);
+              
+              request.log.info({ 
+                action: 'smart_assignment_success', 
+                locker_id: assignmentResult.lockerId,
+                assignment_action: assignmentResult.action,
+                kiosk_id
+              }, 'Smart assignment successful: locker opened');
+              
+              const response = {
+                success: true,
+                action: assignmentResult.action,
+                locker_id: assignmentResult.lockerId,
+                message: assignmentResult.message,
+                mode: 'smart',
+                session_id: assignmentResult.sessionId
+              };
+              
+              // Log API response as required
+              request.log.info({ action: response.action, message: response.message }, 'API response');
+              
+              return response;
+            } else {
+              // Hardware failure - need to release the assignment
+              try {
+                await this.lockerStateManager.releaseLocker(kiosk_id, assignmentResult.lockerId, card_id);
+                request.log.info({ 
+                  action: 'assignment_released', 
+                  locker_id: assignmentResult.lockerId,
+                  reason: 'hardware_failure',
+                  kiosk_id
+                }, 'Released locker assignment due to hardware failure');
+              } catch (releaseError) {
+                request.log.error({ 
+                  action: 'release_failed', 
+                  locker_id: assignmentResult.lockerId,
+                  error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+                  kiosk_id
+                }, 'Failed to release locker after hardware failure');
+              }
+
+              const response = {
+                success: false,
+                error: 'hardware_failure',
+                message: UI_MESSAGES.error,
+                mode: 'smart'
+              };
+              
+              // Log API response as required
+              request.log.info({ action: 'hardware_failure', message: response.message }, 'API response');
+              
+              return response;
+            }
+          } else {
+            // Assignment failed (no stock, etc.)
+            const response = {
+              success: false,
+              error: assignmentResult.errorCode || 'assignment_failed',
+              message: assignmentResult.message,
+              mode: 'smart'
+            };
+            
+            // Log API response as required
+            request.log.info({ action: assignmentResult.action, message: response.message }, 'API response');
+            
+            return response;
+          }
+        } catch (error) {
+          request.log.error({ 
+            action: 'assignment_engine_error', 
+            error: error instanceof Error ? error.message : String(error),
+            kiosk_id
+          }, 'Smart assignment engine error');
+          
+          const response = {
+            success: false,
+            error: 'assignment_engine_error',
+            message: UI_MESSAGES.error,
+            mode: 'smart'
+          };
+          
+          // Log API response as required
+          request.log.info({ action: 'assignment_engine_error', message: response.message }, 'API response');
+          
+          return response;
+        }
+      }
+
+      // Continue with manual assignment mode (backward compatibility)
+      request.log.info({ action: 'manual_mode_start', kiosk_id }, 'Manual assignment mode - showing locker selection');
 
       // Requirement 2.1: Check if card already has a locker assigned
       const existingLocker = await this.lockerStateManager.checkExistingOwnership(card_id, 'rfid');
       
       if (existingLocker) {
+        // Check all rate limits before relay command for existing locker
+        const rate_limit_check = await this.rateLimiter.check_all_limits(card_id, existingLocker.id, kiosk_id);
+        if (!rate_limit_check.allowed) {
+          request.log.warn({ 
+            action: 'rate_limit_exceeded', 
+            type: rate_limit_check.type, 
+            key: rate_limit_check.key,
+            locker_id: existingLocker.id,
+            kiosk_id
+          }, 'Rate limit exceeded for existing locker');
+          
+          const response = {
+            success: false,
+            error: 'rate_limit_exceeded',
+            type: rate_limit_check.type,
+            key: rate_limit_check.key,
+            message: rate_limit_check.message,
+            retry_after_seconds: rate_limit_check.retry_after_seconds,
+            mode: 'manual'
+          };
+          
+          // Log API response as required
+          request.log.info({ action: 'rate_limit', message: response.message }, 'API response');
+          
+          return response;
+        }
+
         // Requirement 2.2: Open existing locker and release assignment with enhanced error handling
-        console.log(`🔓 Opening existing locker ${existingLocker.id} for card ${card_id}`);
+        request.log.info({ 
+          action: 'opening_existing_locker', 
+          locker_id: existingLocker.id,
+          kiosk_id
+        }, 'Opening existing locker');
         
         let success = false;
         let hardwareError: string | null = null;
@@ -199,62 +487,109 @@ export class UiController {
           success = await this.modbusController.openLocker(existingLocker.id);
         } catch (error) {
           hardwareError = error instanceof Error ? error.message : String(error);
-          console.error(`❌ Hardware error opening existing locker ${existingLocker.id}: ${hardwareError}`);
+          request.log.error({ 
+            action: 'hardware_error', 
+            locker_id: existingLocker.id,
+            error: hardwareError,
+            kiosk_id
+          }, 'Hardware error opening existing locker');
           success = false;
         }
         
         if (success) {
+          // Record successful operation for rate limiting
+          await record_successful_operation(card_id, existingLocker.id, 'open', kiosk_id);
+          
           await this.lockerStateManager.releaseLocker(existingLocker.kiosk_id, existingLocker.id, card_id);
-          console.log(`✅ Locker ${existingLocker.id} opened and released for card ${card_id}`);
+          request.log.info({ 
+            action: 'existing_locker_success', 
+            locker_id: existingLocker.id,
+            kiosk_id
+          }, 'Locker opened and released');
           
           const lockerName = await this.getLockerDisplayName(existingLocker.kiosk_id, existingLocker.id);
-          return { 
-            action: 'open_locker', 
+          const response = { 
+            success: true,
+            action: 'open_existing', 
             locker_id: existingLocker.id,
-            message: `${lockerName} açıldı ve bırakıldı`
+            message: UI_MESSAGES.success_existing,
+            mode: 'manual'
           };
+          
+          // Log API response as required
+          request.log.info({ action: response.action, message: response.message }, 'API response');
+          
+          return response;
         } else {
-          console.error(`❌ Failed to open existing locker ${existingLocker.id} for card ${card_id}`);
+          request.log.error({ 
+            action: 'existing_locker_failed', 
+            locker_id: existingLocker.id,
+            hardware_error: hardwareError,
+            kiosk_id
+          }, 'Failed to open existing locker');
           
           // Determine appropriate error message based on hardware status (Requirement 4.4)
           const hardwareStatus = this.modbusController.getHardwareStatus();
-          let errorMessage = 'Dolap açılamadı - Tekrar deneyin';
+          let errorMessage = UI_MESSAGES.error;
           let errorCode = 'failed_open';
           
           if (!hardwareStatus.available) {
-            errorMessage = 'Sistem bakımda - Görevliye başvurun';
+            errorMessage = UI_MESSAGES.error;
             errorCode = 'hardware_unavailable';
           } else if (hardwareError) {
-            errorMessage = 'Bağlantı hatası - Tekrar deneyin';
+            errorMessage = UI_MESSAGES.error;
             errorCode = 'connection_error';
           }
           
-          return { 
+          const response = { 
+            success: false,
             error: errorCode,
             message: errorMessage,
+            mode: 'manual',
             hardware_status: {
               available: hardwareStatus.available,
               error_rate: hardwareStatus.diagnostics.errorRate
             }
           };
+          
+          // Log API response as required
+          request.log.info({ action: errorCode, message: response.message }, 'API response');
+          
+          return response;
         }
       } else {
         // Requirement 2.3: Show available lockers for selection
         const availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id);
         
         if (availableLockers.length === 0) {
-          console.log(`⚠️ No available lockers for kiosk ${kiosk_id}`);
-          return { 
+          request.log.warn({ 
+            action: 'no_available_lockers', 
+            kiosk_id
+          }, 'No available lockers for kiosk');
+          
+          const response = { 
+            success: false,
             error: 'no_lockers',
-            message: 'Müsait dolap yok - Daha sonra deneyin'
+            message: UI_MESSAGES.no_stock,
+            mode: 'manual'
           };
+          
+          // Log API response as required
+          request.log.info({ action: 'no_lockers', message: response.message }, 'API response');
+          
+          return response;
         }
 
         // Cancel any existing session for this kiosk (Requirement 3.5)
         const existingSession = this.sessionManager.getKioskSession(kiosk_id);
         if (existingSession) {
           this.sessionManager.cancelSession(existingSession.id, 'Yeni kart okundu');
-          console.log(`🔄 Cancelled existing session for new card scan`);
+          request.log.info({ 
+            action: 'session_cancelled', 
+            session_id: existingSession.id,
+            reason: 'new_card_scan',
+            kiosk_id
+          }, 'Cancelled existing session for new card scan');
         }
 
         // Create a 30-second session (Requirement 3.1)
@@ -264,27 +599,51 @@ export class UiController {
           availableLockers.map(l => l.id)
         );
 
-        console.log(`🔑 Created session ${session.id} for card ${card_id} with ${availableLockers.length} available lockers`);
+        request.log.info({ 
+          action: 'session_created', 
+          session_id: session.id,
+          available_lockers_count: availableLockers.length,
+          kiosk_id
+        }, 'Created session with available lockers');
 
-        return {
+        const response = {
+          success: true,
           action: 'show_lockers',
           session_id: session.id,
           timeout_seconds: session.timeoutSeconds,
-          message: 'Kart okundu. Dolap seçin',
+          message: validateAndMapMessage('Kart okundu. Dolap seçin'),
+          mode: 'manual',
           lockers: availableLockers.map(locker => ({
             id: locker.id,
             status: locker.status,
             display_name: locker.displayName
           }))
         };
+        
+        // Log API response as required
+        request.log.info({ action: response.action, message: response.message }, 'API response');
+        
+        return response;
       }
     } catch (error) {
-      console.error('Error handling card scan:', error);
-      reply.code(500);
-      return { 
+      request.log.error({ 
+        action: 'card_scan_error', 
+        error: error instanceof Error ? error.message : String(error),
+        kiosk_id
+      }, 'Error handling card scan');
+      
+      const response = { 
+        success: false,
         error: 'error_server',
-        message: 'Sistem hatası - Tekrar deneyin'
+        message: UI_MESSAGES.error,
+        mode: 'unknown'
       };
+      
+      // Log API response as required
+      request.log.info({ action: 'error_server', message: response.message }, 'API response');
+      
+      reply.code(500);
+      return response;
     }
   }
 
@@ -401,6 +760,19 @@ export class UiController {
       const cardId = session.cardId;
       console.log(`🎯 Selecting locker ${locker_id} for card ${cardId} on kiosk ${kiosk_id}`);
 
+      // Check rate limits before assignment and relay command
+      const rate_limit_check = await this.rateLimiter.check_all_limits(cardId, locker_id, kiosk_id);
+      if (!rate_limit_check.allowed) {
+        console.log(`Rate limit exceeded: type=${rate_limit_check.type}, key=${rate_limit_check.key}`);
+        return {
+          error: 'rate_limit_exceeded',
+          type: rate_limit_check.type,
+          key: rate_limit_check.key,
+          message: rate_limit_check.message,
+          retry_after_seconds: rate_limit_check.retry_after_seconds
+        };
+      }
+
       // Validate that the locker is in the session's available lockers
       if (!session.availableLockers?.includes(locker_id)) {
         console.error(`❌ Locker ${locker_id} not in session's available lockers`);
@@ -439,6 +811,9 @@ export class UiController {
       }
       
       if (opened) {
+        // Record successful operation for rate limiting
+        await record_successful_operation(cardId, locker_id, 'open', kiosk_id);
+        
         // Confirm ownership after successful opening
         await this.lockerStateManager.confirmOwnership(kiosk_id, locker_id);
         
@@ -573,6 +948,19 @@ export class UiController {
         return { error: 'locker_id and kiosk_id are required' };
       }
 
+      // Check command cooldown for master operations
+      const command_cooldown_check = await this.rateLimiter.check_command_cooldown(kiosk_id);
+      if (!command_cooldown_check.allowed) {
+        console.log(`Rate limit exceeded: type=${command_cooldown_check.type}, key=${command_cooldown_check.key}`);
+        return {
+          error: 'rate_limit_exceeded',
+          type: command_cooldown_check.type,
+          key: command_cooldown_check.key,
+          message: command_cooldown_check.message,
+          retry_after_seconds: command_cooldown_check.retry_after_seconds
+        };
+      }
+
       // Open the locker with enhanced error handling
       console.log(`🔧 Master attempting to open locker ${locker_id} on kiosk ${kiosk_id}`);
       
@@ -588,6 +976,9 @@ export class UiController {
       }
       
       if (opened) {
+        // Record command for rate limiting
+        await record_successful_operation('master', locker_id, 'command', kiosk_id);
+        
         // Release the locker (set to Free status)
         await this.lockerStateManager.releaseLocker(kiosk_id, locker_id);
         
@@ -621,6 +1012,121 @@ export class UiController {
       console.error('Error in master open locker:', error);
       reply.code(500);
       return { error: 'error_server' };
+    }
+  }
+
+  private async reportOccupiedLocker(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { card_id, locker_id, kiosk_id } = request.body as { 
+        card_id: string; 
+        locker_id: number; 
+        kiosk_id: string 
+      };
+      
+      if (!card_id || !locker_id || !kiosk_id) {
+        reply.code(400);
+        return { 
+          error: 'missing_parameters',
+          message: 'Card ID, Locker ID ve Kiosk ID gerekli'
+        };
+      }
+
+      // Check user report rate limiting
+      const report_rate_check = await this.rateLimiter.check_user_report_rate(card_id, kiosk_id);
+      if (!report_rate_check.allowed) {
+        console.log(`Rate limit exceeded: type=${report_rate_check.type}, key=${report_rate_check.key}`);
+        return {
+          success: false,
+          error: 'rate_limit_exceeded',
+          type: report_rate_check.type,
+          key: report_rate_check.key,
+          message: report_rate_check.message,
+          retry_after_seconds: report_rate_check.retry_after_seconds
+        };
+      }
+
+      // Record the user report
+      await record_successful_operation(card_id, locker_id, 'report', kiosk_id);
+      
+      // Log the report
+      console.log(`📋 User report: Card ${card_id} reported locker ${locker_id} as occupied on kiosk ${kiosk_id}`);
+      
+      // TODO: Implement actual report handling logic
+      // This would typically:
+      // 1. Mark locker as suspected occupied
+      // 2. Trigger admin notification
+      // 3. Assign alternative locker to user
+      
+      return {
+        success: true,
+        message: 'Rapor alındı. Yeni dolap atanıyor...',
+        reported_locker: locker_id
+      };
+    } catch (error) {
+      console.error('Error reporting occupied locker:', error);
+      reply.code(500);
+      return { 
+        error: 'server_error',
+        message: 'Rapor gönderilemedi - Tekrar deneyin'
+      };
+    }
+  }
+
+  private async getRateLimitStatus(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const rate_limiter = get_rate_limiter();
+      const recent_violations = rate_limiter.get_recent_violations(10);
+      const state = rate_limiter.get_state();
+      
+      return {
+        success: true,
+        recent_violations: recent_violations.map(v => ({
+          type: v.type,
+          key: v.key,
+          timestamp: v.timestamp,
+          retry_after: v.retry_after
+        })),
+        active_rate_limits: {
+          card_count: Object.keys(state.card_last_open).length,
+          locker_count: Object.keys(state.locker_open_history).length,
+          user_report_count: Object.keys(state.user_report_history).length,
+          last_command_time: state.last_command_time
+        }
+      };
+    } catch (error) {
+      console.error('Error getting rate limit status:', error);
+      reply.code(500);
+      return { 
+        error: 'server_error',
+        message: 'Rate limit durumu alınamadı.'
+      };
+    }
+  }
+
+  private async getSmartAssignmentStatus(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { kiosk_id } = request.query as { kiosk_id: string };
+      
+      if (!kiosk_id) {
+        reply.code(400);
+        return { error: 'kiosk_id is required' };
+      }
+
+      const smartAssignmentEnabled = await this.featureFlagService.isSmartAssignmentEnabled(kiosk_id);
+      
+      return {
+        success: true,
+        kiosk_id,
+        smart_assignment_enabled: smartAssignmentEnabled,
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting smart assignment status:', error);
+      reply.code(500);
+      return { 
+        error: 'server_error',
+        message: 'Smart assignment durumu alınamadı.'
+      };
     }
   }
 
@@ -1265,6 +1771,27 @@ export class UiController {
 
     this.modbusController.on('reconnection_failed', () => {
       console.error(`❌ Hardware reconnection failed`);
+    });
+  }
+
+  /**
+   * Setup sensorless message handling listeners (Requirements 6.5)
+   */
+  private setupSensorlessMessageHandling(): void {
+    // Listen for sensorless retry messages
+    this.modbusController.on('sensorless_message', (event) => {
+      console.log(`📱 Sensorless message for locker ${event.lockerId}: ${event.message} (${event.type})`);
+      
+      // Emit message event for UI to display
+      // This could be picked up by WebSocket or other real-time communication
+      this.emit('display_message', {
+        lockerId: event.lockerId,
+        cardId: event.cardId,
+        message: event.message,
+        type: event.type,
+        timestamp: event.timestamp,
+        duration: event.type === 'retry' ? 2000 : 5000 // Show retry message for 2s, others for 5s
+      });
     });
   }
 

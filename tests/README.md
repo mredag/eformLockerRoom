@@ -22,10 +22,16 @@ Integration tests are centralized in the main `tests/integration/` directory and
 #### Service Integration Tests  
 - `vip-workflow-integration.test.ts` - VIP contract workflows
 - `rfid-qr-integration.test.ts` - RFID and QR code integration
-- `database-integration.test.ts` - Database setup and migrations
 - `multi-service-integration.test.ts` - Gateway/Kiosk/Panel coordination
 - `multi-room-coordination.test.ts` - Cross-room operations
 - `gateway-service-integration.test.ts` - Gateway service coordination
+
+#### Smart Assignment Integration Tests
+- `smart-assignment-e2e-flow.test.ts` - Complete assignment flows from card scan to locker opening
+- `smart-assignment-feature-flag.test.ts` - Feature flag switching and backward compatibility
+- `smart-assignment-concurrency.test.ts` - Concurrent assignments and race condition handling
+- `smart-assignment-hardware-retry.test.ts` - Hardware integration and sensorless retry logic
+- `smart-assignment-performance-load.test.ts` - Performance requirements and load handling
 
 ### Unit Tests (Service-specific directories)
 
@@ -66,9 +72,26 @@ npm run test:integration
 npx tsx tests/integration/run-integration-tests.ts
 ```
 
+### Smart Assignment Integration Tests
+```bash
+# Run all smart assignment tests
+npx tsx tests/run-smart-assignment-tests.ts all
+
+# Run specific smart assignment test categories
+npx tsx tests/run-smart-assignment-tests.ts e2e
+npx tsx tests/run-smart-assignment-tests.ts feature-flag
+npx tsx tests/run-smart-assignment-tests.ts concurrency
+npx tsx tests/run-smart-assignment-tests.ts hardware
+npx tsx tests/run-smart-assignment-tests.ts performance
+
+# Use comprehensive smart assignment test runner
+npx tsx tests/integration/smart-assignment-integration-runner.ts
+```
+
 ### Specific Integration Test
 ```bash
 npx vitest run tests/integration/session-management-lifecycle.test.ts
+npx vitest run tests/integration/smart-assignment-e2e-flow.test.ts
 ```
 
 ### Unit Tests by Service

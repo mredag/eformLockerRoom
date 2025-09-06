@@ -1,423 +1,276 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { RateLimiter, RateLimitConfig, createRateLimiter } from '../rate-limiter';
-import { EventRepository } from '../../database/event-repository';
-import { EventType } from '../../types/core-entities';
+/**
+ * Unit tests for Rate Limiter Service
+ */
 
-// Mock EventRepository
-const mockEventRepository = {
-  createEvent: vi.fn().mockResolvedValue({ id: 1 })
-} as unknown as EventRepository;
+import { RateLimiter, RateLimitConfig, DEFAULT_RATE_LIMIT_CONFIG } from '../rate-limiter';
 
 describe('RateLimiter', () => {
   let rateLimiter: RateLimiter;
   let config: RateLimitConfig;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    
-    config = {
-      ip: { maxTokens: 30, refillRate: 0.5, blockThreshold: 10, blockDuration: 300 },
-      card: { maxTokens: 60, refillRate: 1, blockThreshold: 20, blockDuration: 600 },
-      locker: { maxTokens: 6, refillRate: 0.1, blockThreshold: 15, blockDuration: 300 },
-      device: { maxTokens: 1, refillRate: 0.05, blockThreshold: 5, blockDuration: 1200 },
-      cleanupInterval: 60,
-      violationLogThreshold: 3
-    };
-
-    rateLimiter = new RateLimiter(config, mockEventRepository);
-  });
-
-  afterEach(() => {
-    rateLimiter.shutdown();
-  });
-
-  describe('IP Rate Limiting', () => {
-    it('should allow requests within IP rate limit', async () => {
-      const result = await rateLimiter.checkIpRateLimit('192.168.1.1', 'kiosk1');
-      
-      expect(result.allowed).toBe(true);
-      expect(result.remainingTokens).toBe(29);
-      expect(result.resetTime).toBeInstanceOf(Date);
-    });
-
-    it('should deny requests exceeding IP rate limit', async () => {
-      const ip = '192.168.1.2';
-      
-      // Exhaust all tokens
-      for (let i = 0; i < 30; i++) {
-        await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      }
-      
-      // Next request should be denied
-      const result = await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('ip rate limit exceeded');
-      expect(result.retryAfter).toBeGreaterThan(0);
-    });
-
-    it('should refill tokens over time', async () => {
-      const ip = '192.168.1.3';
-      
-      // Exhaust all tokens
-      for (let i = 0; i < 30; i++) {
-        await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      }
-      
-      // Should be denied
-      let result = await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      expect(result.allowed).toBe(false);
-      
-      // Mock time passage (2 seconds = 1 token at 0.5 tokens/sec)
-      const bucket = rateLimiter.getBucketStatus(`ip:${ip}`);
-      if (bucket) {
-        bucket.last_refill = new Date(Date.now() - 2000);
-      }
-      
-      // Should now be allowed
-      result = await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      expect(result.allowed).toBe(true);
-    });
+    config = { ...DEFAULT_RATE_LIMIT_CONFIG };
+    rateLimiter = new RateLimiter(config);
   });
 
   describe('Card Rate Limiting', () => {
-    it('should allow requests within card rate limit', async () => {
-      const result = await rateLimiter.checkCardRateLimit('card123', 'kiosk1');
+    it('should allow first card open', () => {
+      const result = rateLimiter.checkCardRate('card123');
       
       expect(result.allowed).toBe(true);
-      expect(result.remainingTokens).toBe(59);
+      expect(result.type).toBe('card_rate');
+      expect(result.key).toBe('card123');
     });
 
-    it('should deny requests exceeding card rate limit', async () => {
-      const cardId = 'card456';
+    it('should block second card open within 10 seconds', () => {
+      // First open
+      rateLimiter.recordCardOpen('card123');
       
-      // Exhaust all tokens
-      for (let i = 0; i < 60; i++) {
-        await rateLimiter.checkCardRateLimit(cardId, 'kiosk1');
-      }
-      
-      // Next request should be denied
-      const result = await rateLimiter.checkCardRateLimit(cardId, 'kiosk1');
+      // Immediate second attempt
+      const result = rateLimiter.checkCardRate('card123');
       
       expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('card rate limit exceeded');
+      expect(result.type).toBe('card_rate');
+      expect(result.key).toBe('card123');
+      expect(result.message).toBe('Lütfen birkaç saniye sonra deneyin');
+      expect(result.retryAfterSeconds).toBeGreaterThan(0);
+      expect(result.retryAfterSeconds).toBeLessThanOrEqual(10);
+    });
+
+    it('should allow card open after 10 seconds', async () => {
+      // Mock time progression
+      const originalNow = Date.now;
+      let mockTime = 1000000;
+      Date.now = jest.fn(() => mockTime);
+
+      // First open
+      rateLimiter.recordCardOpen('card123');
+      
+      // Advance time by 11 seconds
+      mockTime += 11000;
+      
+      const result = rateLimiter.checkCardRate('card123');
+      
+      expect(result.allowed).toBe(true);
+      
+      // Restore original Date.now
+      Date.now = originalNow;
+    });
+
+    it('should handle different cards independently', () => {
+      rateLimiter.recordCardOpen('card123');
+      
+      // Different card should be allowed
+      const result = rateLimiter.checkCardRate('card456');
+      expect(result.allowed).toBe(true);
     });
   });
 
   describe('Locker Rate Limiting', () => {
-    it('should allow requests within locker rate limit', async () => {
-      const result = await rateLimiter.checkLockerRateLimit(1, 'kiosk1');
-      
-      expect(result.allowed).toBe(true);
-      expect(result.remainingTokens).toBe(5);
-    });
-
-    it('should deny requests exceeding locker rate limit', async () => {
-      const lockerId = 2;
-      const kioskId = 'kiosk1';
-      
-      // Exhaust all tokens
-      for (let i = 0; i < 6; i++) {
-        await rateLimiter.checkLockerRateLimit(lockerId, kioskId);
-      }
-      
-      // Next request should be denied
-      const result = await rateLimiter.checkLockerRateLimit(lockerId, kioskId);
-      
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('locker rate limit exceeded');
-    });
-  });
-
-  describe('Device Rate Limiting', () => {
-    it('should allow requests within device rate limit', async () => {
-      const result = await rateLimiter.checkDeviceRateLimit('device123', 'kiosk1');
-      
-      expect(result.allowed).toBe(true);
-      expect(result.remainingTokens).toBe(0);
-    });
-
-    it('should deny rapid successive requests from same device', async () => {
-      const deviceId = 'device456';
-      
-      // First request should be allowed
-      let result = await rateLimiter.checkDeviceRateLimit(deviceId, 'kiosk1');
-      expect(result.allowed).toBe(true);
-      
-      // Immediate second request should be denied
-      result = await rateLimiter.checkDeviceRateLimit(deviceId, 'kiosk1');
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('device rate limit exceeded');
-    });
-  });
-
-  describe('QR Rate Limiting (Comprehensive)', () => {
-    it('should check all QR rate limits and allow when within limits', async () => {
-      const result = await rateLimiter.checkQrRateLimits(
-        '192.168.1.10',
-        5,
-        'device789',
-        'kiosk1'
-      );
-      
-      expect(result.allowed).toBe(true);
-    });
-
-    it('should deny when IP rate limit exceeded', async () => {
-      const ip = '192.168.1.11';
-      
-      // Exhaust IP tokens
-      for (let i = 0; i < 30; i++) {
-        await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      }
-      
-      const result = await rateLimiter.checkQrRateLimits(ip, 5, 'device789', 'kiosk1');
-      
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('ip rate limit exceeded');
-    });
-
-    it('should deny when locker rate limit exceeded', async () => {
-      const lockerId = 10;
-      const kioskId = 'kiosk1';
-      
-      // Exhaust locker tokens
-      for (let i = 0; i < 6; i++) {
-        await rateLimiter.checkLockerRateLimit(lockerId, kioskId);
-      }
-      
-      const result = await rateLimiter.checkQrRateLimits('192.168.1.12', lockerId, 'device789', kioskId);
-      
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('locker rate limit exceeded');
-    });
-
-    it('should deny when device rate limit exceeded', async () => {
-      const deviceId = 'device999';
-      
-      // Exhaust device tokens
-      await rateLimiter.checkDeviceRateLimit(deviceId, 'kiosk1');
-      
-      const result = await rateLimiter.checkQrRateLimits('192.168.1.13', 5, deviceId, 'kiosk1');
-      
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('device rate limit exceeded');
-    });
-  });
-
-  describe('RFID Rate Limiting', () => {
-    it('should allow RFID requests within limits', async () => {
-      const result = await rateLimiter.checkRfidRateLimits('rfid123', 'kiosk1');
-      
-      expect(result.allowed).toBe(true);
-    });
-
-    it('should deny RFID requests exceeding card limits', async () => {
-      const cardId = 'rfid456';
-      
-      // Exhaust card tokens
-      for (let i = 0; i < 60; i++) {
-        await rateLimiter.checkCardRateLimit(cardId, 'kiosk1');
-      }
-      
-      const result = await rateLimiter.checkRfidRateLimits(cardId, 'kiosk1');
-      
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('card rate limit exceeded');
-    });
-  });
-
-  describe('Violation Tracking and Blocking', () => {
-    it('should track violations and block after threshold', async () => {
-      const ip = '192.168.1.20';
-      
-      // Exhaust tokens and trigger violations
-      for (let i = 0; i < 30; i++) {
-        await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      }
-      
-      // Trigger violations up to block threshold
-      for (let i = 0; i < 10; i++) {
-        await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      }
-      
-      // Should now be blocked
-      expect(rateLimiter.isBlocked(`ip:${ip}`)).toBe(true);
-      
-      const result = await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain('Temporarily blocked');
-    });
-
-    it('should log violations after threshold', async () => {
-      const ip = '192.168.1.21';
-      
-      // Exhaust tokens
-      for (let i = 0; i < 30; i++) {
-        await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      }
-      
-      // Trigger violations to reach log threshold
+    it('should allow first 3 locker opens', () => {
       for (let i = 0; i < 3; i++) {
-        await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
+        const result = rateLimiter.checkLockerRate(1);
+        expect(result.allowed).toBe(true);
+        rateLimiter.recordLockerOpen(1);
       }
-      
-      // Should have logged the violation
-      expect(mockEventRepository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          kiosk_id: 'kiosk1',
-          details: expect.objectContaining({
-            rate_limit_violation: expect.objectContaining({
-              key: `ip:${ip}`,
-              limit_type: 'ip',
-              violation_count: 3
-            })
-          })
-        })
-      );
     });
 
-    it('should unblock after block duration expires', async () => {
-      const ip = '192.168.1.22';
+    it('should block 4th locker open within 60 seconds', () => {
+      // Record 3 opens
+      for (let i = 0; i < 3; i++) {
+        rateLimiter.recordLockerOpen(1);
+      }
       
-      // Create a blocked violation
-      const violation = {
-        id: Date.now(),
-        key: `ip:${ip}`,
-        limit_type: 'ip' as const,
-        violation_count: 15,
-        first_violation: new Date(),
-        last_violation: new Date(),
-        is_blocked: true,
-        block_expires_at: new Date(Date.now() - 1000) // Expired 1 second ago
-      };
+      // 4th attempt should be blocked
+      const result = rateLimiter.checkLockerRate(1);
       
-      rateLimiter['violations'].set(`ip:${ip}`, violation);
+      expect(result.allowed).toBe(false);
+      expect(result.type).toBe('locker_rate');
+      expect(result.key).toBe('1');
+      expect(result.message).toBe('Lütfen birkaç saniye sonra deneyin');
+    });
+
+    it('should allow opens after 60 seconds', () => {
+      const originalNow = Date.now;
+      let mockTime = 1000000;
+      Date.now = jest.fn(() => mockTime);
+
+      // Record 3 opens
+      for (let i = 0; i < 3; i++) {
+        rateLimiter.recordLockerOpen(1);
+      }
       
-      // Should not be blocked anymore
-      expect(rateLimiter.isBlocked(`ip:${ip}`)).toBe(false);
+      // Advance time by 61 seconds
+      mockTime += 61000;
+      
+      const result = rateLimiter.checkLockerRate(1);
+      expect(result.allowed).toBe(true);
+      
+      Date.now = originalNow;
+    });
+
+    it('should handle different lockers independently', () => {
+      // Fill up locker 1
+      for (let i = 0; i < 3; i++) {
+        rateLimiter.recordLockerOpen(1);
+      }
+      
+      // Locker 2 should still be available
+      const result = rateLimiter.checkLockerRate(2);
+      expect(result.allowed).toBe(true);
     });
   });
 
-  describe('Administrative Functions', () => {
-    it('should reset limits for a key', async () => {
-      const ip = '192.168.1.30';
-      
-      // Create some state
-      await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
-      expect(rateLimiter.getBucketStatus(`ip:${ip}`)).not.toBeNull();
-      
-      // Reset limits
-      await rateLimiter.resetLimits(`ip:${ip}`, 'admin1', 'kiosk1');
-      
-      // Should be cleared
-      expect(rateLimiter.getBucketStatus(`ip:${ip}`)).toBeNull();
-      expect(rateLimiter.getViolationHistory(`ip:${ip}`)).toBeNull();
+  describe('Command Cooldown', () => {
+    it('should allow first command', () => {
+      const result = rateLimiter.checkCommandCooldown();
+      expect(result.allowed).toBe(true);
     });
 
-    it('should provide statistics', () => {
-      const stats = rateLimiter.getStatistics();
+    it('should block command within 3 seconds', () => {
+      rateLimiter.recordCommand();
       
-      expect(stats).toHaveProperty('buckets');
-      expect(stats).toHaveProperty('violations');
-      expect(stats).toHaveProperty('activeBlocks');
-      expect(stats).toHaveProperty('config');
-      expect(stats.config).toEqual(config);
+      const result = rateLimiter.checkCommandCooldown();
+      
+      expect(result.allowed).toBe(false);
+      expect(result.type).toBe('command_cooldown');
+      expect(result.key).toBe('global');
+      expect(result.message).toBe('Lütfen birkaç saniye sonra deneyin');
     });
 
-    it('should get all violations', async () => {
-      const ip1 = '192.168.1.31';
-      const ip2 = '192.168.1.32';
+    it('should allow command after 3 seconds', () => {
+      const originalNow = Date.now;
+      let mockTime = 1000000;
+      Date.now = jest.fn(() => mockTime);
+
+      rateLimiter.recordCommand();
       
-      // Create enough violations to trigger blocking (need 10+ violations per IP)
-      // IP has 30 tokens, so first 30 calls succeed, then next calls create violations
-      for (let i = 0; i < 45; i++) {  // 45 calls = 30 success + 15 violations
-        await rateLimiter.checkIpRateLimit(ip1, 'kiosk1');
-      }
-      for (let i = 0; i < 45; i++) {  // 45 calls = 30 success + 15 violations
-        await rateLimiter.checkIpRateLimit(ip2, 'kiosk1');
-      }
+      // Advance time by 4 seconds
+      mockTime += 4000;
       
-      // Give a small delay to ensure all violations are processed
-      await new Promise(resolve => setTimeout(resolve, 10));
+      const result = rateLimiter.checkCommandCooldown();
+      expect(result.allowed).toBe(true);
       
-      const violations = rateLimiter.getAllViolations();
-      expect(violations.length).toBeGreaterThan(0);
-      
-      const activeBlocks = rateLimiter.getActiveBlocks();
-      expect(activeBlocks.length).toBeGreaterThan(0);
+      Date.now = originalNow;
     });
   });
 
-  describe('Configuration Updates', () => {
-    it('should update configuration', () => {
-      const newConfig = {
-        ip: { maxTokens: 50, refillRate: 1, blockThreshold: 15, blockDuration: 600 }
-      };
+  describe('User Report Rate Limiting', () => {
+    it('should allow first 2 reports per day', () => {
+      for (let i = 0; i < 2; i++) {
+        const result = rateLimiter.checkUserReportRate('card123');
+        expect(result.allowed).toBe(true);
+        rateLimiter.recordUserReport('card123');
+      }
+    });
+
+    it('should block 3rd report within 24 hours', () => {
+      // Record 2 reports
+      for (let i = 0; i < 2; i++) {
+        rateLimiter.recordUserReport('card123');
+      }
       
-      rateLimiter.updateConfig(newConfig);
+      // 3rd attempt should be blocked
+      const result = rateLimiter.checkUserReportRate('card123');
       
-      const stats = rateLimiter.getStatistics();
-      expect(stats.config.ip.maxTokens).toBe(50);
-      expect(stats.config.ip.refillRate).toBe(1);
+      expect(result.allowed).toBe(false);
+      expect(result.type).toBe('user_report_rate');
+      expect(result.key).toBe('card123');
+      expect(result.message).toBe('Günlük rapor limitine ulaştınız');
+    });
+
+    it('should allow reports after 24 hours', () => {
+      const originalNow = Date.now;
+      let mockTime = 1000000;
+      Date.now = jest.fn(() => mockTime);
+
+      // Record 2 reports
+      for (let i = 0; i < 2; i++) {
+        rateLimiter.recordUserReport('card123');
+      }
+      
+      // Advance time by 25 hours
+      mockTime += 25 * 60 * 60 * 1000;
+      
+      const result = rateLimiter.checkUserReportRate('card123');
+      expect(result.allowed).toBe(true);
+      
+      Date.now = originalNow;
     });
   });
 
-  describe('Cleanup', () => {
-    it('should cleanup old buckets and violations', async () => {
-      const ip = '192.168.1.40';
+  describe('Combined Rate Limiting', () => {
+    it('should check all limits for card open operation', () => {
+      const result = rateLimiter.checkAllLimits('card123', 1);
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should fail if any limit is exceeded', () => {
+      // Exceed card rate limit
+      rateLimiter.recordCardOpen('card123');
       
-      // Create bucket and violation
-      await rateLimiter.checkIpRateLimit(ip, 'kiosk1');
+      const result = rateLimiter.checkAllLimits('card123', 1);
+      expect(result.allowed).toBe(false);
+      expect(result.type).toBe('card_rate');
+    });
+
+    it('should record successful operation', () => {
+      rateLimiter.recordSuccessfulOpen('card123', 1);
       
-      // Manually age the bucket
-      const bucket = rateLimiter.getBucketStatus(`ip:${ip}`);
-      if (bucket) {
-        bucket.last_refill = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
-      }
+      // Verify all counters were updated
+      const cardResult = rateLimiter.checkCardRate('card123');
+      const lockerResult = rateLimiter.checkLockerRate(1);
+      const commandResult = rateLimiter.checkCommandCooldown();
       
-      // Run cleanup
-      rateLimiter.cleanup();
-      
-      // Should be cleaned up
-      expect(rateLimiter.getBucketStatus(`ip:${ip}`)).toBeNull();
+      expect(cardResult.allowed).toBe(false);
+      expect(lockerResult.allowed).toBe(true); // Still has 2 more opens
+      expect(commandResult.allowed).toBe(false);
     });
   });
-});
 
-describe('createRateLimiter', () => {
-  it('should create rate limiter with system config', () => {
-    const systemConfig = {
-      security: {
-        rate_limits: {
-          ip_per_minute: 50,
-          card_per_minute: 100,
-          locker_per_minute: 10,
-          device_per_20_seconds: 1
-        }
-      }
-    };
-    
-    const rateLimiter = createRateLimiter(systemConfig, mockEventRepository);
-    const stats = rateLimiter.getStatistics();
-    
-    expect(stats.config.ip.maxTokens).toBe(50);
-    expect(stats.config.card.maxTokens).toBe(100);
-    expect(stats.config.locker.maxTokens).toBe(10);
-    
-    rateLimiter.shutdown();
+  describe('Violation Tracking', () => {
+    it('should record violations', () => {
+      rateLimiter.recordCardOpen('card123');
+      rateLimiter.checkCardRate('card123'); // This should create a violation
+      
+      const violations = rateLimiter.getRecentViolations();
+      expect(violations).toHaveLength(1);
+      expect(violations[0].type).toBe('card_rate');
+      expect(violations[0].key).toBe('card123');
+    });
+
+    it('should cleanup old violations', () => {
+      const originalNow = Date.now;
+      let mockTime = 1000000;
+      Date.now = jest.fn(() => mockTime);
+
+      // Create a violation
+      rateLimiter.recordCardOpen('card123');
+      rateLimiter.checkCardRate('card123');
+      
+      // Advance time by 2 hours
+      mockTime += 2 * 60 * 60 * 1000;
+      
+      rateLimiter.cleanupViolations();
+      
+      const violations = rateLimiter.getRecentViolations();
+      expect(violations).toHaveLength(0);
+      
+      Date.now = originalNow;
+    });
   });
 
-  it('should use default values when config is missing', () => {
-    const systemConfig = {};
-    
-    const rateLimiter = createRateLimiter(systemConfig, mockEventRepository);
-    const stats = rateLimiter.getStatistics();
-    
-    expect(stats.config.ip.maxTokens).toBe(30); // Default
-    expect(stats.config.card.maxTokens).toBe(60); // Default
-    expect(stats.config.locker.maxTokens).toBe(6); // Default
-    
-    rateLimiter.shutdown();
+  describe('State Management', () => {
+    it('should provide current state for debugging', () => {
+      rateLimiter.recordCardOpen('card123');
+      rateLimiter.recordLockerOpen(1);
+      rateLimiter.recordCommand();
+      
+      const state = rateLimiter.getState();
+      
+      expect(state.cardLastOpen).toHaveProperty('card123');
+      expect(state.lockerOpenHistory).toHaveProperty('1');
+      expect(state.lastCommandTime).toBeGreaterThan(0);
+    });
   });
 });
