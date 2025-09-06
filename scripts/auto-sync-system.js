@@ -74,7 +74,7 @@ async function autoSyncSystem() {
     const dbManager = DatabaseManager.getInstance();
     await dbManager.initialize();
     
-    const stateManager = new LockerStateManager(dbManager.getConnection());
+    const stateManager = new LockerStateManager();
     
     // Sync for each kiosk (currently just kiosk-1)
     const kiosks = ['kiosk-1']; // Could be extended for multiple kiosks
