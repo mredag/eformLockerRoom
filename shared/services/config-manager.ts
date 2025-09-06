@@ -180,6 +180,11 @@ export class ConfigManager {
       new_value: newValue,
       reason
     });
+
+    // Auto-sync lockers if hardware configuration changed
+    if (section === 'hardware' && changedBy !== 'auto-sync-prevent-loop') {
+      await this.triggerLockerSync(reason || 'Hardware configuration changed');
+    }
   }
 
   /**
@@ -449,6 +454,44 @@ export class ConfigManager {
       );
     } catch (error) {
       console.error('Failed to log config change:', error);
+    }
+  }
+
+  /**
+   * Trigger locker sync when hardware configuration changes
+   */
+  private async triggerLockerSync(reason: string): Promise<void> {
+    try {
+      console.log(`🔄 Config change detected: triggering locker sync (${reason})`);
+      
+      // Calculate new total channels from updated hardware config
+      const enabledCards = this.config!.hardware.relay_cards.filter(card => card.enabled);
+      const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
+      
+      if (totalChannels > 0) {
+        // Import and sync for all known kiosks (typically just kiosk-1)
+        const { LockerStateManager } = await import('./locker-state-manager');
+        const { DatabaseConnection } = await import('../database/connection');
+        
+        const db = DatabaseConnection.getInstance();
+        const stateManager = new LockerStateManager(db);
+        
+        // Sync for default kiosk (could be extended to support multiple kiosks)
+        const kioskId = 'kiosk-1';
+        await stateManager.syncLockersWithHardware(kioskId, totalChannels);
+        
+        // Update locker count in config to match hardware
+        if (this.config!.lockers.total_count !== totalChannels) {
+          console.log(`🔧 Auto-updating locker count: ${this.config!.lockers.total_count} → ${totalChannels}`);
+          this.config!.lockers.total_count = totalChannels;
+          await this.saveConfiguration();
+        }
+        
+        console.log(`✅ Auto-sync completed: ${totalChannels} lockers available`);
+      }
+    } catch (error) {
+      console.error('❌ Auto-sync failed after config change:', error);
+      // Don't throw - config update should still succeed even if sync fails
     }
   }
 

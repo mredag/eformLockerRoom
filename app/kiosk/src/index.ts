@@ -660,26 +660,52 @@ const start = async () => {
       // Don't exit - allow service to start for other functionality
     }
 
-    // Initialize kiosk lockers if needed (with error handling)
+    // Auto-sync lockers with hardware configuration (with error handling)
     try {
       // Change working directory to project root to fix database path issues
       const path = require('path');
       const projectRoot = path.resolve(__dirname, '../../..');
       process.chdir(projectRoot);
       
-      console.log(`🔍 Initializing lockers for kiosk: ${KIOSK_ID}`);
+      console.log(`🔄 Auto-syncing lockers for kiosk: ${KIOSK_ID}`);
       console.log(`🔍 Changed working directory to: ${process.cwd()}`);
       console.log(`🔍 Database path: ${process.env.EFORM_DB_PATH || './data/eform.db'}`);
-      // Load system configuration to get locker count
+      
+      // Load system configuration to get hardware-based locker count
       const { ConfigManager } = await import("../../../shared/services/config-manager");
       const configManager = ConfigManager.getInstance();
       await configManager.initialize();
       const config = configManager.getConfiguration();
       
-      const lockerCount = config.lockers.total_count;
-      console.log(`🔧 Using configured locker count: ${lockerCount}`);
-      await lockerStateManager.initializeKioskLockers(KIOSK_ID, lockerCount);
-      console.log(`✅ Kiosk lockers initialized successfully`);
+      // Calculate total channels from hardware configuration
+      const enabledCards = config.hardware.relay_cards.filter(card => card.enabled);
+      const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
+      const configuredLockers = config.lockers.total_count;
+      
+      console.log(`📊 Hardware analysis: ${enabledCards.length} cards, ${totalChannels} channels, config shows ${configuredLockers} lockers`);
+      
+      // Use the higher value (hardware channels or configured lockers) for maximum compatibility
+      const targetLockerCount = Math.max(totalChannels, configuredLockers);
+      
+      if (totalChannels !== configuredLockers) {
+        console.log(`⚠️  Hardware/config mismatch detected - using ${targetLockerCount} lockers`);
+        
+        // Auto-update configuration to match hardware if hardware has more channels
+        if (totalChannels > configuredLockers) {
+          console.log(`🔧 Auto-updating config: ${configuredLockers} → ${totalChannels} lockers`);
+          await configManager.updateParameter(
+            'lockers',
+            'total_count',
+            totalChannels,
+            'kiosk-auto-sync',
+            `Auto-sync with hardware: ${enabledCards.length} cards × 16 channels = ${totalChannels} total`
+          );
+        }
+      }
+      
+      // Always sync lockers with target count (adds missing lockers if needed)
+      await lockerStateManager.syncLockersWithHardware(KIOSK_ID, targetLockerCount);
+      console.log(`✅ Locker auto-sync completed: ${targetLockerCount} lockers available`);
     } catch (dbError) {
       console.error("❌ Error initializing kiosk lockers:", dbError);
       if (

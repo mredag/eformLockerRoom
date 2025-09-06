@@ -654,6 +654,37 @@ export class LockerStateManager {
   }
 
   /**
+   * Sync lockers with hardware configuration
+   * Adds missing lockers if hardware config has more channels than database
+   */
+  async syncLockersWithHardware(kioskId: string, targetLockerCount: number): Promise<void> {
+    const existingLockers = await this.getKioskLockers(kioskId);
+    const currentCount = existingLockers.length;
+    
+    if (currentCount >= targetLockerCount) {
+      console.log(`✅ Kiosk ${kioskId} already has ${currentCount} lockers (target: ${targetLockerCount})`);
+      return;
+    }
+
+    const missingCount = targetLockerCount - currentCount;
+    console.log(`🔧 Syncing kiosk ${kioskId}: adding ${missingCount} missing lockers (${currentCount} → ${targetLockerCount})`);
+
+    // Find the highest existing locker ID to continue from there
+    const maxId = existingLockers.length > 0 ? Math.max(...existingLockers.map(l => l.id)) : 0;
+    
+    for (let i = maxId + 1; i <= targetLockerCount; i++) {
+      await this.db.run(
+        `INSERT INTO lockers (kiosk_id, id, status, version, created_at, updated_at) 
+         VALUES (?, ?, 'Free', 1, datetime('now'), datetime('now'))`,
+        [kioskId, i]
+      );
+      console.log(`✅ Added locker ${i} to kiosk ${kioskId}`);
+    }
+
+    console.log(`🎯 Successfully synced kiosk ${kioskId}: now has ${targetLockerCount} lockers`);
+  }
+
+  /**
    * Get locker statistics for a kiosk
    */
   async getKioskStats(kioskId: string): Promise<{

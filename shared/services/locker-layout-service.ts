@@ -36,10 +36,47 @@ export class LockerLayoutService {
   /**
    * Generate locker layout based on current Modbus configuration
    * Now includes actual display names from the database
+   * Auto-syncs database with hardware configuration
    */
   async generateLockerLayout(kioskId: string = 'kiosk-1'): Promise<LayoutGrid> {
     await this.configManager.initialize();
     const config = this.configManager.getConfiguration();
+
+    // Auto-sync: Calculate total channels and ensure database has matching lockers
+    const enabledCards = config.hardware.relay_cards.filter(card => card.enabled);
+    const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
+    const configuredLockers = config.lockers.total_count;
+    
+    // Use the higher value for maximum compatibility
+    const targetLockerCount = Math.max(totalChannels, configuredLockers);
+    
+    // Auto-sync database if needed
+    if (totalChannels !== configuredLockers || targetLockerCount > configuredLockers) {
+      console.log(`🔄 Layout service auto-sync: ensuring ${targetLockerCount} lockers exist`);
+      
+      try {
+        // Import and use the locker state manager to sync
+        const { LockerStateManager } = await import('./locker-state-manager');
+        const { DatabaseConnection } = await import('../database/connection');
+        
+        const db = DatabaseConnection.getInstance();
+        const stateManager = new LockerStateManager(db);
+        await stateManager.syncLockersWithHardware(kioskId, targetLockerCount);
+        
+        // Update configuration if hardware has more channels
+        if (totalChannels > configuredLockers) {
+          await this.configManager.updateParameter(
+            'lockers',
+            'total_count',
+            totalChannels,
+            'layout-auto-sync',
+            `Auto-sync with hardware: ${enabledCards.length} cards × 16 channels = ${totalChannels} total`
+          );
+        }
+      } catch (error) {
+        console.warn('⚠️  Layout auto-sync failed, continuing with existing data:', error);
+      }
+    }
 
     const lockers: LockerLayoutInfo[] = [];
     let lockerCounter = 1;

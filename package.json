@@ -51,7 +51,12 @@
     "test:e2e:hardware": "node scripts/e2e-hardware-validation.js",
     "test:e2e:ui": "node scripts/validate-ui-feedback.js",
     "test:e2e:full": "./scripts/test-admin-panel-e2e.sh",
-    "test:e2e:full:windows": "powershell -ExecutionPolicy Bypass -File scripts/test-admin-panel-e2e.ps1"
+    "test:e2e:full:windows": "powershell -ExecutionPolicy Bypass -File scripts/test-admin-panel-e2e.ps1",
+    "sync": "node scripts/auto-sync-system.js",
+    "sync:quiet": "node scripts/auto-sync-system.js --quiet",
+    "sync:dry-run": "node scripts/auto-sync-system.js --dry-run",
+    "start:auto-sync": "bash scripts/start-with-auto-sync.sh",
+    "start:clean": "sudo pkill -f 'node.*' 2>/dev/null || true && sleep 2 && npm run start:auto-sync"
   },
   "dependencies": {
     "argon2": "^0.31.2",
