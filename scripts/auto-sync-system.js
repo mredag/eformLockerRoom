@@ -22,10 +22,10 @@ async function autoSyncSystem() {
     const projectRoot = process.cwd();
     console.log(`📁 Working directory: ${projectRoot}`);
     
-    // Import services
-    const { ConfigManager } = require('../shared/services/config-manager');
-    const { LockerStateManager } = require('../shared/services/locker-state-manager');
-    const { DatabaseManager } = require('../shared/database/database-manager');
+    // Import services (use built versions)
+    const { ConfigManager } = require('../shared/dist/services/config-manager');
+    const { LockerStateManager } = require('../shared/dist/services/locker-state-manager');
+    const { DatabaseManager } = require('../shared/dist/database/database-manager');
     
     // Step 1: Load and analyze configuration
     console.log('\n📊 Step 1: Analyzing configuration...');
