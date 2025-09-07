@@ -56,7 +56,11 @@
     "sync:quiet": "node scripts/auto-sync-system.js --quiet",
     "sync:dry-run": "node scripts/auto-sync-system.js --dry-run",
     "start:auto-sync": "bash scripts/start-with-auto-sync.sh",
-    "start:clean": "sudo pkill -f 'node.*' 2>/dev/null || true && sleep 2 && npm run start:auto-sync"
+    "start:clean": "sudo pkill -f 'node.*' 2>/dev/null || true && sleep 2 && npm run start:auto-sync",
+    "start:dev:windows": "powershell -ExecutionPolicy Bypass -File scripts/start-dev-windows.ps1",
+    "start:dev": "npm run start:dev:windows",
+    "init:dev": "node scripts/init-dev-database.js",
+    "dev:setup": "npm run build && npm run init:dev && npm run start:dev"
   },
   "dependencies": {
     "argon2": "^0.31.2",
