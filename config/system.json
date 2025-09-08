@@ -7,6 +7,17 @@
     "installation_date": "2025-08-22",
     "hardware_platform": "raspberry_pi_4"
   },
+  "features": {
+    "zones_enabled": true
+  },
+  "zones": [
+    {
+      "id": "mens",
+      "ranges": [[1, 32]],
+      "relay_cards": [1, 2],
+      "enabled": true
+    }
+  ],
   "database": {
     "path": "./data/eform.db",
     "wal_mode": true,

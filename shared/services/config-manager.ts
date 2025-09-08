@@ -302,6 +302,38 @@ export class ConfigManager {
         errors.push('Default language must be in supported languages list');
       }
 
+      // Validate zones configuration (if enabled)
+      if (config.features?.zones_enabled && config.zones) {
+        for (const zone of config.zones) {
+          if (!zone.id || typeof zone.id !== 'string') {
+            errors.push('Zone ID is required and must be a string');
+          }
+          
+          if (!Array.isArray(zone.ranges) || zone.ranges.length === 0) {
+            errors.push(`Zone ${zone.id}: ranges array is required and cannot be empty`);
+          }
+          
+          if (!Array.isArray(zone.relay_cards) || zone.relay_cards.length === 0) {
+            errors.push(`Zone ${zone.id}: relay_cards array is required and cannot be empty`);
+          }
+          
+          // Validate range format
+          for (const range of zone.ranges) {
+            if (!Array.isArray(range) || range.length !== 2 || range[0] >= range[1]) {
+              errors.push(`Zone ${zone.id}: invalid range format [${range}]. Expected [start, end] where start < end`);
+            }
+          }
+          
+          // Validate relay card references
+          const availableCards = config.hardware.relay_cards.map(card => card.slave_address);
+          for (const cardId of zone.relay_cards) {
+            if (!availableCards.includes(cardId)) {
+              warnings.push(`Zone ${zone.id}: references relay card ${cardId} which is not defined in hardware configuration`);
+            }
+          }
+        }
+      }
+
     } catch (error) {
       errors.push(`Configuration validation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
