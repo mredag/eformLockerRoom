@@ -25,11 +25,11 @@ This is an **eForm Locker System** with distributed development:
 ## 🔧 **Target Hardware (Raspberry Pi)**
 
 - **SSH Access**: `ssh pi@pi-eform-locker` (passwordless)
-- **IP Address**: `192.168.1.8`
+- **IP Address**: `192.168.1.11`
 - **Services Running**:
-  - Gateway: Port 3000 (`http://192.168.1.8:3000`)
-  - Panel: Port 3001 (`http://192.168.1.8:3001`)
-  - Kiosk: Port 3002 (`http://192.168.1.8:3002`)
+  - Gateway: Port 3000 (`http://192.168.1.11:3000`)
+  - Panel: Port 3001 (`http://192.168.1.11:3001`)
+  - Kiosk: Port 3002 (`http://192.168.1.11:3002`)
 - **Hardware**: USB-RS485 adapter with relay control cards
 - **Project Path**: `/home/pi/eform-locker`
 
@@ -55,10 +55,10 @@ User can execute: `ssh pi@pi-eform-locker "command"`
 
 ### **Postman API Endpoints**
 
-- **Gateway Admin**: `POST http://192.168.1.8:3000/api/admin/lockers/1/open`
-- **Kiosk Direct**: `POST http://192.168.1.8:3002/api/locker/open`
-- **Panel Relay**: `POST http://192.168.1.8:3001/api/relay/activate`
-- **Health Checks**: `GET http://192.168.1.8:300X/health`
+- **Gateway Admin**: `POST http://192.168.1.11:3000/api/admin/lockers/1/open`
+- **Kiosk Direct**: `POST http://192.168.1.11:3002/api/locker/open`
+- **Panel Relay**: `POST http://192.168.1.11:3001/api/relay/activate`
+- **Health Checks**: `GET http://192.168.1.11:300X/health`
 
 ### **Common Pi Commands**
 
