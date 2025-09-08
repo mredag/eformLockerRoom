@@ -6,9 +6,39 @@ echo "====================================================="
 # Ensure we're in the right directory
 cd /home/pi/eform-locker
 
+# Get current IP address dynamically
+get_current_ip() {
+    # Try multiple methods to get IP address
+    local ip=""
+    
+    # Method 1: hostname -I (most reliable on Pi)
+    ip=$(hostname -I | awk '{print $1}' 2>/dev/null)
+    
+    # Method 2: ip route (fallback)
+    if [ -z "$ip" ] || [ "$ip" = "127.0.0.1" ]; then
+        ip=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' | head -1)
+    fi
+    
+    # Method 3: ifconfig (fallback)
+    if [ -z "$ip" ] || [ "$ip" = "127.0.0.1" ]; then
+        ip=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1' | head -1)
+    fi
+    
+    # Default fallback
+    if [ -z "$ip" ]; then
+        ip="localhost"
+    fi
+    
+    echo "$ip"
+}
+
+CURRENT_IP=$(get_current_ip)
+echo "🌐 Detected IP Address: $CURRENT_IP"
+
 # Run IP management first
 echo "🔍 Checking for IP changes..."
 if [ -f "scripts/network/dynamic-ip-manager.js" ]; then
+    echo "🔍 Starting Dynamic IP Manager..."
     node scripts/network/dynamic-ip-manager.js run
 else
     echo "ℹ️  IP management not installed yet"
@@ -53,15 +83,23 @@ nohup npm run start:gateway > logs/gateway.log 2>&1 &
 GATEWAY_PID=$!
 echo "Gateway PID: $GATEWAY_PID"
 
-# Wait for Gateway to start
+# Wait for Gateway to start with better checking
 echo "⏳ Waiting for Gateway to initialize..."
-sleep 5
+GATEWAY_READY=false
+for i in {1..12}; do
+    sleep 2
+    if curl -s http://localhost:3000/health --connect-timeout 2 > /dev/null 2>&1; then
+        GATEWAY_READY=true
+        break
+    fi
+    echo "   Attempt $i/12..."
+done
 
-# Check if Gateway is running
-if curl -s http://localhost:3000/health --connect-timeout 3 > /dev/null; then
+if [ "$GATEWAY_READY" = true ]; then
     echo "✅ Gateway started successfully"
 else
-    echo "❌ Gateway failed to start"
+    echo "❌ Gateway failed to start - check logs/gateway.log"
+    tail -10 logs/gateway.log 2>/dev/null || echo "   No gateway log found"
     exit 1
 fi
 
@@ -71,15 +109,24 @@ nohup npm run start:kiosk > logs/kiosk.log 2>&1 &
 KIOSK_PID=$!
 echo "Kiosk PID: $KIOSK_PID"
 
-# Wait for Kiosk to start
+# Wait for Kiosk to start with better checking
 echo "⏳ Waiting for Kiosk to initialize..."
-sleep 5
+KIOSK_READY=false
+for i in {1..15}; do
+    sleep 2
+    if curl -s http://localhost:3002/health --connect-timeout 2 > /dev/null 2>&1; then
+        KIOSK_READY=true
+        break
+    fi
+    echo "   Attempt $i/15..."
+done
 
-# Check if Kiosk is running
-if curl -s http://localhost:3002/health --connect-timeout 3 > /dev/null; then
+if [ "$KIOSK_READY" = true ]; then
     echo "✅ Kiosk started successfully"
 else
-    echo "❌ Kiosk failed to start"
+    echo "⚠️  Kiosk taking longer to start - checking logs..."
+    # Don't exit, just warn - Kiosk might need more time for hardware initialization
+    tail -5 logs/kiosk.log 2>/dev/null || echo "   No kiosk log found yet"
 fi
 
 echo ""
@@ -88,46 +135,75 @@ nohup npm run start:panel > logs/panel.log 2>&1 &
 PANEL_PID=$!
 echo "Panel PID: $PANEL_PID"
 
-# Wait for Panel to start
+# Wait for Panel to start with better checking
 echo "⏳ Waiting for Panel to initialize..."
-sleep 5
+PANEL_READY=false
+for i in {1..12}; do
+    sleep 2
+    if curl -s http://localhost:3001/health --connect-timeout 2 > /dev/null 2>&1; then
+        PANEL_READY=true
+        break
+    fi
+    echo "   Attempt $i/12..."
+done
 
-# Final status check
-echo ""
-echo "🔍 Final Service Status:"
-echo "========================"
-
-# Check Gateway
-if curl -s http://localhost:3000/health --connect-timeout 3 > /dev/null; then
-    echo "✅ Gateway (port 3000): Running"
+if [ "$PANEL_READY" = true ]; then
+    echo "✅ Panel started successfully"
 else
-    echo "❌ Gateway (port 3000): Not responding"
+    echo "⚠️  Panel taking longer to start - checking logs..."
+    tail -5 logs/panel.log 2>/dev/null || echo "   No panel log found yet"
 fi
 
-# Check Panel  
-if curl -s http://localhost:3001 --connect-timeout 3 > /dev/null; then
-    echo "✅ Panel (port 3001): Running"
-else
-    echo "❌ Panel (port 3001): Not responding"
-fi
+# Final comprehensive health check
+echo ""
+echo "🏥 Health check..."
 
-# Check Kiosk
-if curl -s http://localhost:3002/health --connect-timeout 3 > /dev/null; then
-    echo "✅ Kiosk (port 3002): Running"
-else
-    echo "❌ Kiosk (port 3002): Not responding"
-fi
+# Function to check service health with detailed response
+check_service_health() {
+    local service_name=$1
+    local port=$2
+    local endpoint=$3
+    local max_attempts=5
+    
+    for attempt in $(seq 1 $max_attempts); do
+        local response=$(curl -s http://localhost:$port$endpoint --connect-timeout 3 2>/dev/null)
+        if [ $? -eq 0 ] && [ -n "$response" ]; then
+            echo "✅ $service_name health: OK"
+            return 0
+        fi
+        if [ $attempt -lt $max_attempts ]; then
+            sleep 1
+        fi
+    done
+    
+    echo "❌ $service_name health: Failed"
+    return 1
+}
+
+# Check each service
+check_service_health "Gateway" "3000" "/health"
+check_service_health "Panel" "3001" "/health"  
+check_service_health "Kiosk" "3002" "/health"
 
 echo ""
-echo "🎯 Services Started! Access URLs:"
-echo "================================="
-echo "📊 Admin Panel:  http://192.168.1.8:3001"
-echo "🔧 Relay Control: http://192.168.1.8:3001/relay"
-echo "📋 Lockers:      http://192.168.1.8:3001/lockers"
-echo "🌐 Gateway API:  http://192.168.1.8:3000"
-echo "🖥️  Kiosk UI:     http://192.168.1.8:3002"
+echo "🎉 All services started successfully!"
 echo ""
-echo "📝 View logs with:"
-echo "tail -f logs/gateway.log"
-echo "tail -f logs/kiosk.log"
-echo "tail -f logs/panel.log"
+echo "📋 Service URLs:"
+echo "   - Gateway: http://$CURRENT_IP:3000"
+echo "   - Panel:   http://$CURRENT_IP:3001"
+echo "   - Kiosk:   http://$CURRENT_IP:3002"
+echo ""
+echo "📊 Process status:"
+ps aux | grep "node.*dist/index.js" | grep -v grep | awk '{print $2 "        " $11 " " $12}'
+echo ""
+echo "✅ Clean startup complete!"
+echo ""
+echo "📝 Monitor logs:"
+echo "   tail -f logs/gateway.log"
+echo "   tail -f logs/kiosk.log"  
+echo "   tail -f logs/panel.log"
+echo ""
+echo "🔧 Quick tests:"
+echo "   curl http://$CURRENT_IP:3000/health  # Gateway"
+echo "   curl http://$CURRENT_IP:3001/health  # Panel"
+echo "   curl http://$CURRENT_IP:3002/health  # Kiosk"

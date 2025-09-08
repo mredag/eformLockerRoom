@@ -71,12 +71,12 @@ node scripts/test-basic-relay-control.js
 node scripts/test-relays-1-8.js
 
 # Test API endpoints
-curl -X POST http://192.168.1.8:3002/api/locker/open \
+curl -X POST http://192.168.1.11:3002/api/locker/open \
   -H "Content-Type: application/json" \
   -d '{"locker_id": 5, "staff_user": "test", "reason": "testing"}'
 
 # Test relay control
-curl -X POST http://192.168.1.8:3001/api/relay/activate \
+curl -X POST http://192.168.1.11:3001/api/relay/activate \
   -H "Content-Type: application/json" \
   -d '{"relay_number": 5, "staff_user": "test", "reason": "testing"}'
 ```
@@ -109,6 +109,7 @@ rm logs/*.log
 - **Health Monitoring**: Continuous repository health tracking and reporting
 
 **Current Repository Structure**:
+
 ```
 eform-locker-system/
 ├── app/                    # 4 core services (Gateway, Kiosk, Panel, Agent)
@@ -125,6 +126,7 @@ eform-locker-system/
 ```
 
 **Maintenance System Features**:
+
 - **Automated Cleanup**: Daily removal of temporary files and artifacts
 - **Health Monitoring**: Repository health scoring and compliance checking
 - **Git Hooks**: Pre-commit/pre-push quality gates
@@ -281,7 +283,7 @@ sudo killall node
 node scripts/test-basic-relay-control.js
 
 # Test API
-curl -X POST http://192.168.1.8:3002/api/locker/open \
+curl -X POST http://192.168.1.11:3002/api/locker/open \
   -H "Content-Type: application/json" \
   -d '{"locker_id": 5, "staff_user": "test", "reason": "testing"}'
 ```
@@ -462,9 +464,9 @@ tail -f logs/*.log | grep -i "error\|failed"
 
 ```bash
 # Quick health check all services
-curl http://192.168.1.8:3000/health  # Gateway
-curl http://192.168.1.8:3002/health  # Kiosk
-curl http://192.168.1.8:3001/health  # Panel
+curl http://192.168.1.11:3000/health  # Gateway
+curl http://192.168.1.11:3002/health  # Kiosk
+curl http://192.168.1.11:3001/health  # Panel
 
 # Automated health monitoring
 ./scripts/health-check.sh
@@ -502,9 +504,9 @@ sqlite3 data/eform.db "PRAGMA integrity_check;"
 
 ### **✅ Web Interfaces**
 
-- **Kiosk UI**: `http://192.168.1.8:3002` - User RFID interface
-- **Admin Panel**: `http://192.168.1.8:3001` - Locker management
-- **Relay Control**: `http://192.168.1.8:3001/relay` - Direct hardware control
+- **Kiosk UI**: `http://192.168.1.11:3002` - User RFID interface
+- **Admin Panel**: `http://192.168.1.11:3001` - Locker management
+- **Relay Control**: `http://192.168.1.11:3001/relay` - Direct hardware control
 
 ## 📚 **Documentation Files**
 
@@ -522,13 +524,15 @@ sqlite3 data/eform.db "PRAGMA integrity_check;"
 ## 🔄 **Data Consistency & Status Management**
 
 ### **Database Status Values (English)**
+
 - `Free` - Available for assignment
 - `Owned` - Assigned to RFID card
-- `Opening` - Confirmed ownership, opening in progress  
+- `Opening` - Confirmed ownership, opening in progress
 - `Error` - Hardware or system errors
 - `Blocked` - Administratively blocked
 
 ### **UI Display Mapping (Turkish)**
+
 - Database `Free` → UI displays `Boş`
 - Database `Owned` → UI displays `Dolu`
 - Database `Opening` → UI displays `Açılıyor`
@@ -536,6 +540,7 @@ sqlite3 data/eform.db "PRAGMA integrity_check;"
 - Database `Blocked` → UI displays `Engelli`
 
 ### **CSS Classes (Turkish-based)**
+
 - `.state-bos` - Green (available)
 - `.state-dolu` - Red (occupied)
 - `.state-aciliyor` - Orange (opening)
