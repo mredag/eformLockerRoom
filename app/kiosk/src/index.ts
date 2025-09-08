@@ -157,7 +157,120 @@ fastify.post(
   }
 );
 
-// Admin API endpoint for direct locker opening
+// Zone-aware API: Get available lockers
+fastify.get("/api/lockers/available", async (request, reply) => {
+  try {
+    const { kiosk_id, zone } = request.query as { kiosk_id?: string; zone?: string };
+    const kioskId = kiosk_id || KIOSK_ID;
+    const zoneId = zone ? String(zone) : undefined;
+
+    console.log(`📋 Getting available lockers for kiosk: ${kioskId}, zone: ${zoneId || 'all'}`);
+
+    // Import layout service
+    const { lockerLayoutService } = await import("../../../shared/services/locker-layout-service");
+    
+    // Get zone-aware layout
+    const layout = await lockerLayoutService.generateLockerLayout(kioskId, zoneId);
+    
+    // Get current locker states
+    const available = [];
+    for (const lockerInfo of layout.lockers) {
+      try {
+        const locker = await lockerStateManager.getLocker(kioskId, lockerInfo.id);
+        if (locker && locker.status === 'Free' && lockerInfo.enabled) {
+          available.push({
+            id: lockerInfo.id,
+            status: 'Free',
+            is_vip: locker.is_vip || false
+          });
+        }
+      } catch (error) {
+        console.warn(`⚠️  Could not check status for locker ${lockerInfo.id}:`, error);
+      }
+    }
+
+    console.log(`✅ Found ${available.length} available lockers (zone: ${zoneId || 'all'})`);
+    return reply.send(available);
+
+  } catch (error) {
+    console.error('❌ Error getting available lockers:', error);
+    return reply.status(500).send({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Zone-aware API: Get all lockers
+fastify.get("/api/lockers/all", async (request, reply) => {
+  try {
+    const { kiosk_id, zone } = request.query as { kiosk_id?: string; zone?: string };
+    const kioskId = kiosk_id || KIOSK_ID;
+    const zoneId = zone ? String(zone) : undefined;
+
+    console.log(`📋 Getting all lockers for kiosk: ${kioskId}, zone: ${zoneId || 'all'}`);
+
+    // Import layout service
+    const { lockerLayoutService } = await import("../../../shared/services/locker-layout-service");
+    
+    // Get zone-aware layout
+    const layout = await lockerLayoutService.generateLockerLayout(kioskId, zoneId);
+    
+    // Get current locker states and map to status DTOs
+    const all = [];
+    for (const lockerInfo of layout.lockers) {
+      try {
+        const locker = await lockerStateManager.getLocker(kioskId, lockerInfo.id);
+        if (locker) {
+          all.push({
+            id: lockerInfo.id,
+            status: locker.status,
+            is_vip: locker.is_vip || false,
+            owner_key: locker.owner_key || null,
+            display_name: lockerInfo.displayName,
+            card_id: lockerInfo.cardId,
+            relay_id: lockerInfo.relayId
+          });
+        } else {
+          // Fallback for missing locker records
+          all.push({
+            id: lockerInfo.id,
+            status: 'Free',
+            is_vip: false,
+            owner_key: null,
+            display_name: lockerInfo.displayName,
+            card_id: lockerInfo.cardId,
+            relay_id: lockerInfo.relayId
+          });
+        }
+      } catch (error) {
+        console.warn(`⚠️  Could not get status for locker ${lockerInfo.id}:`, error);
+        // Include locker with unknown status
+        all.push({
+          id: lockerInfo.id,
+          status: 'Error',
+          is_vip: false,
+          owner_key: null,
+          display_name: lockerInfo.displayName,
+          card_id: lockerInfo.cardId,
+          relay_id: lockerInfo.relayId
+        });
+      }
+    }
+
+    console.log(`✅ Retrieved ${all.length} lockers (zone: ${zoneId || 'all'})`);
+    return reply.send(all);
+
+  } catch (error) {
+    console.error('❌ Error getting all lockers:', error);
+    return reply.status(500).send({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Admin API endpoint for direct locker opening (now zone-aware)
 fastify.post("/api/locker/open", async (request, reply) => {
   try {
     const { locker_id, staff_user, reason } = request.body as {
@@ -173,23 +286,39 @@ fastify.post("/api/locker/open", async (request, reply) => {
       });
     }
 
-    // Get max locker ID from configuration
+    // Get configuration and check zone-aware hardware mapping
     const { ConfigManager } = await import("../../../shared/services/config-manager");
-    const configManager = ConfigManager.getInstance();
-    const config = configManager.getConfiguration();
-    const maxLockerId = config.lockers.total_count;
+    const { getZoneAwareHardwareMapping } = await import("../../../shared/services/zone-helpers");
     
-    if (locker_id < 1 || locker_id > maxLockerId) {
-      return reply.status(400).send({
-        success: false,
-        error: `Invalid locker_id. Must be between 1 and ${maxLockerId}.`
-      });
-    }
-
+    const configManager = ConfigManager.getInstance();
+    await configManager.initialize();
+    const config = configManager.getConfiguration();
+    
     console.log(`🔓 Direct locker opening: ${locker_id} by ${staff_user}`);
 
-    // Use ModbusController to open the locker
-    const success = await modbusController.openLocker(locker_id);
+    // Try zone-aware hardware mapping first
+    const zoneMapping = getZoneAwareHardwareMapping(locker_id, config);
+    let success = false;
+
+    if (zoneMapping) {
+      console.log(`🎯 Using zone-aware mapping: locker ${locker_id} → slave ${zoneMapping.slaveAddress}, coil ${zoneMapping.coilAddress} (zone: ${zoneMapping.zoneId})`);
+      
+      // Use zone-aware hardware mapping
+      success = await modbusController.sendOpenRelay(zoneMapping.coilAddress, zoneMapping.slaveAddress);
+    } else {
+      console.log(`🔧 Using traditional mapping for locker ${locker_id}`);
+      
+      // Fall back to existing logic
+      const maxLockerId = config.lockers.total_count;
+      if (locker_id < 1 || locker_id > maxLockerId) {
+        return reply.status(400).send({
+          success: false,
+          error: `Invalid locker_id. Must be between 1 and ${maxLockerId}.`
+        });
+      }
+
+      success = await modbusController.openLocker(locker_id);
+    }
 
     if (success) {
       return reply.send({
@@ -198,6 +327,11 @@ fastify.post("/api/locker/open", async (request, reply) => {
         locker_id,
         staff_user,
         reason: reason || 'Direct API access',
+        zone_mapping: zoneMapping ? {
+          zone_id: zoneMapping.zoneId,
+          slave_address: zoneMapping.slaveAddress,
+          coil_address: zoneMapping.coilAddress
+        } : null,
         timestamp: new Date().toISOString()
       });
     } else {
@@ -417,8 +551,55 @@ heartbeatClient.registerCommandHandler("open_locker", async (command) => {
       return { success: false, error: "Locker not found" };
     }
 
-    // Execute locker opening - this will now use correct cardId/relayId mapping
-    const success = await modbusController.openLocker(locker_id);
+    // Execute locker opening with zone-aware mapping
+    let success = false;
+    
+    try {
+      // Import zone helpers
+      const { ConfigManager } = await import("../../../shared/services/config-manager");
+      const { getZoneAwareHardwareMapping } = await import("../../../shared/services/zone-helpers");
+      
+      const configManager = ConfigManager.getInstance();
+      await configManager.initialize();
+      const config = configManager.getConfiguration();
+      
+      // Try zone-aware hardware mapping first
+      const zoneMapping = getZoneAwareHardwareMapping(locker_id, config);
+      
+      if (zoneMapping) {
+        fastify.log.info({
+          action: 'open_locker_zone_mapping',
+          command_id: command.command_id,
+          locker_id,
+          zone_id: zoneMapping.zoneId,
+          slave_address: zoneMapping.slaveAddress,
+          coil_address: zoneMapping.coilAddress,
+          message: 'Using zone-aware hardware mapping'
+        });
+        
+        success = await modbusController.sendOpenRelay(zoneMapping.coilAddress, zoneMapping.slaveAddress);
+      } else {
+        fastify.log.info({
+          action: 'open_locker_traditional_mapping',
+          command_id: command.command_id,
+          locker_id,
+          message: 'Using traditional hardware mapping'
+        });
+        
+        success = await modbusController.openLocker(locker_id);
+      }
+    } catch (mappingError) {
+      fastify.log.warn({
+        action: 'open_locker_mapping_fallback',
+        command_id: command.command_id,
+        locker_id,
+        error: mappingError instanceof Error ? mappingError.message : 'Unknown mapping error',
+        message: 'Zone mapping failed, using traditional method'
+      });
+      
+      // Fallback to traditional method
+      success = await modbusController.openLocker(locker_id);
+    }
 
     if (success) {
       // Database update only occurs after successful relay pulse
@@ -540,7 +721,30 @@ heartbeatClient.registerCommandHandler("bulk_open", async (command) => {
           continue;
         }
 
-        const success = await modbusController.openLocker(lockerId);
+        // Use zone-aware mapping for bulk operations too
+        let success = false;
+        
+        try {
+          // Import zone helpers
+          const { ConfigManager } = await import("../../../shared/services/config-manager");
+          const { getZoneAwareHardwareMapping } = await import("../../../shared/services/zone-helpers");
+          
+          const configManager = ConfigManager.getInstance();
+          await configManager.initialize();
+          const config = configManager.getConfiguration();
+          
+          // Try zone-aware hardware mapping first
+          const zoneMapping = getZoneAwareHardwareMapping(lockerId, config);
+          
+          if (zoneMapping) {
+            success = await modbusController.sendOpenRelay(zoneMapping.coilAddress, zoneMapping.slaveAddress);
+          } else {
+            success = await modbusController.openLocker(lockerId);
+          }
+        } catch (mappingError) {
+          // Fallback to traditional method
+          success = await modbusController.openLocker(lockerId);
+        }
 
         if (success) {
           // Database update only occurs after successful relay pulse
