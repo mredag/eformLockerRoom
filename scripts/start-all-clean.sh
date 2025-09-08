@@ -158,32 +158,29 @@ fi
 echo ""
 echo "🏥 Health check..."
 
-# Function to check service health with detailed response
-check_service_health() {
-    local service_name=$1
-    local port=$2
-    local endpoint=$3
-    local max_attempts=5
-    
-    for attempt in $(seq 1 $max_attempts); do
-        local response=$(curl -s http://localhost:$port$endpoint --connect-timeout 3 2>/dev/null)
-        if [ $? -eq 0 ] && [ -n "$response" ]; then
-            echo "✅ $service_name health: OK"
-            return 0
-        fi
-        if [ $attempt -lt $max_attempts ]; then
-            sleep 1
-        fi
-    done
-    
-    echo "❌ $service_name health: Failed"
-    return 1
-}
 
-# Check each service
-check_service_health "Gateway" "3000" "/health"
-check_service_health "Panel" "3001" "/health"  
-check_service_health "Kiosk" "3002" "/health"
+
+# Check each service with simple curl tests
+echo "Checking Gateway..."
+if curl -s http://localhost:3000/health --connect-timeout 3 --max-time 5 >/dev/null 2>&1; then
+    echo "✅ Gateway health: OK"
+else
+    echo "❌ Gateway health: Failed"
+fi
+
+echo "Checking Panel..."
+if curl -s http://localhost:3001/health --connect-timeout 3 --max-time 5 >/dev/null 2>&1; then
+    echo "✅ Panel health: OK"
+else
+    echo "❌ Panel health: Failed"
+fi
+
+echo "Checking Kiosk..."
+if curl -s http://localhost:3002/health --connect-timeout 3 --max-time 5 >/dev/null 2>&1; then
+    echo "✅ Kiosk health: OK"
+else
+    echo "❌ Kiosk health: Failed"
+fi
 
 echo ""
 echo "🎉 All services started successfully!"
