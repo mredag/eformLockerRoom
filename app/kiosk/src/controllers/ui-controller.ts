@@ -90,9 +90,7 @@ export class UiController {
 
 
 
-    fastify.get('/api/lockers/all', async (request: FastifyRequest, reply: FastifyReply) => {
-      return this.getAllLockers(request, reply);
-    });
+
 
     // Locker selection with direct assignment approach (Requirements 2.1-2.6)
     fastify.post('/api/lockers/select', async (request: FastifyRequest, reply: FastifyReply) => {
