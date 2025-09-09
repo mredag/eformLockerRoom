@@ -88,9 +88,7 @@ export class UiController {
       return this.releaseLocker(request, reply);
     });
 
-    fastify.get('/api/lockers/available', async (request: FastifyRequest, reply: FastifyReply) => {
-      return this.getAvailableLockers(request, reply);
-    });
+
 
     fastify.get('/api/lockers/all', async (request: FastifyRequest, reply: FastifyReply) => {
       return this.getAllLockers(request, reply);
