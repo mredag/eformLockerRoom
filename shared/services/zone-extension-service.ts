@@ -45,7 +45,9 @@ export class ZoneExtensionService {
         return { extended: false };
       }
 
-      const coveredMax = this.calculateCoveredMax(enabledZones);
+      // First, rebalance zones to match actual hardware capacity per zone and overall
+      const rebalanced = this.rebalanceZonesWithHardware(config, totalLockers);
+      const coveredMax = this.calculateCoveredMax(config.zones.filter(z => z.enabled));
 
       // If zones already cover all lockers, no extension needed
       if (coveredMax >= totalLockers) {
@@ -83,6 +85,50 @@ export class ZoneExtensionService {
         error: error instanceof Error ? error.message : 'Unknown error during zone sync'
       };
     }
+  }
+
+  /**
+   * Rebalance zone ranges to reflect current hardware capacity and total lockers.
+   * Ensures:
+   * - Each enabled zone covers at most (relay_cards.length * 16) lockers
+   * - Zones are allocated sequentially from 1..totalLockers in configured order
+   * - No overall coverage beyond totalLockers
+   */
+  private rebalanceZonesWithHardware(config: CompleteSystemConfig, totalLockers: number): boolean {
+    let changed = false;
+    const enabledZones = config.zones.filter(z => z.enabled);
+    if (enabledZones.length === 0) return false;
+
+    let nextStart = 1;
+    for (const zone of config.zones) {
+      if (!zone.enabled) continue;
+
+      const capacity = Math.max(0, (zone.relay_cards?.length || 0) * 16);
+      const remaining = Math.max(0, totalLockers - (nextStart - 1));
+      const assignCount = Math.min(capacity, remaining);
+
+      let newRanges: [number, number][] = [];
+      if (assignCount > 0) {
+        const start = nextStart;
+        const end = nextStart + assignCount - 1;
+        newRanges = this.mergeAdjacentRanges([[start, end]]);
+        nextStart = end + 1;
+      } else {
+        newRanges = [];
+      }
+
+      // Detect change
+      const oldCount = this.countLockersInRanges(zone.ranges);
+      const newCount = this.countLockersInRanges(newRanges);
+      const oldRangesStr = JSON.stringify(zone.ranges);
+      const newRangesStr = JSON.stringify(newRanges);
+      if (oldRangesStr !== newRangesStr || oldCount !== newCount) {
+        zone.ranges = newRanges;
+        changed = true;
+      }
+    }
+
+    return changed;
   }
 
   /**
