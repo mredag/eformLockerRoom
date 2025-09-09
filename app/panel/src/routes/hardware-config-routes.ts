@@ -89,7 +89,31 @@ export class HardwareConfigRoutes {
     try {
       const updates = request.body as any;
       const staffUser = 'admin'; // TODO: Get from session
-      
+
+      // Pre-normalize zones to avoid validation failures when a zone loses all cards
+      try {
+        if (Array.isArray(updates?.zones)) {
+          // Determine available cards from incoming hardware (fallback to current config if not provided)
+          const current = this.configManager.getConfiguration();
+          const hwCards = Array.isArray(updates?.hardware?.relay_cards)
+            ? updates.hardware.relay_cards
+            : current.hardware.relay_cards;
+          const availableCards: number[] = hwCards
+            .filter((c: any) => c && c.enabled !== false)
+            .map((c: any) => Number(c.slave_address));
+
+          updates.zones = updates.zones.map((z: any) => {
+            const relayCards = Array.isArray(z.relay_cards) ? z.relay_cards : [];
+            const pruned = relayCards.filter((id: any) => availableCards.includes(Number(id))).sort((a: number, b: number) => a - b);
+            // Auto-disable zones that have no relay cards
+            const enabled = pruned.length > 0 ? (z.enabled !== false) : false;
+            return { ...z, enabled, relay_cards: pruned };
+          });
+        }
+      } catch (normErr) {
+        request.log?.warn?.({ normErr }, 'Zone pre-normalization failed; continuing to validate as-is');
+      }
+
       // Validate the configuration
       const validation = this.configManager.validateConfiguration(updates);
       if (!validation.valid) {
