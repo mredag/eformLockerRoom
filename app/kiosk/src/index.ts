@@ -304,7 +304,7 @@ fastify.post("/api/locker/open", async (request, reply) => {
       console.log(`🎯 Using zone-aware mapping: locker ${locker_id} → slave ${zoneMapping.slaveAddress}, coil ${zoneMapping.coilAddress} (zone: ${zoneMapping.zoneId})`);
       
       // Use zone-aware hardware mapping
-      success = await modbusController.sendOpenRelay(zoneMapping.coilAddress, zoneMapping.slaveAddress);
+      success = await modbusController.openLocker(locker_id, zoneMapping.slaveAddress);
     } else {
       console.log(`🔧 Using traditional mapping for locker ${locker_id}`);
       
@@ -577,7 +577,7 @@ heartbeatClient.registerCommandHandler("open_locker", async (command) => {
           message: 'Using zone-aware hardware mapping'
         });
         
-        success = await modbusController.sendOpenRelay(zoneMapping.coilAddress, zoneMapping.slaveAddress);
+        success = await modbusController.openLocker(locker_id, zoneMapping.slaveAddress);
       } else {
         fastify.log.info({
           action: 'open_locker_traditional_mapping',
@@ -737,7 +737,7 @@ heartbeatClient.registerCommandHandler("bulk_open", async (command) => {
           const zoneMapping = getZoneAwareHardwareMapping(lockerId, config);
           
           if (zoneMapping) {
-            success = await modbusController.sendOpenRelay(zoneMapping.coilAddress, zoneMapping.slaveAddress);
+            success = await modbusController.openLocker(lockerId, zoneMapping.slaveAddress);
           } else {
             success = await modbusController.openLocker(lockerId);
           }
