@@ -158,6 +158,25 @@ export class ConfigManager {
     const oldValue = { ...this.config[section] };
     const newValue = { ...this.config[section], ...updates };
 
+    // Enhanced validation for zone configuration updates
+    if (section === 'zones' || (section === 'features' && (updates as any)?.zones_enabled !== undefined)) {
+      const testConfig = { ...this.config, [section]: newValue };
+      
+      // Use enhanced zone validation
+      const zoneValidation = await this.validateZoneConfigurationUpdate(
+        section === 'zones' ? newValue as any : testConfig.zones,
+        changedBy
+      );
+      
+      if (!zoneValidation.valid) {
+        throw new Error(`Zone configuration validation failed: ${zoneValidation.errors.join(', ')}`);
+      }
+      
+      if (zoneValidation.warnings.length > 0) {
+        console.warn('⚠️ Zone configuration warnings:', zoneValidation.warnings.join(', '));
+      }
+    }
+
     // Validate the updated configuration
     const testConfig = { ...this.config, [section]: newValue };
     const validation = this.validateConfiguration(testConfig);
@@ -185,6 +204,17 @@ export class ConfigManager {
     // Auto-sync lockers if hardware configuration changed
     if (section === 'hardware' && changedBy !== 'auto-sync-prevent-loop') {
       await this.triggerLockerSync(reason || 'Hardware configuration changed');
+    }
+
+    // Trigger zone sync if zones were modified and zones are enabled
+    if (section === 'zones' && this.config.features?.zones_enabled && changedBy !== 'auto-sync-zone-extension') {
+      // Calculate total channels and trigger zone sync to validate the new configuration
+      const enabledCards = this.config.hardware.relay_cards.filter(card => card.enabled);
+      const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
+      
+      if (totalChannels > 0) {
+        await this.syncZonesWithHardware(totalChannels, reason || 'Zone configuration updated');
+      }
     }
   }
 
@@ -491,6 +521,131 @@ export class ConfigManager {
   }
 
   /**
+   * Sync zones with hardware configuration
+   * Called when hardware changes and zones are enabled
+   */
+  private async syncZonesWithHardware(totalLockers: number, reason: string): Promise<void> {
+    try {
+      console.log(`🔄 Zone sync triggered: ${totalLockers} total lockers (${reason})`);
+      
+      // Import ZoneExtensionService
+      const { ZoneExtensionService } = await import('./zone-extension-service');
+      const zoneService = new ZoneExtensionService();
+      
+      // Create configuration backup before zone modifications
+      const backupResult = await this.createConfigurationBackup('zone-sync', reason);
+      if (!backupResult.success) {
+        console.warn('⚠️ Failed to create configuration backup:', backupResult.error);
+        // Continue with sync but log the backup failure
+        await this.logConfigChange({
+          timestamp: new Date(),
+          changed_by: 'auto-sync-backup-warning',
+          section: 'zones',
+          old_value: { backup_attempted: true },
+          new_value: { backup_failed: true, error: backupResult.error },
+          reason: `Configuration backup failed before zone sync: ${backupResult.error}`
+        });
+      } else {
+        console.log(`📋 Configuration backup created: ${backupResult.backupPath}`);
+      }
+      
+      // Validate zone extension before applying
+      const validation = zoneService.validateZoneExtension(this.config!, totalLockers);
+      
+      if (!validation.valid) {
+        console.error('❌ Zone extension validation failed:', validation.errors.join(', '));
+        
+        // Log validation failure
+        await this.logConfigChange({
+          timestamp: new Date(),
+          changed_by: 'auto-sync-zone-validation',
+          section: 'zones',
+          old_value: this.config!.zones,
+          new_value: this.config!.zones,
+          reason: `Zone sync validation failed: ${validation.errors.join(', ')}`
+        });
+        
+        return;
+      }
+      
+      if (validation.warnings.length > 0) {
+        console.warn('⚠️ Zone extension warnings:', validation.warnings.join(', '));
+      }
+      
+      // Perform zone sync
+      const syncResult = await zoneService.syncZonesWithHardware(this.config!, totalLockers);
+      
+      if (syncResult.error) {
+        console.error('❌ Zone sync failed:', syncResult.error);
+        
+        // Log sync failure
+        await this.logConfigChange({
+          timestamp: new Date(),
+          changed_by: 'auto-sync-zone-error',
+          section: 'zones',
+          old_value: this.config!.zones,
+          new_value: this.config!.zones,
+          reason: `Zone sync failed: ${syncResult.error}`
+        });
+        
+        return;
+      }
+      
+      if (syncResult.extended) {
+        console.log(`✅ Zone extended: ${syncResult.affectedZone} now includes lockers ${syncResult.newRange![0]}-${syncResult.newRange![1]}`);
+        
+        if (syncResult.mergedRanges) {
+          console.log(`🔗 Ranges merged: ${JSON.stringify(syncResult.mergedRanges)}`);
+        }
+        
+        if (syncResult.updatedRelayCards) {
+          console.log(`🔧 Relay cards updated: ${JSON.stringify(syncResult.updatedRelayCards)}`);
+        }
+        
+        // Save the updated configuration (zones were modified in-place)
+        await this.saveConfiguration();
+        
+        // Log successful zone extension
+        await this.logConfigChange({
+          timestamp: new Date(),
+          changed_by: 'auto-sync-zone-extension',
+          section: 'zones',
+          old_value: { affectedZone: syncResult.affectedZone, previousRanges: 'before_extension' },
+          new_value: { 
+            affectedZone: syncResult.affectedZone, 
+            newRange: syncResult.newRange,
+            mergedRanges: syncResult.mergedRanges,
+            updatedRelayCards: syncResult.updatedRelayCards
+          },
+          reason: `Automatic zone extension: ${reason}`
+        });
+        
+      } else {
+        console.log('ℹ️ No zone extension needed - zones already cover all lockers');
+      }
+      
+    } catch (error) {
+      console.error('❌ Zone sync error:', error);
+      
+      // Log sync error
+      try {
+        await this.logConfigChange({
+          timestamp: new Date(),
+          changed_by: 'auto-sync-zone-error',
+          section: 'zones',
+          old_value: this.config!.zones,
+          new_value: this.config!.zones,
+          reason: `Zone sync error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        });
+      } catch (logError) {
+        console.error('Failed to log zone sync error:', logError);
+      }
+      
+      // Don't throw - allow hardware sync to continue even if zone sync fails
+    }
+  }
+
+  /**
    * Trigger locker sync when hardware configuration changes
    */
   private async triggerLockerSync(reason: string): Promise<void> {
@@ -502,6 +657,11 @@ export class ConfigManager {
       const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
       
       if (totalChannels > 0) {
+        // Sync zones with hardware if zones are enabled
+        if (this.config!.features?.zones_enabled) {
+          await this.syncZonesWithHardware(totalChannels, reason);
+        }
+        
         // Import and sync for all known kiosks (typically just kiosk-1)
         const { LockerStateManager } = await import('./locker-state-manager');
         const { DatabaseConnection } = await import('../database/connection');
@@ -525,6 +685,158 @@ export class ConfigManager {
     } catch (error) {
       console.error('❌ Auto-sync failed after config change:', error);
       // Don't throw - config update should still succeed even if sync fails
+    }
+  }
+
+  /**
+   * Manually trigger zone sync with hardware
+   * Public method for external zone sync requests
+   */
+  async manualZoneSync(changedBy: string, reason?: string): Promise<{ success: boolean; message: string; details?: any }> {
+    try {
+      if (!this.config) {
+        return { success: false, message: 'Configuration not loaded' };
+      }
+
+      if (!this.config.features?.zones_enabled) {
+        return { success: false, message: 'Zones are not enabled in configuration' };
+      }
+
+      // Calculate total channels from hardware config
+      const enabledCards = this.config.hardware.relay_cards.filter(card => card.enabled);
+      const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
+
+      if (totalChannels === 0) {
+        return { success: false, message: 'No enabled relay cards found in hardware configuration' };
+      }
+
+      // Perform zone sync
+      await this.syncZonesWithHardware(totalChannels, reason || `Manual zone sync by ${changedBy}`);
+
+      return { 
+        success: true, 
+        message: `Zone sync completed successfully for ${totalChannels} lockers`,
+        details: { totalChannels, triggeredBy: changedBy }
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Manual zone sync failed:', error);
+      
+      return { 
+        success: false, 
+        message: `Zone sync failed: ${errorMessage}`,
+        details: { error: errorMessage }
+      };
+    }
+  }
+
+  /**
+   * Validate zone configuration before applying updates
+   * Enhanced validation to prevent invalid zone configurations
+   */
+  async validateZoneConfigurationUpdate(
+    zoneUpdates: Partial<CompleteSystemConfig['zones']>,
+    changedBy: string
+  ): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
+    if (!this.config) {
+      return { valid: false, errors: ['Configuration not loaded'], warnings: [] };
+    }
+
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    try {
+      // Create test configuration with proposed zone updates
+      const testConfig = {
+        ...this.config,
+        zones: Array.isArray(zoneUpdates) ? zoneUpdates : this.config.zones
+      };
+
+      // Use ZoneExtensionService for validation
+      const { ZoneExtensionService } = await import('./zone-extension-service');
+      const zoneService = new ZoneExtensionService();
+
+      // Calculate total hardware capacity
+      const enabledCards = this.config.hardware.relay_cards.filter(card => card.enabled);
+      const totalHardwareCapacity = enabledCards.reduce((sum, card) => sum + card.channels, 0);
+
+      // Validate the zone configuration
+      const validation = zoneService.validateZoneExtension(testConfig as CompleteSystemConfig, totalHardwareCapacity);
+      
+      errors.push(...validation.errors);
+      warnings.push(...validation.warnings);
+
+      // Additional ConfigManager-specific validations
+      if (testConfig.zones && testConfig.features?.zones_enabled && Array.isArray(testConfig.zones)) {
+        // Filter out any undefined zones and ensure type safety
+        const validZones = testConfig.zones.filter((zone): zone is NonNullable<typeof zone> => zone != null);
+        
+        // Check for duplicate zone IDs
+        const zoneIds = validZones.map(zone => zone.id);
+        const duplicateIds = zoneIds.filter((id, index) => zoneIds.indexOf(id) !== index);
+        if (duplicateIds.length > 0) {
+          errors.push(`Duplicate zone IDs found: ${duplicateIds.join(', ')}`);
+        }
+
+        // Check for empty zone IDs
+        const emptyIds = validZones.filter(zone => !zone.id || zone.id.trim() === '');
+        if (emptyIds.length > 0) {
+          errors.push('Zone IDs cannot be empty');
+        }
+
+        // Check for invalid characters in zone IDs
+        const invalidIdPattern = /[^a-zA-Z0-9_-]/;
+        const invalidIds = validZones.filter(zone => invalidIdPattern.test(zone.id));
+        if (invalidIds.length > 0) {
+          errors.push(`Zone IDs contain invalid characters: ${invalidIds.map(z => z.id).join(', ')}`);
+        }
+
+        // Validate relay card references
+        const availableCards = this.config.hardware.relay_cards
+          .filter(card => card.enabled)
+          .map(card => card.slave_address);
+
+        for (const zone of validZones) {
+          if (zone.relay_cards && Array.isArray(zone.relay_cards)) {
+            for (const cardId of zone.relay_cards) {
+              if (!availableCards.includes(cardId)) {
+                warnings.push(`Zone ${zone.id} references unavailable relay card ${cardId}`);
+              }
+            }
+          }
+        }
+      }
+
+      // Log validation attempt
+      await this.logConfigChange({
+        timestamp: new Date(),
+        changed_by: changedBy,
+        section: 'zones_validation',
+        old_value: { validation_requested: true },
+        new_value: { 
+          valid: errors.length === 0,
+          errors: errors.length,
+          warnings: warnings.length
+        },
+        reason: 'Zone configuration validation requested'
+      });
+
+      return {
+        valid: errors.length === 0,
+        errors,
+        warnings
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown validation error';
+      errors.push(`Validation error: ${errorMessage}`);
+      
+      return {
+        valid: false,
+        errors,
+        warnings
+      };
     }
   }
 
@@ -553,6 +865,175 @@ export class ConfigManager {
     } catch (error) {
       console.error('Failed to get config change history:', error);
       return [];
+    }
+  }
+
+  /**
+   * Create a backup of the current configuration before modifications
+   * 
+   * @param operation - The operation that triggered the backup
+   * @param reason - Reason for the backup
+   * @returns Backup result with success status and backup path
+   */
+  async createConfigurationBackup(
+    operation: string, 
+    reason: string
+  ): Promise<{ success: boolean; backupPath?: string; error?: string }> {
+    try {
+      if (!this.config) {
+        return { success: false, error: 'No configuration loaded to backup' };
+      }
+
+      // Create backup filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupFilename = `system-config-backup-${operation}-${timestamp}.json`;
+      const backupPath = `./config/backups/${backupFilename}`;
+
+      // Ensure backup directory exists
+      const { mkdir } = await import('fs/promises');
+      const { dirname } = await import('path');
+      
+      try {
+        await mkdir(dirname(backupPath), { recursive: true });
+      } catch (mkdirError) {
+        // Directory might already exist, continue
+      }
+
+      // Create backup with metadata
+      const backupData = {
+        metadata: {
+          backup_timestamp: new Date().toISOString(),
+          original_config_path: this.configPath,
+          operation,
+          reason,
+          system_version: process.env.npm_package_version || 'unknown'
+        },
+        configuration: this.config
+      };
+
+      // Write backup file
+      await writeFile(backupPath, JSON.stringify(backupData, null, 2), 'utf8');
+
+      // Log the backup creation
+      await this.logConfigChange({
+        timestamp: new Date(),
+        changed_by: 'system-backup',
+        section: 'backup',
+        old_value: { backup_requested: true },
+        new_value: { 
+          backup_created: true, 
+          backup_path: backupPath,
+          operation,
+          reason 
+        },
+        reason: `Configuration backup created for ${operation}: ${reason}`
+      });
+
+      return { success: true, backupPath };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown backup error';
+      console.error('Failed to create configuration backup:', errorMessage);
+      
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Restore configuration from backup
+   * 
+   * @param backupPath - Path to the backup file
+   * @param restoredBy - User or system performing the restore
+   * @returns Restore result
+   */
+  async restoreConfigurationFromBackup(
+    backupPath: string,
+    restoredBy: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Check if backup file exists
+      await access(backupPath);
+
+      // Read backup file
+      const backupContent = await readFile(backupPath, 'utf8');
+      const backupData = JSON.parse(backupContent);
+
+      // Validate backup structure
+      if (!backupData.configuration || !backupData.metadata) {
+        return { success: false, error: 'Invalid backup file structure' };
+      }
+
+      // Create a backup of current config before restore
+      const currentBackupResult = await this.createConfigurationBackup(
+        'pre-restore', 
+        `Backup before restoring from ${backupPath}`
+      );
+
+      if (!currentBackupResult.success) {
+        console.warn('Failed to backup current config before restore:', currentBackupResult.error);
+      }
+
+      // Validate the backup configuration
+      const validationResult = await this.validateConfiguration(backupData.configuration);
+      if (!validationResult.valid) {
+        return { 
+          success: false, 
+          error: `Backup configuration is invalid: ${validationResult.errors.join(', ')}` 
+        };
+      }
+
+      // Store old configuration for logging
+      const oldConfig = this.config;
+
+      // Apply the restored configuration
+      this.config = backupData.configuration;
+
+      // Save the restored configuration
+      await this.saveConfiguration();
+
+      // Log the restore operation
+      await this.logConfigChange({
+        timestamp: new Date(),
+        changed_by: restoredBy,
+        section: 'full_restore',
+        old_value: { 
+          config_hash: this.generateConfigHash(oldConfig),
+          backup_metadata: 'current_config'
+        },
+        new_value: { 
+          config_hash: this.generateConfigHash(this.config),
+          backup_metadata: backupData.metadata,
+          restored_from: backupPath
+        },
+        reason: `Configuration restored from backup: ${backupPath}`
+      });
+
+      console.log(`✅ Configuration restored from backup: ${backupPath}`);
+      return { success: true };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown restore error';
+      console.error('Failed to restore configuration from backup:', errorMessage);
+      
+      return { success: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Generate a hash of the configuration for change detection
+   * 
+   * @param config - Configuration to hash
+   * @returns Configuration hash string
+   */
+  private generateConfigHash(config: CompleteSystemConfig | null): string {
+    if (!config) return 'null';
+    
+    try {
+      const { createHash } = require('crypto');
+      const configString = JSON.stringify(config, Object.keys(config).sort());
+      return createHash('sha256').update(configString).digest('hex').substring(0, 16);
+    } catch (error) {
+      return 'hash_error';
     }
   }
 }

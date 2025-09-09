@@ -1,8 +1,15 @@
+// Load environment variables from .env file
+const { config } = require('dotenv');
+const path = require('path');
+
+// Resolve to project root from app/gateway/src/
+const projectRoot = path.resolve(__dirname, '../../..');
+
+// Load .env from project root
+config({ path: path.join(projectRoot, '.env') });
+
 // Ensure EFORM_DB_PATH is set before any database imports
 if (!process.env.EFORM_DB_PATH) {
-  const path = require('path');
-  // Resolve to project root from app/gateway/src/
-  const projectRoot = path.resolve(__dirname, '../../..');
   process.env.EFORM_DB_PATH = path.join(projectRoot, 'data', 'eform.db');
   console.log(`🔧 Gateway: Set EFORM_DB_PATH to ${process.env.EFORM_DB_PATH}`);
 }
