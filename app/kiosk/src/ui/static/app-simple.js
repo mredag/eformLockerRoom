@@ -727,9 +727,9 @@ class SimpleKioskApp {
         try {
             this.showLoadingState('Müsait dolaplar yükleniyor...');
             
-            // Build zone-aware API URL
+            // Build zone-aware API URL (support backend expecting kiosk_id)
             const zoneParam = this.kioskZone ? `&zone=${encodeURIComponent(this.kioskZone)}` : '';
-            const apiUrl = `/api/lockers/available?kioskId=${this.kioskId}${zoneParam}`;
+            const apiUrl = `/api/lockers/available?kiosk_id=${this.kioskId}${zoneParam}`;
             
             console.log(`🎯 Fetching available lockers: ${apiUrl}`);
             
@@ -751,11 +751,27 @@ class SimpleKioskApp {
             }
             
             const result = await response.json();
-            
-            if (result.lockers && result.lockers.length > 0) {
+
+            // Support both response shapes:
+            // - New API: Array of lockers [{ id, status, is_vip }]
+            // - Legacy API: { lockers: [...], sessionId }
+            const rawLockers = Array.isArray(result) ? result : (result && result.lockers) ? result.lockers : [];
+            const sessionId = Array.isArray(result) ? `temp-${Date.now()}` : (result && result.sessionId) ? result.sessionId : `temp-${Date.now()}`;
+
+            // Normalize to UI shape and keep ONLY available lockers
+            const lockers = rawLockers
+                .filter(l => (l.status === 'Free' || l.status === 'available' || l.status === 'Boş'))
+                .map(l => ({
+                    id: l.id,
+                    status: 'available',
+                    displayName: l.displayName || `Dolap ${l.id}`,
+                    is_vip: !!l.is_vip
+                }));
+
+            if (lockers.length > 0) {
                 this.state.selectedCard = cardId;
-                this.state.sessionId = result.sessionId;
-                this.state.availableLockers = result.lockers;
+                this.state.sessionId = sessionId;
+                this.state.availableLockers = lockers;
                 this.startSession();
             } else {
                 this.showErrorState('NO_LOCKERS_AVAILABLE');

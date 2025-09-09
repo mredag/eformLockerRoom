@@ -103,9 +103,9 @@
 - **Production**: Raspberry Pi at `192.168.1.8`
 - **SSH Access**: `ssh pi@pi-eform-locker` (passwordless)
 - **Service URLs**:
-  - Gateway: `http://192.168.1.8:3000` (API coordinator)
-  - Panel: `http://192.168.1.8:3001` (Admin interface)
-  - Kiosk: `http://192.168.1.8:3002` (User interface)
+  - Gateway: `http://192.168.1.10:3000` (API coordinator)
+  - Panel: `http://192.168.1.10:3001` (Admin interface)
+  - Kiosk: `http://192.168.1.10:3002` (User interface)
 
 ## Key Features & Capabilities
 
@@ -116,6 +116,28 @@
 - **Locker Naming**: Custom display names with Turkish character support
 - **Accessibility Compliance**: WCAG-compliant interface design
 - **Fault Tolerance**: Automatic service recovery and error handling
+
+## Zone Features (Zones MVP)
+
+- **Overview**: Zone-aware locker management that groups lockers into logical zones (e.g., mens, womens, floors), enabling per‑zone filtering in UIs and zone‑aware hardware mapping. Backward compatible when zones are disabled.
+- **Config keys** (`config/system.json`):
+  - `features.zones_enabled: boolean`
+  - `zones[]`: `{ id: string, name?: string, enabled: boolean, ranges: [start, end][], relay_cards: number[] }`
+  - Ranges are inclusive. Each 16 positions in a zone map to one relay card in `relay_cards` (position→cardIndex=floor((pos-1)/16), coil=((pos-1)%16)+1).
+- **Core logic locations**:
+  - `shared/services/zone-helpers.ts`: `getLockerPositionInZone`, `computeHardwareMappingFromPosition`, `getZoneAwareHardwareMapping`, `getLockersInZone`, `validateZoneConfiguration`.
+  - `shared/services/locker-layout-service.ts`: zone‑aware layout generation with optional `zoneId` parameter; defaults preserve previous behavior when omitted.
+- **API & UI usage**:
+  - Kiosk/Gateway endpoints accept optional `zone` query (e.g., `?zone=mens`) to return only lockers in that zone; no parameter returns all.
+  - Panel and kiosk UIs may request layouts per zone to render zone‑specific tiles/screens.
+- **Automatic zone extension**:
+  - When new relay cards are added in hardware config, the last active zone can automatically extend to cover new lockers; database sync creates missing lockers accordingly. Validation, backup, and logging are required before applying.
+- **Testing**:
+  - Unit/integration: validate position→hardware mapping, zone filtering, and config validation.
+  - Local scripts: `node test-zone-features.js` (repo root) for helper and integration smoke checks. For Pi, use `test-zone-features-pi.js`.
+- **Operational notes**:
+  - Restart services after changing `system.json` zones: `./scripts/start-all-clean.sh` (on Pi).
+  - Keep zones disabled in config for legacy behavior or during staged rollout.
 
 ## Repository Maintenance System
 
