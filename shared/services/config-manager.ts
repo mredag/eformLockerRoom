@@ -10,7 +10,8 @@ import {
   CompleteSystemConfig, 
   ConfigValidationResult,
   ConfigChangeEvent,
-  RelayCard
+  RelayCard,
+  ZoneConfig
 } from '../types/system-config';
 import { EventType } from '../types/core-entities';
 import { EventRepository } from '../database/event-repository';
@@ -155,8 +156,29 @@ export class ConfigManager {
       throw new Error('Configuration not loaded');
     }
 
-    const oldValue = { ...this.config[section] };
-    const newValue = { ...this.config[section], ...updates };
+    const oldValue: any = Array.isArray(this.config[section])
+      ? [...(this.config[section] as any)]
+      : { ...(this.config[section] as any) };
+
+    let newValue: any;
+
+    // Arrays like 'zones' must be replaced, not object-merged
+    if (section === 'zones') {
+      const availableCards = this.config.hardware.relay_cards.map((card: RelayCard) => card.slave_address);
+      const incomingZones: ZoneConfig[] = Array.isArray(updates) ? (updates as unknown as ZoneConfig[]) : (this.config[section] as unknown as ZoneConfig[]);
+
+      // Prune relay_cards not present in hardware and normalize order
+      const cleanedZones: ZoneConfig[] = (incomingZones || []).map((z) => ({
+        ...z,
+        relay_cards: Array.isArray(z.relay_cards)
+          ? z.relay_cards.filter((id) => availableCards.includes(id)).sort((a, b) => a - b)
+          : []
+      }));
+
+      newValue = cleanedZones;
+    } else {
+      newValue = { ...(this.config[section] as any), ...(updates as any) };
+    }
 
     // Enhanced validation for zone configuration updates
     if (section === 'zones' || (section === 'features' && (updates as any)?.zones_enabled !== undefined)) {
@@ -178,7 +200,7 @@ export class ConfigManager {
     }
 
     // Validate the updated configuration
-    const testConfig = { ...this.config, [section]: newValue };
+    const testConfig = { ...this.config, [section]: newValue } as CompleteSystemConfig;
     const validation = this.validateConfiguration(testConfig);
     
     if (!validation.valid) {
