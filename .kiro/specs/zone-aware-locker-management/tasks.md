@@ -137,6 +137,46 @@ This implementation plan covers the completion of zone-aware locker management s
   - Create error tracking and reporting system
   - _Requirements: 5.4, 5.5_
 
+- [ ] 9. Zone-Aware RFID User Interface ⭐ **NEW PRIORITY TASK**
+
+  - Modify RFID user flow to show only zone-appropriate lockers
+  - Add kiosk zone configuration (KIOSK_ZONE environment variable)
+  - Update `handleCardWithNoLocker()` to use zone-filtered locker queries
+  - Add zone context to RFID flow logging
+  - _Requirements: 1.1, 1.2, 3.1, 3.2_
+
+- [x] 9.1 Add kiosk zone configuration ✅ COMPLETED
+
+  - ✅ Add `KIOSK_ZONE` environment variable (e.g., "mens", "womens")
+  - ✅ Update kiosk service startup to read and validate zone configuration
+  - ✅ Add zone validation: ensure kiosk zone exists and is enabled
+  - ✅ Add fallback behavior when zone is not configured (show all lockers)
+  - _Requirements: 3.1_
+
+- [x] 9.2 Modify RFID user flow for zone awareness ✅ COMPLETED
+
+  - ✅ Update `handleCardWithNoLocker()` to use zone-filtered locker queries
+  - ✅ Call layout service with zone parameter: `generateLockerLayout(kioskId, zoneId)`
+  - ✅ Filter available lockers to only show lockers in kiosk's zone
+  - ✅ Add zone context to all RFID flow logging and events
+  - _Requirements: 1.1, 1.2, 3.2_
+
+- [ ] 9.3 Update UI components for zone display
+
+  - Add zone indicator to kiosk interface ("Erkek Dolap Sistemi" / "Kadın Dolap Sistemi")
+  - Update locker selection UI to show zone-appropriate lockers only
+  - Add zone information to error messages and user feedback
+  - Ensure backward compatibility when zone is not configured
+  - _Requirements: 3.2_
+
+- [ ] 9.4 Add zone-aware session management
+
+  - Include zone information in RFID session data
+  - Update session cleanup to consider zone context
+  - Add zone validation for locker selection (prevent cross-zone access)
+  - Log zone information in all session operations
+  - _Requirements: 1.5, 3.2_
+
 - [ ] 8.1 Create unit tests for zone helper functions
 
   - Test boundary conditions: positions 1, 16, 17, 32 mapping correctly

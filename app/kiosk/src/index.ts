@@ -87,21 +87,17 @@ const rfidConfig = {
 const modbusController = new ModbusController(modbusConfig);
 const rfidHandler = new RfidHandler(rfidConfig);
 
-// RFID User Flow configuration
-const rfidUserFlowConfig = {
+// RFID User Flow configuration (will be updated with validated zone)
+let rfidUserFlowConfig = {
   kiosk_id: process.env.KIOSK_ID || "kiosk-1",
   max_available_lockers_display: parseInt(
     process.env.MAX_AVAILABLE_LOCKERS || "10"
   ),
   opening_timeout_ms: parseInt(process.env.OPENING_TIMEOUT_MS || "30000"),
+  zone_id: undefined as string | undefined, // Will be set after validation
 };
 
-const rfidUserFlow = new RfidUserFlow(
-  rfidUserFlowConfig,
-  lockerStateManager,
-  modbusController,
-  lockerNamingService
-);
+let rfidUserFlow: RfidUserFlow;
 const qrHandler = new QrHandler(lockerStateManager, modbusController, lockerNamingService);
 const uiController = new UiController(
   lockerStateManager,
@@ -112,7 +108,8 @@ const i18nController = new KioskI18nController(fastify);
 
 // Get kiosk ID from environment or config
 const KIOSK_ID = process.env.KIOSK_ID || "kiosk-1";
-const ZONE = process.env.ZONE || "main";
+const KIOSK_ZONE = process.env.KIOSK_ZONE; // Zone for this kiosk (e.g., "mens", "womens")
+const ZONE = process.env.ZONE || "main"; // Legacy zone field for heartbeat
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://127.0.0.1:3000";
 const VERSION = process.env.npm_package_version || "1.0.0";
 const PORT = parseInt(process.env.PORT || "3002");
@@ -444,15 +441,40 @@ fastify.post('/api/locker/close', async (request, reply) => {
   }
 });
 
-// Health check endpoint with hardware status
+// Health check endpoint with hardware status and zone information
 fastify.get("/health", async (request, reply) => {
   const hardwareStatus = uiController.getHardwareStatusForHealth();
+  
+  // Get zone information
+  let zoneInfo = null;
+  if (rfidUserFlowConfig.zone_id) {
+    try {
+      const { ConfigManager } = await import("../../../shared/services/config-manager");
+      const configManager = ConfigManager.getInstance();
+      await configManager.initialize();
+      const config = configManager.getConfiguration();
+      
+      const zone = config.zones?.find(z => z.id === rfidUserFlowConfig.zone_id);
+      if (zone) {
+        zoneInfo = {
+          zone_id: zone.id,
+          enabled: zone.enabled,
+          ranges: zone.ranges,
+          relay_cards: zone.relay_cards
+        };
+      }
+    } catch (error) {
+      console.warn('Error getting zone info for health check:', error);
+    }
+  }
   
   return {
     status: hardwareStatus.available ? "healthy" : "degraded",
     kiosk_id: KIOSK_ID,
+    kiosk_zone: rfidUserFlowConfig.zone_id || null,
     timestamp: new Date().toISOString(),
     version: "1.0.0",
+    zone_info: zoneInfo,
     hardware: {
       available: hardwareStatus.available,
       connected: hardwareStatus.connected,
@@ -869,9 +891,62 @@ heartbeatClient.registerCommandHandler("unblock_locker", async (command) => {
   }
 });
 
+// Validate kiosk zone configuration
+async function validateKioskZone(): Promise<string | null> {
+  if (!KIOSK_ZONE) {
+    console.log(`⚠️  KIOSK_ZONE not configured - will show all available lockers`);
+    return null;
+  }
+
+  try {
+    // Import and initialize config manager
+    const { ConfigManager } = await import("../../../shared/services/config-manager");
+    const configManager = ConfigManager.getInstance();
+    await configManager.initialize();
+    const config = configManager.getConfiguration();
+
+    // Check if zones are enabled
+    if (!config.features?.zones_enabled || !config.zones) {
+      console.log(`⚠️  Zones not enabled in system config - ignoring KIOSK_ZONE=${KIOSK_ZONE}`);
+      return null;
+    }
+
+    // Validate that the specified zone exists and is enabled
+    const zone = config.zones.find(z => z.id === KIOSK_ZONE && z.enabled);
+    if (!zone) {
+      const availableZones = config.zones.filter(z => z.enabled).map(z => z.id);
+      console.error(`❌ Invalid KIOSK_ZONE: '${KIOSK_ZONE}' not found or disabled`);
+      console.error(`Available zones: ${availableZones.join(', ')}`);
+      console.log(`⚠️  Falling back to show all available lockers`);
+      return null;
+    }
+
+    console.log(`✅ Kiosk zone validated: '${KIOSK_ZONE}' (lockers: ${zone.ranges.map(r => `${r[0]}-${r[1]}`).join(', ')})`);
+    return KIOSK_ZONE;
+  } catch (error) {
+    console.error(`❌ Error validating kiosk zone:`, error);
+    console.log(`⚠️  Falling back to show all available lockers`);
+    return null;
+  }
+}
+
 // Start server
 const start = async () => {
   try {
+    // Validate kiosk zone configuration
+    const validatedZone = await validateKioskZone();
+    
+    // Update RFID user flow config with validated zone
+    rfidUserFlowConfig.zone_id = validatedZone || undefined;
+    
+    // Initialize RFID user flow with zone configuration
+    rfidUserFlow = new RfidUserFlow(
+      rfidUserFlowConfig,
+      lockerStateManager,
+      modbusController,
+      lockerNamingService
+    );
+
     // Register UI routes
     await uiController.registerRoutes(fastify);
 

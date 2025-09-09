@@ -14,6 +14,7 @@ export interface RfidUserFlowConfig {
   kiosk_id: string;
   max_available_lockers_display: number;
   opening_timeout_ms: number;
+  zone_id?: string; // Optional zone for this kiosk
 }
 
 export interface UserFlowResult {
@@ -98,19 +99,30 @@ export class RfidUserFlow extends EventEmitter {
 
   /**
    * Handle card with no existing locker assignment
-   * Shows available Free lockers for user selection
+   * Shows available Free lockers for user selection (zone-aware)
    * Requirement 1.1: Display available lockers when card has no assignment
+   * Requirement 3.2: Zone-aware locker filtering
    */
   async handleCardWithNoLocker(cardId: string): Promise<UserFlowResult> {
     try {
-      // Get available (Free) lockers, excluding Blocked, Reserved, and VIP
-      const availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
+      let availableLockers: Locker[];
+      
+      if (this.config.zone_id) {
+        // Zone-aware: Get available lockers filtered by zone
+        console.log(`🎯 Getting available lockers for zone: ${this.config.zone_id}`);
+        availableLockers = await this.getZoneAwareAvailableLockers(this.config.zone_id);
+      } else {
+        // Legacy: Get all available lockers
+        console.log(`📋 Getting all available lockers (no zone configured)`);
+        availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
+      }
       
       if (availableLockers.length === 0) {
+        const zoneMessage = this.config.zone_id ? ` (${this.config.zone_id} bölgesi)` : '';
         return {
           success: false,
           action: 'error',
-          message: 'Boş dolap yok. Lütfen bekleyin.',
+          message: `Boş dolap yok${zoneMessage}. Lütfen bekleyin.`,
           error_code: 'NO_AVAILABLE_LOCKERS'
         };
       }
@@ -118,16 +130,21 @@ export class RfidUserFlow extends EventEmitter {
       // Limit display to configured maximum
       const displayLockers = availableLockers.slice(0, this.config.max_available_lockers_display);
       
+      // Log zone context
+      console.log(`✅ Found ${availableLockers.length} available lockers (zone: ${this.config.zone_id || 'all'}), showing ${displayLockers.length}`);
+      
       this.emit('show_available_lockers', {
         card_id: cardId,
         lockers: displayLockers,
-        total_available: availableLockers.length
+        total_available: availableLockers.length,
+        zone_id: this.config.zone_id // Include zone context in event
       });
 
+      const zoneMessage = this.config.zone_id ? ` (${this.config.zone_id} bölgesi)` : '';
       return {
         success: true,
         action: 'show_lockers',
-        message: 'Dolap seçiniz',
+        message: `Dolap seçiniz${zoneMessage}`,
         available_lockers: displayLockers
       };
     } catch (error) {
@@ -138,6 +155,42 @@ export class RfidUserFlow extends EventEmitter {
         message: 'Dolap listesi alınamadı.',
         error_code: 'LOCKER_LIST_ERROR'
       };
+    }
+  }
+
+  /**
+   * Get zone-aware available lockers using the layout service
+   * This ensures we only show lockers that belong to the kiosk's zone
+   */
+  private async getZoneAwareAvailableLockers(zoneId: string): Promise<Locker[]> {
+    try {
+      // Import layout service
+      const { lockerLayoutService } = await import("../../../../shared/services/locker-layout-service");
+      
+      // Get zone-aware layout
+      const layout = await lockerLayoutService.generateLockerLayout(this.config.kiosk_id, zoneId);
+      
+      // Get current locker states and filter for available ones
+      const availableLockers: Locker[] = [];
+      
+      for (const lockerInfo of layout.lockers) {
+        try {
+          const locker = await this.lockerStateManager.getLocker(this.config.kiosk_id, lockerInfo.id);
+          
+          // Include only Free lockers that are enabled and not VIP
+          if (locker && locker.status === 'Free' && lockerInfo.enabled && !locker.is_vip) {
+            availableLockers.push(locker);
+          }
+        } catch (error) {
+          console.warn(`⚠️  Could not check status for locker ${lockerInfo.id}:`, error);
+        }
+      }
+      
+      return availableLockers;
+    } catch (error) {
+      console.error('Error getting zone-aware available lockers:', error);
+      // Fallback to legacy method
+      return await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
     }
   }
 
