@@ -121,6 +121,26 @@ export class HardwareConfigRoutes {
         );
       }
 
+      // Update features (e.g., zones_enabled)
+      if (updates.features) {
+        await this.configManager.updateConfiguration(
+          'features',
+          updates.features,
+          staffUser,
+          'Features updated via admin panel'
+        );
+      }
+
+      // Update zones mapping (assign relay_cards to zones)
+      if (updates.zones) {
+        await this.configManager.updateConfiguration(
+          'zones',
+          updates.zones,
+          staffUser,
+          'Zones configuration updated via admin panel'
+        );
+      }
+
       // Update other sections as needed
       const sectionsToUpdate = ['system', 'database', 'services', 'security', 'qr', 'logging', 'i18n'];
       for (const section of sectionsToUpdate) {
