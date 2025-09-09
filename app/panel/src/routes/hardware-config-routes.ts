@@ -114,8 +114,26 @@ export class HardwareConfigRoutes {
         request.log?.warn?.({ normErr }, 'Zone pre-normalization failed; continuing to validate as-is');
       }
 
+      // Build a merged config snapshot for validation
+      const current = this.configManager.getConfiguration();
+      const mergedForValidation = {
+        ...current,
+        ...updates,
+        hardware: updates.hardware ? { ...current.hardware, ...updates.hardware } : current.hardware,
+        lockers: updates.lockers ? { ...current.lockers, ...updates.lockers } : current.lockers,
+        features: updates.features ? { ...current.features, ...updates.features } : current.features,
+        zones: Array.isArray(updates.zones) ? updates.zones : current.zones,
+        system: updates.system ? { ...current.system, ...updates.system } : current.system,
+        database: updates.database ? { ...current.database, ...updates.database } : current.database,
+        services: updates.services ? { ...current.services, ...updates.services } : current.services,
+        security: updates.security ? { ...current.security, ...updates.security } : current.security,
+        qr: updates.qr ? { ...current.qr, ...updates.qr } : current.qr,
+        logging: updates.logging ? { ...current.logging, ...updates.logging } : current.logging,
+        i18n: updates.i18n ? { ...current.i18n, ...updates.i18n } : current.i18n
+      };
+
       // Validate the configuration
-      const validation = this.configManager.validateConfiguration(updates);
+      const validation = this.configManager.validateConfiguration(mergedForValidation);
       if (!validation.valid) {
         reply.code(400);
         return {
@@ -184,11 +202,17 @@ export class HardwareConfigRoutes {
         warnings: validation.warnings || []
       };
     } catch (error) {
-      console.error('Error updating hardware config:', error);
-      reply.code(500);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error updating hardware config:', message);
+      // Surface validation-related errors as 400 for better UX
+      if (message.toLowerCase().includes('validation')) {
+        reply.code(400);
+      } else {
+        reply.code(500);
+      }
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: message
       };
     }
   }
