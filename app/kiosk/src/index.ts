@@ -28,6 +28,7 @@ import {
   createKioskValidationMiddleware,
 } from "./middleware/security-middleware";
 import { KioskI18nController } from "./controllers/i18n-controller";
+import { zoneValidationMiddleware } from "./middleware/zone-validation-middleware";
 
 const fastify = Fastify({
   logger: true,
@@ -165,13 +166,16 @@ fastify.post(
 );
 
 // Zone-aware API: Get available lockers
-fastify.get("/api/lockers/available", async (request, reply) => {
+fastify.get("/api/lockers/available", {
+  preHandler: [zoneValidationMiddleware.createZoneParameterValidator()]
+}, async (request, reply) => {
   try {
-    const { kiosk_id, zone } = request.query as { kiosk_id?: string; zone?: string };
+    const { kiosk_id } = request.query as { kiosk_id?: string };
     const kioskId = kiosk_id || KIOSK_ID;
-    const zoneId = zone ? String(zone) : undefined;
+    const zoneId = (request as any).validatedZone; // From validation middleware
 
-    console.log(`📋 Getting available lockers for kiosk: ${kioskId}, zone: ${zoneId || 'all'}`);
+    // Log zone context
+    zoneValidationMiddleware.logZoneContext('get_available_lockers', zoneId, undefined, { kiosk_id: kioskId });
 
     // Import layout service
     const { lockerLayoutService } = await import("../../../shared/services/locker-layout-service");
@@ -209,13 +213,16 @@ fastify.get("/api/lockers/available", async (request, reply) => {
 });
 
 // Zone-aware API: Get all lockers
-fastify.get("/api/lockers/all", async (request, reply) => {
+fastify.get("/api/lockers/all", {
+  preHandler: [zoneValidationMiddleware.createZoneParameterValidator()]
+}, async (request, reply) => {
   try {
-    const { kiosk_id, zone } = request.query as { kiosk_id?: string; zone?: string };
+    const { kiosk_id } = request.query as { kiosk_id?: string };
     const kioskId = kiosk_id || KIOSK_ID;
-    const zoneId = zone ? String(zone) : undefined;
+    const zoneId = (request as any).validatedZone; // From validation middleware
 
-    console.log(`📋 Getting all lockers for kiosk: ${kioskId}, zone: ${zoneId || 'all'}`);
+    // Log zone context
+    zoneValidationMiddleware.logZoneContext('get_all_lockers', zoneId, undefined, { kiosk_id: kioskId });
 
     // Import layout service
     const { lockerLayoutService } = await import("../../../shared/services/locker-layout-service");
@@ -278,13 +285,19 @@ fastify.get("/api/lockers/all", async (request, reply) => {
 });
 
 // Admin API endpoint for direct locker opening (now zone-aware)
-fastify.post("/api/locker/open", async (request, reply) => {
+fastify.post("/api/locker/open", {
+  preHandler: [
+    zoneValidationMiddleware.createZoneParameterValidator(),
+    zoneValidationMiddleware.createLockerZoneValidator()
+  ]
+}, async (request, reply) => {
   try {
     const { locker_id, staff_user, reason } = request.body as {
       locker_id: number;
       staff_user: string;
       reason?: string;
     };
+    const zoneId = (request as any).validatedZone; // From validation middleware
 
     if (!locker_id || !staff_user) {
       return reply.status(400).send({
@@ -292,6 +305,12 @@ fastify.post("/api/locker/open", async (request, reply) => {
         error: "locker_id and staff_user are required"
       });
     }
+
+    // Log zone context for the operation
+    zoneValidationMiddleware.logZoneContext('direct_locker_open', zoneId, locker_id, { 
+      staff_user, 
+      reason: reason || 'Direct API access' 
+    });
 
     // Get configuration and check zone-aware hardware mapping
     const { ConfigManager } = await import("../../../shared/services/config-manager");
@@ -301,7 +320,7 @@ fastify.post("/api/locker/open", async (request, reply) => {
     await configManager.initialize();
     const config = configManager.getConfiguration();
     
-    console.log(`🔓 Direct locker opening: ${locker_id} by ${staff_user}`);
+    console.log(`🔓 Direct locker opening: ${locker_id} by ${staff_user} (zone: ${zoneId || 'none'})`);
 
     // Try zone-aware hardware mapping first
     const zoneMapping = getZoneAwareHardwareMapping(locker_id, config);
