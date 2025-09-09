@@ -168,12 +168,18 @@ export class ConfigManager {
       const incomingZones: ZoneConfig[] = Array.isArray(updates) ? (updates as unknown as ZoneConfig[]) : (this.config[section] as unknown as ZoneConfig[]);
 
       // Prune relay_cards not present in hardware and normalize order
-      const cleanedZones: ZoneConfig[] = (incomingZones || []).map((z) => ({
-        ...z,
-        relay_cards: Array.isArray(z.relay_cards)
+      const cleanedZones: ZoneConfig[] = (incomingZones || []).map((z) => {
+        const cards = Array.isArray(z.relay_cards)
           ? z.relay_cards.filter((id) => availableCards.includes(id)).sort((a, b) => a - b)
-          : []
-      }));
+          : [];
+        // Auto-disable zones that have no relay cards assigned
+        const enabled = cards.length > 0 ? (z.enabled !== false) : false;
+        return {
+          ...z,
+          enabled,
+          relay_cards: cards
+        } as ZoneConfig;
+      });
 
       newValue = cleanedZones;
     } else {
@@ -362,18 +368,26 @@ export class ConfigManager {
             errors.push('Zone ID is required and must be a string');
           }
           
-          if (!Array.isArray(zone.ranges) || zone.ranges.length === 0) {
-            errors.push(`Zone ${zone.id}: ranges array is required and cannot be empty`);
+          // Ranges must exist only for enabled zones; disabled zones may have empty ranges
+          if (zone.enabled) {
+            if (!Array.isArray(zone.ranges) || zone.ranges.length === 0) {
+              errors.push(`Zone ${zone.id}: ranges array is required and cannot be empty when zone is enabled`);
+            }
           }
           
-          if (!Array.isArray(zone.relay_cards) || zone.relay_cards.length === 0) {
-            errors.push(`Zone ${zone.id}: relay_cards array is required and cannot be empty`);
+          // relay_cards must exist only for enabled zones; disabled zones may be empty
+          if (zone.enabled) {
+            if (!Array.isArray(zone.relay_cards) || zone.relay_cards.length === 0) {
+              errors.push(`Zone ${zone.id}: relay_cards array is required and cannot be empty when zone is enabled`);
+            }
           }
           
           // Validate range format
-          for (const range of zone.ranges) {
-            if (!Array.isArray(range) || range.length !== 2 || range[0] >= range[1]) {
-              errors.push(`Zone ${zone.id}: invalid range format [${range}]. Expected [start, end] where start < end`);
+          if (Array.isArray(zone.ranges) && zone.ranges.length > 0) {
+            for (const range of zone.ranges) {
+              if (!Array.isArray(range) || range.length !== 2 || range[0] >= range[1]) {
+                errors.push(`Zone ${zone.id}: invalid range format [${range}]. Expected [start, end] where start < end`);
+              }
             }
           }
           
