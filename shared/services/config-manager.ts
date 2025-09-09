@@ -9,7 +9,8 @@ import {
   SystemConfig, 
   CompleteSystemConfig, 
   ConfigValidationResult,
-  ConfigChangeEvent
+  ConfigChangeEvent,
+  RelayCard
 } from '../types/system-config';
 import { EventType } from '../types/core-entities';
 import { EventRepository } from '../database/event-repository';
@@ -325,7 +326,7 @@ export class ConfigManager {
           }
           
           // Validate relay card references
-          const availableCards = config.hardware.relay_cards.map(card => card.slave_address);
+          const availableCards = config.hardware.relay_cards.map((card: RelayCard) => card.slave_address);
           for (const cardId of zone.relay_cards) {
             if (!availableCards.includes(cardId)) {
               warnings.push(`Zone ${zone.id}: references relay card ${cardId} which is not defined in hardware configuration`);
