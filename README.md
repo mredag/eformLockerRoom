@@ -1016,3 +1016,29 @@ cat /home/pi/eform-locker/.system-alerts
 ---
 
 **Made with ‚ù§Ô∏è for enterprise locker management systems**
+
+## New: Second-Scan Decision Screen (Kiosk)
+
+To prevent accidental releases with solenoid locks, the kiosk now asks users what to do when the same card is scanned again and already owns a locker:
+
+- ìEsyami almak iÁin aÁî ó opens the locker without releasing ownership
+- ìDolabi teslim etmek istiyorumî ó opens and releases the locker
+
+Implementation summary:
+- Frontend (kiosk UI): app/kiosk/src/ui/static/app-simple.js
+  - On existing-card scan, shows a decision overlay instead of auto-releasing.
+  - Calls new backend endpoint for open-only, or existing release flow for finish.
+- Backend (kiosk service):
+  - New endpoint: POST /api/locker/open-again (opens without DB release)
+  - File: app/kiosk/src/controllers/ui-controller.ts
+
+Docs: docs/developer-guides/second-scan-decision-screen.md
+
+## Maintenance: script cleanup
+
+Removed obviously outdated/empty scripts:
+- scripts/start-dual-kiosks.sh (0-byte placeholder)
+- scripts/maintenance/install-production.sh (0-byte placeholder)
+- fix-config-to-32-lockers.js (0-byte)
+
+Note: If you add new scripts, document them in scripts/README.md and reference from package.json where applicable.
