@@ -1,62 +1,84 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Eform Portable Kiosk (Demo)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+  <title>Eform Locker System (Portable)</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <header class="header">
-    <div class="header-inner">
-      <div class="brand">Eform Kiosk – Demo</div>
-      <div class="controls">
-        <button id="btn-scan" class="btn btn-primary">Kartı Simüle Et</button>
-        <button id="btn-randomize" class="btn btn-secondary">Rastgele Durumlar</button>
-        <button id="btn-reset" class="btn btn-secondary">Sıfırla</button>
-        <label class="filter">
-          <input type="checkbox" id="cb-available-only"> Sadece Boş
-        </label>
+  <div id="app">
+    <header id="header" class="header">
+      <div class="header-content">
+        <div class="status-indicator" id="connection-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Bağlı</span>
+        </div>
+        <div class="session-timer" id="session-timer" style="display: none;">
+          <span class="timer-text">Süre: </span>
+          <span class="timer-value" id="countdown-value">30</span>
+        </div>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <main class="main">
-    <h1 class="title">Dolap Seçin</h1>
-    <div id="legend" class="legend">
-      <span class="legend-item available">Boş</span>
-      <span class="legend-item occupied">Dolu</span>
-      <span class="legend-item opening">Açılıyor</span>
-      <span class="legend-item disabled">Kapalı</span>
-      <span class="legend-item error">Hata</span>
-    </div>
+    <main id="main-content" class="main-content">
+      <div id="idle-screen" class="screen active">
+        <div class="idle-message">
+          <div class="scan-area" aria-hidden="true">
+            <div class="scan-beam"></div>
+            <div class="pulse"></div>
+            <div class="pulse delay-1"></div>
+            <div class="pulse delay-2"></div>
+            <div class="rfid-icon">
+              <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V6H20V18ZM6 8H8V10H6V8ZM6 12H8V14H6V12ZM10 8H18V10H10V8ZM10 12H16V14H10V12Z"/>
+              </svg>
+            </div>
+          </div>
+          <h1 class="main-prompt">Kartınızı okutun</h1>
+          <p class="sub-prompt">RFID kartınızı okutucuya yaklaştırın</p>
+          <div style="margin-top: 14px;">
+            <button id="btn-demo-scan" class="btn btn-primary">Demo: Kartı Simüle Et</button>
+          </div>
+        </div>
+      </div>
 
-    <section id="locker-grid" class="locker-grid" aria-label="Dolap ızgarası">
-      <!-- Tiles rendered by app.js -->
-    </section>
-  </main>
+      <div id="session-screen" class="screen">
+        <div class="session-header">
+          <h2 class="session-title">Dolap seçin</h2>
+          <p class="session-subtitle">Kullanmak istediğiniz dolabı seçin</p>
+          <p class="session-instructions">Yeşil renkli boş dolaplara dokunabilirsiniz</p>
+        </div>
+        <div class="locker-grid" id="locker-grid"></div>
+      </div>
 
-  <footer class="footer">
-    <div class="footer-inner">
-      <span class="hint">Bu demo, gerçek donanım olmadan arayüzü denemek içindir.</span>
-      <a href="#" id="link-copy-codepen" class="link">CodePen için kopyala</a>
-    </div>
-  </footer>
+      <div id="loading-screen" class="screen">
+        <div class="loading-message">
+          <div class="loading-spinner"></div>
+          <h2 class="loading-text" id="loading-text">İşlem yapılıyor...</h2>
+        </div>
+      </div>
 
-  <template id="tile-template">
-    <button class="locker-tile available" type="button">
-      <div class="locker-number">Dolap 00</div>
-      <div class="locker-status">BOŞ</div>
-      <div class="locker-hw">C1·R1</div>
-    </button>
-  </template>
+      <div id="error-screen" class="screen">
+        <div class="error-message">
+          <div class="error-icon">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+          </div>
+          <h2 class="error-text" id="error-text">Bir hata oluştu</h2>
+          <p class="error-description" id="error-description">Beklenmeyen bir sorun oluştu</p>
+          <p class="error-recovery" id="error-recovery">Lütfen tekrar deneyin</p>
+          <div class="error-actions">
+            <button class="retry-button" id="retry-button" style="display: none;">Tekrar Dene</button>
+            <button class="return-button" id="return-button">Ana ekrana dön</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
   <script src="./app.js"></script>
 </body>
-<!--
-USAGE NOTES
-- Open this folder statically (e.g., with a simple HTTP server) or copy the contents
-  of index.html (place CSS in the CSS panel and JS in the JS panel) into CodePen.
--->
 </html>
 
