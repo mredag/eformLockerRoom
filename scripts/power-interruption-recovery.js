@@ -8,8 +8,8 @@
  * integrity and reports on recovered locker assignments.
  */
 
-const { DatabaseConnection } = require('../shared/database/connection');
-const { LockerStateManager } = require('../shared/services/locker-state-manager');
+const { DatabaseConnection } = require('../shared/dist/database/connection');
+const { LockerStateManager } = require('../shared/dist/services/locker-state-manager');
 
 async function performPowerInterruptionRecovery() {
   console.log('🔌 Power Interruption Recovery - Starting...\n');

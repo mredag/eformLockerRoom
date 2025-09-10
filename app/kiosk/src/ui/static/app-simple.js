@@ -144,6 +144,7 @@ class SimpleKioskApp {
         
         // Configuration
         this.kioskId = 'kiosk-1';
+        this.kioskZone = this.getKioskZoneFromUrl(); // Get zone from URL parameter or config
         this.sessionTimeoutSeconds = 30; // 30-second session timeout per requirements
         
         // Timers and intervals
@@ -184,15 +185,135 @@ class SimpleKioskApp {
     /**
      * Initialize the application
      */
-    init() {
+    async init() {
         this.cacheElements();
         this.setupEventListeners();
         this.setupRfidListener();
         this.startMemoryManagement();
         this.updateConnectionStatus(navigator.onLine);
+        
+        // Detect zone from server if not specified in URL
+        if (!this.kioskZone) {
+            await this.detectZoneFromServer();
+        } else {
+            this.updateZoneDisplay();
+        }
+        
         this.showIdleState();
         
         console.log('✅ SimpleKioskApp initialized successfully');
+    }
+
+    /**
+     * Get kiosk zone from URL parameter or detect from server
+     * Supports: ?zone=mens, ?zone=womens, or auto-detection
+     */
+    getKioskZoneFromUrl() {
+        // Check URL parameter first
+        const urlParams = new URLSearchParams(window.location.search);
+        const zoneParam = urlParams.get('zone');
+        
+        if (zoneParam) {
+            console.log(`🎯 Zone detected from URL: ${zoneParam}`);
+            return zoneParam;
+        }
+        
+        // No zone specified - will be detected from server health endpoint
+        console.log('📋 No zone specified in URL - will auto-detect from server');
+        return null;
+    }
+
+    /**
+     * Detect zone from server health endpoint
+     */
+    async detectZoneFromServer() {
+        try {
+            const response = await fetch('/health');
+            if (response.ok) {
+                const health = await response.json();
+                if (health.kiosk_zone) {
+                    console.log(`🎯 Zone detected from server: ${health.kiosk_zone}`);
+                    this.kioskZone = health.kiosk_zone;
+                    this.updateZoneDisplay();
+                    return health.kiosk_zone;
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Could not detect zone from server:', error);
+        }
+        return null;
+    }
+
+    /**
+     * Update UI to show zone information
+     */
+    updateZoneDisplay() {
+        if (!this.kioskZone) return;
+        
+        // Add zone indicator to the UI
+        const zoneNames = {
+            'mens': 'Erkek Dolap Sistemi',
+            'womens': 'Kadın Dolap Sistemi'
+        };
+        
+        const zoneName = zoneNames[this.kioskZone] || this.kioskZone;
+        
+        // Update page title
+        document.title = `${zoneName} - eForm Locker`;
+        
+        // Add zone indicator to idle screen if it exists
+        const idleScreen = this.elements.idleScreen;
+        if (idleScreen) {
+            let zoneIndicator = idleScreen.querySelector('.zone-indicator');
+            if (!zoneIndicator) {
+                zoneIndicator = document.createElement('div');
+                zoneIndicator.className = 'zone-indicator';
+                zoneIndicator.style.cssText = `
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(0, 123, 255, 0.1);
+                    color: #007bff;
+                    padding: 8px 16px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    font-weight: bold;
+                    border: 2px solid #007bff;
+                `;
+                idleScreen.appendChild(zoneIndicator);
+            }
+            zoneIndicator.textContent = zoneName;
+        }
+        
+        console.log(`🎯 Zone display updated: ${zoneName}`);
+    }
+
+    /**
+     * Get zone-aware error message
+     */
+    getZoneAwareErrorMessage(errorType) {
+        const baseError = this.errorMessages[errorType];
+        if (!baseError || !this.kioskZone) {
+            return baseError;
+        }
+
+        // Add zone context to certain error messages
+        const zoneNames = {
+            'mens': 'erkek bölgesi',
+            'womens': 'kadın bölgesi'
+        };
+        
+        const zoneName = zoneNames[this.kioskZone] || this.kioskZone;
+        
+        if (errorType === 'NO_LOCKERS_AVAILABLE') {
+            return {
+                ...baseError,
+                message: `${zoneName.charAt(0).toUpperCase() + zoneName.slice(1)} dolapları dolu - Daha sonra deneyin`,
+                description: `Şu anda ${zoneName} dolaplarının tümü kullanımda`
+            };
+        }
+        
+        return baseError;
     }
 
     /**
@@ -606,7 +727,13 @@ class SimpleKioskApp {
         try {
             this.showLoadingState('Müsait dolaplar yükleniyor...');
             
-            const response = await fetch(`/api/lockers/available?kioskId=${this.kioskId}`, {
+            // Build zone-aware API URL (support backend expecting kiosk_id)
+            const zoneParam = this.kioskZone ? `&zone=${encodeURIComponent(this.kioskZone)}` : '';
+            const apiUrl = `/api/lockers/available?kiosk_id=${this.kioskId}${zoneParam}`;
+            
+            console.log(`🎯 Fetching available lockers: ${apiUrl}`);
+            
+            const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -624,11 +751,27 @@ class SimpleKioskApp {
             }
             
             const result = await response.json();
-            
-            if (result.lockers && result.lockers.length > 0) {
+
+            // Support both response shapes:
+            // - New API: Array of lockers [{ id, status, is_vip }]
+            // - Legacy API: { lockers: [...], sessionId }
+            const rawLockers = Array.isArray(result) ? result : (result && result.lockers) ? result.lockers : [];
+            const sessionId = Array.isArray(result) ? `temp-${Date.now()}` : (result && result.sessionId) ? result.sessionId : `temp-${Date.now()}`;
+
+            // Normalize to UI shape and keep ONLY available lockers
+            const lockers = rawLockers
+                .filter(l => (l.status === 'Free' || l.status === 'available' || l.status === 'Boş'))
+                .map(l => ({
+                    id: l.id,
+                    status: 'available',
+                    displayName: l.displayName || `Dolap ${l.id}`,
+                    is_vip: !!l.is_vip
+                }));
+
+            if (lockers.length > 0) {
                 this.state.selectedCard = cardId;
-                this.state.sessionId = result.sessionId;
-                this.state.availableLockers = result.lockers;
+                this.state.sessionId = sessionId;
+                this.state.availableLockers = lockers;
                 this.startSession();
             } else {
                 this.showErrorState('NO_LOCKERS_AVAILABLE');
@@ -994,9 +1137,11 @@ class SimpleKioskApp {
         }
         
         try {
-            // Get dynamic layout from configuration
+            // Get dynamic layout from configuration (zone-aware)
             console.log('🔧 Loading dynamic locker layout...');
-            const layoutUrl = `/api/ui/layout?kioskId=${encodeURIComponent(this.kioskId)}`;
+            const zoneParam = this.kioskZone ? `&zone=${encodeURIComponent(this.kioskZone)}` : '';
+            const layoutUrl = `/api/ui/layout?kioskId=${encodeURIComponent(this.kioskId)}${zoneParam}`;
+            console.log(`🎯 Layout URL: ${layoutUrl}`);
             const layoutResponse = await fetch(layoutUrl);
             if (!layoutResponse.ok) {
                 throw new Error('Failed to fetch layout configuration');
@@ -1282,8 +1427,8 @@ class SimpleKioskApp {
         this.state.mode = 'error';
         this.state.errorType = errorCode;
         
-        // Get error details from catalog
-        const errorInfo = this.errorMessages[errorCode] || this.errorMessages.UNKNOWN_ERROR;
+        // Get zone-aware error details from catalog
+        const errorInfo = this.getZoneAwareErrorMessage(errorCode) || this.errorMessages.UNKNOWN_ERROR;
         const message = customMessage || errorInfo.message;
         
         this.state.errorMessage = message;

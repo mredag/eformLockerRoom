@@ -1,6 +1,7 @@
 import { ConfigManager } from './config-manager';
 import { LockerNamingService } from './locker-naming-service';
 import { DatabaseConnection } from '../database/connection';
+import { getLockersInZone } from './zone-helpers';
 
 export interface LockerLayoutInfo {
   id: number;
@@ -37,8 +38,10 @@ export class LockerLayoutService {
    * Generate locker layout based on current Modbus configuration
    * Now includes actual display names from the database
    * Auto-syncs database with hardware configuration
+   * @param kioskId - Kiosk identifier (default: 'kiosk-1')
+   * @param zoneId - Optional zone ID to filter lockers by zone
    */
-  async generateLockerLayout(kioskId: string = 'kiosk-1'): Promise<LayoutGrid> {
+  async generateLockerLayout(kioskId: string = 'kiosk-1', zoneId?: string): Promise<LayoutGrid> {
     await this.configManager.initialize();
     const config = this.configManager.getConfiguration();
 
@@ -79,44 +82,67 @@ export class LockerLayoutService {
     }
 
     const lockers: LockerLayoutInfo[] = [];
-    let lockerCounter = 1;
-
-    // Generate lockers based on enabled relay cards
-    for (const card of config.hardware.relay_cards) {
-      if (!card.enabled) continue;
-
-      for (let relayId = 1; relayId <= card.channels; relayId++) {
-        if (lockerCounter > config.lockers.total_count) break;
-
-        // Get the actual display name from the database
-        let displayName: string;
-        try {
-          displayName = await this.namingService.getDisplayName(kioskId, lockerCounter);
-        } catch (error) {
-          // Fallback to default name if naming service fails
-          displayName = `Dolap ${lockerCounter}`;
-        }
-
-        const lockerInfo: LockerLayoutInfo = {
-          id: lockerCounter,
-          cardId: card.slave_address,
-          relayId: relayId,
-          slaveAddress: card.slave_address,
-          displayName: displayName,
-          description: `Card ${card.slave_address}, Relay ${relayId}`,
-          enabled: true,
-          cardDescription: card.description
-        };
-
-        lockers.push(lockerInfo);
-        lockerCounter++;
-      }
+    
+    // Determine which lockers to include based on zone configuration
+    let targetLockerIds: number[];
+    
+    if (config.features?.zones_enabled && zoneId) {
+      // Use zone-filtered locker list
+      targetLockerIds = getLockersInZone(zoneId, config);
+      console.log(`🎯 Zone-aware layout: generating ${targetLockerIds.length} lockers for zone "${zoneId}"`);
+    } else {
+      // Use existing logic: generate full list based on hardware configuration
+      const totalLockers = Math.min(config.lockers.total_count, targetLockerCount);
+      targetLockerIds = Array.from({ length: totalLockers }, (_, i) => i + 1);
     }
 
+    // Generate locker info for each target locker
+    for (const lockerId of targetLockerIds) {
+      // Calculate hardware mapping for this locker
+      const cardIndex = Math.floor((lockerId - 1) / 16);
+      const relayId = ((lockerId - 1) % 16) + 1;
+      
+      // Find the corresponding relay card
+      const enabledCards = config.hardware.relay_cards.filter(card => card.enabled);
+      if (cardIndex >= enabledCards.length) {
+        console.warn(`⚠️  Locker ${lockerId} maps to card index ${cardIndex} but only ${enabledCards.length} cards available`);
+        continue;
+      }
+      
+      const card = enabledCards[cardIndex];
+
+      // Get the actual display name from the database
+      let displayName: string;
+      try {
+        displayName = await this.namingService.getDisplayName(kioskId, lockerId);
+      } catch (error) {
+        // Fallback to default name if naming service fails
+        displayName = `Dolap ${lockerId}`;
+      }
+
+      const lockerInfo: LockerLayoutInfo = {
+        id: lockerId,
+        cardId: card.slave_address,
+        relayId: relayId,
+        slaveAddress: card.slave_address,
+        displayName: displayName,
+        description: `Card ${card.slave_address}, Relay ${relayId}`,
+        enabled: true,
+        cardDescription: card.description
+      };
+
+      lockers.push(lockerInfo);
+    }
+
+    // Calculate layout dimensions based on actual lockers
+    const actualTotalLockers = lockers.length;
+    const layoutRows = config.lockers.layout.rows;
+    const layoutColumns = config.lockers.layout.columns;
+    
     return {
-      rows: config.lockers.layout.rows,
-      columns: config.lockers.layout.columns,
-      totalLockers: config.lockers.total_count,
+      rows: layoutRows,
+      columns: layoutColumns,
+      totalLockers: actualTotalLockers,
       lockers
     };
   }
@@ -171,17 +197,17 @@ export class LockerLayoutService {
   /**
    * Get locker mapping information for hardware control
    */
-  async getLockerMapping(lockerId: number, kioskId: string = 'kiosk-1'): Promise<LockerLayoutInfo | null> {
-    const layout = await this.generateLockerLayout(kioskId);
+  async getLockerMapping(lockerId: number, kioskId: string = 'kiosk-1', zoneId?: string): Promise<LockerLayoutInfo | null> {
+    const layout = await this.generateLockerLayout(kioskId, zoneId);
     return layout.lockers.find(locker => locker.id === lockerId) || null;
   }
 
   /**
    * Validate that locker ID is within configured range
    */
-  async isValidLockerId(lockerId: number, kioskId: string = 'kiosk-1'): Promise<boolean> {
-    const layout = await this.generateLockerLayout(kioskId);
-    return lockerId >= 1 && lockerId <= layout.totalLockers;
+  async isValidLockerId(lockerId: number, kioskId: string = 'kiosk-1', zoneId?: string): Promise<boolean> {
+    const layout = await this.generateLockerLayout(kioskId, zoneId);
+    return layout.lockers.some(locker => locker.id === lockerId);
   }
 
   /**
@@ -217,8 +243,8 @@ export class LockerLayoutService {
   /**
    * Generate locker cards for admin panel
    */
-  async generatePanelCards(kioskId: string = 'kiosk-1'): Promise<string> {
-    const layout = await this.generateLockerLayout(kioskId);
+  async generatePanelCards(kioskId: string = 'kiosk-1', zoneId?: string): Promise<string> {
+    const layout = await this.generateLockerLayout(kioskId, zoneId);
     
     let html = '';
     for (const locker of layout.lockers) {
@@ -250,8 +276,8 @@ export class LockerLayoutService {
   /**
    * Generate locker tiles for kiosk interface
    */
-  async generateKioskTiles(kioskId: string = 'kiosk-1'): Promise<string> {
-    const layout = await this.generateLockerLayout(kioskId);
+  async generateKioskTiles(kioskId: string = 'kiosk-1', zoneId?: string): Promise<string> {
+    const layout = await this.generateLockerLayout(kioskId, zoneId);
     
     let html = '';
     for (const locker of layout.lockers) {

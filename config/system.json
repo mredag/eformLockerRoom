@@ -1,4 +1,4 @@
-{
+s{
   "system": {
     "name": "Eform Locker Room System",
     "version": "1.0.0",
@@ -7,6 +7,39 @@
     "installation_date": "2025-08-22",
     "hardware_platform": "raspberry_pi_4"
   },
+  "features": {
+    "zones_enabled": true
+  },
+  "zones": [
+    {
+      "id": "mens",
+      "ranges": [
+        [
+          1,
+          32
+        ]
+      ],
+      "relay_cards": [
+        1,
+        2
+      ],
+      "enabled": true
+    },
+    {
+      "id": "womens",
+      "ranges": [
+        [
+          33,
+          64
+        ]
+      ],
+      "relay_cards": [
+        3,
+        4
+      ],
+      "enabled": true
+    }
+  ],
   "database": {
     "path": "./data/eform.db",
     "wal_mode": true,
@@ -78,6 +111,13 @@
         "dip_switches": "00000010",
         "description": "Locker Bank 17-32 (Card 2)",
         "enabled": true
+      },
+      {
+        "slave_address": 5,
+        "channels": 16,
+        "type": "waveshare_16ch",
+        "description": "Locker Bank 65-80 (Card 5) - AUTO ADDED",
+        "enabled": true
       }
     ],
     "rfid": {
@@ -119,7 +159,7 @@
     }
   },
   "lockers": {
-    "total_count": 32,
+    "total_count": 64,
     "offline_threshold_seconds": 60,
     "bulk_operation_interval_ms": 500,
     "master_lockout_fails": 3,
@@ -149,7 +189,10 @@
   },
   "i18n": {
     "default_language": "tr",
-    "supported_languages": ["tr", "en"],
+    "supported_languages": [
+      "tr",
+      "en"
+    ],
     "fallback_language": "en",
     "auto_detect_browser": true
   },
@@ -173,8 +216,14 @@
     "hostname": "pi-eform-locker",
     "wifi_fallback": true,
     "ethernet_priority": true,
-    "ntp_servers": ["pool.ntp.org", "time.google.com"],
-    "dns_servers": ["8.8.8.8", "1.1.1.1"]
+    "ntp_servers": [
+      "pool.ntp.org",
+      "time.google.com"
+    ],
+    "dns_servers": [
+      "8.8.8.8",
+      "1.1.1.1"
+    ]
   },
   "maintenance": {
     "auto_restart_on_error": true,

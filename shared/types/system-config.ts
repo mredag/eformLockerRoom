@@ -172,6 +172,17 @@ export interface LockerConfig {
   };
 }
 
+export interface ZoneConfig {
+  id: string;
+  ranges: [number, number][];
+  relay_cards: number[];
+  enabled: boolean;
+}
+
+export interface FeaturesConfig {
+  zones_enabled: boolean;
+}
+
 /**
  * Complete system configuration structure
  */
@@ -189,6 +200,8 @@ export interface CompleteSystemConfig {
   qr: QrConfig;
   logging: LoggingConfig;
   i18n: I18nConfig;
+  features?: FeaturesConfig;
+  zones?: ZoneConfig[];
 }
 
 /**

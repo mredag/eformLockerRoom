@@ -89,9 +89,51 @@ export class HardwareConfigRoutes {
     try {
       const updates = request.body as any;
       const staffUser = 'admin'; // TODO: Get from session
-      
+
+      // Pre-normalize zones to avoid validation failures when a zone loses all cards
+      try {
+        if (Array.isArray(updates?.zones)) {
+          // Determine available cards from incoming hardware (fallback to current config if not provided)
+          const current = this.configManager.getConfiguration();
+          const hwCards = Array.isArray(updates?.hardware?.relay_cards)
+            ? updates.hardware.relay_cards
+            : current.hardware.relay_cards;
+          const availableCards: number[] = hwCards
+            .filter((c: any) => c && c.enabled !== false)
+            .map((c: any) => Number(c.slave_address));
+
+          updates.zones = updates.zones.map((z: any) => {
+            const relayCards = Array.isArray(z.relay_cards) ? z.relay_cards : [];
+            const pruned = relayCards.filter((id: any) => availableCards.includes(Number(id))).sort((a: number, b: number) => a - b);
+            // Auto-disable zones that have no relay cards
+            const enabled = pruned.length > 0 ? (z.enabled !== false) : false;
+            return { ...z, enabled, relay_cards: pruned };
+          });
+        }
+      } catch (normErr) {
+        request.log?.warn?.({ normErr }, 'Zone pre-normalization failed; continuing to validate as-is');
+      }
+
+      // Build a merged config snapshot for validation
+      const current = this.configManager.getConfiguration();
+      const mergedForValidation = {
+        ...current,
+        ...updates,
+        hardware: updates.hardware ? { ...current.hardware, ...updates.hardware } : current.hardware,
+        lockers: updates.lockers ? { ...current.lockers, ...updates.lockers } : current.lockers,
+        features: updates.features ? { ...current.features, ...updates.features } : current.features,
+        zones: Array.isArray(updates.zones) ? updates.zones : current.zones,
+        system: updates.system ? { ...current.system, ...updates.system } : current.system,
+        database: updates.database ? { ...current.database, ...updates.database } : current.database,
+        services: updates.services ? { ...current.services, ...updates.services } : current.services,
+        security: updates.security ? { ...current.security, ...updates.security } : current.security,
+        qr: updates.qr ? { ...current.qr, ...updates.qr } : current.qr,
+        logging: updates.logging ? { ...current.logging, ...updates.logging } : current.logging,
+        i18n: updates.i18n ? { ...current.i18n, ...updates.i18n } : current.i18n
+      };
+
       // Validate the configuration
-      const validation = this.configManager.validateConfiguration(updates);
+      const validation = this.configManager.validateConfiguration(mergedForValidation);
       if (!validation.valid) {
         reply.code(400);
         return {
@@ -121,6 +163,26 @@ export class HardwareConfigRoutes {
         );
       }
 
+      // Update features (e.g., zones_enabled)
+      if (updates.features) {
+        await this.configManager.updateConfiguration(
+          'features',
+          updates.features,
+          staffUser,
+          'Features updated via admin panel'
+        );
+      }
+
+      // Update zones mapping (assign relay_cards to zones)
+      if (updates.zones) {
+        await this.configManager.updateConfiguration(
+          'zones',
+          updates.zones,
+          staffUser,
+          'Zones configuration updated via admin panel'
+        );
+      }
+
       // Update other sections as needed
       const sectionsToUpdate = ['system', 'database', 'services', 'security', 'qr', 'logging', 'i18n'];
       for (const section of sectionsToUpdate) {
@@ -140,11 +202,17 @@ export class HardwareConfigRoutes {
         warnings: validation.warnings || []
       };
     } catch (error) {
-      console.error('Error updating hardware config:', error);
-      reply.code(500);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error updating hardware config:', message);
+      // Surface validation-related errors as 400 for better UX
+      if (message.toLowerCase().includes('validation')) {
+        reply.code(400);
+      } else {
+        reply.code(500);
+      }
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: message
       };
     }
   }

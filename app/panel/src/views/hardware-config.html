@@ -491,6 +491,15 @@
                                 <div class="dip-switch">${card.dip_switches}</div>
                             </div>
                             <div class="col-md-3">
+                                <label class="form-label">Bölge (Zone)</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <select class="form-select form-select-sm" ${(!currentConfig?.features?.zones_enabled || !currentConfig?.zones?.length) ? 'disabled' : ''}
+                                            onchange="updateRelayZone(${index}, this.value)">
+                                        ${renderZoneOptions(card.slave_address)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
                                 <label class="form-label">Açıklama</label>
                                 <input type="text" class="form-control form-control-sm" 
                                        value="${card.description}"
@@ -519,7 +528,8 @@
                             <div class="col-12">
                                 <small class="text-muted">
                                     Dolap Aralığı: ${getLockerRange(index, card.channels)} | 
-                                    Tip: ${card.type}
+                                    Tip: ${card.type} | 
+                                    Bölge: ${getAssignedZoneLabel(card.slave_address)}
                                 </small>
                             </div>
                         </div>
@@ -538,17 +548,89 @@
         function updateRelayCard(index, field, value) {
             if (!currentConfig) return;
             
+            const prevAddr = currentConfig.hardware.relay_cards[index].slave_address;
             currentConfig.hardware.relay_cards[index][field] = value;
             
             // Update DIP switches when slave address changes
             if (field === 'slave_address') {
+                const newAddr = parseInt(value);
                 currentConfig.hardware.relay_cards[index].dip_switches = 
-                    value.toString(2).padStart(8, '0');
+                    newAddr.toString(2).padStart(8, '0');
+                // Keep zone assignments in sync with new slave address (replace old with new)
+                if (currentConfig?.features?.zones_enabled && Array.isArray(currentConfig?.zones)) {
+                    currentConfig.zones.forEach(z => {
+                        if (!Array.isArray(z.relay_cards)) z.relay_cards = [];
+                        const i = z.relay_cards.indexOf(prevAddr);
+                        if (i !== -1) {
+                            z.relay_cards[i] = newAddr;
+                            // Keep numeric order for predictability
+                            z.relay_cards = Array.from(new Set(z.relay_cards)).sort((a, b) => a - b);
+                        }
+                    });
+                }
             }
             
             renderRelayCards(currentConfig.hardware.relay_cards);
             updateStatistics(currentConfig);
             checkConfigurationMismatch(currentConfig);
+        }
+
+        function renderZoneOptions(slaveAddress) {
+            const zonesEnabled = !!(currentConfig?.features?.zones_enabled);
+            const zones = Array.isArray(currentConfig?.zones) ? currentConfig.zones : [];
+            const assigned = getAssignedZoneId(slaveAddress);
+            const noneOption = `<option value="" ${!assigned ? 'selected' : ''}>(Seçilmedi)</option>`;
+            const zoneOptions = zones.map(z => `<option value="${z.id}" ${assigned === z.id ? 'selected' : ''}>${z.name || z.id}</option>`).join('');
+            return zonesEnabled && zones.length ? (noneOption + zoneOptions) : `<option value="">(Zones devre dışı)</option>`;
+        }
+
+        function getAssignedZoneId(slaveAddress) {
+            if (!currentConfig?.zones) return null;
+            for (const z of currentConfig.zones) {
+                if (Array.isArray(z.relay_cards) && z.relay_cards.includes(slaveAddress)) return z.id;
+            }
+            return null;
+        }
+
+        function getAssignedZoneLabel(slaveAddress) {
+            const id = getAssignedZoneId(slaveAddress);
+            if (!id) return '—';
+            const z = currentConfig?.zones?.find(x => x.id === id);
+            return z ? (z.name || z.id) : id;
+        }
+
+        function updateRelayZone(cardIndex, zoneId) {
+            if (!currentConfig) return;
+            const card = currentConfig.hardware.relay_cards[cardIndex];
+            if (!card) return;
+            const addr = card.slave_address;
+
+            if (!Array.isArray(currentConfig.zones)) currentConfig.zones = [];
+
+            // Remove this card from all zones first
+            currentConfig.zones.forEach(z => {
+                if (Array.isArray(z.relay_cards)) {
+                    z.relay_cards = z.relay_cards.filter(a => a !== addr);
+                } else {
+                    z.relay_cards = [];
+                }
+            });
+
+            // If a zone selected, add the card to that zone
+            if (zoneId) {
+                const target = currentConfig.zones.find(z => z.id === zoneId);
+                if (target) {
+                    if (!Array.isArray(target.relay_cards)) target.relay_cards = [];
+                    if (!target.relay_cards.includes(addr)) {
+                        target.relay_cards.push(addr);
+                        // Keep numeric order for predictability
+                        target.relay_cards.sort((a, b) => a - b);
+                    }
+                }
+            }
+
+            renderRelayCards(currentConfig.hardware.relay_cards);
+            showToast('Röle kartı bölge ataması güncellendi', 'success');
         }
 
         function addRelayCard() {
@@ -575,11 +657,18 @@
         function removeRelayCard(index) {
             if (!currentConfig || currentConfig.hardware.relay_cards.length <= 1) {
                 showToast('En az bir röle kartı gereklidir', 'error');
-                return;
+                return;gi
             }
             
             if (confirm('Bu röle kartını silmek istediğinizden emin misiniz?')) {
-                currentConfig.hardware.relay_cards.splice(index, 1);
+                const removed = currentConfig.hardware.relay_cards.splice(index, 1)[0];
+                if (removed && currentConfig?.zones) {
+                    currentConfig.zones.forEach(z => {
+                        if (Array.isArray(z.relay_cards)) {
+                            z.relay_cards = z.relay_cards.filter(a => a !== removed.slave_address);
+                        }
+                    });
+                }
                 renderRelayCards(currentConfig.hardware.relay_cards);
                 updateStatistics(currentConfig);
                 checkConfigurationMismatch(currentConfig);
@@ -761,3 +850,4 @@
     </script>
 </body>
 </html>
+

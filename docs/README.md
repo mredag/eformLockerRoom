@@ -15,6 +15,13 @@ Welcome to the comprehensive documentation for the eForm Locker System. This dir
 - **[🥧 Raspberry Pi Setup](raspberry-pi-setup-guide-v2.md)** - Pi-specific configuration
 - **[🔄 Rollback Procedures](rollback-procedures.md)** - Emergency recovery procedures
 
+### **🎯 Zone Features**
+- **[📋 Zone Documentation](zones/)** - Complete zone features documentation
+  - **[Zone Overview](zones/README.md)** - Implementation summary and quick start
+  - **[Usage Guide](zones/usage-guide.md)** - Configuration and deployment guide
+  - **[API Reference](zones/api-reference.md)** - Complete API documentation
+  - **[Implementation Guide](zones/implementation.md)** - Technical implementation details
+
 ### **📡 API & Integration**
 - **[📋 API Reference](API_REFERENCE.md)** - Comprehensive API documentation
 - **[🔗 Integrations](integrations/)** - External system integrations
@@ -42,6 +49,12 @@ Welcome to the comprehensive documentation for the eForm Locker System. This dir
 ```
 docs/
 ├── README.md                           # This navigation file
+├── zones/                              # Zone features documentation
+│   ├── index.md                        # Zone documentation index
+│   ├── README.md                       # Implementation summary
+│   ├── usage-guide.md                  # Configuration and usage guide
+│   ├── api-reference.md                # Complete API documentation
+│   └── implementation.md               # Technical implementation guide
 ├── integrations/                       # External system integrations
 │   └── maksisoft-integration-guide.md  # Maksisoft integration (Production Ready)
 ├── troubleshooting/                    # Issue resolution guides
@@ -83,6 +96,7 @@ docs/
 ## 🔍 Finding Information
 
 ### **By Topic**
+- **Zone Features**: `zones/` - Complete zone documentation
 - **Hardware Issues**: `troubleshooting/hardware-integration-guide.md`
 - **API Integration**: `API_REFERENCE.md` and `integrations/`
 - **System Maintenance**: `maintenance/system-fixes-reference.md`
