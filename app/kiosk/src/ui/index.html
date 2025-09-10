@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>Eform Locker System</title>
+    <link rel="stylesheet" href="/static/design-system.css">
     <link rel="stylesheet" href="/static/styles-simple.css">
     
     <!-- Touch screen optimizations -->
@@ -23,6 +24,7 @@
 </head>
 <body>
     <div id="app">
+        <div id="toasts" aria-live="polite" aria-atomic="true"></div>
         <!-- Header Bar -->
         <header id="header" class="header">
             <div class="header-content">
@@ -108,6 +110,14 @@
             </div>
         </main>
 
+        <!-- Generic modal overlay (reused by app) -->
+        <div id="modal-overlay" class="modal-overlay" role="dialog" aria-modal="true" style="display:none">
+            <div class="modal-panel">
+                <h2 id="modal-title" class="modal-title"></h2>
+                <p id="modal-desc" class="modal-desc"></p>
+                <div id="modal-actions" class="modal-actions"></div>
+            </div>
+        </div>
 
     </div>
 
