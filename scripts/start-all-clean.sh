@@ -1,10 +1,20 @@
 #!/bin/bash
+set -Eeuo pipefail
 
 echo "🚀 Starting all eForm Locker services (Clean Start)..."
 echo "====================================================="
 
 # Ensure we're in the right directory
 cd /home/pi/eform-locker
+
+# Validate configuration early (fix common corruption and port drift)
+if [ -x "scripts/config-validate-fix.js" ]; then
+  echo "🔎 Validating configuration (config/system.json)..."
+  node scripts/config-validate-fix.js
+else
+  # Fallback: ensure system.json parses
+  node -e 'JSON.parse(require("fs").readFileSync("config/system.json","utf8"))' >/dev/null
+fi
 
 # Get current IP address dynamically
 get_current_ip() {
@@ -49,8 +59,9 @@ echo "🛑 Stopping existing services..."
 sudo killall node 2>/dev/null || true
 sleep 3
 
-# Verify no processes are running
-RUNNING=$(ps aux | grep "node.*dist/index.js" | grep -v grep | wc -l)
+# Verify no processes are running (robust under pipefail)
+RUNNING=$(pgrep -fc "node .*dist/index.js" || true)
+[ -z "$RUNNING" ] && RUNNING=0
 if [ "$RUNNING" -gt 0 ]; then
     echo "⚠️  Warning: $RUNNING processes still running, force killing..."
     sudo pkill -9 -f "node.*dist/index.js"
@@ -191,7 +202,7 @@ echo "   - Panel:   http://$CURRENT_IP:3001"
 echo "   - Kiosk:   http://$CURRENT_IP:3002"
 echo ""
 echo "📊 Process status:"
-ps aux | grep "node.*dist/index.js" | grep -v grep | awk '{print $2 "        " $11 " " $12}'
+ps aux | grep "node.*dist/index.js" | grep -v grep | awk '{print $2 "        " $11 " " $12}' || true
 echo ""
 echo "✅ Clean startup complete!"
 echo ""

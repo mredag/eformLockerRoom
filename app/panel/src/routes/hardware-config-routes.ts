@@ -105,8 +105,8 @@ export class HardwareConfigRoutes {
           updates.zones = updates.zones.map((z: any) => {
             const relayCards = Array.isArray(z.relay_cards) ? z.relay_cards : [];
             const pruned = relayCards.filter((id: any) => availableCards.includes(Number(id))).sort((a: number, b: number) => a - b);
-            // Auto-disable zones that have no relay cards
-            const enabled = pruned.length > 0 ? (z.enabled !== false) : false;
+            // Auto-toggle zone enabled state based on whether it has relay cards
+            const enabled = pruned.length > 0 ? true : false;
             return { ...z, enabled, relay_cards: pruned };
           });
         }
