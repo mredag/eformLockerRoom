@@ -44,21 +44,42 @@
             <!-- Idle State -->
             <div id="idle-screen" class="screen active">
                 <div class="idle-message">
-                    <!-- RFID Scan Area Attention Animation -->
-                    <div class="scan-area" aria-hidden="true">
-                        <div class="scan-beam"></div>
-                        <div class="pulse"></div>
-                        <div class="pulse delay-1"></div>
-                        <div class="pulse delay-2"></div>
-                        <!-- RFID Card Icon for Visual Clarity -->
-                        <div class="rfid-icon">
-                            <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V6H20V18ZM6 8H8V10H6V8ZM6 12H8V14H6V12ZM10 8H18V10H10V8ZM10 12H16V14H10V12Z"/>
-                            </svg>
+                    <!-- Idle hero card (square) -->
+                    <div class="hero-card" aria-hidden="true">
+                        <div class="hero-inner">
+                            <div class="hero-icon">
+                                <svg width="140" height="140" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V6H20V18ZM6 8H8V10H6V8ZM6 12H8V14H6V12ZM10 8H18V10H10V8ZM10 12H16V14H10V12Z"/>
+                                </svg>
+                            </div>
                         </div>
                     </div>
+
                     <h1 class="main-prompt">Kartınızı okutun</h1>
                     <p class="sub-prompt">RFID kartınızı okutucuya yaklaştırın</p>
+
+                    <!-- Steps panel -->
+                    <div class="steps-card" role="group" aria-label="Kullanım adımları">
+                        <ol class="steps-list">
+                            <li class="step-item">
+                                <span class="step-index">1</span>
+                                <span class="step-text">Kartınızı okutucuya yaklaştırın</span>
+                            </li>
+                            <li class="step-item">
+                                <span class="step-index">2</span>
+                                <span class="step-text">Dolap seçin ve eşyalarınızı yerleştirin</span>
+                            </li>
+                            <li class="step-item">
+                                <span class="step-index">3</span>
+                                <span class="step-text">Dolap otomatik olarak açılacaktır</span>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <!-- Info note -->
+                    <div class="info-note" role="note">
+                        <strong>Bilgi:</strong> Mevcut dolap sahibisinizse, dolabınız otomatik açılır. Aynı dolabı tekrar kullanmak için kartınızı tekrar okutun.
+                    </div>
                 </div>
             </div>
 
@@ -131,3 +152,4 @@
     <script src="/static/app-simple.js"></script>
 </body>
 </html>
+
