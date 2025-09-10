@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eform Portable Kiosk (Demo)</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">Eform Kiosk – Demo</div>
+      <div class="controls">
+        <button id="btn-scan" class="btn btn-primary">Kartı Simüle Et</button>
+        <button id="btn-randomize" class="btn btn-secondary">Rastgele Durumlar</button>
+        <button id="btn-reset" class="btn btn-secondary">Sıfırla</button>
+        <label class="filter">
+          <input type="checkbox" id="cb-available-only"> Sadece Boş
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <h1 class="title">Dolap Seçin</h1>
+    <div id="legend" class="legend">
+      <span class="legend-item available">Boş</span>
+      <span class="legend-item occupied">Dolu</span>
+      <span class="legend-item opening">Açılıyor</span>
+      <span class="legend-item disabled">Kapalı</span>
+      <span class="legend-item error">Hata</span>
+    </div>
+
+    <section id="locker-grid" class="locker-grid" aria-label="Dolap ızgarası">
+      <!-- Tiles rendered by app.js -->
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="hint">Bu demo, gerçek donanım olmadan arayüzü denemek içindir.</span>
+      <a href="#" id="link-copy-codepen" class="link">CodePen için kopyala</a>
+    </div>
+  </footer>
+
+  <template id="tile-template">
+    <button class="locker-tile available" type="button">
+      <div class="locker-number">Dolap 00</div>
+      <div class="locker-status">BOŞ</div>
+      <div class="locker-hw">C1·R1</div>
+    </button>
+  </template>
+
+  <script src="./app.js"></script>
+</body>
+<!--
+USAGE NOTES
+- Open this folder statically (e.g., with a simple HTTP server) or copy the contents
+  of index.html (place CSS in the CSS panel and JS in the JS panel) into CodePen.
+-->
+</html>
+
