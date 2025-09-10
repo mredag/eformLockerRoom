@@ -576,8 +576,9 @@ class SimpleKioskApp {
             const existingLocker = await this.checkExistingLocker(cardId);
             
             if (existingLocker) {
-                // Open existing locker and release assignment
-                await this.openAndReleaseLocker(cardId, existingLocker.lockerId);
+                // Decision screen: open only vs. finish & release (Idea 5)
+                this.state.selectedCard = cardId;
+                await this.showOwnedDecision(cardId, existingLocker.lockerId);
             } else {
                 // Start new session for locker selection
                 await this.startLockerSelection(cardId);
@@ -710,6 +711,115 @@ class SimpleKioskApp {
         } catch (error) {
             console.error('🚨 Open and release error:', error);
             
+            if (error.name === 'TypeError' || error.message.includes('fetch')) {
+                this.showErrorState('CONNECTION_LOST');
+            } else if (error.message.includes('timeout')) {
+                this.showErrorState('NETWORK_ERROR');
+            } else {
+                this.showErrorState(error.message);
+            }
+        }
+    }
+
+    /**
+     * Show decision screen for owned locker: Open vs Finish & Release (Idea 5)
+     */
+    async showOwnedDecision(cardId, lockerId) {
+        // Build lightweight overlay if not exists
+        let overlay = document.getElementById('owned-decision-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'owned-decision-overlay';
+            overlay.style.cssText = `
+                position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+                display: flex; align-items: center; justify-content: center;
+                z-index: 9999;
+            `;
+            const panel = document.createElement('div');
+            panel.style.cssText = `
+                background: #fff; color: #111; width: 90%; max-width: 520px; border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3); padding: 20px; text-align: center;
+            `;
+            panel.innerHTML = `
+                <h2 id="owned-decision-title" style="margin: 0 0 10px">Dolabınız</h2>
+                <p id="owned-decision-desc" style="margin: 0 0 16px; opacity: .85">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
+                <div style="display:flex; gap:12px; justify-content: center; flex-wrap: wrap;">
+                    <button id="btn-open-only" style="flex:1; min-width:180px; padding:14px 16px; font-weight:700; border-radius:10px; border:2px solid #2e7d32; background:#43a047; color:#fff;">Eşyamı almak için aç</button>
+                    <button id="btn-finish-release" style="flex:1; min-width:180px; padding:14px 16px; font-weight:700; border-radius:10px; border:2px solid #9c1c1c; background:#c62828; color:#fff;">Dolabı teslim etmek istiyorum</button>
+                </div>
+                <div style="margin-top:10px; font-size: 13px; opacity:.9">Teslim ettiğinizde dolap başkaları için uygun olur.</div>
+            `;
+            overlay.appendChild(panel);
+            document.body.appendChild(overlay);
+        }
+
+        // Update content with locker id
+        const title = document.getElementById('owned-decision-title');
+        if (title) title.textContent = `Dolabınız – Dolap ${lockerId}`;
+
+        overlay.style.display = 'flex';
+
+        // Wire buttons
+        const btnOpen = document.getElementById('btn-open-only');
+        const btnFinish = document.getElementById('btn-finish-release');
+
+        const closeOverlay = () => { overlay.style.display = 'none'; };
+
+        // Ensure old listeners do not stack
+        btnOpen.replaceWith(btnOpen.cloneNode(true));
+        btnFinish.replaceWith(btnFinish.cloneNode(true));
+
+        const btnOpen2 = document.getElementById('btn-open-only');
+        const btnFinish2 = document.getElementById('btn-finish-release');
+
+        btnOpen2.addEventListener('click', async () => {
+            closeOverlay();
+            await this.openOwnedLockerOnly(cardId);
+        });
+        btnFinish2.addEventListener('click', async () => {
+            closeOverlay();
+            await this.openAndReleaseLocker(cardId, lockerId);
+        });
+    }
+
+    /**
+     * Open owned locker without releasing (Idea 5)
+     */
+    async openOwnedLockerOnly(cardId) {
+        try {
+            this.showLoadingState('Dolap açılıyor...');
+            const response = await fetch('/api/locker/open-again', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cardId: cardId, kioskId: this.kioskId })
+            });
+
+            if (!response.ok) {
+                if (response.status >= 500) {
+                    throw new Error('SERVER_ERROR');
+                } else if (response.status === 404) {
+                    throw new Error('LOCKER_UNAVAILABLE');
+                } else {
+                    throw new Error('HARDWARE_ERROR');
+                }
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                // Keep ownership; just inform and return to idle shortly
+                this.showLoadingState(result.message || 'Dolap açıldı');
+                setTimeout(() => { this.showIdleState(); }, 2500);
+            } else {
+                if (result.error === 'hardware_unavailable') {
+                    throw new Error('HARDWARE_OFFLINE');
+                } else if (result.error === 'hardware_failed') {
+                    throw new Error('LOCKER_OPEN_FAILED');
+                } else {
+                    throw new Error('HARDWARE_ERROR');
+                }
+            }
+        } catch (error) {
+            console.error('Open-owned-only error:', error);
             if (error.name === 'TypeError' || error.message.includes('fetch')) {
                 this.showErrorState('CONNECTION_LOST');
             } else if (error.message.includes('timeout')) {

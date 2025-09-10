@@ -88,6 +88,11 @@ export class UiController {
       return this.releaseLocker(request, reply);
     });
 
+    // Open owned locker again without releasing ownership (Idea 5)
+    fastify.post('/api/locker/open-again', async (request: FastifyRequest, reply: FastifyReply) => {
+      return this.openLockerAgain(request, reply);
+    });
+
 
 
 
@@ -1286,6 +1291,85 @@ export class UiController {
         success: false,
         error: 'server_error',
         message: 'Donanım durumu alınamadı'
+      };
+    }
+  }
+
+  /**
+   * Open currently owned locker without releasing (Idea 5)
+   */
+  private async openLockerAgain(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { cardId, kioskId } = request.body as { cardId: string; kioskId: string };
+
+      if (!cardId || !kioskId) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'missing_parameters',
+          message: 'Gerekli parametreler eksik'
+        };
+      }
+
+      // Find existing locker by card
+      const existingLocker = await this.lockerStateManager.checkExistingOwnership(cardId, 'rfid');
+      if (!existingLocker) {
+        reply.code(404);
+        return {
+          success: false,
+          error: 'no_locker',
+          message: 'Bu kart için atanmış dolap yok'
+        };
+      }
+
+      // Attempt to open without changing DB ownership
+      let opened = false;
+      let hardwareError: string | null = null;
+      try {
+        opened = await this.modbusController.openLocker(existingLocker.id);
+      } catch (error) {
+        hardwareError = error instanceof Error ? error.message : String(error);
+        opened = false;
+      }
+
+      if (opened) {
+        const lockerName = await this.getLockerDisplayName(kioskId, existingLocker.id);
+        return {
+          success: true,
+          lockerId: existingLocker.id,
+          message: `${lockerName} açılıyor`
+        };
+      }
+
+      // Determine appropriate error message based on hardware status
+      const hardwareStatus = this.modbusController.getHardwareStatus();
+      let errorMessage = 'Dolap açılamadı - Tekrar deneyin';
+      let errorCode = 'hardware_failed';
+      if (!hardwareStatus.available) {
+        errorMessage = 'Sistem bakımda - Görevliye başvurun';
+        errorCode = 'hardware_unavailable';
+      } else if (hardwareError) {
+        errorMessage = 'Bağlantı hatası - Tekrar deneyin';
+        errorCode = 'connection_error';
+      }
+
+      reply.code(500);
+      return {
+        success: false,
+        error: errorCode,
+        message: errorMessage,
+        hardware_status: {
+          available: hardwareStatus.available,
+          error_rate: hardwareStatus.diagnostics.errorRate
+        }
+      };
+    } catch (error) {
+      console.error('Error opening locker again:', error);
+      reply.code(500);
+      return {
+        success: false,
+        error: 'server_error',
+        message: 'Sistem hatası - Tekrar deneyin'
       };
     }
   }
