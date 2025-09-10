@@ -1,5 +1,0 @@
-fix(panel): zone assignment in hardware config UI auto-enables target, disables empty zones; normalize zones server-side
-
-chore(scripts): add config validators to auto-repair system.json and other configs
-
-fix(scripts): start-all-clean.sh validates config early and uses robust process checks
