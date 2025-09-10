@@ -47,7 +47,9 @@ export class ZoneExtensionService {
 
       // First, rebalance zones to match actual hardware capacity per zone and overall
       const rebalanced = this.rebalanceZonesWithHardware(config, totalLockers);
-      const coveredMax = this.calculateCoveredMax(config.zones.filter(z => z.enabled));
+      const zonesAfter = config.zones ?? [];
+      const enabledAfter = zonesAfter.filter(z => z.enabled);
+      const coveredMax = this.calculateCoveredMax(enabledAfter);
 
       // If zones already cover all lockers, no extension needed
       if (coveredMax >= totalLockers) {
@@ -96,11 +98,12 @@ export class ZoneExtensionService {
    */
   private rebalanceZonesWithHardware(config: CompleteSystemConfig, totalLockers: number): boolean {
     let changed = false;
-    const enabledZones = config.zones.filter(z => z.enabled);
+    const zones = config.zones ?? [];
+    const enabledZones = zones.filter(z => z.enabled);
     if (enabledZones.length === 0) return false;
 
     let nextStart = 1;
-    for (const zone of config.zones) {
+    for (const zone of zones) {
       if (!zone.enabled) continue;
 
       const capacity = Math.max(0, (zone.relay_cards?.length || 0) * 16);
