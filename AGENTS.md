@@ -108,3 +108,17 @@ Important: Ensure consistent card ID policy (raw vs. hashed) across the chosen p
 - Layout & zones: `shared/services/locker-layout-service.ts`, `shared/services/zone-helpers.ts`
 - Hardware: `app/kiosk/src/hardware/modbus-controller.ts`
 
+## Recent Changes You Should Know
+
+- Second‑Scan Decision Screen (Idea 5)
+  - Frontend: `app/kiosk/src/ui/static/app-simple.js`
+    - On existing‑card scan, shows decision overlay via `showOwnedDecision(cardId, lockerId)`.
+    - “Eşyamı almak için aç” → `openOwnedLockerOnly(cardId)` → no DB change.
+    - “Dolabı teslim etmek istiyorum” → existing `openAndReleaseLocker`.
+  - Backend: `POST /api/locker/open-again` in `app/kiosk/src/controllers/ui-controller.ts` to open without releasing.
+  - Docs: `docs/developer-guides/second-scan-decision-screen.md`.
+
+- Cleanup
+  - Removed portable demo folder `portable-kosks/` (kept out of repo to avoid confusion; use kiosk UI directly).
+  - Removed zero‑length scripts: `scripts/start-dual-kiosks.sh`, `scripts/maintenance/install-production.sh`, and stray `fix-config-to-32-lockers.js`.
+  - If you add new scripts, wire them in `package.json` or document in `scripts/README.md`.
