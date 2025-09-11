@@ -25,18 +25,8 @@
 <body>
     <div id="app">
         <div id="toasts" aria-live="polite" aria-atomic="true"></div>
-        <!-- Header Bar -->
-        <header id="header" class="header">
-            <div class="header-content">
-                <div class="status-indicator" id="connection-status">
-                    <span class="status-dot"></span>
-                    <span class="status-text">Bağlı</span>
-                </div>
-                <div class="session-timer" id="session-timer" style="display: none;">
-                    <span class="timer-text">Süre: </span>
-                    <span class="timer-value" id="countdown-value">30</span>
-                </div>
-            </div>
+        <!-- Header Bar (will be hidden by CSS) -->
+        <header id="header" class="header" style="display: none;">
         </header>
 
         <!-- Main Content Area -->
@@ -85,13 +75,46 @@
 
             <!-- Session State -->
             <div id="session-screen" class="screen">
-                <div class="session-header">
-                    <h2 class="session-title">Dolap seçin</h2>
-                    <p class="session-subtitle">Kullanmak istediğiniz dolabı seçin</p>
-                    <p class="session-instructions">Yeşil renkli boş dolaplara dokunabilirsiniz</p>
-                </div>
-                <div class="locker-grid" id="locker-grid">
-                    <!-- Locker tiles will be generated dynamically -->
+                <div class="session-container">
+                    <div class="session-header-new">
+                        <div class="header-left">
+                            <button class="back-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                            </button>
+                            <div class="user-info">
+                                <div class="user-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                </div>
+                                <div class="user-details">
+                                    <span class="welcome-text">Hoşgeldiniz</span>
+                                    <span class="card-id">Kart: -</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="header-right">
+                            <div class="session-timer" id="session-timer">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                <span id="countdown-value">0:27</span>
+                            </div>
+                            <button class="refresh-button">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="selection-card">
+                        <div class="selection-header">
+                            <h2 class="selection-title">Dolap seçin</h2>
+                            <p class="selection-subtitle">Kullanmak istediğiniz dolabı seçin. Yeşil renkli dolaplar boş ve kullanıma hazırdır.</p>
+                        </div>
+                        <div class="legend">
+                            <div class="legend-item"><span class="legend-color available"></span>Boş</div>
+                            <div class="legend-item"><span class="legend-color occupied"></span>Dolu</div>
+                            <div class="legend-item"><span class="legend-color disabled"></span>Kapalı</div>
+                        </div>
+                    </div>
+                    <div class="locker-grid" id="locker-grid">
+                        <!-- Locker tiles will be generated dynamically -->
+                    </div>
                 </div>
             </div>
 
