@@ -323,7 +323,7 @@ class SimpleKioskApp {
         // Cache all elements in a single pass to minimize DOM queries
         const elementIds = [
             'idle-screen', 'session-screen', 'loading-screen', 'error-screen',
-            'locker-grid', 'session-timer', 'countdown-value', 'connection-status',
+            'locker-grid', 'session-timer', 'countdown-value',
             'loading-text', 'error-text', 'error-description', 'error-recovery',
             'return-button', 'retry-button'
         ];
@@ -339,12 +339,6 @@ class SimpleKioskApp {
                 this.elements[key] = element;
             }
         });
-        
-        // Cache frequently accessed nested elements
-        if (this.elements.connectionStatus) {
-            this.elements.statusDot = this.elements.connectionStatus.querySelector('.status-dot');
-            this.elements.statusText = this.elements.connectionStatus.querySelector('.status-text');
-        }
         
         // Cache all screens for efficient switching
         this.screens = [
@@ -380,6 +374,21 @@ class SimpleKioskApp {
         if (this.elements.lockerGrid) {
             this.elements.lockerGrid.addEventListener('click', (event) => {
                 this.handleLockerClick(event);
+            });
+        }
+
+        // New header buttons
+        const backButton = document.querySelector('.back-button');
+        if (backButton) {
+            backButton.addEventListener('click', () => {
+                this.showIdleState();
+            });
+        }
+
+        const refreshButton = document.querySelector('.refresh-button');
+        if (refreshButton) {
+            refreshButton.addEventListener('click', () => {
+                this.renderLockerGrid();
             });
         }
         
@@ -571,6 +580,8 @@ class SimpleKioskApp {
             }
             
             this.showLoadingState('Kart kontrol ediliyor...');
+            this.showToast('Kart okundu', `Hoşgeldiniz! Kart: -${cardId}`);
+
             
             // Check if card already has a locker assigned
             const existingLocker = await this.checkExistingLocker(cardId);
@@ -907,9 +918,13 @@ class SimpleKioskApp {
         this.state.mode = 'session';
         this.state.countdown = this.sessionTimeoutSeconds;
         
+        const cardIdElement = document.querySelector('.card-id');
+        if (cardIdElement) {
+            cardIdElement.textContent = `Kart: - ${this.state.selectedCard}`;
+        }
+
         this.renderLockerGrid();
         this.showSessionState();
-        this.ensureCompactSessionTitle();
         this.startCountdown();
         
         console.log(`⏱️ Session started: ${this.state.sessionId}`);
@@ -940,7 +955,8 @@ class SimpleKioskApp {
      */
     updateCountdownDisplay() {
         if (this.elements.countdownValue) {
-            this.elements.countdownValue.textContent = this.state.countdown;
+            const seconds = String(this.state.countdown).padStart(2, '0');
+            this.elements.countdownValue.textContent = `0:${seconds}`;
             
             // Add warning style when countdown is low (last 10 seconds)
             if (this.elements.sessionTimer) {
@@ -1291,10 +1307,8 @@ class SimpleKioskApp {
                 // Enhanced visual content with hardware info
                 tile.innerHTML = `
                     <div class="locker-number">${locker.displayName}</div>
+                    <div class="locker-size">${locker.size || ''}</div>
                     <div class="locker-status">BOŞ</div>
-                    <div class="locker-hardware" style="font-size: 0.7em; opacity: 0.7; margin-top: 2px;">
-                        C${locker.cardId}R${locker.relayId}
-                    </div>
                 `;
                 
                 // Add keyboard support
@@ -1352,28 +1366,6 @@ class SimpleKioskApp {
         document.head.appendChild(style);
     }
 
-    /** Ensure compact session title exists and reads 'Dolap seçiniz' */
-    ensureCompactSessionTitle() {
-        try {
-            const sessionScreen = this.elements.sessionScreen || document.getElementById('session-screen');
-            const grid = this.elements.lockerGrid;
-            if (!sessionScreen || !grid) return;
-
-            // Hide legacy header if present
-            const legacyHeader = sessionScreen.querySelector('.session-header');
-            if (legacyHeader) legacyHeader.style.display = 'none';
-
-            // Create or update compact title element
-            let title = sessionScreen.querySelector('#session-title-compact');
-            if (!title) {
-                title = document.createElement('h2');
-                title.id = 'session-title-compact';
-                title.className = 'session-title-compact';
-                grid.parentNode.insertBefore(title, grid);
-            }
-            title.textContent = 'Dolap seçiniz';
-        } catch (_) {}
-    }
 
     /**
      * Update locker statuses on existing tiles
@@ -1976,6 +1968,34 @@ class SimpleKioskApp {
         this.rfidBuffer = '';
         
         console.log('🧹 Cleanup completed');
+    }
+
+    showToast(title, message) {
+        const toastContainer = document.getElementById('toasts');
+        if (!toastContainer) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 500);
+        }, 3000);
     }
 }
 
