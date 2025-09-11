@@ -1349,9 +1349,9 @@ class SimpleKioskApp {
      */
     adjustGridForLockerCount(lockerCount) {
         if (!this.elements.lockerGrid || lockerCount <= 32) { // Only run for large locker counts
-            // Ensure default overflow is restored if not adjusted
             if (this.elements.lockerGrid) {
-                this.elements.lockerGrid.style.overflow = 'auto';
+                // Restore default styles if not adjusting
+                this.elements.lockerGrid.style.cssText = '';
             }
             return;
         }
@@ -1360,7 +1360,6 @@ class SimpleKioskApp {
 
         const grid = this.elements.lockerGrid;
 
-        // Use a small timeout to let the DOM update and get correct dimensions
         setTimeout(() => {
             const availableWidth = grid.clientWidth;
             const availableHeight = grid.clientHeight;
@@ -1370,58 +1369,46 @@ class SimpleKioskApp {
                 return;
             }
 
-            const aspectRatio = availableWidth / availableHeight;
-            let numRows = Math.ceil(Math.sqrt(lockerCount / aspectRatio));
-            let numCols = Math.ceil(lockerCount / numRows);
+            const gap = 8;
 
-            // Sanity check for column/row counts to prevent tiny tiles
-            if (numCols > 10) numCols = 10;
-            if (numRows > 12) numRows = 12;
-            if (numRows > 0) {
-                numCols = Math.ceil(lockerCount / numRows);
-            }
+            // Prioritize horizontal fit by determining column count first.
+            // Aim for tiles around 100px wide to start.
+            let numCols = Math.floor(availableWidth / (100 + gap));
+            numCols = Math.max(4, Math.min(12, numCols)); // Clamp between 4 and 12 columns
 
+            let numRows = Math.ceil(lockerCount / numCols);
 
-            const gap = 8; // A small gap in pixels
+            // Now calculate height based on fitting all rows.
+            let tileHeight = Math.floor(availableHeight / numRows) - gap;
+            tileHeight = Math.max(48, tileHeight); // Enforce minimum touch target size.
 
-            // Calculate tile size based on fitting within the container
-            const tileHeight = Math.floor(availableHeight / numRows) - gap;
-            const tileWidth = Math.floor(availableWidth / numCols) - gap;
+            console.log(`Adjusting grid for ${lockerCount} lockers: ${numCols} cols x ${numRows} rows, tile height: ${tileHeight}px`);
 
-            // Use the smaller of the two to create square-like tiles
-            let tileSize = Math.min(tileWidth, tileHeight);
-
-            // Ensure a minimum size for touch targets and readability
-            tileSize = Math.max(48, tileSize);
-
-            console.log(`Adjusting grid for ${lockerCount} lockers. Calculated tile size: ${tileSize}px`);
-
-            // Override styles to ensure fitment
+            // Apply styles that force horizontal fit and control vertical size.
+            grid.style.setProperty('display', 'grid', 'important');
             grid.style.setProperty('grid-template-columns', `repeat(${numCols}, 1fr)`, 'important');
-            grid.style.setProperty('grid-template-rows', `repeat(${numRows}, ${tileSize}px)`, 'important');
+            grid.style.setProperty('grid-auto-rows', `${tileHeight}px`, 'important');
             grid.style.setProperty('gap', `${gap}px`, 'important');
-            grid.style.setProperty('overflow', 'hidden', 'important'); // Prevent scrolling for large counts
+            grid.style.setProperty('overflow', 'hidden', 'important');
             grid.style.setProperty('align-content', 'center', 'important');
-
 
             const tiles = grid.querySelectorAll('.locker-tile');
             tiles.forEach(tile => {
-                tile.style.setProperty('width', 'auto', 'important'); // Let grid control width
-                tile.style.setProperty('height', `${tileSize}px`, 'important');
+                tile.style.setProperty('height', `${tileHeight}px`, 'important');
+                tile.style.setProperty('width', 'auto', 'important'); // Let grid's 1fr handle width.
 
                 const numberElement = tile.querySelector('.locker-number');
                 if (numberElement) {
-                    // Adjust font size based on tile size for readability
-                    const fontSize = Math.max(10, Math.floor(tileSize / 4));
+                    const fontSize = Math.max(10, Math.floor(tileHeight / 4));
                     numberElement.style.setProperty('font-size', `${fontSize}px`, 'important');
                 }
                 const statusElement = tile.querySelector('.locker-status');
                 if (statusElement) {
-                    const statusFontSize = Math.max(8, Math.floor(tileSize / 9));
+                    const statusFontSize = Math.max(8, Math.floor(tileHeight / 9));
                     statusElement.style.setProperty('font-size', `${statusFontSize}px`, 'important');
                 }
             });
-        }, 150); // 150ms delay to allow for rendering and dimension calculation
+        }, 150);
     }
     
     /**
