@@ -9,7 +9,8 @@ export enum Permission {
   VIEW_EVENTS = 'view_events',
   EXPORT_REPORTS = 'export_reports',
   SYSTEM_CONFIG = 'system_config',
-  MANAGE_USERS = 'manage_users'
+  MANAGE_USERS = 'manage_users',
+  MANAGE_SYSTEM = 'manage_system'
 }
 
 export type UserRole = 'admin' | 'staff';
@@ -27,7 +28,8 @@ export class PermissionService {
       Permission.VIEW_EVENTS,
       Permission.EXPORT_REPORTS,
       Permission.SYSTEM_CONFIG,
-      Permission.MANAGE_USERS
+      Permission.MANAGE_USERS,
+      Permission.MANAGE_SYSTEM
     ],
     staff: [
       Permission.VIEW_LOCKERS,
