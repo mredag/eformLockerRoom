@@ -44,7 +44,7 @@ async function testZoneHelpers() {
 
   try {
     // Import zone helpers (need to handle ES modules)
-    const zoneHelpers = require('./shared/services/zone-helpers.ts');
+    const zoneHelpers = require('../shared/services/zone-helpers.ts');
     
     // Test 1: getLockerPositionInZone
     console.log('📍 Test 1: getLockerPositionInZone');

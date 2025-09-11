@@ -5,7 +5,7 @@
  * This script will assign a locker and wait to confirm it doesn't automatically reset
  */
 
-const { LockerStateManager } = require('./shared/services/locker-state-manager');
+const { LockerStateManager } = require('../shared/services/locker-state-manager');
 
 async function testNoTimeout() {
   console.log('🧪 Testing that automatic locker timeout is disabled...\n');

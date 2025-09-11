@@ -5,8 +5,8 @@
  * This simulates a power outage scenario and verifies data persistence
  */
 
-const { LockerStateManager } = require('./shared/services/locker-state-manager');
-const { performPowerInterruptionRecovery } = require('./scripts/power-interruption-recovery');
+const { LockerStateManager } = require('../shared/services/locker-state-manager');
+const { performPowerInterruptionRecovery } = require('../scripts/power-interruption-recovery');
 
 async function testPowerInterruption() {
   console.log('🧪 Testing Power Interruption Recovery...\n');

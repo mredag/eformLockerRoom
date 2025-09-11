@@ -6,7 +6,7 @@
  * during periods of inactivity.
  */
 
-const { ModbusController } = require('./app/kiosk/dist/index.js');
+const { ModbusController } = require('../app/kiosk/dist/index.js');
 
 async function testHardwareConnectivity() {
   console.log('🔧 Testing Hardware Connectivity Fix...\n');

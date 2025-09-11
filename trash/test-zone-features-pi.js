@@ -42,7 +42,7 @@ async function testZoneHelpers() {
 
   try {
     // Import the built zone helpers
-    const zoneHelpers = require('./shared/services/zone-helpers');
+    const zoneHelpers = require('../shared/services/zone-helpers');
     
     console.log('✅ Zone helpers imported successfully');
     
@@ -117,7 +117,7 @@ async function testLayoutServiceIntegration() {
   
   try {
     // Import the built layout service
-    const { LockerLayoutService } = require('./shared/services/locker-layout-service');
+    const { LockerLayoutService } = require('../shared/services/locker-layout-service');
     
     console.log('✅ Layout service imported successfully');
     
@@ -144,7 +144,7 @@ async function testConfigManager() {
   console.log('\n⚙️ Testing Config Manager Integration...\n');
   
   try {
-    const { ConfigManager } = require('./shared/services/config-manager');
+    const { ConfigManager } = require('../shared/services/config-manager');
     
     console.log('✅ Config manager imported successfully');
     
