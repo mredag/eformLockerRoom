@@ -1331,6 +1331,9 @@ class SimpleKioskApp {
                 this.updateLockerStatuses(this.state.availableLockers);
             }
             
+            // Adjust grid for large locker counts to ensure they fit on screen
+            this.adjustGridForLockerCount(layoutData.layout.lockers.length);
+
             console.log(`🎯 Rendered ${layoutData.layout.lockers.length} locker tiles from hardware config`);
             console.log(`📊 Hardware: ${layoutData.stats.enabledCards} cards, ${layoutData.stats.totalChannels} channels`);
             
@@ -1339,6 +1342,86 @@ class SimpleKioskApp {
             // Fallback to static rendering if dynamic fails
             this.renderStaticLockerGrid();
         }
+    }
+
+    /**
+     * Dynamically adjust the grid to fit a large number of lockers.
+     */
+    adjustGridForLockerCount(lockerCount) {
+        if (!this.elements.lockerGrid || lockerCount <= 32) { // Only run for large locker counts
+            // Ensure default overflow is restored if not adjusted
+            if (this.elements.lockerGrid) {
+                this.elements.lockerGrid.style.overflow = 'auto';
+            }
+            return;
+        }
+
+        console.log(`Large locker count (${lockerCount}) detected. Adjusting grid layout.`);
+
+        const grid = this.elements.lockerGrid;
+
+        // Use a small timeout to let the DOM update and get correct dimensions
+        setTimeout(() => {
+            const availableWidth = grid.clientWidth;
+            const availableHeight = grid.clientHeight;
+
+            if (availableWidth === 0 || availableHeight === 0) {
+                console.warn("Grid dimensions are not available for adjustment.");
+                return;
+            }
+
+            const aspectRatio = availableWidth / availableHeight;
+            let numRows = Math.ceil(Math.sqrt(lockerCount / aspectRatio));
+            let numCols = Math.ceil(lockerCount / numRows);
+
+            // Sanity check for column/row counts to prevent tiny tiles
+            if (numCols > 10) numCols = 10;
+            if (numRows > 12) numRows = 12;
+            if (numRows > 0) {
+                numCols = Math.ceil(lockerCount / numRows);
+            }
+
+
+            const gap = 8; // A small gap in pixels
+
+            // Calculate tile size based on fitting within the container
+            const tileHeight = Math.floor(availableHeight / numRows) - gap;
+            const tileWidth = Math.floor(availableWidth / numCols) - gap;
+
+            // Use the smaller of the two to create square-like tiles
+            let tileSize = Math.min(tileWidth, tileHeight);
+
+            // Ensure a minimum size for touch targets and readability
+            tileSize = Math.max(48, tileSize);
+
+            console.log(`Adjusting grid for ${lockerCount} lockers. Calculated tile size: ${tileSize}px`);
+
+            // Override styles to ensure fitment
+            grid.style.setProperty('grid-template-columns', `repeat(${numCols}, 1fr)`, 'important');
+            grid.style.setProperty('grid-template-rows', `repeat(${numRows}, ${tileSize}px)`, 'important');
+            grid.style.setProperty('gap', `${gap}px`, 'important');
+            grid.style.setProperty('overflow', 'hidden', 'important'); // Prevent scrolling for large counts
+            grid.style.setProperty('align-content', 'center', 'important');
+
+
+            const tiles = grid.querySelectorAll('.locker-tile');
+            tiles.forEach(tile => {
+                tile.style.setProperty('width', 'auto', 'important'); // Let grid control width
+                tile.style.setProperty('height', `${tileSize}px`, 'important');
+
+                const numberElement = tile.querySelector('.locker-number');
+                if (numberElement) {
+                    // Adjust font size based on tile size for readability
+                    const fontSize = Math.max(10, Math.floor(tileSize / 4));
+                    numberElement.style.setProperty('font-size', `${fontSize}px`, 'important');
+                }
+                const statusElement = tile.querySelector('.locker-status');
+                if (statusElement) {
+                    const statusFontSize = Math.max(8, Math.floor(tileSize / 9));
+                    statusElement.style.setProperty('font-size', `${statusFontSize}px`, 'important');
+                }
+            });
+        }, 150); // 150ms delay to allow for rendering and dimension calculation
     }
     
     /**
