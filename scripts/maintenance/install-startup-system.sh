@@ -100,17 +100,6 @@ else
     exit 1
 fi
 
-echo ""
-log_header "Step 3: Configuring Boot Optimizations"
-echo "======================================"
-
-# Configure boot optimizations (skip network config since we did it above)
-if bash "$SCRIPT_DIR/pi-boot-setup.sh"; then
-    log_success "Boot optimizations configured"
-else
-    log_error "Failed to configure boot optimizations"
-    exit 1
-fi
 
 echo ""
 log_header "Step 4: Enabling Services"
