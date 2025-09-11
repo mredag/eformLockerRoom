@@ -149,7 +149,8 @@ html, body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    overflow: auto; /* prevent layout breaks with many tiles */
+    min-height: calc(100vh - 60px); /* Ensure full height minus header */
+    height: calc(100vh - 60px);     /* Add this line */
 }
 
 /* Idle State - Clear "Scan your card" message (Requirement 5.4) */
@@ -170,7 +171,7 @@ html, body {
 .hero-card {
     position: relative;
     width: min(320px, 70vw);
-    height: min(320px, 70vw);
+    height: min(220px, 70vw);
     margin: 0 auto 24px;
     border-radius: 24px;
     background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
@@ -213,7 +214,7 @@ html, body {
 
 /* Steps panel */
 .steps-card {
-    width: min(760px, 92vw);
+    
     margin: 8px auto 0;
     background: #0f172a;
     border: 1px solid rgba(52, 211, 153, 0.25);
@@ -227,7 +228,7 @@ html, body {
 .step-text { color: #e2e8f0; font-size: 1.05rem; line-height: 1.4; }
 
 /* Info note */
-.info-note { width: min(840px, 96vw); margin: 18px auto 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(52,211,153,0.35); color: #d1fae5; padding: 14px 18px; border-radius: 12px; }
+.info-note {margin: 18px auto 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(52,211,153,0.35); color: #d1fae5; padding: 14px 18px; border-radius: 12px; }
 .info-note strong { color: #34d399; }
 
 /* RFID Card Icon for Visual Clarity */
@@ -1287,32 +1288,28 @@ button:focus-visible,
     width: 100%;
     height: 100%;
     position: relative;
+    min-height: 0; /* Prevent overflow issues */
 }
 
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-    .locker-tile.available {
-        border: 3px solid #000;
-    }
-    
-    .locker-tile.occupied {
-        border: 3px solid #fff;
-    }
-    
-    .locker-tile.disabled {
-        border: 3px solid #000;
-    }
+/* Center the screen content */
+.screen.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    min-height: 0; /* Prevent overflow issues */
 }
 
-/* Print styles */
-@media print {
-    .header-bar,
-    .legend-bar {
-        display: none;
-    }
-    
-    .main-content {
-        margin: 0;
-        padding: 20px;
-    }
+/* Center idle-message */
+.idle-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
 }
