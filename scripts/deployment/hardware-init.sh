@@ -180,18 +180,16 @@ log_info "📋 Hardware initialization summary..."
 WARNINGS=$(grep -c "WARNING\|ERROR" "$STATUS_FILE" || echo "0")
 ERRORS=$(grep -c "ERROR" "$STATUS_FILE" || echo "0")
 
-if [ "$ERRORS" -eq 0 ]; then
-    if [ "$WARNINGS" -eq 0 ]; then
-        log_success "🎉 Hardware initialization completed successfully!"
-        echo "COMPLETED_SUCCESS" >> "$STATUS_FILE"
-        exit 0
-    else
-        log_warning "⚠️  Hardware initialization completed with $WARNINGS warnings"
-        echo "COMPLETED_WITH_WARNINGS" >> "$STATUS_FILE"
-        exit 0
-    fi
-else
+if [ "$ERRORS" -gt 0 ]; then
     log_error "❌ Hardware initialization completed with $ERRORS errors and $WARNINGS warnings"
     echo "COMPLETED_WITH_ERRORS" >> "$STATUS_FILE"
     exit 1
+elif [ "$WARNINGS" -gt 0 ]; then
+    log_warning "⚠️  Hardware initialization completed with $WARNINGS warnings"
+    echo "COMPLETED_WITH_WARNINGS" >> "$STATUS_FILE"
+    exit 0
+else
+    log_success "🎉 Hardware initialization completed successfully!"
+    echo "COMPLETED_SUCCESS" >> "$STATUS_FILE"
+    exit 0
 fi
