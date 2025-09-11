@@ -16,6 +16,7 @@ if (!process.env.EFORM_DB_PATH) {
 
 import Fastify from "fastify";
 import { LockerStateManager } from "../../../shared/services/locker-state-manager";
+import { ConfigManager } from "../../../shared/services/config-manager";
 import { LockerNamingService } from "../../../shared/services/locker-naming-service";
 import { QrHandler } from "./controllers/qr-handler";
 import { UiController } from "./controllers/ui-controller";
@@ -42,7 +43,8 @@ const validationMiddleware = createKioskValidationMiddleware();
 fastify.addHook("onRequest", securityMiddleware.createSecurityHook());
 
 // Initialize services
-const lockerStateManager = new LockerStateManager();
+const configManager = ConfigManager.getInstance(path.join(projectRoot, 'config', 'system.json'));
+const lockerStateManager = new LockerStateManager(undefined, configManager);
 const lockerNamingService = new LockerNamingService(lockerStateManager.db);
 
 // Modbus configuration
