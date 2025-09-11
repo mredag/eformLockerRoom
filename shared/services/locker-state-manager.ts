@@ -2,12 +2,14 @@ import { DatabaseConnection } from '../database/connection';
 import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition, LockerStateUpdate } from '../types/core-entities';
 import { webSocketService } from './websocket-service';
 import { LockerNamingService } from './locker-naming-service';
+import { ConfigManager } from './config-manager';
 
 export class LockerStateManager {
   private db: DatabaseConnection;
   private dbManager: any;
-  // Automatic cleanup disabled - no timeout variables needed
   private namingService: LockerNamingService;
+  private configManager: ConfigManager;
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   // Define valid state transitions supporting both Turkish and English state names
   private readonly STATE_TRANSITIONS: LockerStateTransition[] = [
@@ -42,7 +44,7 @@ export class LockerStateManager {
     { from: 'Error', to: 'Free', trigger: 'error_resolved', conditions: ['system_recovery'] }
   ];
 
-  constructor(dbManager?: any) {
+  constructor(dbManager?: any, configManager?: ConfigManager) {
     if (dbManager) {
       this.dbManager = dbManager;
       this.db = dbManager.getConnection().getDatabase();
@@ -50,8 +52,8 @@ export class LockerStateManager {
       this.db = DatabaseConnection.getInstance();
     }
     this.namingService = new LockerNamingService(this.db);
-    // Automatic cleanup disabled - lockers will only be released manually
-    console.log('🔒 Automatic locker timeout disabled - manual release only');
+    this.configManager = configManager || ConfigManager.getInstance();
+    this.startCleanupTimer();
   }
 
 
@@ -89,20 +91,34 @@ export class LockerStateManager {
   }
 
   /**
-   * Start automatic cleanup of expired reservations - DISABLED
-   * Automatic timeout feature has been removed per user request
+   * Start automatic cleanup of expired reservations.
    */
   private startCleanupTimer(): void {
-    // Automatic cleanup disabled - lockers will only be released manually
-    console.log('🚫 Automatic locker cleanup timer disabled');
+    const config = this.configManager.getConfiguration();
+    // Feature might be disabled or not present in older configs
+    const autoReleaseHours = config.lockers.auto_release_hours || 0;
+
+    if (autoReleaseHours > 0) {
+      // For now, check every minute. In production, this should be less frequent.
+      const cleanupIntervalMs = 60 * 1000;
+      this.cleanupInterval = setInterval(() => {
+        this.cleanupExpiredReservations();
+      }, cleanupIntervalMs);
+      console.log(`🔒 Automatic locker cleanup enabled. Checking every minute. Lockers will be released after ${autoReleaseHours} hours.`);
+    } else {
+      console.log('🚫 Automatic locker cleanup disabled.');
+    }
   }
 
   /**
-   * Stop automatic cleanup timer - DISABLED
-   * No cleanup timer to stop since automatic timeout is disabled
+   * Stop automatic cleanup timer.
    */
   public stopCleanupTimer(): void {
-    console.log('🚫 No cleanup timer to stop - automatic timeout disabled');
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      console.log('🚫 Automatic locker cleanup timer stopped.');
+    }
   }
 
   /**
@@ -622,12 +638,40 @@ export class LockerStateManager {
   }
 
   /**
-   * Clean up expired reservations - DISABLED
-   * This method has been disabled per user request - no automatic timeouts
+   * Clean up expired reservations.
+   * This method is now enabled to automatically release lockers after a configured duration.
    */
   async cleanupExpiredReservations(): Promise<number> {
-    console.log('🚫 Automatic cleanup disabled - lockers will only be released manually');
-    return 0;
+    const config = this.configManager.getConfiguration();
+    const autoReleaseHours = config.lockers.auto_release_hours || 0;
+
+    if (autoReleaseHours <= 0) {
+      return 0; // Feature is disabled
+    }
+
+    try {
+      // The value is in hours, convert to milliseconds for comparison
+      const autoReleaseMs = autoReleaseHours * 60 * 60 * 1000;
+      const expirationTime = new Date(Date.now() - autoReleaseMs);
+
+      const expiredLockers = await this.db.all<Locker>(
+        `SELECT * FROM lockers WHERE status = 'Owned' AND reserved_at IS NOT NULL AND reserved_at < ?`,
+        [expirationTime.toISOString()]
+      );
+
+      if (expiredLockers.length > 0) {
+        console.log(`🧹 Found ${expiredLockers.length} expired lockers to release.`);
+        for (const locker of expiredLockers) {
+          console.log(`- Releasing locker ${locker.kiosk_id}-${locker.id} (reserved at ${locker.reserved_at})`);
+          await this.releaseLocker(locker.kiosk_id, locker.id);
+        }
+      }
+
+      return expiredLockers.length;
+    } catch (error) {
+      console.error('Error during expired reservation cleanup:', error);
+      return 0;
+    }
   }
 
   /**

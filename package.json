@@ -60,7 +60,8 @@
     "start:dev:windows": "powershell -ExecutionPolicy Bypass -File scripts/start-dev-windows.ps1",
     "start:dev": "npm run start:dev:windows",
     "init:dev": "node scripts/init-dev-database.js",
-    "dev:setup": "npm run build && npm run init:dev && npm run start:dev"
+    "dev:setup": "npm run build && npm run init:dev && npm run start:dev",
+    "test:set-release-time": "tsx scripts/set-testing-release-time.ts"
   },
   "dependencies": {
     "argon2": "^0.31.2",
