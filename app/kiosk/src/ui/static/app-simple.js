@@ -571,6 +571,8 @@ class SimpleKioskApp {
             }
             
             this.showLoadingState('Kart kontrol ediliyor...');
+            this.showToast('Kart okundu', `Hoşgeldiniz! Kart: -${cardId}`);
+
             
             // Check if card already has a locker assigned
             const existingLocker = await this.checkExistingLocker(cardId);
@@ -907,6 +909,11 @@ class SimpleKioskApp {
         this.state.mode = 'session';
         this.state.countdown = this.sessionTimeoutSeconds;
         
+        const cardIdElement = document.querySelector('.card-id');
+        if (cardIdElement) {
+            cardIdElement.textContent = `Kart: - ${this.state.selectedCard}`;
+        }
+
         this.renderLockerGrid();
         this.showSessionState();
         this.ensureCompactSessionTitle();
@@ -940,7 +947,8 @@ class SimpleKioskApp {
      */
     updateCountdownDisplay() {
         if (this.elements.countdownValue) {
-            this.elements.countdownValue.textContent = this.state.countdown;
+            const seconds = String(this.state.countdown).padStart(2, '0');
+            this.elements.countdownValue.textContent = `0:${seconds}`;
             
             // Add warning style when countdown is low (last 10 seconds)
             if (this.elements.sessionTimer) {
@@ -1290,11 +1298,9 @@ class SimpleKioskApp {
                 
                 // Enhanced visual content with hardware info
                 tile.innerHTML = `
-                    <div class="locker-number">${locker.displayName}</div>
+                    <div class.locker-number">${locker.displayName}</div>
+                    <div class="locker-size">${locker.size || ''}</div>
                     <div class="locker-status">BOŞ</div>
-                    <div class="locker-hardware" style="font-size: 0.7em; opacity: 0.7; margin-top: 2px;">
-                        C${locker.cardId}R${locker.relayId}
-                    </div>
                 `;
                 
                 // Add keyboard support
@@ -1976,6 +1982,34 @@ class SimpleKioskApp {
         this.rfidBuffer = '';
         
         console.log('🧹 Cleanup completed');
+    }
+
+    showToast(title, message) {
+        const toastContainer = document.getElementById('toasts');
+        if (!toastContainer) return;
+
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 500);
+        }, 3000);
     }
 }
 
