@@ -1,0 +1,18 @@
+[Unit]
+Description=eForm Locker - Main Application Service
+After=network.target eform-hardware-init.service
+Requires=eform-hardware-init.service
+
+[Service]
+ExecStart=/bin/bash /home/pi/eform-locker/scripts/deployment/startup-services-systemd.sh
+ExecStop=/bin/bash /home/pi/eform-locker/scripts/deployment/stop-services-systemd.sh
+Restart=always
+RestartSec=10
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/eform-locker
+Environment=PATH=/home/pi/.nvm/versions/node/v20.11.1/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
