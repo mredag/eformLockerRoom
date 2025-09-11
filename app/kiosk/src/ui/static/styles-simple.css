@@ -989,7 +989,7 @@ html, body {
     
     /* Footer legend items with proper spacing */
     .legend-item {
-        min-height: 44px;
+        min-height: 45px;
         padding: 8px 12px;
         margin: 4px 8px;
     }
