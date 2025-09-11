@@ -226,6 +226,17 @@ async function startPanelService() {
       auditLogger,
     });
 
+    // Register system routes
+    try {
+      const { systemRoutes } = await import("./routes/system-routes");
+      await fastify.register(systemRoutes, {
+        prefix: "/api/system",
+      });
+      console.log("✅ System routes registered successfully");
+    } catch (error) {
+      console.error("❌ Failed to register system routes:", error);
+    }
+
     await fastify.register(vipRoutes, {
       prefix: "/api/vip",
       dbManager,
