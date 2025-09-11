@@ -1306,6 +1306,7 @@ class SimpleKioskApp {
                 
                 // Enhanced visual content with hardware info
                 tile.innerHTML = `
+
                     <div class="locker-number">${locker.displayName}</div>
                     <div class="locker-size">${locker.size || ''}</div>
                     <div class="locker-status">BOŞ</div>
