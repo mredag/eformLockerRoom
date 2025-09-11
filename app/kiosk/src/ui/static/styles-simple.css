@@ -1496,6 +1496,57 @@ html, body {
     color: #21262d;
 }
 
+/* Feedback Screen */
+.feedback-screen {
+    text-align: center;
+    color: white;
+    padding: 40px 20px;
+}
+
+.feedback-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: feedback-appear 0.3s ease-out;
+}
+
+@keyframes feedback-appear {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.feedback-icon {
+    margin-bottom: 24px;
+}
+
+.feedback-icon svg {
+    width: 100px;
+    height: 100px;
+}
+
+.feedback-text {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    line-height: 1.3;
+}
+
+.feedback-icon.success svg {
+    color: #238636;
+}
+
+.feedback-icon.error svg {
+    color: #da3633;
+}
+
 /* Toast Notification Styles */
 #toasts {
     position: fixed;

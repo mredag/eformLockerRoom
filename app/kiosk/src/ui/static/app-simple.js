@@ -325,7 +325,8 @@ class SimpleKioskApp {
             'idle-screen', 'session-screen', 'loading-screen', 'error-screen',
             'locker-grid', 'session-timer', 'countdown-value', 'connection-status',
             'loading-text', 'error-text', 'error-description', 'error-recovery',
-            'return-button', 'retry-button'
+            'return-button', 'retry-button',
+            'feedback-screen', 'feedback-icon', 'feedback-text'
         ];
         
         this.elements = {};
@@ -351,7 +352,8 @@ class SimpleKioskApp {
             this.elements.idleScreen,
             this.elements.sessionScreen,
             this.elements.loadingScreen,
-            this.elements.errorScreen
+            this.elements.errorScreen,
+            this.elements.feedbackScreen
         ].filter(Boolean);
         
         console.log('📋 DOM elements cached efficiently for Pi');
@@ -695,10 +697,7 @@ class SimpleKioskApp {
             
             if (result.success) {
                 // Use the server's message which contains the correct display name
-                this.showLoadingState(result.message.replace('ve serbest bırakıldı', '- Eşyalarınızı alın'));
-                setTimeout(() => {
-                    this.showIdleState();
-                }, 3000);
+                this.showFeedbackScreen(result.message.replace('ve serbest bırakıldı', '- Eşyalarınızı alın'), 'success');
             } else {
                 // Check for specific error types from server response
                 if (result.error === 'hardware_unavailable') {
@@ -733,23 +732,24 @@ class SimpleKioskApp {
             overlay = document.createElement('div');
             overlay.id = 'owned-decision-overlay';
             overlay.style.cssText = `
-                position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+                position: fixed; inset: 0; background: rgba(0,0,0,0.7);
                 display: flex; align-items: center; justify-content: center;
                 z-index: 9999;
             `;
             const panel = document.createElement('div');
             panel.style.cssText = `
-                background: #fff; color: #111; width: 90%; max-width: 520px; border-radius: 12px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3); padding: 20px; text-align: center;
+                background: #161b22; color: #c9d1d9; width: 90%; max-width: 600px; border-radius: 16px;
+                border: 1px solid #30363d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 24px; text-align: center;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             `;
             panel.innerHTML = `
-                <h2 id="owned-decision-title" style="margin: 0 0 10px">Dolabınız</h2>
-                <p id="owned-decision-desc" style="margin: 0 0 16px; opacity: .85">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
-                <div style="display:flex; gap:12px; justify-content: center; flex-wrap: wrap;">
-                    <button id="btn-open-only" style="flex:1; min-width:180px; padding:14px 16px; font-weight:700; border-radius:10px; border:2px solid #2e7d32; background:#43a047; color:#fff;">Eşyamı almak için aç</button>
-                    <button id="btn-finish-release" style="flex:1; min-width:180px; padding:14px 16px; font-weight:700; border-radius:10px; border:2px solid #9c1c1c; background:#c62828; color:#fff;">Dolabı teslim etmek istiyorum</button>
+                <h2 id="owned-decision-title" style="margin: 0 0 12px; font-size: 2rem; color: #fff;">Dolabınız</h2>
+                <p id="owned-decision-desc" style="margin: 0 0 24px; font-size: 1.2rem; opacity: .85;">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
+                <div style="display:flex; gap:16px; justify-content: center; flex-wrap: wrap;">
+                    <button id="btn-open-only" style="flex:1; min-width:220px; padding: 20px 24px; font-size: 1.2rem; font-weight:700; border-radius:12px; border: 2px solid #238636; background:#2ea043; color:#fff; cursor: pointer;">Eşyamı almak için aç</button>
+                    <button id="btn-finish-release" style="flex:1; min-width:220px; padding: 20px 24px; font-size: 1.2rem; font-weight:700; border-radius:12px; border: 2px solid #da3633; background:#f85149; color:#fff; cursor: pointer;">Dolabı teslim etmek istiyorum</button>
                 </div>
-                <div style="margin-top:10px; font-size: 13px; opacity:.9">Teslim ettiğinizde dolap başkaları için uygun olur.</div>
+                <div style="margin-top:16px; font-size: 1rem; opacity:.7;">Teslim ettiğinizde dolap başkaları için uygun olur.</div>
             `;
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
@@ -809,8 +809,7 @@ class SimpleKioskApp {
             const result = await response.json();
             if (result.success) {
                 // Keep ownership; just inform and return to idle shortly
-                this.showLoadingState(result.message || 'Dolap açıldı');
-                setTimeout(() => { this.showIdleState(); }, 2500);
+                this.showFeedbackScreen(result.message || 'Dolap açıldı', 'success');
             } else {
                 if (result.error === 'hardware_unavailable') {
                     throw new Error('HARDWARE_OFFLINE');
@@ -1748,6 +1747,52 @@ class SimpleKioskApp {
             this.updateConnectionStatus(false);
             // Stay in error state, will retry again if auto-retry is enabled
         }
+    }
+
+    /**
+     * Show a dedicated feedback screen.
+     */
+    showFeedbackScreen(message, type = 'success') {
+        this.state.mode = 'feedback';
+
+        const iconContainer = this.elements.feedbackIcon;
+        const textElement = this.elements.feedbackText;
+
+        if (!iconContainer || !textElement) {
+            console.error("Feedback screen elements not found!");
+            // Fallback to loading screen
+            this.showLoadingState(message);
+            return;
+        }
+
+        // Set message
+        textElement.textContent = message;
+
+        // Set icon based on type
+        iconContainer.innerHTML = ''; // Clear previous icon
+        iconContainer.className = `feedback-icon ${type}`;
+        if (type === 'success') {
+            iconContainer.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+            `;
+        } else { // error
+            iconContainer.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+            `;
+        }
+
+        this.showScreen('feedback');
+
+        // Automatically return to idle screen after a delay
+        setTimeout(() => {
+            if (this.state.mode === 'feedback') {
+                this.showIdleState();
+            }
+        }, 3000);
     }
 
     /**
