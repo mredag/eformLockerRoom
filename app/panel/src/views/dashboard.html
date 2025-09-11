@@ -259,6 +259,11 @@
         loadUserInfo();
 
         async function restartServices() {
+            if (!csrfToken) {
+                showError('CSRF token not available. Please refresh the page.');
+                return;
+            }
+
             if (!confirm('Servisleri yeniden başlatmak istediğinizden emin misiniz? Bu işlem birkaç dakika sürebilir.')) {
                 return;
             }
@@ -271,6 +276,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': csrfToken,
                     },
+                    body: JSON.stringify({}), // Send an empty JSON object
                 });
 
                 const data = await response.json();
@@ -278,7 +284,7 @@
                 if (response.ok) {
                     alert('Servisler başarıyla yeniden başlatıldı.');
                 } else {
-                    showError(`Hata: ${data.error}`);
+                    showError(`Hata: ${data.error || 'Bilinmeyen bir hata oluştu.'}`);
                 }
             } catch (error) {
                 showError('Servisleri yeniden başlatırken bir hata oluştu.');
