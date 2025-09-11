@@ -933,6 +933,9 @@ async function validateKioskZone(): Promise<string | null> {
 // Start server
 const start = async () => {
   try {
+    // Initialize locker state manager (including config loading)
+    await lockerStateManager.initialize();
+
     // Validate kiosk zone configuration
     const validatedZone = await validateKioskZone();
     

@@ -53,6 +53,10 @@ export class LockerStateManager {
     }
     this.namingService = new LockerNamingService(this.db);
     this.configManager = configManager || ConfigManager.getInstance();
+  }
+
+  async initialize(): Promise<void> {
+    await this.configManager.initialize();
     this.startCleanupTimer();
   }
 
