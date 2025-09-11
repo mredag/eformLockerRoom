@@ -168,6 +168,12 @@
             </div>
 
             <div class="dashboard-card">
+                <h2>Sistem İşlemleri</h2>
+                <p>Sistemi yeniden başlatma gibi tehlikeli işlemleri buradan yapabilirsiniz.</p>
+                <button onclick="restartServices()" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #dc3545; color: white; text-decoration: none; border-radius: 5px; border: none; cursor: pointer;">Servisleri Yeniden Başlat</button>
+            </div>
+
+            <div class="dashboard-card">
                 <h2>VIP Sözleşmeler</h2>
                 <p>Premium müşteriler için uzun vadeli dolap sözleşmelerini yönetin. Özel dolap atamaları ile VIP sözleşmeleri oluşturun, uzatın ve iptal edin.</p>
                 <a href="/vip" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">VIP Sözleşmeleri Yönet</a>
@@ -251,6 +257,33 @@
 
         // Load user info on page load
         loadUserInfo();
+
+        async function restartServices() {
+            if (!confirm('Servisleri yeniden başlatmak istediğinizden emin misiniz? Bu işlem birkaç dakika sürebilir.')) {
+                return;
+            }
+
+            showError(''); // Clear previous errors
+            try {
+                const response = await fetch('/api/system/restart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Servisler başarıyla yeniden başlatıldı.');
+                } else {
+                    showError(`Hata: ${data.error}`);
+                }
+            } catch (error) {
+                showError('Servisleri yeniden başlatırken bir hata oluştu.');
+            }
+        }
 
         // Auto-renew session every 30 minutes
         setInterval(async () => {
