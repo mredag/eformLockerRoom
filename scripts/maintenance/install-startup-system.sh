@@ -80,7 +80,7 @@ echo "===================================="
 chmod +x "$SCRIPT_DIR"/*.sh
 
 # Install systemd services
-if bash "$SCRIPT_DIR/pi-startup-system.sh"; then
+if bash "$SCRIPT_DIR/install-systemd-services.sh"; then
     log_success "Systemd services installed"
 else
     log_error "Failed to install systemd services"
