@@ -14,6 +14,7 @@
     "config-test": "tsx src/utils/config-test.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^9.2.0",
     "argon2": "^0.31.2",
     "dotenv": "^16.3.1",
     "fastify": "^4.24.3",

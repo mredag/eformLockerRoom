@@ -15,6 +15,7 @@ if (!process.env.EFORM_DB_PATH) {
 }
 
 import Fastify from "fastify";
+import cookie from "@fastify/cookie";
 import { DatabaseManager } from "../../../shared/database/database-manager.js";
 import { provisioningRoutes } from "./routes/provisioning.js";
 import { configurationRoutes } from "./routes/configuration.js";
@@ -25,6 +26,9 @@ import { mkdirSync } from "fs";
 const fastify = Fastify({
   logger: true,
 });
+
+// Register cookie plugin
+fastify.register(cookie);
 
 // Ensure project root data directory exists (not local ./data)
 try {
