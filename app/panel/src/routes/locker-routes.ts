@@ -8,6 +8,8 @@ import { Permission } from '../services/permission-service';
 import { User } from '../services/auth-service';
 import { webSocketService } from '../../../../shared/services/websocket-service';
 import { lockerLayoutService } from '../../../../shared/services/locker-layout-service';
+import { findZoneForLocker } from '../../../../shared/services/zone-helpers';
+import { ConfigManager } from '../../../../shared/services/config-manager';
 
 interface LockerRouteOptions extends FastifyPluginOptions {
   dbManager: DatabaseManager;
@@ -48,19 +50,16 @@ function unlockLocker(kioskId: string, lockerId: number): void {
 // Helper function to broadcast locker state updates via WebSocket
 async function broadcastLockerUpdate(lockerStateManager: LockerStateManager, kioskId: string, lockerId: number): Promise<void> {
   try {
-    const updatedLocker = await lockerStateManager.getLocker(kioskId, lockerId);
+    const updatedLocker = await lockerStateManager.getEnhancedLocker(kioskId, lockerId);
     if (updatedLocker) {
       webSocketService.broadcastStateUpdate({
-        type: 'locker_update',
-        kioskId,
-        lockerId,
-        status: updatedLocker.status,
+        kioskId: kioskId,
+        lockerId: lockerId,
+        displayName: updatedLocker.displayName,
+        state: updatedLocker.status,
+        lastChanged: new Date(updatedLocker.updated_at),
         ownerKey: updatedLocker.owner_key,
         ownerType: updatedLocker.owner_type,
-        displayName: updatedLocker.display_name,
-        isVip: updatedLocker.is_vip,
-        updatedAt: updatedLocker.updated_at,
-        timestamp: new Date()
       });
     }
   } catch (error) {
@@ -73,6 +72,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
   const lockerStateManager = new LockerStateManager(dbManager);
   const eventRepository = new EventRepository(dbManager);
   const commandQueue = new CommandQueueManager();
+  const configManager = new ConfigManager();
 
   // Validation helper functions
   async function validateKioskExists(kioskId: string): Promise<boolean> {
@@ -179,11 +179,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         message: '📊 lockerStateManager.getAllLockers result'
       });
       
-      // Get kiosk heartbeat data to add zone information
-      const { KioskHeartbeatRepository } = require('../../../../shared/database/kiosk-heartbeat-repository');
-      const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
-      const kiosk = await heartbeatRepo.findById(query.kioskId);
-      const kioskZone = kiosk?.zone || 'unknown';
+      const config = await configManager.getSystemConfig();
 
       // Ensure lockers is always an array
       let filteredLockers;
@@ -198,12 +194,16 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         // Convert to empty array if not an array
         filteredLockers = [];
       } else {
-        // Add zone filtering if needed (would need kiosk heartbeat data)
-        filteredLockers = lockers.map(locker => ({
-          ...locker,
-          zone: kioskZone,
-        }));
+        // Add zone information to each locker
+        filteredLockers = lockers.map(locker => {
+          const zone = findZoneForLocker(locker.id, config);
+          return {
+            ...locker,
+            zone: zone ? zone.id : 'unassigned',
+          };
+        });
 
+        // Filter by zone if a zone is specified in the query
         if (query.zone) {
           filteredLockers = filteredLockers.filter(locker => locker.zone === query.zone);
         }
@@ -800,48 +800,83 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
 
       let kiosksToProcess: { kiosk_id: string }[] = [];
-
       if (kioskId) {
-        kiosksToProcess.push({ kiosk_id: kioskId });
+        const kioskExists = await heartbeatRepo.findById(kioskId);
+        if (kioskExists) {
+          kiosksToProcess.push({ kiosk_id: kioskId });
+        } else {
+          return reply.code(404).send({
+            code: 'not_found',
+            message: `Kiosk with ID ${kioskId} not found.`
+          });
+        }
       } else {
         const allKiosks = await heartbeatRepo.findAll();
         kiosksToProcess = allKiosks.map(k => ({ kiosk_id: k.kiosk_id }));
       }
 
-      let totalQueuedCount = 0;
-      const commandIds: string[] = [];
+      const results = {
+        successful_kiosks: [],
+        failed_kiosks: [],
+        total_queued_count: 0,
+        command_ids: []
+      };
 
       for (const kiosk of kiosksToProcess) {
-        const lockers = await lockerStateManager.getAllLockers(kiosk.kiosk_id);
-        const targetLockers = lockers.filter(locker => {
-          if (excludeVip && locker.is_vip) return false;
-          return locker.status === 'Owned' || locker.status === 'Reserved';
-        });
+        try {
+          const lockers = await lockerStateManager.getAllLockers(kiosk.kiosk_id);
+          const targetLockers = lockers.filter(locker => {
+            if (excludeVip && locker.is_vip) return false;
+            return locker.status === 'Owned' || locker.status === 'Reserved';
+          });
 
-        if (targetLockers.length > 0) {
-          const lockerIdsToOpen = targetLockers.map(l => l.id);
+          if (targetLockers.length > 0) {
+            const lockerIdsToOpen = targetLockers.map(l => l.id);
+            const commandId = await commandQueue.enqueueCommand(kiosk.kiosk_id, 'bulk_open', {
+              bulk_open: {
+                locker_ids: lockerIdsToOpen,
+                staff_user: user.username,
+                reason: 'End of Day Opening',
+                exclude_vip: excludeVip,
+                interval_ms: 1000,
+              }
+            });
 
-          const commandId = await commandQueue.enqueueCommand(kiosk.kiosk_id, 'bulk_open', {
-            bulk_open: {
+            results.command_ids.push(commandId);
+            results.total_queued_count += lockerIdsToOpen.length;
+            results.successful_kiosks.push({
+              kiosk_id: kiosk.kiosk_id,
+              queued_count: lockerIdsToOpen.length,
+              command_id: commandId
+            });
+
+            fastify.log.info({
+              command_id: commandId,
+              kiosk_id: kiosk.kiosk_id,
               locker_ids: lockerIdsToOpen,
               staff_user: user.username,
               reason: 'End of Day Opening',
-              exclude_vip: excludeVip,
-              interval_ms: 1000,
-            }
-          });
-
-          commandIds.push(commandId);
-          totalQueuedCount += lockerIdsToOpen.length;
-
-          fastify.log.info({
-            command_id: commandId,
+              req_id: requestId,
+              message: 'End of day bulk open command enqueued for kiosk'
+            });
+          } else {
+            results.successful_kiosks.push({
+              kiosk_id: kiosk.kiosk_id,
+              queued_count: 0,
+              message: 'No owned or reserved lockers to open.'
+            });
+          }
+        } catch (error) {
+          fastify.log.error({
             kiosk_id: kiosk.kiosk_id,
-            locker_ids: lockerIdsToOpen,
             staff_user: user.username,
-            reason: 'End of Day Opening',
             req_id: requestId,
-            message: 'End of day bulk open command enqueued'
+            error: error.message,
+            message: 'Failed to process end of day for this kiosk'
+          });
+          results.failed_kiosks.push({
+            kiosk_id: kiosk.kiosk_id,
+            error: error.message
           });
         }
       }
@@ -851,17 +886,25 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         event_type: 'end_of_day_open',
         staff_user: user.username,
         details: {
-          total_count: totalQueuedCount,
-          success_count: totalQueuedCount, // We are counting queued, not opened
+          total_queued_count: results.total_queued_count,
+          successful_kiosks: results.successful_kiosks.map(k => k.kiosk_id),
+          failed_kiosks: results.failed_kiosks.map(k => k.kiosk_id),
           exclude_vip: excludeVip,
-          command_ids: commandIds
+          command_ids: results.command_ids
         }
       });
 
-      return reply.code(202).send({
-        message: `${totalQueuedCount} lockers have been queued for end-of-day opening.`,
-        processed_count: totalQueuedCount,
-        command_ids: commandIds,
+      const statusCode = results.failed_kiosks.length > 0 && results.successful_kiosks.length === 0 ? 500 : 207;
+      const message = `End-of-day process finished. Queued ${results.total_queued_count} lockers across ${results.successful_kiosks.length} kiosks. ${results.failed_kiosks.length} kiosks failed.`;
+
+      return reply.code(statusCode).send({
+        message: message,
+        processed_count: results.total_queued_count,
+        command_ids: results.command_ids,
+        details: {
+          successful_kiosks: results.successful_kiosks,
+          failed_kiosks: results.failed_kiosks
+        }
       });
 
     } catch (error) {
@@ -874,7 +917,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       });
       reply.code(500).send({
         code: 'server_error',
-        message: 'Failed to queue end of day command'
+        message: 'An unexpected error occurred during the end-of-day process.'
       });
     }
   });
