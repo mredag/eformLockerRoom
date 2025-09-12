@@ -1,6 +1,8 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
 import { promisify } from "util";
+import * as os from "os";
+import * as path from "path";
 import { User } from "../services/auth-service";
 import { PermissionService, Permission } from "../services/permission-service";
 
@@ -44,28 +46,61 @@ export async function systemRoutes(
       },
     },
     async (request, reply) => {
-      try {
-        const { stdout, stderr } = await execAsync(
-          "bash /home/pi/eform-locker/scripts/maintenance/restart-systemd-services.sh"
-        );
+      const isWindows = os.platform() === 'win32';
+      const user = request.user as User;
 
-        if (stderr) {
-          fastify.log.warn("Restart script produced stderr:", stderr);
+      fastify.log.info(`System restart initiated by user: ${user.username} on ${os.platform()}`);
+
+      if (isWindows) {
+        // For Windows, run the dev startup script in a new detached process.
+        // This is non-blocking and suitable for a dev environment.
+        const scriptPath = path.join(__dirname, '..', '..', '..', 'scripts', 'start-dev-windows.ps1');
+        
+        try {
+          const child = spawn('powershell.exe', [
+            '-ExecutionPolicy', 'Bypass',
+            '-File', scriptPath
+          ], {
+            detached: true,
+            stdio: 'ignore'
+          });
+          child.unref();
+
+          reply.send({
+            success: true,
+            message: "Windows development services restart initiated.",
+            output: "New PowerShell windows should be opening for each service.",
+          });
+        } catch (error: any) {
+            fastify.log.error("Failed to spawn restart process on Windows:", error);
+            reply.code(500).send({
+              error: "Failed to start Windows restart script.",
+              output: error.message,
+            });
         }
+      } else {
+        // For Linux (Pi), execute the systemd restart script.
+        try {
+          const { stdout, stderr } = await execAsync(
+            "bash /home/pi/eform-locker/scripts/maintenance/restart-systemd-services.sh"
+          );
 
-        fastify.log.info("System restart initiated by user:", (request.user as User).username);
+          if (stderr) {
+            fastify.log.warn("Restart script produced stderr:", stderr);
+          }
 
-        reply.send({
-          success: true,
-          message: "System restart initiated successfully.",
-          output: stdout,
-        });
-      } catch (error: any) {
-        fastify.log.error("Failed to restart system:", error);
-        reply.code(500).send({
-          error: "Failed to execute restart script.",
-          output: error.stderr || error.stdout || error.message,
-        });
+          reply.send({
+            success: true,
+            message: "System services restart initiated successfully.",
+            output: stdout,
+          });
+        } catch (error: any) {
+          fastify.log.error("Failed to execute restart script on Linux:", error);
+          reply.code(500).send({
+            error: "Failed to execute restart script.",
+            output: error.stderr || error.stdout || error.message,
+          });
+        }
       }
     }
   );
