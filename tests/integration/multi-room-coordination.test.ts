@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import path from "path";
 import { DatabaseManager } from "../../shared/database/database-manager.js";
 import { LockerCoordinationService } from "../../app/gateway/src/services/locker-coordination.js";
 import { CommandQueueManager } from "../../shared/services/command-queue-manager.js";
@@ -21,10 +22,10 @@ describe("Multi-Room Coordination Tests", () => {
   beforeEach(async () => {
     // Initialize database manager with test database and correct migrations path
     dbManager = DatabaseManager.getInstance({ 
-      path: ":memory:",
-      migrationsPath: "../../migrations"
+      location: ":memory:",
+      migrationsPath: path.join(__dirname, '../../migrations')
     });
-    await dbManager.initialize();
+    await dbManager.init();
 
     const dbConnection = dbManager.getConnection();
     

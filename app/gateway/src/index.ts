@@ -40,58 +40,60 @@ try {
 // Initialize database
 async function initializeDatabase() {
   const dbManager = DatabaseManager.getInstance({
-    migrationsPath: '../../migrations'
+    path: process.env.EFORM_DB_PATH!,
+    migrationsPath: path.join(projectRoot, 'migrations')
   });
   await dbManager.initialize();
+  return dbManager;
 }
-
-// Register routes
-fastify.register(provisioningRoutes, { prefix: "/api/provisioning" });
-fastify.register(configurationRoutes, { prefix: "/api/configuration" });
-fastify.register(heartbeatRoutes, { prefix: "/api/heartbeat" });
-
-// Register admin routes
-fastify.register(async function (fastify) {
-  await registerAdminRoutes(fastify);
-});
-
-// Health check endpoint
-fastify.get("/health", async () => {
-  return {
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    service: "eform-gateway",
-    version: process.env.npm_package_version || "1.0.0",
-  };
-});
-
-// Serve configuration panel
-fastify.get("/config-panel", async (_request, reply) => {
-  const { readFileSync } = await import("fs");
-  const { join } = await import("path");
-
-  try {
-    const htmlPath = join(
-      process.cwd(),
-      "app",
-      "panel",
-      "src",
-      "views",
-      "configuration-panel.html"
-    );
-    const html = readFileSync(htmlPath, "utf8");
-    reply.type("text/html").send(html);
-  } catch (error) {
-    reply.status(500).send({ error: "Failed to load configuration panel" });
-  }
-});
 
 // Start server
 const start = async () => {
   try {
-    await initializeDatabase();
+    const dbManager = await initializeDatabase();
     const port = parseInt(process.env.PORT || "3000", 10);
     const host = process.env.HOST || "0.0.0.0";
+
+    // Register routes
+    fastify.register(provisioningRoutes, { prefix: "/api/provisioning", dbManager });
+    fastify.register(configurationRoutes, { prefix: "/api/configuration", dbManager });
+    fastify.register(heartbeatRoutes, { prefix: "/api/heartbeat", dbManager });
+
+    // Register admin routes
+    fastify.register(async function (fastify) {
+      await registerAdminRoutes(fastify);
+    });
+
+    // Health check endpoint
+    fastify.get("/health", async () => {
+      return {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        service: "eform-gateway",
+        version: process.env.npm_package_version || "1.0.0",
+      };
+    });
+
+    // Serve configuration panel
+    fastify.get("/config-panel", async (_request, reply) => {
+      const { readFileSync } = await import("fs");
+      const { join } = await import("path");
+
+      try {
+        const htmlPath = join(
+          process.cwd(),
+          "app",
+          "panel",
+          "src",
+          "views",
+          "configuration-panel.html"
+        );
+        const html = readFileSync(htmlPath, "utf8");
+        reply.type("text/html").send(html);
+      } catch (error) {
+        reply.status(500).send({ error: "Failed to load configuration panel" });
+      }
+    });
 
     await fastify.listen({ port, host });
     console.log(`Eform Gateway Service started on port ${port}`);

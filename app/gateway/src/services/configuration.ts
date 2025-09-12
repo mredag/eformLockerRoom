@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseConnection } from '../../../../shared/database/connection';
+import { DatabaseManager } from '../../../../shared/database/database-manager';
 import { 
   SystemConfig, 
   ConfigurationPackage, 
@@ -9,10 +9,10 @@ import {
 } from '../../../../shared/types/index';
 
 export class ConfigurationService {
-  private db: DatabaseConnection;
+  private dbManager: DatabaseManager;
 
-  constructor() {
-    this.db = DatabaseConnection.getInstance();
+  constructor(dbManager: DatabaseManager) {
+    this.dbManager = dbManager;
   }
 
   /**
@@ -46,7 +46,7 @@ export class ConfigurationService {
     const hash = this.calculateConfigHash(configJson);
 
     // Check if this exact configuration already exists
-    const existing = await this.db.get<ConfigurationPackage>(
+    const existing = await this.dbManager.getConnection().get<ConfigurationPackage>(
       `SELECT * FROM configuration_packages WHERE hash = ?`,
       [hash]
     );
@@ -56,7 +56,7 @@ export class ConfigurationService {
     }
 
     // Store configuration package
-    await this.db.run(
+    await this.dbManager.getConnection().run(
       `INSERT INTO configuration_packages (version, hash, config, created_by) 
        VALUES (?, ?, ?, ?)`,
       [version, hash, configJson, createdBy]
@@ -82,7 +82,7 @@ export class ConfigurationService {
    * Get configuration package by version
    */
   async getConfigurationPackage(version: string): Promise<ConfigurationPackage | null> {
-    const row = await this.db.get<any>(
+    const row = await this.dbManager.getConnection().get<any>(
       `SELECT * FROM configuration_packages WHERE version = ?`,
       [version]
     );
@@ -104,7 +104,7 @@ export class ConfigurationService {
    * List all configuration packages
    */
   async listConfigurationPackages(): Promise<ConfigurationPackage[]> {
-    const rows = await this.db.all<any>(
+    const rows = await this.dbManager.getConnection().all<any>(
       `SELECT * FROM configuration_packages ORDER BY created_at DESC`
     );
 
@@ -132,7 +132,7 @@ export class ConfigurationService {
     }
 
     // Create deployment record
-    const result = await this.db.run(
+    const result = await this.dbManager.getConnection().run(
       `INSERT INTO configuration_deployments 
        (config_version, config_hash, kiosk_id, zone, created_by) 
        VALUES (?, ?, ?, ?, ?)`,
@@ -150,7 +150,7 @@ export class ConfigurationService {
       });
     } else if (target.zone) {
       // Update all kiosks in zone
-      const kiosks = await this.db.all<{ kiosk_id: string }>(
+      const kiosks = await this.dbManager.getConnection().all<{ kiosk_id: string }>(
         `SELECT kiosk_id FROM kiosk_heartbeat WHERE zone = ?`,
         [target.zone]
       );
@@ -164,7 +164,7 @@ export class ConfigurationService {
       }
     } else {
       // Update all kiosks
-      const kiosks = await this.db.all<{ kiosk_id: string }>(
+      const kiosks = await this.dbManager.getConnection().all<{ kiosk_id: string }>(
         `SELECT kiosk_id FROM kiosk_heartbeat`
       );
 
@@ -239,7 +239,7 @@ export class ConfigurationService {
       });
 
       // Update deployment status
-      await this.db.run(
+      await this.dbManager.getConnection().run(
         `UPDATE configuration_deployments 
          SET status = 'completed', deployed_at = ? 
          WHERE (kiosk_id = ? OR zone = (SELECT zone FROM kiosk_heartbeat WHERE kiosk_id = ?)) 
@@ -288,7 +288,7 @@ export class ConfigurationService {
 
     // Update deployment status
     if (status.pending_config_version) {
-      await this.db.run(
+      await this.dbManager.getConnection().run(
         `UPDATE configuration_deployments 
          SET status = 'rolled_back', rollback_reason = ? 
          WHERE (kiosk_id = ? OR zone = (SELECT zone FROM kiosk_heartbeat WHERE kiosk_id = ?)) 
@@ -309,7 +309,7 @@ export class ConfigurationService {
    * Get kiosk configuration status
    */
   async getKioskConfigStatus(kioskId: string): Promise<KioskConfigStatus | null> {
-    const row = await this.db.get<any>(
+    const row = await this.dbManager.getConnection().get<any>(
       `SELECT * FROM kiosk_config_status WHERE kiosk_id = ?`,
       [kioskId]
     );
@@ -333,7 +333,7 @@ export class ConfigurationService {
    * List all kiosk configuration statuses
    */
   async listKioskConfigStatuses(): Promise<KioskConfigStatus[]> {
-    const rows = await this.db.all<any>(
+    const rows = await this.dbManager.getConnection().all<any>(
       `SELECT kcs.*, kh.zone 
        FROM kiosk_config_status kcs 
        JOIN kiosk_heartbeat kh ON kcs.kiosk_id = kh.kiosk_id 
@@ -355,7 +355,7 @@ export class ConfigurationService {
    * Get deployment history
    */
   async getDeploymentHistory(limit: number = 50): Promise<ConfigurationDeployment[]> {
-    const rows = await this.db.all<any>(
+    const rows = await this.dbManager.getConnection().all<any>(
       `SELECT * FROM configuration_deployments 
        ORDER BY created_at DESC LIMIT ?`,
       [limit]
@@ -389,7 +389,7 @@ export class ConfigurationService {
 
   private async updateKioskConfigStatus(kioskId: string, updates: Partial<KioskConfigStatus>): Promise<void> {
     // Ensure kiosk config status record exists
-    await this.db.run(
+    await this.dbManager.getConnection().run(
       `INSERT OR IGNORE INTO kiosk_config_status (kiosk_id) VALUES (?)`,
       [kioskId]
     );
@@ -404,7 +404,7 @@ export class ConfigurationService {
       return value instanceof Date ? value.toISOString() : value;
     });
 
-    await this.db.run(
+    await this.dbManager.getConnection().run(
       `UPDATE kiosk_config_status SET ${setClause} WHERE kiosk_id = ?`,
       [...values, kioskId]
     );
@@ -429,7 +429,7 @@ export class ConfigurationService {
   }
 
   private async logEvent(eventType: string, details: any, kioskId?: string): Promise<void> {
-    await this.db.run(
+    await this.dbManager.getConnection().run(
       `INSERT INTO events (kiosk_id, event_type, details) VALUES (?, ?, ?)`,
       [kioskId || null, eventType, JSON.stringify(details)]
     );

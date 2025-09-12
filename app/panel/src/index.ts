@@ -40,6 +40,7 @@ async function startPanelService() {
   try {
     // Initialize database with correct migrations path
     const dbManager = DatabaseManager.getInstance({
+      path: process.env.EFORM_DB_PATH!,
       migrationsPath: path.resolve(__dirname, "../../../migrations"),
     });
     await dbManager.initialize();
@@ -290,20 +291,15 @@ async function startPanelService() {
       console.error("❌ Failed to register hardware configuration routes:", error);
     }
 
-    // Register performance monitoring routes - TEMPORARILY DISABLED
-    // TODO: Fix database connection issue in PerformanceMonitor
-    /*
+    // Register hardware status routes
     try {
-      const { performanceRoutes } = await import('./routes/performance-routes');
-      await fastify.register(performanceRoutes);
-      console.log('✅ Performance monitoring routes registered successfully');
+      const { hardwareStatusRoutes } = await import("./routes/hardware-status-routes");
+      await fastify.register(hardwareStatusRoutes);
+      console.log("✅ Hardware status routes registered successfully");
     } catch (error) {
-      console.error('❌ Failed to register performance routes:', error);
+      console.error("❌ Failed to register hardware status routes:", error);
     }
-    */
-    console.log(
-      "⚠️ Performance monitoring routes temporarily disabled - will fix database connection issue"
-    );
+
 
     // Register i18n routes
     await i18nController.registerRoutes();

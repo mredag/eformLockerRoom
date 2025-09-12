@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import path from 'path';
 import { DatabaseManager } from '../../shared/database/database-manager';
 import { CommandQueueManager } from '../../shared/services/command-queue-manager';
 import { LockerStateManager } from '../../shared/services/locker-state-manager';
@@ -28,7 +29,7 @@ describe('Gateway Service Integration Tests', () => {
     // Initialize database manager with in-memory database and correct migrations path
     dbManager = DatabaseManager.getInstance({ 
       path: ':memory:',
-      migrationsPath: '../../migrations'
+      migrationsPath: path.join(__dirname, '../../migrations')
     });
     await dbManager.initialize();
 

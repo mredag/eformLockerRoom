@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Performans İzleme - eForm Locker System</title>
+    <title>Sistem Durumu - eForm Locker System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .metric-card {
             transition: transform 0.2s;
@@ -20,41 +19,6 @@
         }
         .metric-trend {
             font-size: 0.9rem;
-        }
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        .status-good { background-color: #28a745; }
-        .status-warning { background-color: #ffc107; }
-        .status-danger { background-color: #dc3545; }
-        .chart-container {
-            position: relative;
-            height: 300px;
-            margin: 20px 0;
-        }
-        .performance-summary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-        .locker-stats-table {
-            font-size: 0.9rem;
-        }
-        .success-rate-bar {
-            height: 20px;
-            background-color: #e9ecef;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .success-rate-fill {
-            height: 100%;
-            transition: width 0.3s ease;
         }
         .refresh-indicator {
             opacity: 0;
@@ -70,7 +34,7 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="/lockers">
                 <i class="fas fa-chart-line me-2"></i>
-                Performans İzleme
+                Sistem Durumu
             </a>
             <div class="navbar-nav ms-auto">
                 <a class="nav-link" href="/lockers">
@@ -86,159 +50,40 @@
     </nav>
 
     <div class="container-fluid mt-4">
-        <!-- Performance Summary -->
-        <div class="performance-summary">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h2 class="mb-3">
-                        <i class="fas fa-tachometer-alt me-2"></i>
-                        Sistem Performansı
-                    </h2>
-                    <p class="mb-0" id="performance-summary-text">
-                        Sistem performans kriterleri kontrol ediliyor...
-                    </p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <button class="btn btn-light" onclick="refreshDashboard()">
-                        <i class="fas fa-sync-alt me-2 refresh-indicator" id="refresh-icon"></i>
-                        Yenile
-                    </button>
-                    <div class="mt-2">
-                        <small>Son güncelleme: <span id="last-update">--:--</span></small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Key Metrics Row -->
+        <!-- Hardware Status Row -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card metric-card h-100">
                     <div class="card-body text-center">
-                        <i class="fas fa-clock text-primary mb-2" style="font-size: 2rem;"></i>
-                        <h5 class="card-title">Ortalama Açılma Süresi</h5>
-                        <div class="metric-value text-primary" id="avg-open-time">--</div>
-                        <div class="metric-trend" id="open-time-trend">
-                            <span class="status-indicator" id="open-time-status"></span>
-                            <span id="open-time-text">Hesaplanıyor...</span>
+                        <i class="fas fa-microchip text-danger mb-2" style="font-size: 2rem;"></i>
+                        <h5 class="card-title">CPU Kullanımı</h5>
+                        <div class="metric-value text-danger" id="cpu-load">--%</div>
+                        <div class="metric-trend" id="cpu-cores">
+                            <span id="cpu-cores-text">Anlık Yük</span>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card metric-card h-100">
                     <div class="card-body text-center">
-                        <i class="fas fa-exclamation-triangle text-warning mb-2" style="font-size: 2rem;"></i>
-                        <h5 class="card-title">Hata Oranı</h5>
-                        <div class="metric-value text-warning" id="error-rate">--%</div>
-                        <div class="metric-trend" id="error-rate-trend">
-                            <span class="status-indicator" id="error-rate-status"></span>
-                            <span id="error-rate-text">Hesaplanıyor...</span>
+                        <i class="fas fa-memory text-info mb-2" style="font-size: 2rem;"></i>
+                        <h5 class="card-title">RAM Kullanımı</h5>
+                        <div class="metric-value text-info" id="ram-usage">-- / -- MB</div>
+                        <div class="metric-trend" id="ram-percent">
+                            <span id="ram-percent-text">--% dolu</span>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <div class="card metric-card h-100">
                     <div class="card-body text-center">
-                        <i class="fas fa-users text-success mb-2" style="font-size: 2rem;"></i>
-                        <h5 class="card-title">Saatlik Oturum</h5>
-                        <div class="metric-value text-success" id="sessions-per-hour">--</div>
-                        <div class="metric-trend" id="sessions-trend">
-                            <span class="status-indicator status-good"></span>
-                            <span>Aktif kullanım</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card metric-card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-desktop text-info mb-2" style="font-size: 2rem;"></i>
-                        <h5 class="card-title">UI Yanıt Süresi</h5>
-                        <div class="metric-value text-info" id="ui-response-time">--</div>
-                        <div class="metric-trend" id="ui-response-trend">
-                            <span class="status-indicator" id="ui-response-status"></span>
-                            <span id="ui-response-text">Hesaplanıyor...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts Row -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-chart-line me-2"></i>
-                            Açılma Süreleri Dağılımı
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="response-time-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-chart-bar me-2"></i>
-                            En Çok Kullanılan Dolaplar
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="popular-lockers-chart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Locker Statistics Table -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">
-                            <i class="fas fa-table me-2"></i>
-                            Dolap Kullanım İstatistikleri
-                        </h5>
-                        <div>
-                            <select class="form-select form-select-sm" id="stats-period" onchange="updateLockerStats()">
-                                <option value="1">Son 1 gün</option>
-                                <option value="7" selected>Son 7 gün</option>
-                                <option value="30">Son 30 gün</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover locker-stats-table">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Dolap</th>
-                                        <th>Kullanım</th>
-                                        <th>Başarı Oranı</th>
-                                        <th>Ort. Yanıt</th>
-                                        <th>Son Kullanım</th>
-                                        <th>Durum</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="locker-stats-tbody">
-                                    <tr>
-                                        <td colspan="6" class="text-center">
-                                            <div class="spinner-border spinner-border-sm me-2"></div>
-                                            İstatistikler yükleniyor...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <i class="fas fa-thermometer-half text-warning mb-2" style="font-size: 2rem;"></i>
+                        <h5 class="card-title">Sıcaklık</h5>
+                        <div class="metric-value text-warning" id="cpu-temp">--°C</div>
+                        <div class="metric-trend" id="cpu-temp-max">
+                            <span id="cpu-temp-max-text">Max: --°C</span>
                         </div>
                     </div>
                 </div>
@@ -248,251 +93,42 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let responseTimeChart = null;
-        let popularLockersChart = null;
-        let currentKioskId = 'kiosk-1'; // Default kiosk
-
-        // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
-            initializeCharts();
-            refreshDashboard();
+            updateHardwareStatus();
             
             // Auto-refresh every 30 seconds
-            setInterval(refreshDashboard, 30000);
+            setInterval(updateHardwareStatus, 30000);
         });
 
-        function initializeCharts() {
-            // Response Time Distribution Chart
-            const responseTimeCtx = document.getElementById('response-time-chart').getContext('2d');
-            responseTimeChart = new Chart(responseTimeCtx, {
-                type: 'histogram',
-                data: {
-                    datasets: [{
-                        label: 'Açılma Süreleri (ms)',
-                        data: [],
-                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Açılma Süresi (ms)'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Frekans'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-
-            // Popular Lockers Chart
-            const popularLockersCtx = document.getElementById('popular-lockers-chart').getContext('2d');
-            popularLockersChart = new Chart(popularLockersCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Kullanım Sayısı',
-                        data: [],
-                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Kullanım Sayısı'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-        }
-
-        async function refreshDashboard() {
-            const refreshIcon = document.getElementById('refresh-icon');
-            refreshIcon.classList.add('show');
-
+        async function updateHardwareStatus() {
             try {
-                // Fetch current metrics
-                const response = await fetch(`/api/performance/metrics/${currentKioskId}`);
-                const metrics = await response.json();
-
-                updateMetricCards(metrics);
-                updateCharts(metrics);
-                await updateLockerStats();
-                await updatePerformanceCriteria();
-
-                document.getElementById('last-update').textContent = new Date().toLocaleTimeString('tr-TR');
-            } catch (error) {
-                console.error('Dashboard refresh failed:', error);
-                showError('Performans verileri yüklenirken hata oluştu');
-            } finally {
-                setTimeout(() => {
-                    refreshIcon.classList.remove('show');
-                }, 500);
-            }
-        }
-
-        function updateMetricCards(metrics) {
-            // Average open time
-            const avgOpenTime = metrics.timeToOpen.length > 0 
-                ? Math.round(metrics.timeToOpen.reduce((a, b) => a + b, 0) / metrics.timeToOpen.length)
-                : 0;
-            document.getElementById('avg-open-time').textContent = `${avgOpenTime}ms`;
-            
-            const openTimeStatus = avgOpenTime <= 2000 ? 'status-good' : 'status-warning';
-            document.getElementById('open-time-status').className = `status-indicator ${openTimeStatus}`;
-            document.getElementById('open-time-text').textContent = 
-                avgOpenTime <= 2000 ? 'Hedef altında' : 'Hedef üzerinde';
-
-            // Error rate
-            document.getElementById('error-rate').textContent = `${metrics.errorRate.toFixed(1)}%`;
-            const errorRateStatus = metrics.errorRate <= 2 ? 'status-good' : 'status-danger';
-            document.getElementById('error-rate-status').className = `status-indicator ${errorRateStatus}`;
-            document.getElementById('error-rate-text').textContent = 
-                metrics.errorRate <= 2 ? 'Hedef altında' : 'Hedef üzerinde';
-
-            // Sessions per hour
-            document.getElementById('sessions-per-hour').textContent = metrics.sessionsPerHour.toFixed(1);
-
-            // UI response time
-            const avgUITime = metrics.uiUpdateLatency.length > 0 
-                ? Math.round(metrics.uiUpdateLatency.reduce((a, b) => a + b, 0) / metrics.uiUpdateLatency.length)
-                : 0;
-            document.getElementById('ui-response-time').textContent = `${avgUITime}ms`;
-            
-            const uiTimeStatus = avgUITime <= 2000 ? 'status-good' : 'status-warning';
-            document.getElementById('ui-response-status').className = `status-indicator ${uiTimeStatus}`;
-            document.getElementById('ui-response-text').textContent = 
-                avgUITime <= 2000 ? 'Hedef altında' : 'Hedef üzerinde';
-        }
-
-        function updateCharts(metrics) {
-            // Update response time histogram
-            const timeRanges = [
-                { min: 0, max: 500, label: '0-500ms' },
-                { min: 500, max: 1000, label: '500ms-1s' },
-                { min: 1000, max: 2000, label: '1-2s' },
-                { min: 2000, max: 5000, label: '2-5s' },
-                { min: 5000, max: Infinity, label: '5s+' }
-            ];
-
-            const histogram = timeRanges.map(range => ({
-                x: range.label,
-                y: metrics.timeToOpen.filter(time => time >= range.min && time < range.max).length
-            }));
-
-            responseTimeChart.data.labels = histogram.map(h => h.x);
-            responseTimeChart.data.datasets[0].data = histogram.map(h => h.y);
-            responseTimeChart.update();
-
-            // Update popular lockers chart
-            const topLockers = metrics.mostSelectedLockers.slice(0, 10);
-            popularLockersChart.data.labels = topLockers.map(l => l.displayName);
-            popularLockersChart.data.datasets[0].data = topLockers.map(l => l.count);
-            popularLockersChart.update();
-        }
-
-        async function updateLockerStats() {
-            const period = document.getElementById('stats-period').value;
-            
-            try {
-                const response = await fetch(`/api/performance/locker-stats/${currentKioskId}?days=${period}`);
-                const stats = await response.json();
-
-                const tbody = document.getElementById('locker-stats-tbody');
-                tbody.innerHTML = '';
-
-                stats.forEach(stat => {
-                    const row = document.createElement('tr');
-                    
-                    const successRateClass = stat.successRate >= 95 ? 'bg-success' : 
-                                           stat.successRate >= 90 ? 'bg-warning' : 'bg-danger';
-                    
-                    const lastUsedText = stat.lastUsed && new Date(stat.lastUsed).getTime() > 0 
-                        ? new Date(stat.lastUsed).toLocaleDateString('tr-TR')
-                        : 'Hiç kullanılmadı';
-
-                    const statusText = stat.successRate >= 95 ? 'İyi' :
-                                     stat.successRate >= 90 ? 'Orta' : 'Dikkat';
-                    
-                    row.innerHTML = `
-                        <td><strong>${stat.displayName}</strong></td>
-                        <td>
-                            <span class="badge bg-primary">${stat.openCount}</span>
-                            ${stat.errorCount > 0 ? `<span class="badge bg-danger ms-1">${stat.errorCount} hata</span>` : ''}
-                        </td>
-                        <td>
-                            <div class="success-rate-bar">
-                                <div class="success-rate-fill ${successRateClass}" style="width: ${stat.successRate}%"></div>
-                            </div>
-                            <small>${stat.successRate.toFixed(1)}%</small>
-                        </td>
-                        <td>${stat.avgResponseTime.toFixed(0)}ms</td>
-                        <td><small>${lastUsedText}</small></td>
-                        <td>
-                            <span class="badge ${successRateClass}">${statusText}</span>
-                        </td>
-                    `;
-                    
-                    tbody.appendChild(row);
-                });
-
-                if (stats.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Veri bulunamadı</td></tr>';
+                const response = await fetch('/api/performance/hardware-status');
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
                 }
+                const status = await response.json();
+
+                // CPU
+                document.getElementById('cpu-load').textContent = `${status.cpu.load}%`;
+                // The 'cores' text is now static, so no update needed here.
+
+                // RAM
+                document.getElementById('ram-usage').textContent = `${status.ram.used} / ${status.ram.total} MB`;
+                document.getElementById('ram-percent-text').textContent = `${status.ram.percent}% dolu`;
+
+                // Temperature
+                const tempMain = status.temp.main !== null ? `${status.temp.main}°C` : 'N/A';
+                const tempMax = status.temp.max !== null ? `Max: ${status.temp.max}°C` : 'Max: N/A';
+                document.getElementById('cpu-temp').textContent = tempMain;
+                document.getElementById('cpu-temp-max-text').textContent = tempMax;
+
             } catch (error) {
-                console.error('Locker stats update failed:', error);
-                document.getElementById('locker-stats-tbody').innerHTML = 
-                    '<tr><td colspan="6" class="text-center text-danger">Veriler yüklenirken hata oluştu</td></tr>';
+                console.error('Hardware status update failed:', error);
+                // Display error states
+                document.getElementById('cpu-load').textContent = 'Hata';
+                document.getElementById('ram-usage').textContent = 'Hata';
+                document.getElementById('cpu-temp').textContent = 'Hata';
             }
-        }
-
-        async function updatePerformanceCriteria() {
-            try {
-                const response = await fetch(`/api/performance/criteria/${currentKioskId}`);
-                const criteria = await response.json();
-
-                const summaryElement = document.getElementById('performance-summary-text');
-                summaryElement.innerHTML = `
-                    <strong>Performans Kriterleri:</strong><br>
-                    ${criteria.summary}
-                `;
-            } catch (error) {
-                console.error('Performance criteria update failed:', error);
-            }
-        }
-
-        function showError(message) {
-            // Simple error display - could be enhanced with toast notifications
-            console.error(message);
         }
     </script>
 </body>

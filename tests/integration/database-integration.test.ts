@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import path from "path";
 import { DatabaseManager } from "../../shared/database/database-manager.js";
 import { HeartbeatManager } from "../../shared/services/heartbeat-manager.js";
 import { EventLogger } from "../../shared/services/event-logger.js";
@@ -12,7 +13,7 @@ describe("Database Integration Tests", () => {
     // Initialize database manager with test database and correct migrations path
     dbManager = DatabaseManager.getInstance({ 
       path: ":memory:",
-      migrationsPath: "../../migrations"
+      migrationsPath: path.join(__dirname, '../../migrations')
     });
     await dbManager.initialize();
 

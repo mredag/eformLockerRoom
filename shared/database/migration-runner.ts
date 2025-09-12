@@ -96,7 +96,8 @@ export class MigrationRunner {
       console.log(`Executing migration SQL...`);
       
       try {
-        // Use exec for multiple statements
+        // Use exec for multiple statements, as it's designed for this.
+        // The previous split(';') was naive and caused issues with semicolons in strings.
         await this.db.exec(content);
       } catch (error) {
         console.error(`Error executing migration: ${error}`);

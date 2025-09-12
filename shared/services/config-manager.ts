@@ -14,14 +14,10 @@ import {
   ZoneConfig
 } from '../types/system-config';
 import { EventType } from '../types/core-entities';
-import { EventRepository } from '../database/event-repository';
-import { DatabaseManager } from '../database/database-manager';
-
 export class ConfigManager {
   private static instances = new Map<string, ConfigManager>();
   private config: CompleteSystemConfig | null = null;
   private configPath: string;
-  private eventRepository: EventRepository | null = null;
 
   private constructor(configPath: string = './config/system.json') {
     this.configPath = configPath;
@@ -58,14 +54,6 @@ export class ConfigManager {
    */
   async initialize(): Promise<void> {
     await this.loadConfiguration();
-    
-    // Initialize event repository for logging config changes
-    try {
-      const dbManager = DatabaseManager.getInstance();
-      this.eventRepository = new EventRepository(dbManager.getConnection());
-    } catch (error) {
-      console.warn('Could not initialize event repository for config logging:', error);
-    }
   }
 
   /**
@@ -219,15 +207,6 @@ export class ConfigManager {
     // Save to file
     await this.saveConfiguration();
 
-    // Log the change
-    await this.logConfigChange({
-      timestamp: new Date(),
-      changed_by: changedBy,
-      section: section as string,
-      old_value: oldValue,
-      new_value: newValue,
-      reason
-    });
 
     // Auto-sync lockers if hardware configuration changed
     if (section === 'hardware' && changedBy !== 'auto-sync-prevent-loop') {
@@ -269,15 +248,6 @@ export class ConfigManager {
     
     await this.saveConfiguration();
 
-    // Log the reset
-    await this.logConfigChange({
-      timestamp: new Date(),
-      changed_by: changedBy,
-      section: 'all',
-      old_value: oldConfig,
-      new_value: this.config,
-      reason: reason || 'Reset to defaults'
-    });
   }
 
   /**
@@ -527,34 +497,6 @@ export class ConfigManager {
     await writeFile(this.configPath, configJson, 'utf-8');
   }
 
-  /**
-   * Log configuration change
-   */
-  private async logConfigChange(change: ConfigChangeEvent): Promise<void> {
-    if (!this.eventRepository) {
-      console.log('Config change:', change);
-      return;
-    }
-
-    try {
-      await this.eventRepository.logEvent(
-        'system',
-        EventType.CONFIG_APPLIED,
-        {
-          section: change.section,
-          old_value: change.old_value,
-          new_value: change.new_value,
-          reason: change.reason
-        },
-        undefined, // lockerId
-        undefined, // rfidCard
-        undefined, // deviceId
-        change.changed_by // staffUser
-      );
-    } catch (error) {
-      console.error('Failed to log config change:', error);
-    }
-  }
 
   /**
    * Sync zones with hardware configuration
@@ -572,15 +514,6 @@ export class ConfigManager {
       const backupResult = await this.createConfigurationBackup('zone-sync', reason);
       if (!backupResult.success) {
         console.warn('⚠️ Failed to create configuration backup:', backupResult.error);
-        // Continue with sync but log the backup failure
-        await this.logConfigChange({
-          timestamp: new Date(),
-          changed_by: 'auto-sync-backup-warning',
-          section: 'zones',
-          old_value: { backup_attempted: true },
-          new_value: { backup_failed: true, error: backupResult.error },
-          reason: `Configuration backup failed before zone sync: ${backupResult.error}`
-        });
       } else {
         console.log(`📋 Configuration backup created: ${backupResult.backupPath}`);
       }
@@ -590,16 +523,6 @@ export class ConfigManager {
       
       if (!validation.valid) {
         console.error('❌ Zone extension validation failed:', validation.errors.join(', '));
-        
-        // Log validation failure
-        await this.logConfigChange({
-          timestamp: new Date(),
-          changed_by: 'auto-sync-zone-validation',
-          section: 'zones',
-          old_value: this.config!.zones,
-          new_value: this.config!.zones,
-          reason: `Zone sync validation failed: ${validation.errors.join(', ')}`
-        });
         
         return;
       }
@@ -613,16 +536,6 @@ export class ConfigManager {
       
       if (syncResult.error) {
         console.error('❌ Zone sync failed:', syncResult.error);
-        
-        // Log sync failure
-        await this.logConfigChange({
-          timestamp: new Date(),
-          changed_by: 'auto-sync-zone-error',
-          section: 'zones',
-          old_value: this.config!.zones,
-          new_value: this.config!.zones,
-          reason: `Zone sync failed: ${syncResult.error}`
-        });
         
         return;
       }
@@ -641,21 +554,6 @@ export class ConfigManager {
         // Save the updated configuration (zones were modified in-place)
         await this.saveConfiguration();
         
-        // Log successful zone extension
-        await this.logConfigChange({
-          timestamp: new Date(),
-          changed_by: 'auto-sync-zone-extension',
-          section: 'zones',
-          old_value: { affectedZone: syncResult.affectedZone, previousRanges: 'before_extension' },
-          new_value: { 
-            affectedZone: syncResult.affectedZone, 
-            newRange: syncResult.newRange,
-            mergedRanges: syncResult.mergedRanges,
-            updatedRelayCards: syncResult.updatedRelayCards
-          },
-          reason: `Automatic zone extension: ${reason}`
-        });
-        
       } else {
         console.log('ℹ️ No zone extension needed - zones already cover all lockers');
       }
@@ -663,19 +561,6 @@ export class ConfigManager {
     } catch (error) {
       console.error('❌ Zone sync error:', error);
       
-      // Log sync error
-      try {
-        await this.logConfigChange({
-          timestamp: new Date(),
-          changed_by: 'auto-sync-zone-error',
-          section: 'zones',
-          old_value: this.config!.zones,
-          new_value: this.config!.zones,
-          reason: `Zone sync error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        });
-      } catch (logError) {
-        console.error('Failed to log zone sync error:', logError);
-      }
       
       // Don't throw - allow hardware sync to continue even if zone sync fails
     }
@@ -844,19 +729,6 @@ export class ConfigManager {
         }
       }
 
-      // Log validation attempt
-      await this.logConfigChange({
-        timestamp: new Date(),
-        changed_by: changedBy,
-        section: 'zones_validation',
-        old_value: { validation_requested: true },
-        new_value: { 
-          valid: errors.length === 0,
-          errors: errors.length,
-          warnings: warnings.length
-        },
-        reason: 'Zone configuration validation requested'
-      });
 
       return {
         valid: errors.length === 0,
@@ -876,33 +748,6 @@ export class ConfigManager {
     }
   }
 
-  /**
-   * Get configuration change history
-   */
-  async getConfigChangeHistory(limit: number = 50): Promise<ConfigChangeEvent[]> {
-    if (!this.eventRepository) {
-      return [];
-    }
-
-    try {
-      const events = await this.eventRepository.findAll({
-        event_type: EventType.CONFIG_APPLIED,
-        limit
-      });
-
-      return events.map(event => ({
-        timestamp: event.timestamp,
-        changed_by: event.staff_user || 'system',
-        section: event.details.section,
-        old_value: event.details.old_value,
-        new_value: event.details.new_value,
-        reason: event.details.reason
-      }));
-    } catch (error) {
-      console.error('Failed to get config change history:', error);
-      return [];
-    }
-  }
 
   /**
    * Create a backup of the current configuration before modifications
@@ -950,20 +795,6 @@ export class ConfigManager {
       // Write backup file
       await writeFile(backupPath, JSON.stringify(backupData, null, 2), 'utf8');
 
-      // Log the backup creation
-      await this.logConfigChange({
-        timestamp: new Date(),
-        changed_by: 'system-backup',
-        section: 'backup',
-        old_value: { backup_requested: true },
-        new_value: { 
-          backup_created: true, 
-          backup_path: backupPath,
-          operation,
-          reason 
-        },
-        reason: `Configuration backup created for ${operation}: ${reason}`
-      });
 
       return { success: true, backupPath };
 
@@ -1027,22 +858,6 @@ export class ConfigManager {
       // Save the restored configuration
       await this.saveConfiguration();
 
-      // Log the restore operation
-      await this.logConfigChange({
-        timestamp: new Date(),
-        changed_by: restoredBy,
-        section: 'full_restore',
-        old_value: { 
-          config_hash: this.generateConfigHash(oldConfig),
-          backup_metadata: 'current_config'
-        },
-        new_value: { 
-          config_hash: this.generateConfigHash(this.config),
-          backup_metadata: backupData.metadata,
-          restored_from: backupPath
-        },
-        reason: `Configuration restored from backup: ${backupPath}`
-      });
 
       console.log(`✅ Configuration restored from backup: ${backupPath}`);
       return { success: true };

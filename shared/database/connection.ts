@@ -167,12 +167,14 @@ export class DatabaseConnection {
 
   public async run(sql: string, params: any[] = []): Promise<sqlite3.RunResult> {
     await this.waitForInitialization();
+    console.log(`[DB RUN] Path: ${this.dbPath}, SQL: ${sql.substring(0, 60)}...`);
     if (!this.db) {
       throw new Error('Database not initialized');
     }
     return new Promise((resolve, reject) => {
       this.db!.run(sql, params, function(err) {
         if (err) {
+          console.error(`[DB RUN] Error for SQL: ${sql.substring(0, 60)}...`, err);
           reject(err);
         } else {
           resolve(this);

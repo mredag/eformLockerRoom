@@ -45,7 +45,7 @@ export class LockerStateManager {
   constructor(dbManager?: any) {
     if (dbManager) {
       this.dbManager = dbManager;
-      this.db = dbManager.getConnection().getDatabase();
+      this.db = dbManager.getConnection();
     } else {
       this.db = DatabaseConnection.getInstance();
     }
