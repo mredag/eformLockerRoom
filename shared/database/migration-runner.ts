@@ -48,14 +48,22 @@ export class MigrationRunner {
    */
   async getPendingMigrations(): Promise<string[]> {
     const appliedMigrations = await this.getAppliedMigrations();
+    console.log('DEBUG: Applied migrations from DB:', JSON.stringify(appliedMigrations, null, 2));
+
     const appliedFilenames = new Set(appliedMigrations.map(m => m.filename.trim()));
+    console.log('DEBUG: Set of applied filenames:', appliedFilenames);
     
     const allMigrationFiles = readdirSync(this.migrationsPath)
       .filter(file => file.endsWith('.sql'))
       .map(file => file.trim())
       .sort();
 
-    return allMigrationFiles.filter(file => !appliedFilenames.has(file));
+    console.log('DEBUG: All migration files from disk:', allMigrationFiles);
+
+    const pending = allMigrationFiles.filter(file => !appliedFilenames.has(file));
+    console.log('DEBUG: Calculated pending migrations:', pending);
+
+    return pending;
   }
 
   /**
