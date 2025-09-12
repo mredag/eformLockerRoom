@@ -179,6 +179,12 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         message: '📊 lockerStateManager.getAllLockers result'
       });
       
+      // Get kiosk heartbeat data to add zone information
+      const { KioskHeartbeatRepository } = require('../../../../shared/database/kiosk-heartbeat-repository');
+      const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
+      const kiosk = await heartbeatRepo.findById(query.kioskId);
+      const kioskZone = kiosk?.zone || 'unknown';
+
       // Ensure lockers is always an array
       let filteredLockers;
       if (!Array.isArray(lockers)) {
@@ -193,10 +199,13 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
         filteredLockers = [];
       } else {
         // Add zone filtering if needed (would need kiosk heartbeat data)
-        filteredLockers = lockers;
+        filteredLockers = lockers.map(locker => ({
+          ...locker,
+          zone: kioskZone,
+        }));
+
         if (query.zone) {
-          // This would require joining with kiosk_heartbeat table
-          // For now, just return all lockers
+          filteredLockers = filteredLockers.filter(locker => locker.zone === query.zone);
         }
       }
 
@@ -766,7 +775,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     }
   });
 
-  // End of day opening with CSV report
+  // End of day opening
   fastify.post('/end-of-day', {
     preHandler: [requirePermission(Permission.BULK_OPEN), requireCsrfToken()],
     schema: {
@@ -784,67 +793,88 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       kioskId?: string;
     };
     const user = (request as any).user as User;
+    const requestId = (request as any).id || 'unknown';
 
     try {
-      // Get all Owned and Reserved lockers
-      const lockers = await lockerStateManager.getAllLockers(kioskId);
-      const targetLockers = lockers.filter(locker => {
-        if (excludeVip && locker.is_vip) return false;
-        return locker.status === 'Owned' || locker.status === 'Reserved';
-      });
+      const { KioskHeartbeatRepository } = require('../../../../shared/database/kiosk-heartbeat-repository');
+      const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
 
-      const csvRows = ['kiosk_id,locker_id,timestamp,result'];
-      let successCount = 0;
+      let kiosksToProcess: { kiosk_id: string }[] = [];
 
-      for (const locker of targetLockers) {
-        const timestamp = new Date().toISOString();
-        try {
-          const success = await lockerStateManager.releaseLocker(locker.kiosk_id, locker.id);
-          const result = success ? 'success' : 'failed';
-          
-          csvRows.push(`${locker.kiosk_id},${locker.id},${timestamp},${result}`);
-          
-          if (success) {
-            successCount++;
-            await eventRepository.logEvent({
-              kiosk_id: locker.kiosk_id,
-              locker_id: locker.id,
-              event_type: 'staff_open',
+      if (kioskId) {
+        kiosksToProcess.push({ kiosk_id: kioskId });
+      } else {
+        const allKiosks = await heartbeatRepo.findAll();
+        kiosksToProcess = allKiosks.map(k => ({ kiosk_id: k.kiosk_id }));
+      }
+
+      let totalQueuedCount = 0;
+      const commandIds: string[] = [];
+
+      for (const kiosk of kiosksToProcess) {
+        const lockers = await lockerStateManager.getAllLockers(kiosk.kiosk_id);
+        const targetLockers = lockers.filter(locker => {
+          if (excludeVip && locker.is_vip) return false;
+          return locker.status === 'Owned' || locker.status === 'Reserved';
+        });
+
+        if (targetLockers.length > 0) {
+          const lockerIdsToOpen = targetLockers.map(l => l.id);
+
+          const commandId = await commandQueue.enqueueCommand(kiosk.kiosk_id, 'bulk_open', {
+            bulk_open: {
+              locker_ids: lockerIdsToOpen,
               staff_user: user.username,
-              details: { reason: 'End of day opening', end_of_day: true }
-            });
-          }
+              reason: 'End of Day Opening',
+              exclude_vip: excludeVip,
+              interval_ms: 1000,
+            }
+          });
 
-          // Wait between operations
-          await new Promise(resolve => setTimeout(resolve, 300));
-        } catch (error) {
-          csvRows.push(`${locker.kiosk_id},${locker.id},${timestamp},error`);
+          commandIds.push(commandId);
+          totalQueuedCount += lockerIdsToOpen.length;
+
+          fastify.log.info({
+            command_id: commandId,
+            kiosk_id: kiosk.kiosk_id,
+            locker_ids: lockerIdsToOpen,
+            staff_user: user.username,
+            reason: 'End of Day Opening',
+            req_id: requestId,
+            message: 'End of day bulk open command enqueued'
+          });
         }
       }
 
-      const csvContent = csvRows.join('\n');
-
-      // Log end of day operation
       await eventRepository.logEvent({
         kiosk_id: kioskId || 'all',
         event_type: 'end_of_day_open',
         staff_user: user.username,
         details: {
-          total_count: targetLockers.length,
-          success_count: successCount,
-          exclude_vip: excludeVip
+          total_count: totalQueuedCount,
+          success_count: totalQueuedCount, // We are counting queued, not opened
+          exclude_vip: excludeVip,
+          command_ids: commandIds
         }
       });
 
-      reply
-        .header('Content-Type', 'text/csv')
-        .header('Content-Disposition', `attachment; filename="end-of-day-${new Date().toISOString().split('T')[0]}.csv"`)
-        .send(csvContent);
+      return reply.code(202).send({
+        message: `${totalQueuedCount} lockers have been queued for end-of-day opening.`,
+        processed_count: totalQueuedCount,
+        command_ids: commandIds,
+      });
+
     } catch (error) {
-      fastify.log.error('End of day operation failed:', error);
+      fastify.log.error({
+        kiosk_id: kioskId,
+        staff_user: user.username,
+        req_id: requestId,
+        error: error.message,
+        message: 'Failed to queue end of day command'
+      });
       reply.code(500).send({
         code: 'server_error',
-        message: 'try again'
+        message: 'Failed to queue end of day command'
       });
     }
   });
