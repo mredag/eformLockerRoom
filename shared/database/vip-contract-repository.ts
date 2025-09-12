@@ -3,6 +3,9 @@ import { DatabaseConnection } from './connection';
 import { VipContract, VipContractStatus } from '../types/core-entities';
 import { VipHistoryRepository } from './vip-history-repository';
 
+/**
+ * Defines the filtering criteria for querying VIP contract records.
+ */
 export interface VipContractFilter {
   kiosk_id?: string;
   locker_id?: number;
@@ -13,29 +16,48 @@ export interface VipContractFilter {
   expires_after?: Date;
 }
 
+/**
+ * Manages the persistence and retrieval of `VipContract` entities.
+ * This repository handles all database operations for VIP contracts, including
+ * lifecycle management (creation, extension, cancellation, transfer) and
+ * comprehensive auditing through a dedicated `VipHistoryRepository`.
+ * @extends {BaseRepository<VipContract>}
+ */
 export class VipContractRepository extends BaseRepository<VipContract> {
   private dbManager: any;
   private historyRepository: VipHistoryRepository;
 
+  /**
+   * Creates an instance of VipContractRepository.
+   * @param {DatabaseConnection | any} dbOrManager - An instance of `DatabaseConnection` or a manager that has a `getDatabase` method.
+   */
   constructor(dbOrManager: DatabaseConnection | any) {
     if (dbOrManager.getDatabase) {
-      // It's a DatabaseManager
       super(dbOrManager.getDatabase(), 'vip_contracts');
       this.dbManager = dbOrManager;
       this.historyRepository = new VipHistoryRepository(dbOrManager);
     } else {
-      // It's a DatabaseConnection
       super(dbOrManager, 'vip_contracts');
       this.historyRepository = new VipHistoryRepository(dbOrManager);
     }
   }
 
+  /**
+   * Finds a VIP contract by its unique ID.
+   * @param {string | number} id - The ID of the contract.
+   * @returns {Promise<VipContract | null>} The found contract or null.
+   */
   async findById(id: string | number): Promise<VipContract | null> {
     const sql = `SELECT * FROM ${this.tableName} WHERE id = ?`;
     const row = await this.db.get(sql, [id]);
     return row ? this.mapRowToEntity(row) : null;
   }
 
+  /**
+   * Finds all VIP contracts matching the specified filter criteria.
+   * @param {VipContractFilter} [filter] - The filter to apply.
+   * @returns {Promise<VipContract[]>} An array of matching contracts.
+   */
   async findAll(filter?: VipContractFilter): Promise<VipContract[]> {
     let sql = `SELECT * FROM ${this.tableName}`;
     const params: any[] = [];
@@ -94,6 +116,11 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * Creates a new VIP contract.
+   * @param {Omit<VipContract, 'id' | 'created_at' | 'updated_at' | 'version'>} contract - The contract data.
+   * @returns {Promise<VipContract>} The newly created contract.
+   */
   async create(contract: Omit<VipContract, 'id' | 'created_at' | 'updated_at' | 'version'>): Promise<VipContract> {
     const sql = `
       INSERT INTO ${this.tableName} (
@@ -123,14 +150,20 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     return created;
   }
 
+  /**
+   * Updates an existing VIP contract.
+   * @param {string | number} id - The ID of the contract to update.
+   * @param {Partial<VipContract>} updates - The fields to update.
+   * @param {number} [expectedVersion=1] - The expected version for optimistic locking (not used here).
+   * @returns {Promise<VipContract>} The updated contract.
+   */
   async update(id: string | number, updates: Partial<VipContract>, expectedVersion: number = 1): Promise<VipContract> {
     const setClause: string[] = [];
     const params: any[] = [];
 
-    // Build SET clause dynamically
     for (const [key, value] of Object.entries(updates)) {
       if (key === 'id' || key === 'created_at' || key === 'updated_at') {
-        continue; // Skip immutable fields
+        continue;
       }
 
       setClause.push(`${key} = ?`);
@@ -146,7 +179,6 @@ export class VipContractRepository extends BaseRepository<VipContract> {
       throw new Error('No valid fields to update');
     }
 
-    // Add updated_at timestamp
     setClause.push('updated_at = CURRENT_TIMESTAMP');
 
     const sql = `
@@ -171,6 +203,11 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     return updated;
   }
 
+  /**
+   * Deletes a VIP contract.
+   * @param {string | number} id - The ID of the contract to delete.
+   * @returns {Promise<boolean>} True if the deletion was successful.
+   */
   async delete(id: string | number): Promise<boolean> {
     const sql = `DELETE FROM ${this.tableName} WHERE id = ?`;
     const result = await this.db.run(sql, [id]);
@@ -178,7 +215,9 @@ export class VipContractRepository extends BaseRepository<VipContract> {
   }
 
   /**
-   * Find active contract by RFID card
+   * Finds the currently active contract for a given RFID card.
+   * @param {string} rfidCard - The RFID card ID to search for.
+   * @returns {Promise<VipContract | null>} The active contract or null.
    */
   async findActiveByCard(rfidCard: string): Promise<VipContract | null> {
     const sql = `
@@ -196,7 +235,10 @@ export class VipContractRepository extends BaseRepository<VipContract> {
   }
 
   /**
-   * Find active contract by locker
+   * Finds the currently active contract for a specific locker.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @returns {Promise<VipContract | null>} The active contract or null.
    */
   async findActiveByLocker(kioskId: string, lockerId: number): Promise<VipContract | null> {
     const sql = `
@@ -214,7 +256,9 @@ export class VipContractRepository extends BaseRepository<VipContract> {
   }
 
   /**
-   * Find contracts expiring soon
+   * Finds all active contracts that are due to expire within a given number of days.
+   * @param {number} [daysAhead=7] - The number of days to look ahead for expiring contracts.
+   * @returns {Promise<VipContract[]>} An array of expiring contracts.
    */
   async findExpiringSoon(daysAhead: number = 7): Promise<VipContract[]> {
     const sql = `
@@ -229,7 +273,8 @@ export class VipContractRepository extends BaseRepository<VipContract> {
   }
 
   /**
-   * Mark expired contracts
+   * Scans for and updates the status of all active contracts that have passed their end date to 'expired'.
+   * @returns {Promise<number>} The number of contracts that were marked as expired.
    */
   async markExpiredContracts(): Promise<number> {
     const sql = `
@@ -245,7 +290,8 @@ export class VipContractRepository extends BaseRepository<VipContract> {
   }
 
   /**
-   * Get contract statistics
+   * Gathers statistics about all VIP contracts.
+   * @returns {Promise<object>} An object containing contract statistics.
    */
   async getStatistics(): Promise<{
     total: number;
@@ -282,6 +328,12 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     };
   }
 
+  /**
+   * Maps a raw database row to a structured `VipContract` entity.
+   * @protected
+   * @param {any} row - The raw data from the database.
+   * @returns {VipContract} The mapped entity.
+   */
   protected mapRowToEntity(row: any): VipContract {
     return {
       id: row.id,
@@ -299,15 +351,29 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     };
   }
 
-  // Additional methods for the routes
+  // Convenience methods for routes
+  /**
+   * Retrieves all VIP contracts.
+   * @returns {Promise<VipContract[]>} A list of all contracts.
+   */
   async getAllContracts(): Promise<VipContract[]> {
     return this.findAll();
   }
 
+  /**
+   * Retrieves a single VIP contract by its ID.
+   * @param {number} id - The contract ID.
+   * @returns {Promise<VipContract | null>} The contract, or null if not found.
+   */
   async getContract(id: number): Promise<VipContract | null> {
     return this.findById(id);
   }
 
+  /**
+   * Creates a new VIP contract.
+   * @param {object} contractData - The data for the new contract.
+   * @returns {Promise<VipContract>} The created contract.
+   */
   async createContract(contractData: {
     kiosk_id: string;
     locker_id: number;
@@ -323,14 +389,32 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     });
   }
 
+  /**
+   * Gets the active contract for a specific RFID card.
+   * @param {string} rfidCard - The RFID card ID.
+   * @returns {Promise<VipContract | null>} The active contract, or null if not found.
+   */
   async getActiveContractByCard(rfidCard: string): Promise<VipContract | null> {
     return this.findActiveByCard(rfidCard);
   }
 
+  /**
+   * Gets the active contract for a specific locker.
+   * @param {string} kioskId - The kiosk ID.
+   * @param {number} lockerId - The locker ID.
+   * @returns {Promise<VipContract | null>} The active contract, or null if not found.
+   */
   async getActiveContractByLocker(kioskId: string, lockerId: number): Promise<VipContract | null> {
     return this.findActiveByLocker(kioskId, lockerId);
   }
 
+  /**
+   * Extends the end date of a contract and logs the action.
+   * @param {number} id - The contract ID.
+   * @param {Date} newEndDate - The new end date.
+   * @param {string} performedBy - The user who performed the action.
+   * @param {string} [reason] - The reason for the extension.
+   */
   async extendContract(id: number, newEndDate: Date, performedBy: string, reason?: string): Promise<void> {
     const oldContract = await this.findById(id);
     if (!oldContract) {
@@ -339,7 +423,6 @@ export class VipContractRepository extends BaseRepository<VipContract> {
 
     await this.update(id, { end_date: newEndDate });
 
-    // Log the extension in history
     await this.historyRepository.logAction(
       id,
       'extended',
@@ -355,6 +438,13 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     );
   }
 
+  /**
+   * Changes the primary RFID card associated with a contract and logs the action.
+   * @param {number} id - The contract ID.
+   * @param {string} newCard - The new RFID card ID.
+   * @param {string} performedBy - The user who performed the action.
+   * @param {string} [reason] - The reason for the change.
+   */
   async changeCard(id: number, newCard: string, performedBy: string, reason?: string): Promise<void> {
     const oldContract = await this.findById(id);
     if (!oldContract) {
@@ -363,7 +453,6 @@ export class VipContractRepository extends BaseRepository<VipContract> {
 
     await this.update(id, { rfid_card: newCard });
 
-    // Log the card change in history
     await this.historyRepository.logAction(
       id,
       'card_changed',
@@ -379,6 +468,12 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     );
   }
 
+  /**
+   * Cancels a contract and logs the action.
+   * @param {number} id - The contract ID.
+   * @param {string} performedBy - The user who performed the action.
+   * @param {string} reason - The reason for the cancellation.
+   */
   async cancelContract(id: number, performedBy: string, reason: string): Promise<void> {
     const oldContract = await this.findById(id);
     if (!oldContract) {
@@ -387,7 +482,6 @@ export class VipContractRepository extends BaseRepository<VipContract> {
 
     await this.update(id, { status: 'cancelled' as VipContractStatus });
 
-    // Log the cancellation in history
     await this.historyRepository.logAction(
       id,
       'cancelled',
@@ -404,7 +498,13 @@ export class VipContractRepository extends BaseRepository<VipContract> {
   }
 
   /**
-   * Transfer VIP contract to new locker and optionally new card
+   * Transfers a VIP contract to a new locker and/or a new RFID card, logging the action.
+   * @param {number} id - The contract ID.
+   * @param {string} newKioskId - The new kiosk ID.
+   * @param {number} newLockerId - The new locker ID.
+   * @param {string} performedBy - The user who performed the action.
+   * @param {string} [newRfidCard] - An optional new RFID card ID.
+   * @param {string} [reason] - The reason for the transfer.
    */
   async transferContract(
     id: number, 
@@ -430,7 +530,6 @@ export class VipContractRepository extends BaseRepository<VipContract> {
 
     await this.update(id, updates);
 
-    // Log the transfer in history
     await this.historyRepository.logAction(
       id,
       'transferred',
@@ -456,14 +555,22 @@ export class VipContractRepository extends BaseRepository<VipContract> {
   }
 
   /**
-   * Get contract history
+   * Retrieves the historical log of actions for a specific contract.
+   * @param {number} id - The contract ID.
+   * @returns {Promise<any[]>} A promise that resolves to an array of history records.
    */
   async getContractHistory(id: number): Promise<any[]> {
     return this.historyRepository.getContractHistory(id);
   }
 
   /**
-   * Comprehensive audit logging for all VIP operations
+   * Creates a detailed audit log entry for a VIP operation.
+   * @param {string} operation - The type of operation being audited.
+   * @param {number} contractId - The ID of the contract.
+   * @param {string} performedBy - The user who performed the operation.
+   * @param {Record<string, any>} details - Additional details about the operation.
+   * @param {string} [ipAddress] - The IP address of the user.
+   * @param {string} [userAgent] - The user agent of the client.
    */
   async auditVipOperation(
     operation: 'create' | 'extend' | 'change_card' | 'transfer' | 'cancel' | 'approve_transfer' | 'reject_transfer',
@@ -478,7 +585,6 @@ export class VipContractRepository extends BaseRepository<VipContract> {
       throw new Error(`Contract ${contractId} not found for audit logging`);
     }
 
-    // Enhanced audit details with mandatory fields
     const auditDetails = {
       ...details,
       operation,
@@ -493,20 +599,22 @@ export class VipContractRepository extends BaseRepository<VipContract> {
       audit_version: '1.0'
     };
 
-    // Log to history repository
     await this.historyRepository.logAction(
       contractId,
       this.mapOperationToActionType(operation),
       performedBy,
-      undefined, // old values will be captured by triggers
-      undefined, // new values will be captured by triggers
+      undefined,
+      undefined,
       details.reason || `${operation} operation`,
       auditDetails
     );
   }
 
   /**
-   * Map operation to action type for history
+   * Maps a high-level operation name to a `VipHistoryActionType`.
+   * @private
+   * @param {string} operation - The operation name.
+   * @returns {VipHistoryActionType} The corresponding action type.
    */
   private mapOperationToActionType(operation: string): 'created' | 'extended' | 'card_changed' | 'transferred' | 'cancelled' {
     const mapping: Record<string, 'created' | 'extended' | 'card_changed' | 'transferred' | 'cancelled'> = {
@@ -516,13 +624,16 @@ export class VipContractRepository extends BaseRepository<VipContract> {
       'transfer': 'transferred',
       'cancel': 'cancelled',
       'approve_transfer': 'transferred',
-      'reject_transfer': 'cancelled' // Treat rejection as a form of cancellation
+      'reject_transfer': 'cancelled'
     };
     return mapping[operation] || 'created';
   }
 
   /**
-   * Get comprehensive audit trail for a contract
+   * Gathers a comprehensive audit trail for a contract, combining data from
+   * the contract itself, its history, related events, and transfer requests.
+   * @param {number} contractId - The ID of the contract.
+   * @returns {Promise<object>} An object containing the full audit trail.
    */
   async getComprehensiveAuditTrail(contractId: number): Promise<{
     contract: VipContract;
@@ -535,10 +646,8 @@ export class VipContractRepository extends BaseRepository<VipContract> {
       throw new Error(`Contract ${contractId} not found`);
     }
 
-    // Get history from history repository
     const history = await this.historyRepository.getContractHistory(contractId);
 
-    // Get related events from events table
     const eventsSql = `
       SELECT * FROM events 
       WHERE (kiosk_id = ? AND locker_id = ?) 
@@ -548,7 +657,6 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     `;
     const events = await this.db.all(eventsSql, [contract.kiosk_id, contract.locker_id, contractId]);
 
-    // Get transfer requests
     const transfersSql = `
       SELECT * FROM vip_transfer_requests 
       WHERE contract_id = ?
@@ -564,6 +672,12 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     };
   }
 
+  /**
+   * Maps a `VipContract` entity to a raw object for database insertion/updates.
+   * @protected
+   * @param {Partial<VipContract>} entity - The entity to map.
+   * @returns {Record<string, any>} The mapped raw object.
+   */
   protected mapEntityToRow(entity: Partial<VipContract>): Record<string, any> {
     const row: Record<string, any> = {};
 

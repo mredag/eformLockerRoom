@@ -2,6 +2,9 @@ import { BaseRepository } from './base-repository';
 import { DatabaseConnection } from './connection';
 import { Locker, LockerStatus, OwnerType } from '../types/core-entities';
 
+/**
+ * Defines the filtering criteria for querying locker records.
+ */
 export interface LockerFilter {
   kiosk_id?: string;
   status?: LockerStatus | LockerStatus[];
@@ -10,16 +13,37 @@ export interface LockerFilter {
   is_vip?: boolean;
 }
 
+/**
+ * Manages the persistence and retrieval of `Locker` entities.
+ * This repository handles all database operations related to lockers, including state management,
+ * ownership, and reservations. It extends `BaseRepository` but overrides several methods
+ * to handle the composite primary key (`kiosk_id`, `id`).
+ * @extends {BaseRepository<Locker>}
+ */
 export class LockerRepository extends BaseRepository<Locker> {
+  /**
+   * Creates an instance of LockerRepository.
+   * @param {DatabaseConnection} db - The database connection instance.
+   */
   constructor(db: DatabaseConnection) {
     super(db, 'lockers');
   }
 
+  /**
+   * This method is overridden to throw an error because lockers have a composite primary key.
+   * Use `findByKioskAndId` instead.
+   * @throws {Error} Always.
+   */
   async findById(id: string | number): Promise<Locker | null> {
-    // For lockers, we need both kiosk_id and locker id
     throw new Error('Use findByKioskAndId for lockers');
   }
 
+  /**
+   * Finds a specific locker by its composite key (kiosk ID and locker ID).
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker within the kiosk.
+   * @returns {Promise<Locker | null>} The found locker or null.
+   */
   async findByKioskAndId(kioskId: string, lockerId: number): Promise<Locker | null> {
     const sql = `
       SELECT * FROM ${this.tableName} 
@@ -30,6 +54,11 @@ export class LockerRepository extends BaseRepository<Locker> {
     return row ? this.mapRowToEntity(row) : null;
   }
 
+  /**
+   * Finds all lockers that match the specified filter criteria.
+   * @param {LockerFilter} [filter] - The filter to apply.
+   * @returns {Promise<Locker[]>} An array of matching lockers.
+   */
   async findAll(filter?: LockerFilter): Promise<Locker[]> {
     let sql = `SELECT * FROM ${this.tableName}`;
     const params: any[] = [];
@@ -78,6 +107,11 @@ export class LockerRepository extends BaseRepository<Locker> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * Creates a new locker record.
+   * @param {Omit<Locker, 'version' | 'created_at' | 'updated_at'>} locker - The locker data to create.
+   * @returns {Promise<Locker>} The newly created locker.
+   */
   async create(locker: Omit<Locker, 'version' | 'created_at' | 'updated_at'>): Promise<Locker> {
     const sql = `
       INSERT INTO ${this.tableName} (
@@ -107,11 +141,23 @@ export class LockerRepository extends BaseRepository<Locker> {
     return created;
   }
 
-  // Override base update method to match signature
+  /**
+   * This method is overridden to throw an error. Use `updateLocker` instead.
+   * @throws {Error} Always.
+   */
   async update(id: string | number, updates: Partial<Locker>, expectedVersion: number): Promise<Locker> {
     throw new Error('Use updateLocker method instead - requires both kiosk_id and locker_id');
   }
 
+  /**
+   * Updates a specific locker using optimistic locking.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {Partial<Locker>} updates - The fields to update.
+   * @param {number} expectedVersion - The version number required for the update to succeed.
+   * @returns {Promise<Locker>} The updated locker.
+   * @throws {OptimisticLockError} If the version check fails.
+   */
   async updateLocker(
     kioskId: string, 
     lockerId: number, 
@@ -121,10 +167,9 @@ export class LockerRepository extends BaseRepository<Locker> {
     const setClause: string[] = [];
     const params: any[] = [];
 
-    // Build SET clause dynamically
     for (const [key, value] of Object.entries(updates)) {
       if (key === 'kiosk_id' || key === 'id' || key === 'version' || key === 'created_at' || key === 'updated_at') {
-        continue; // Skip immutable fields
+        continue;
       }
 
       setClause.push(`${key} = ?`);
@@ -140,7 +185,6 @@ export class LockerRepository extends BaseRepository<Locker> {
       throw new Error('No valid fields to update');
     }
 
-    // Add version increment and WHERE clause
     setClause.push('version = version + 1');
     setClause.push('updated_at = CURRENT_TIMESTAMP');
 
@@ -168,10 +212,20 @@ export class LockerRepository extends BaseRepository<Locker> {
     return updated;
   }
 
+  /**
+   * This method is overridden to throw an error. Use `deleteByKioskAndId` instead.
+   * @throws {Error} Always.
+   */
   async delete(id: string | number): Promise<boolean> {
     throw new Error('Use deleteByKioskAndId for lockers');
   }
 
+  /**
+   * Deletes a specific locker by its composite key.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @returns {Promise<boolean>} True if the deletion was successful.
+   */
   async deleteByKioskAndId(kioskId: string, lockerId: number): Promise<boolean> {
     const sql = `DELETE FROM ${this.tableName} WHERE kiosk_id = ? AND id = ?`;
     const result = await this.db.run(sql, [kioskId, lockerId]);
@@ -179,7 +233,10 @@ export class LockerRepository extends BaseRepository<Locker> {
   }
 
   /**
-   * Find available lockers (Free status, not VIP, not blocked)
+   * Finds all available lockers for a given kiosk.
+   * An available locker is one with 'Free' status and is not marked as VIP.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<Locker[]>} An array of available lockers.
    */
   async findAvailable(kioskId: string): Promise<Locker[]> {
     return this.findAll({
@@ -190,7 +247,9 @@ export class LockerRepository extends BaseRepository<Locker> {
   }
 
   /**
-   * Find locker by owner key
+   * Finds the locker currently owned by a specific owner key (e.g., RFID card ID).
+   * @param {string} ownerKey - The owner key to search for.
+   * @returns {Promise<Locker | null>} The found locker or null.
    */
   async findByOwnerKey(ownerKey: string): Promise<Locker | null> {
     const sql = `
@@ -205,7 +264,9 @@ export class LockerRepository extends BaseRepository<Locker> {
   }
 
   /**
-   * Find expired reserved lockers
+   * Finds all lockers that have an expired reservation.
+   * @param {number} [timeoutSeconds=90] - The reservation timeout in seconds.
+   * @returns {Promise<Locker[]>} An array of lockers with expired reservations.
    */
   async findExpiredReserved(timeoutSeconds: number = 90): Promise<Locker[]> {
     const sql = `
@@ -219,7 +280,9 @@ export class LockerRepository extends BaseRepository<Locker> {
   }
 
   /**
-   * Cleanup expired reservations
+   * Resets the state of all lockers with expired reservations back to 'Free'.
+   * @param {number} [timeoutSeconds=90] - The reservation timeout in seconds.
+   * @returns {Promise<number>} The number of lockers that were cleaned up.
    */
   async cleanupExpiredReservations(timeoutSeconds: number = 90): Promise<number> {
     const sql = `
@@ -239,7 +302,9 @@ export class LockerRepository extends BaseRepository<Locker> {
   }
 
   /**
-   * Get locker statistics by kiosk
+   * Gathers statistics about the lockers for a specific kiosk.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<object>} An object containing locker statistics.
    */
   async getStatsByKiosk(kioskId: string): Promise<{
     total: number;
@@ -281,6 +346,12 @@ export class LockerRepository extends BaseRepository<Locker> {
     };
   }
 
+  /**
+   * Maps a raw database row to a structured `Locker` entity.
+   * @protected
+   * @param {any} row - The raw data from the database.
+   * @returns {Locker} The mapped entity.
+   */
   protected mapRowToEntity(row: any): Locker {
     return {
       id: row.id,
@@ -300,6 +371,12 @@ export class LockerRepository extends BaseRepository<Locker> {
     };
   }
 
+  /**
+   * Maps a `Locker` entity to a raw object for database insertion/updates.
+   * @protected
+   * @param {Partial<Locker>} entity - The entity to map.
+   * @returns {Record<string, any>} The mapped raw object.
+   */
   protected mapEntityToRow(entity: Partial<Locker>): Record<string, any> {
     const row: Record<string, any> = {};
 

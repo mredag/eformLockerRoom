@@ -2,6 +2,9 @@ import { BaseRepository } from './base-repository';
 import { DatabaseConnection } from './connection';
 import { Command, CommandStatus, CommandType } from '../types/core-entities';
 
+/**
+ * Defines the filtering criteria for querying the command queue.
+ */
 export interface CommandFilter {
   kiosk_id?: string;
   command_type?: CommandType | CommandType[];
@@ -12,17 +15,38 @@ export interface CommandFilter {
   limit?: number;
 }
 
+/**
+ * Manages the persistence and retrieval of `Command` entities from the `command_queue` table.
+ * This repository provides a comprehensive API for queuing, processing, and managing asynchronous commands,
+ * including features like filtering, retries with exponential backoff, and status management.
+ * @extends {BaseRepository<Command>}
+ */
 export class CommandQueueRepository extends BaseRepository<Command> {
+  /**
+   * Creates an instance of CommandQueueRepository.
+   * @param {DatabaseConnection} db - The database connection instance.
+   */
   constructor(db: DatabaseConnection) {
     super(db, 'command_queue');
   }
 
+  /**
+   * Finds a command by its unique ID.
+   * @param {string | number} id - The ID of the command to find.
+   * @returns {Promise<Command | null>} The found command or null.
+   */
   async findById(id: string | number): Promise<Command | null> {
     const sql = `SELECT * FROM ${this.tableName} WHERE command_id = ?`;
     const row = await this.db.get(sql, [id]);
     return row ? this.mapRowToEntity(row) : null;
   }
 
+  /**
+   * Finds all commands that match the specified filter criteria.
+   * Results are ordered by the next attempt time, ensuring that due commands are processed first.
+   * @param {CommandFilter} [filter] - The filter to apply to the query.
+   * @returns {Promise<Command[]>} An array of commands matching the filter.
+   */
   async findAll(filter?: CommandFilter): Promise<Command[]> {
     let sql = `SELECT * FROM ${this.tableName}`;
     const params: any[] = [];
@@ -85,6 +109,12 @@ export class CommandQueueRepository extends BaseRepository<Command> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * Creates a new command in the database.
+   * @param {Omit<Command, 'created_at'>} command - The command data to insert. Note that `created_at` is auto-managed.
+   * @returns {Promise<Command>} The fully created command object.
+   * @throws {Error} If the command fails to be created and retrieved.
+   */
   async create(command: Omit<Command, 'created_at'>): Promise<Command> {
     const sql = `
       INSERT INTO ${this.tableName} (
@@ -118,14 +148,22 @@ export class CommandQueueRepository extends BaseRepository<Command> {
     return created;
   }
 
+  /**
+   * Updates an existing command. This method does not use optimistic locking from the base class
+   * as command queue updates are typically idempotent state transitions.
+   * @param {string | number} id - The ID of the command to update.
+   * @param {Partial<Command>} updates - The fields to update.
+   * @param {number} [expectedVersion=1] - This parameter is ignored in this implementation.
+   * @returns {Promise<Command>} The updated command.
+   * @throws {Error} If no fields are provided for update or if the command is not found.
+   */
   async update(id: string | number, updates: Partial<Command>, expectedVersion: number = 1): Promise<Command> {
     const setClause: string[] = [];
     const params: any[] = [];
 
-    // Build SET clause dynamically
     for (const [key, value] of Object.entries(updates)) {
       if (key === 'command_id' || key === 'created_at') {
-        continue; // Skip immutable fields
+        continue;
       }
 
       setClause.push(`${key} = ?`);
@@ -165,6 +203,11 @@ export class CommandQueueRepository extends BaseRepository<Command> {
     return updated;
   }
 
+  /**
+   * Deletes a command from the database.
+   * @param {string | number} id - The ID of the command to delete.
+   * @returns {Promise<boolean>} True if the deletion was successful, false otherwise.
+   */
   async delete(id: string | number): Promise<boolean> {
     const sql = `DELETE FROM ${this.tableName} WHERE command_id = ?`;
     const result = await this.db.run(sql, [id]);
@@ -172,7 +215,11 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Get pending commands for a kiosk
+   * Retrieves all commands that are due for processing for a specific kiosk.
+   * This includes commands with 'pending' or 'failed' status whose `next_attempt_at` is in the past.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} [limit] - The maximum number of commands to retrieve.
+   * @returns {Promise<Command[]>} An array of pending commands.
    */
   async getPendingCommands(kioskId: string, limit?: number): Promise<Command[]> {
     return this.findAll({
@@ -184,7 +231,9 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Mark command as executing
+   * Marks a command's status as 'executing'.
+   * @param {string} commandId - The ID of the command to update.
+   * @returns {Promise<Command>} The updated command.
    */
   async markExecuting(commandId: string): Promise<Command> {
     return this.update(commandId, {
@@ -194,7 +243,9 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Mark command as completed
+   * Marks a command's status as 'completed'.
+   * @param {string} commandId - The ID of the command to update.
+   * @returns {Promise<Command>} The updated command.
    */
   async markCompleted(commandId: string): Promise<Command> {
     return this.update(commandId, {
@@ -204,7 +255,13 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Mark command as failed and schedule retry
+   * Marks a command as failed, records the error, and schedules it for a future retry
+   * using an exponential backoff strategy. If the max retry count is reached,
+   * the status is set to 'failed'.
+   * @param {string} commandId - The ID of the command.
+   * @param {string} error - The error message to record.
+   * @param {number} [retryDelayMs=5000] - The base delay for the retry, in milliseconds.
+   * @returns {Promise<Command>} The updated command.
    */
   async markFailed(commandId: string, error: string, retryDelayMs: number = 5000): Promise<Command> {
     const command = await this.findById(commandId);
@@ -213,7 +270,7 @@ export class CommandQueueRepository extends BaseRepository<Command> {
     }
 
     const newRetryCount = command.retry_count + 1;
-    const nextAttempt = new Date(Date.now() + retryDelayMs * Math.pow(2, newRetryCount - 1)); // Exponential backoff
+    const nextAttempt = new Date(Date.now() + retryDelayMs * Math.pow(2, newRetryCount - 1));
 
     return this.update(commandId, {
       status: newRetryCount >= command.max_retries ? 'failed' : 'pending',
@@ -224,7 +281,9 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Cancel command
+   * Marks a command's status as 'cancelled'.
+   * @param {string} commandId - The ID of the command to cancel.
+   * @returns {Promise<Command>} The updated command.
    */
   async cancelCommand(commandId: string): Promise<Command> {
     return this.update(commandId, {
@@ -234,7 +293,10 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Clean up old completed/failed commands
+   * Deletes old, finalized (completed, failed, cancelled) commands from the database
+   * to prevent the table from growing indefinitely.
+   * @param {number} [retentionDays=7] - The number of days to keep finalized commands.
+   * @returns {Promise<number>} The number of rows deleted.
    */
   async cleanupOldCommands(retentionDays: number = 7): Promise<number> {
     const sql = `
@@ -248,7 +310,10 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Get command statistics
+   * Retrieves statistics about the commands in the queue, such as total counts
+   * broken down by status and command type.
+   * @param {string} [kioskId] - If provided, statistics will be limited to this kiosk.
+   * @returns {Promise<object>} An object containing command statistics.
    */
   async getStatistics(kioskId?: string): Promise<{
     total: number;
@@ -321,7 +386,10 @@ export class CommandQueueRepository extends BaseRepository<Command> {
   }
 
   /**
-   * Clear all pending commands for a kiosk (used on restart)
+   * Cancels all 'pending' or 'executing' commands for a specific kiosk.
+   * This is useful for cleaning up the queue on system startup to prevent stale commands from running.
+   * @param {string} kioskId - The ID of the kiosk whose commands should be cleared.
+   * @returns {Promise<number>} The number of commands that were cancelled.
    */
   async clearPendingCommands(kioskId: string): Promise<number> {
     const sql = `
@@ -337,6 +405,12 @@ export class CommandQueueRepository extends BaseRepository<Command> {
     return result.changes;
   }
 
+  /**
+   * Maps a raw database row to a structured `Command` entity.
+   * @protected
+   * @param {any} row - The raw data object from the database.
+   * @returns {Command} The mapped command entity.
+   */
   protected mapRowToEntity(row: any): Command {
     return {
       command_id: row.command_id,
@@ -355,6 +429,12 @@ export class CommandQueueRepository extends BaseRepository<Command> {
     };
   }
 
+  /**
+   * Maps a `Command` entity to a raw object suitable for database insertion or updates.
+   * @protected
+   * @param {Partial<Command>} entity - The command entity to map.
+   * @returns {Record<string, any>} The mapped raw database object.
+   */
   protected mapEntityToRow(entity: Partial<Command>): Record<string, any> {
     const row: Record<string, any> = {};
 

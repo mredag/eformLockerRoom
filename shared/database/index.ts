@@ -1,3 +1,11 @@
+/**
+ * @fileoverview
+ * This file serves as the main entry point for the shared database module.
+ * It exports the core database connection and management classes, as well as all
+ * the repository classes responsible for data access, making them easily
+ * accessible from other parts of the application.
+ */
+
 export { DatabaseConnection } from './connection';
 export { DatabaseManager, type DatabaseConfig } from './database-manager';
 export { MigrationRunner, type Migration } from './migration-runner';

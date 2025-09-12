@@ -3,17 +3,24 @@ import { DatabaseConnection } from '../database/connection';
 import { EventType } from '../types/core-entities';
 
 /**
- * Hardware Soak Testing Automation System
- * Implements automated 1000-cycle testing with failure detection
- * Requirements: Testing Strategy - Hardware Testing
+ * Provides a comprehensive system for running automated, long-duration "soak tests"
+ * on locker hardware to assess its endurance and reliability. It can run thousands
+ * of cycles, track performance metrics, detect failures, and generate reports
+ * with maintenance recommendations.
  */
 export class HardwareSoakTester {
   private db: DatabaseConnection;
   private eventLogger: EventLogger;
-  private modbusController?: any; // Optional for testing
+  private modbusController?: any;
   private isRunning: boolean = false;
   private currentTest?: SoakTest;
 
+  /**
+   * Creates an instance of HardwareSoakTester.
+   * @param {DatabaseConnection} db - The database connection for storing test results.
+   * @param {EventLogger} eventLogger - The logger for recording test events.
+   * @param {any} [modbusController] - An optional Modbus controller for real hardware interaction.
+   */
   constructor(db: DatabaseConnection, eventLogger: EventLogger, modbusController?: any) {
     this.db = db;
     this.eventLogger = eventLogger;
@@ -21,7 +28,14 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Start automated soak testing for a specific locker
+   * Starts a new automated soak test for a specific locker.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker to test.
+   * @param {number} [targetCycles=1000] - The number of open/close cycles to perform.
+   * @param {number} [intervalMs=5000] - The interval in milliseconds between test cycles.
+   * @param {number} [failureThreshold=50] - The number of failures after which the test is automatically stopped.
+   * @returns {Promise<SoakTest>} The initial state of the created soak test.
+   * @throws {Error} If a test is already in progress.
    */
   async startSoakTest(
     kioskId: string,
@@ -56,10 +70,8 @@ export class HardwareSoakTester {
       }
     };
 
-    // Save test to database
     await this.saveSoakTest(test);
 
-    // Log test start
     await this.eventLogger.logEvent(
       kioskId,
       'soak_test_started' as EventType,
@@ -75,14 +87,14 @@ export class HardwareSoakTester {
     this.currentTest = test;
     this.isRunning = true;
 
-    // Start the test cycle
     this.runTestCycle();
 
     return test;
   }
 
   /**
-   * Stop the current soak test
+   * Manually stops the currently running soak test.
+   * @returns {Promise<SoakTest | null>} The final state of the stopped test, or null if no test was running.
    */
   async stopSoakTest(): Promise<SoakTest | null> {
     if (!this.isRunning || !this.currentTest) {
@@ -94,10 +106,8 @@ export class HardwareSoakTester {
     test.status = 'stopped';
     test.completed_at = new Date();
 
-    // Update test in database
     await this.saveSoakTest(test);
 
-    // Log test stop
     await this.eventLogger.logEvent(
       test.kiosk_id,
       'soak_test_stopped' as EventType,
@@ -115,14 +125,18 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Get current test status
+   * Gets the status of the currently running soak test.
+   * @returns {SoakTest | null} The current test object, or null if no test is running.
    */
   getCurrentTest(): SoakTest | null {
     return this.currentTest || null;
   }
 
   /**
-   * Get test history for a locker
+   * Retrieves the history of all soak tests performed on a kiosk or a specific locker.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} [lockerId] - An optional locker ID to filter the history.
+   * @returns {Promise<SoakTest[]>} An array of past soak test records.
    */
   async getTestHistory(kioskId: string, lockerId?: number): Promise<SoakTest[]> {
     let sql = 'SELECT * FROM soak_tests WHERE kiosk_id = ?';
@@ -140,7 +154,10 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Get hardware endurance report
+   * Generates a comprehensive endurance report for all lockers on a kiosk,
+   * summarizing their test history and performance.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<EnduranceReport>} The generated endurance report.
    */
   async getEnduranceReport(kioskId: string): Promise<EnduranceReport> {
     const sql = `
@@ -180,7 +197,9 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Check if any lockers need maintenance based on failure rates
+   * Analyzes the endurance report to generate a prioritized list of maintenance recommendations.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<MaintenanceRecommendation[]>} A sorted array of maintenance recommendations.
    */
   async checkMaintenanceSchedule(kioskId: string): Promise<MaintenanceRecommendation[]> {
     const report = await this.getEnduranceReport(kioskId);
@@ -207,7 +226,9 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Automatically block lockers that exceed failure threshold
+   * Automatically blocks lockers that have a critical failure rate, preventing them from being used.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<number[]>} An array of locker IDs that were blocked.
    */
   async autoBlockFailedLockers(kioskId: string): Promise<number[]> {
     const recommendations = await this.checkMaintenanceSchedule(kioskId);
@@ -215,7 +236,6 @@ export class HardwareSoakTester {
 
     for (const rec of recommendations) {
       if (rec.priority === 'critical' && rec.failure_rate > 20) {
-        // Auto-block locker with critical failure rate
         try {
           await this.blockLocker(rec.kiosk_id, rec.locker_id, 'Auto-blocked due to high failure rate in soak testing');
           blockedLockers.push(rec.locker_id);
@@ -241,7 +261,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Run a single test cycle
+   * The main loop for running a soak test cycle. This method is called recursively via `setTimeout`.
+   * @private
    */
   private async runTestCycle(): Promise<void> {
     if (!this.isRunning || !this.currentTest) {
@@ -252,14 +273,12 @@ export class HardwareSoakTester {
     const startTime = Date.now();
 
     try {
-      // Simulate hardware operation (in real implementation, this would call ModbusController)
       const success = await this.performHardwareOperation(test.kiosk_id, test.locker_id);
       const responseTime = Date.now() - startTime;
 
       test.current_cycle++;
       test.last_cycle_at = new Date();
 
-      // Update performance metrics
       test.performance_metrics.total_response_time_ms += responseTime;
       test.performance_metrics.avg_response_time_ms = 
         test.performance_metrics.total_response_time_ms / test.current_cycle;
@@ -279,25 +298,21 @@ export class HardwareSoakTester {
           response_time_ms: responseTime
         });
 
-        // Check if failure threshold exceeded
         if (test.failure_count >= test.failure_threshold) {
           await this.handleFailureThresholdExceeded(test);
           return;
         }
       }
 
-      // Check if test completed
       if (test.current_cycle >= test.target_cycles) {
         await this.completeTest(test);
         return;
       }
 
-      // Save progress every 10 cycles
       if (test.current_cycle % 10 === 0) {
         await this.saveSoakTest(test);
       }
 
-      // Schedule next cycle
       setTimeout(() => this.runTestCycle(), test.interval_ms);
 
     } catch (error) {
@@ -314,21 +329,20 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Perform hardware operation (mock implementation)
+   * Simulates a hardware operation. In a real implementation, this would interact with a ModbusController.
+   * @private
    */
   private async performHardwareOperation(kioskId: string, lockerId: number): Promise<boolean> {
-    // In real implementation, this would use ModbusController
-    // For now, simulate with random success/failure
     return new Promise((resolve) => {
       setTimeout(() => {
-        // 95% success rate for simulation
         resolve(Math.random() > 0.05);
-      }, Math.random() * 1000 + 500); // 500-1500ms response time
+      }, Math.random() * 1000 + 500);
     });
   }
 
   /**
-   * Handle test completion
+   * Finalizes a test that has completed its target cycles.
+   * @private
    */
   private async completeTest(test: SoakTest): Promise<void> {
     this.isRunning = false;
@@ -357,7 +371,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Handle failure threshold exceeded
+   * Handles the scenario where a test exceeds its failure threshold.
+   * @private
    */
   private async handleFailureThresholdExceeded(test: SoakTest): Promise<void> {
     this.isRunning = false;
@@ -379,14 +394,14 @@ export class HardwareSoakTester {
       test.locker_id
     );
 
-    // Auto-block the locker
     await this.blockLocker(test.kiosk_id, test.locker_id, `Soak test failed: ${test.failure_count} failures in ${test.current_cycle} cycles`);
 
     this.currentTest = undefined;
   }
 
   /**
-   * Handle test error
+   * Handles an unexpected error during a test cycle.
+   * @private
    */
   private async handleTestError(test: SoakTest, error: Error): Promise<void> {
     this.isRunning = false;
@@ -410,10 +425,10 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Block a locker (mock implementation)
+   * Blocks a locker by updating its status in the database.
+   * @private
    */
   private async blockLocker(kioskId: string, lockerId: number, reason: string): Promise<void> {
-    // In real implementation, this would update the locker status in database
     const sql = `
       UPDATE lockers 
       SET status = 'Blocked', updated_at = CURRENT_TIMESTAMP 
@@ -424,7 +439,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Save soak test to database
+   * Saves the state of a soak test to the database.
+   * @private
    */
   private async saveSoakTest(test: SoakTest): Promise<void> {
     const sql = `
@@ -463,7 +479,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Map database row to SoakTest object
+   * Maps a raw database row to a structured `SoakTest` object.
+   * @private
    */
   private mapRowToSoakTest(row: any): SoakTest {
     return {
@@ -491,26 +508,29 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Generate unique test ID
+   * Generates a unique ID for a new soak test.
+   * @private
    */
   private generateTestId(): string {
     return `soak_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
-   * Check if maintenance should be recommended
+   * Determines if a locker should be recommended for maintenance based on its test history.
+   * @private
    */
   private shouldRecommendMaintenance(row: any): boolean {
     const successRate = (row.total_successes / row.total_cycles) * 100;
     const failureRate = 100 - successRate;
     
-    return failureRate > 5 || // More than 5% failure rate
-           row.avg_response_time > 2000 || // Response time over 2 seconds
-           row.total_cycles > 10000; // High usage
+    return failureRate > 5 ||
+           row.avg_response_time > 2000 ||
+           row.total_cycles > 10000;
   }
 
   /**
-   * Calculate maintenance priority
+   * Calculates a maintenance priority level based on a locker's endurance report.
+   * @private
    */
   private calculateMaintenancePriority(report: LockerEnduranceReport): 'low' | 'medium' | 'high' | 'critical' {
     const failureRate = 100 - report.success_rate;
@@ -522,7 +542,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Get maintenance reason
+   * Generates a human-readable reason for a maintenance recommendation.
+   * @private
    */
   private getMaintenanceReason(report: LockerEnduranceReport): string {
     const failureRate = 100 - report.success_rate;
@@ -535,7 +556,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Get recommended action
+   * Suggests a recommended action based on a locker's endurance report.
+   * @private
    */
   private getRecommendedAction(report: LockerEnduranceReport): string {
     const failureRate = 100 - report.success_rate;
@@ -547,7 +569,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Generate summary for endurance report
+   * Generates a summary section for a full endurance report.
+   * @private
    */
   private generateSummary(reports: LockerEnduranceReport[]): EnduranceSummary {
     const totalLockers = reports.length;
@@ -565,7 +588,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Get priority order for sorting
+   * Returns a numeric value for a priority string to allow for sorting.
+   * @private
    */
   private priorityOrder(priority: string): number {
     switch (priority) {
@@ -578,7 +602,9 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Run soak test (wrapper for startSoakTest to match test interface)
+   * A wrapper for `startSoakTest` to match a specific test interface.
+   * This method contains mock logic for testing purposes.
+   * @private
    */
   async runSoakTest(options: {
     lockerId: number;
@@ -588,12 +614,9 @@ export class HardwareSoakTester {
     autoBlock?: boolean;
     collectFailureDetails?: boolean;
   }): Promise<any> {
-    // Mock implementation with dynamic behavior for testing
     const failureThreshold = options.failureThreshold || 0.05;
     
-    // Simulate different scenarios based on test expectations
     if (options.lockerId === 2) {
-      // Test expects high failure rate (20%)
       return {
         completed: false,
         totalCycles: options.cycles,
@@ -610,7 +633,6 @@ export class HardwareSoakTester {
     }
     
     if (options.lockerId === 4 && options.autoBlock) {
-      // Test expects auto-blocking due to high failure rate
       return {
         completed: false,
         totalCycles: options.cycles,
@@ -622,7 +644,6 @@ export class HardwareSoakTester {
     }
     
     if (options.lockerId === 9 && options.collectFailureDetails) {
-      // Test expects failure details
       return {
         completed: true,
         totalCycles: options.cycles,
@@ -640,7 +661,6 @@ export class HardwareSoakTester {
       };
     }
     
-    // Default successful test
     return {
       completed: true,
       totalCycles: options.cycles,
@@ -652,10 +672,10 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Get locker statistics
+   * Retrieves mock statistics for a locker.
+   * @private
    */
   async getLockerStats(lockerId: number): Promise<any> {
-    // Return stats that match what the test ran
     return {
       totalCycles: lockerId === 3 ? 500 : 0,
       lastSoakTest: new Date()
@@ -663,7 +683,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Test all channels
+   * Runs a mock test on all channels.
+   * @private
    */
   async testAllChannels(options: {
     channelCount: number;
@@ -672,7 +693,6 @@ export class HardwareSoakTester {
   }): Promise<any[]> {
     const results = [];
     for (let i = 1; i <= options.channelCount; i++) {
-      // Simulate faulty channels 3 and 7 for the test
       const isFaulty = (i === 3 || i === 7) && options.channelCount === 8;
       results.push({
         channel: i,
@@ -684,31 +704,29 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Run timing test
+   * Runs a mock timing test.
+   * @private
    */
   async runTimingTest(options: {
     lockerId: number;
     cycles: number;
     expectedPulseMs: number;
   }): Promise<void> {
-    // Actually call the hardware controller for each cycle
     for (let i = 0; i < options.cycles; i++) {
-      // Simulate timing accuracy within 10ms tolerance
-      const variance = (Math.random() - 0.5) * 10; // ±5ms variance
+      const variance = (Math.random() - 0.5) * 10;
       const actualDuration = options.expectedPulseMs + variance;
       
-      // Call the hardware controller
       if (this.modbusController?.sendPulse) {
         await this.modbusController.sendPulse(options.lockerId, actualDuration);
       }
       
-      // Small delay between pulses
       await new Promise(resolve => setTimeout(resolve, 50));
     }
   }
 
   /**
-   * Run burst test
+   * Runs a mock burst test.
+   * @private
    */
   async runBurstTest(options: {
     lockerId: number;
@@ -720,24 +738,21 @@ export class HardwareSoakTester {
     
     for (let i = 0; i < options.cycles; i++) {
       try {
-        // Simulate burst operation - some may fail initially
-        const shouldFail = Math.random() < 0.15; // 15% initial failure rate
+        const shouldFail = Math.random() < 0.15;
         
         if (shouldFail) {
-          // Use burst operation to recover
           burstOperationsUsed++;
           if (this.modbusController?.sendPulse) {
-            await this.modbusController.sendPulse(options.lockerId, 800); // Longer pulse for burst
+            await this.modbusController.sendPulse(options.lockerId, 800);
           }
         } else {
           if (this.modbusController?.sendPulse) {
-            await this.modbusController.sendPulse(options.lockerId, 400); // Normal pulse
+            await this.modbusController.sendPulse(options.lockerId, 400);
           }
         }
         
         successfulOperations++;
       } catch (error) {
-        // Operation failed even with burst
       }
       
       await new Promise(resolve => setTimeout(resolve, options.intervalMs));
@@ -750,7 +765,8 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Run power monitoring test
+   * Runs a mock power monitoring test.
+   * @private
    */
   async runPowerMonitoringTest(options: {
     lockerId: number;
@@ -760,43 +776,38 @@ export class HardwareSoakTester {
     const powerReadings: number[] = [];
     
     for (let i = 0; i < options.cycles; i++) {
-      // Simulate power consumption reading (in watts)
-      // Base consumption: 2-5W, spike during operation: 8-12W
-      const basePower = 2 + Math.random() * 3; // 2-5W
-      const operationSpike = Math.random() < 0.3 ? 6 + Math.random() * 6 : 0; // 6-12W spike
+      const basePower = 2 + Math.random() * 3;
+      const operationSpike = Math.random() < 0.3 ? 6 + Math.random() * 6 : 0;
       const reading = basePower + operationSpike;
       
       powerReadings.push(reading);
       
-      // Simulate hardware operation
       if (this.modbusController?.sendPulse) {
         await this.modbusController.sendPulse(options.lockerId, 400);
       }
       await new Promise(resolve => setTimeout(resolve, options.intervalMs));
     }
     
-    // Store readings for test verification
     (global as any).mockPowerReadings = powerReadings;
     return powerReadings;
   }
 
   /**
-   * Analyze failure pattern
+   * Runs a mock failure pattern analysis.
+   * @private
    */
   async analyzeFailurePattern(lockerId: number): Promise<any[]> {
-    // Simulate failure pattern analysis over time
     const testResults = [];
     
     for (let i = 0; i < 3; i++) {
-      // Simulate degrading performance over time
-      const baseFailureRate = 0.01 + i * 0.05; // Increasing failure rate: 1%, 6%, 11%
-      const variance = Math.random() * 0.01; // ±0.5% variance
+      const baseFailureRate = 0.01 + i * 0.05;
+      const variance = Math.random() * 0.01;
       
       testResults.push({
-        testDate: new Date(Date.now() - (2 - i) * 24 * 60 * 60 * 1000), // 2 days ago, 1 day ago, today
+        testDate: new Date(Date.now() - (2 - i) * 24 * 60 * 60 * 1000),
         failureRate: baseFailureRate + variance,
         cyclesTested: 100 + i * 50,
-        avgResponseTime: 400 + i * 20 // Slightly increasing response time
+        avgResponseTime: 400 + i * 20
       });
     }
     
@@ -804,19 +815,18 @@ export class HardwareSoakTester {
   }
 
   /**
-   * Export test results
+   * Generates mock test results for export.
+   * @private
    */
   async exportTestResults(lockerId: number): Promise<any> {
-    // Generate realistic test export data
     const testHistory = [];
-    const totalCycles = 1000 + Math.floor(Math.random() * 500); // 1000-1500 cycles
+    const totalCycles = 1000 + Math.floor(Math.random() * 500);
     
-    // Generate some historical test data
     for (let i = 0; i < 10; i++) {
       testHistory.push({
         date: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
         cycles: 100,
-        successRate: 95 + Math.random() * 4, // 95-99% success rate
+        successRate: 95 + Math.random() * 4,
         avgResponseTime: 400 + Math.random() * 50,
         failures: Math.floor(Math.random() * 5)
       });
@@ -843,7 +853,9 @@ export class HardwareSoakTester {
   }
 }
 
-// Type definitions
+/**
+ * Represents the state and results of a single soak test.
+ */
 export interface SoakTest {
   id: string;
   kiosk_id: string;
@@ -862,6 +874,9 @@ export interface SoakTest {
   performance_metrics: PerformanceMetrics;
 }
 
+/**
+ * Represents a single failure event during a soak test.
+ */
 export interface TestFailure {
   cycle: number;
   timestamp: Date;
@@ -869,6 +884,9 @@ export interface TestFailure {
   response_time_ms: number;
 }
 
+/**
+ * Represents the performance metrics collected during a soak test.
+ */
 export interface PerformanceMetrics {
   avg_response_time_ms: number;
   min_response_time_ms: number;
@@ -876,6 +894,9 @@ export interface PerformanceMetrics {
   total_response_time_ms: number;
 }
 
+/**
+ * Represents a comprehensive endurance report for a kiosk.
+ */
 export interface EnduranceReport {
   kiosk_id: string;
   generated_at: Date;
@@ -883,6 +904,9 @@ export interface EnduranceReport {
   summary: EnduranceSummary;
 }
 
+/**
+ * Represents the endurance summary for a single locker.
+ */
 export interface LockerEnduranceReport {
   locker_id: number;
   test_count: number;
@@ -895,6 +919,9 @@ export interface LockerEnduranceReport {
   maintenance_recommended: boolean;
 }
 
+/**
+ * Represents a summary of the endurance report for all lockers.
+ */
 export interface EnduranceSummary {
   total_lockers: number;
   lockers_needing_maintenance: number;
@@ -903,6 +930,9 @@ export interface EnduranceSummary {
   maintenance_percentage: number;
 }
 
+/**
+ * Represents a maintenance recommendation for a locker based on test results.
+ */
 export interface MaintenanceRecommendation {
   kiosk_id: string;
   locker_id: number;

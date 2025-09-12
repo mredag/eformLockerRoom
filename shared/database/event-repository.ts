@@ -2,6 +2,9 @@ import { BaseRepository } from './base-repository';
 import { DatabaseConnection } from './connection';
 import { Event, EventType } from '../types/core-entities';
 
+/**
+ * Defines the filtering criteria for querying system events.
+ */
 export interface EventFilter {
   kiosk_id?: string;
   locker_id?: number;
@@ -15,17 +18,37 @@ export interface EventFilter {
   offset?: number;
 }
 
+/**
+ * Manages the persistence and retrieval of system `Event` entities.
+ * This repository is crucial for auditing, logging, and debugging, providing
+ * methods to create, query, and manage event records.
+ * @extends {BaseRepository<Event>}
+ */
 export class EventRepository extends BaseRepository<Event> {
+  /**
+   * Creates an instance of EventRepository.
+   * @param {DatabaseConnection} db - The database connection instance.
+   */
   constructor(db: DatabaseConnection) {
     super(db, 'events');
   }
 
+  /**
+   * Finds an event by its unique ID.
+   * @param {string | number} id - The ID of the event.
+   * @returns {Promise<Event | null>} The found event or null.
+   */
   async findById(id: string | number): Promise<Event | null> {
     const sql = `SELECT * FROM ${this.tableName} WHERE id = ?`;
     const row = await this.db.get(sql, [id]);
     return row ? this.mapRowToEntity(row) : null;
   }
 
+  /**
+   * Finds all events matching the specified filter criteria.
+   * @param {EventFilter} [filter] - The filter to apply.
+   * @returns {Promise<Event[]>} An array of events.
+   */
   async findAll(filter?: EventFilter): Promise<Event[]> {
     let sql = `SELECT * FROM ${this.tableName}`;
     const params: any[] = [];
@@ -96,8 +119,13 @@ export class EventRepository extends BaseRepository<Event> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * Creates a new event record in the database.
+   * @param {Omit<Event, 'id' | 'timestamp' | 'version'>} event - The event data to log.
+   * @returns {Promise<Event>} The newly created event.
+   * @throws {Error} If a staff-related event is logged without a `staff_user`.
+   */
   async create(event: Omit<Event, 'id' | 'timestamp' | 'version'>): Promise<Event> {
-    // Validate staff operations have staff_user
     if (event.event_type.startsWith('staff_') && !event.staff_user) {
       throw new Error('Staff operations require staff_user field');
     }
@@ -129,15 +157,21 @@ export class EventRepository extends BaseRepository<Event> {
     return created;
   }
 
+  /**
+   * Updates an existing event. Note: Events are typically immutable; this method
+   * should be used cautiously, for example, to correct data.
+   * @param {string | number} id - The ID of the event to update.
+   * @param {Partial<Event>} updates - The fields to update.
+   * @param {number} [expectedVersion=1] - The expected version for optimistic locking (not used here).
+   * @returns {Promise<Event>} The updated event.
+   */
   async update(id: string | number, updates: Partial<Event>, expectedVersion: number = 1): Promise<Event> {
-    // Events are typically immutable, but allow updates for corrections
     const setClause: string[] = [];
     const params: any[] = [];
 
-    // Build SET clause dynamically
     for (const [key, value] of Object.entries(updates)) {
       if (key === 'id' || key === 'timestamp') {
-        continue; // Skip immutable fields
+        continue;
       }
 
       setClause.push(`${key} = ?`);
@@ -175,15 +209,28 @@ export class EventRepository extends BaseRepository<Event> {
     return updated;
   }
 
+  /**
+   * Deletes an event from the database. Note: This should be used with caution,
+   * as events are typically kept for auditing purposes.
+   * @param {string | number} id - The ID of the event to delete.
+   * @returns {Promise<boolean>} True if the deletion was successful.
+   */
   async delete(id: string | number): Promise<boolean> {
-    // Events should typically not be deleted, but allow for cleanup
     const sql = `DELETE FROM ${this.tableName} WHERE id = ?`;
     const result = await this.db.run(sql, [id]);
     return result.changes > 0;
   }
 
   /**
-   * Log a new event
+   * A convenience method to log a new event.
+   * @param {string} kioskId - The ID of the kiosk where the event occurred.
+   * @param {EventType} eventType - The type of the event.
+   * @param {Record<string, any>} [details={}] - Additional JSON details about the event.
+   * @param {number} [lockerId] - The associated locker ID, if any.
+   * @param {string} [rfidCard] - The associated RFID card ID, if any.
+   * @param {string} [deviceId] - The associated device ID, if any.
+   * @param {string} [staffUser] - The staff user who initiated the event, if any.
+   * @returns {Promise<Event>} The created event.
    */
   async logEvent(
     kioskId: string,
@@ -206,7 +253,11 @@ export class EventRepository extends BaseRepository<Event> {
   }
 
   /**
-   * Get events by date range
+   * Finds events within a specific date range.
+   * @param {Date} fromDate - The start of the date range.
+   * @param {Date} toDate - The end of the date range.
+   * @param {string} [kioskId] - An optional kiosk ID to filter by.
+   * @returns {Promise<Event[]>} An array of events.
    */
   async findByDateRange(fromDate: Date, toDate: Date, kioskId?: string): Promise<Event[]> {
     return this.findAll({
@@ -217,7 +268,10 @@ export class EventRepository extends BaseRepository<Event> {
   }
 
   /**
-   * Get recent events
+   * Finds the most recent events.
+   * @param {number} [limit=100] - The maximum number of events to return.
+   * @param {string} [kioskId] - An optional kiosk ID to filter by.
+   * @returns {Promise<Event[]>} An array of recent events.
    */
   async findRecent(limit: number = 100, kioskId?: string): Promise<Event[]> {
     return this.findAll({
@@ -227,7 +281,11 @@ export class EventRepository extends BaseRepository<Event> {
   }
 
   /**
-   * Get events for a specific locker
+   * Finds all events associated with a specific locker.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {number} [limit] - An optional limit on the number of events returned.
+   * @returns {Promise<Event[]>} An array of locker-specific events.
    */
   async findByLocker(kioskId: string, lockerId: number, limit?: number): Promise<Event[]> {
     return this.findAll({
@@ -238,7 +296,11 @@ export class EventRepository extends BaseRepository<Event> {
   }
 
   /**
-   * Get staff audit trail
+   * Finds all events that are considered staff actions, for auditing purposes.
+   * @param {string} [staffUser] - Optional staff user to filter by.
+   * @param {Date} [fromDate] - Optional start date.
+   * @param {Date} [toDate] - Optional end date.
+   * @returns {Promise<Event[]>} An array of staff action events.
    */
   async findStaffActions(staffUser?: string, fromDate?: Date, toDate?: Date): Promise<Event[]> {
     const staffEventTypes = [
@@ -261,7 +323,9 @@ export class EventRepository extends BaseRepository<Event> {
   }
 
   /**
-   * Clean up old events
+   * Deletes old event records to save space.
+   * @param {number} [retentionDays=30] - The number of days to keep event records.
+   * @returns {Promise<number>} The number of deleted rows.
    */
   async cleanupOldEvents(retentionDays: number = 30): Promise<number> {
     const sql = `
@@ -274,7 +338,10 @@ export class EventRepository extends BaseRepository<Event> {
   }
 
   /**
-   * Get event statistics
+   * Gathers statistics about events, such as total counts and breakdowns by type and category.
+   * @param {Date} [fromDate] - Optional start date for filtering statistics.
+   * @param {Date} [toDate] - Optional end date for filtering statistics.
+   * @returns {Promise<object>} An object containing various event statistics.
    */
   async getStatistics(fromDate?: Date, toDate?: Date): Promise<{
     total: number;
@@ -353,6 +420,12 @@ export class EventRepository extends BaseRepository<Event> {
     return stats;
   }
 
+  /**
+   * Maps a raw database row to a structured `Event` entity.
+   * @protected
+   * @param {any} row - The raw data from the database.
+   * @returns {Event} The mapped event entity.
+   */
   protected mapRowToEntity(row: any): Event {
     return {
       id: row.id,
@@ -368,6 +441,12 @@ export class EventRepository extends BaseRepository<Event> {
     };
   }
 
+  /**
+   * Maps an `Event` entity to a raw object for database insertion/updates.
+   * @protected
+   * @param {Partial<Event>} entity - The event entity.
+   * @returns {Record<string, any>} The mapped raw object.
+   */
   protected mapEntityToRow(entity: Partial<Event>): Record<string, any> {
     const row: Record<string, any> = {};
 

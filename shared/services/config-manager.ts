@@ -1,10 +1,4 @@
-/**
- * Configuration Manager for the Eform Locker System
- * Handles loading, validation, and management of system configuration
- */
-
 import { readFile, writeFile, access } from 'fs/promises';
-import { join } from 'path';
 import { 
   SystemConfig, 
   CompleteSystemConfig, 
@@ -17,18 +11,30 @@ import { EventType } from '../types/core-entities';
 import { EventRepository } from '../database/event-repository';
 import { DatabaseManager } from '../database/database-manager';
 
+/**
+ * Manages the system's configuration, providing a centralized point for loading,
+ * validating, accessing, and updating configuration settings. It supports loading from a JSON file,
+ * provides default values, and logs all changes for auditing purposes.
+ */
 export class ConfigManager {
   private static instances = new Map<string, ConfigManager>();
   private config: CompleteSystemConfig | null = null;
   private configPath: string;
   private eventRepository: EventRepository | null = null;
 
+  /**
+   * Private constructor to enforce the singleton pattern.
+   * @private
+   * @param {string} [configPath='./config/system.json'] - The path to the configuration file.
+   */
   private constructor(configPath: string = './config/system.json') {
     this.configPath = configPath;
   }
 
   /**
-   * Get singleton instance
+   * Gets a singleton instance of the ConfigManager for a given configuration path.
+   * @param {string} [configPath] - The path to the configuration file.
+   * @returns {ConfigManager} The singleton instance.
    */
   static getInstance(configPath?: string): ConfigManager {
     const key = configPath || './config/system.json';
@@ -39,7 +45,8 @@ export class ConfigManager {
   }
 
   /**
-   * Reset instance for testing
+   * Resets a specific singleton instance. Used for testing.
+   * @param {string} [configPath] - The key for the instance to reset.
    */
   static resetInstance(configPath?: string): void {
     const key = configPath || './config/system.json';
@@ -47,19 +54,19 @@ export class ConfigManager {
   }
 
   /**
-   * Reset all instances
+   * Resets all singleton instances. Used for global test teardown.
    */
   static resetAllInstances(): void {
     ConfigManager.instances.clear();
   }
 
   /**
-   * Initialize configuration manager
+   * Initializes the configuration manager by loading the configuration from its file
+   * and setting up the event repository for logging changes.
    */
   async initialize(): Promise<void> {
     await this.loadConfiguration();
     
-    // Initialize event repository for logging config changes
     try {
       const dbManager = DatabaseManager.getInstance();
       this.eventRepository = new EventRepository(dbManager.getConnection());
@@ -69,7 +76,10 @@ export class ConfigManager {
   }
 
   /**
-   * Load configuration from file
+   * Loads the configuration from the file system. If the file does not exist,
+   * it creates a default configuration file.
+   * @returns {Promise<CompleteSystemConfig>} The loaded or newly created configuration.
+   * @throws {Error} If the configuration file is invalid or cannot be parsed.
    */
   async loadConfiguration(): Promise<CompleteSystemConfig> {
     try {
@@ -77,7 +87,6 @@ export class ConfigManager {
       const configData = await readFile(this.configPath, 'utf-8');
       const parsedConfig = JSON.parse(configData);
       
-      // Validate configuration
       const validation = this.validateConfiguration(parsedConfig);
       if (!validation.valid) {
         throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
@@ -87,7 +96,6 @@ export class ConfigManager {
       return this.config;
     } catch (error) {
       if (error instanceof Error && error.message.includes('ENOENT')) {
-        // Configuration file doesn't exist, create default
         console.log('Configuration file not found, creating default configuration');
         this.config = this.getDefaultConfiguration();
         await this.saveConfiguration();
@@ -98,7 +106,9 @@ export class ConfigManager {
   }
 
   /**
-   * Get current configuration
+   * Gets the currently loaded complete configuration object.
+   * @returns {CompleteSystemConfig} The complete configuration object.
+   * @throws {Error} If the configuration has not been initialized.
    */
   getConfiguration(): CompleteSystemConfig {
     if (!this.config) {
@@ -108,7 +118,8 @@ export class ConfigManager {
   }
 
   /**
-   * Get system configuration parameters
+   * Gets a flattened and simplified view of the system's operational parameters.
+   * @returns {SystemConfig} The simplified system configuration.
    */
   getSystemConfig(): SystemConfig {
     const config = this.getConfiguration();
@@ -144,7 +155,12 @@ export class ConfigManager {
   }
 
   /**
-   * Update configuration section
+   * Updates a top-level section of the configuration, validates the changes,
+   * saves the new configuration, and logs the event.
+   * @param {keyof CompleteSystemConfig} section - The top-level configuration key to update (e.g., 'hardware', 'zones').
+   * @param {Partial<CompleteSystemConfig[keyof CompleteSystemConfig]>} updates - The new values to apply to the section.
+   * @param {string} changedBy - The identifier of the user or system making the change.
+   * @param {string} [reason] - An optional reason for the change.
    */
   async updateConfiguration(
     section: keyof CompleteSystemConfig,
@@ -162,17 +178,14 @@ export class ConfigManager {
 
     let newValue: any;
 
-    // Arrays like 'zones' must be replaced, not object-merged
     if (section === 'zones') {
       const availableCards = this.config.hardware.relay_cards.map((card: RelayCard) => card.slave_address);
       const incomingZones: ZoneConfig[] = Array.isArray(updates) ? (updates as unknown as ZoneConfig[]) : (this.config[section] as unknown as ZoneConfig[]);
 
-      // Prune relay_cards not present in hardware and normalize order
       const cleanedZones: ZoneConfig[] = (incomingZones || []).map((z) => {
         const cards = Array.isArray(z.relay_cards)
           ? z.relay_cards.filter((id) => availableCards.includes(id)).sort((a, b) => a - b)
           : [];
-        // Auto-disable zones that have no relay cards assigned
         const enabled = cards.length > 0 ? (z.enabled !== false) : false;
         return {
           ...z,
@@ -186,11 +199,9 @@ export class ConfigManager {
       newValue = { ...(this.config[section] as any), ...(updates as any) };
     }
 
-    // Enhanced validation for zone configuration updates
     if (section === 'zones' || (section === 'features' && (updates as any)?.zones_enabled !== undefined)) {
       const testConfig = { ...this.config, [section]: newValue };
       
-      // Use enhanced zone validation
       const zoneValidation = await this.validateZoneConfigurationUpdate(
         section === 'zones' ? newValue as any : testConfig.zones,
         changedBy
@@ -205,7 +216,6 @@ export class ConfigManager {
       }
     }
 
-    // Validate the updated configuration
     const testConfig = { ...this.config, [section]: newValue } as CompleteSystemConfig;
     const validation = this.validateConfiguration(testConfig);
     
@@ -213,13 +223,10 @@ export class ConfigManager {
       throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
     }
 
-    // Apply the update
     (this.config[section] as any) = newValue;
 
-    // Save to file
     await this.saveConfiguration();
 
-    // Log the change
     await this.logConfigChange({
       timestamp: new Date(),
       changed_by: changedBy,
@@ -229,14 +236,11 @@ export class ConfigManager {
       reason
     });
 
-    // Auto-sync lockers if hardware configuration changed
     if (section === 'hardware' && changedBy !== 'auto-sync-prevent-loop') {
       await this.triggerLockerSync(reason || 'Hardware configuration changed');
     }
 
-    // Trigger zone sync if zones were modified and zones are enabled
     if (section === 'zones' && this.config.features?.zones_enabled && changedBy !== 'auto-sync-zone-extension') {
-      // Calculate total channels and trigger zone sync to validate the new configuration
       const enabledCards = this.config.hardware.relay_cards.filter(card => card.enabled);
       const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
       
@@ -247,7 +251,12 @@ export class ConfigManager {
   }
 
   /**
-   * Update specific configuration parameter
+   * A convenience method to update a single parameter within a configuration section.
+   * @param {keyof CompleteSystemConfig} section - The section containing the parameter.
+   * @param {string} parameter - The name of the parameter to update.
+   * @param {any} value - The new value for the parameter.
+   * @param {string} changedBy - The identifier of the user or system making the change.
+   * @param {string} [reason] - An optional reason for the change.
    */
   async updateParameter(
     section: keyof CompleteSystemConfig,
@@ -261,7 +270,9 @@ export class ConfigManager {
   }
 
   /**
-   * Reset configuration to defaults
+   * Resets the current configuration to the default values.
+   * @param {string} changedBy - The identifier of the user or system performing the reset.
+   * @param {string} [reason] - An optional reason for the reset.
    */
   async resetToDefaults(changedBy: string, reason?: string): Promise<void> {
     const oldConfig = this.config;
@@ -269,7 +280,6 @@ export class ConfigManager {
     
     await this.saveConfiguration();
 
-    // Log the reset
     await this.logConfigChange({
       timestamp: new Date(),
       changed_by: changedBy,
@@ -281,14 +291,15 @@ export class ConfigManager {
   }
 
   /**
-   * Validate configuration
+   * Validates a given configuration object against a set of rules.
+   * @param {any} config - The configuration object to validate.
+   * @returns {ConfigValidationResult} An object containing the validation status, errors, and warnings.
    */
   validateConfiguration(config: any): ConfigValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     try {
-      // Validate required sections
       const requiredSections = ['system', 'database', 'services', 'hardware', 'security', 'lockers', 'qr', 'logging', 'i18n'];
       for (const section of requiredSections) {
         if (!config[section]) {
@@ -300,17 +311,14 @@ export class ConfigManager {
         return { valid: false, errors, warnings };
       }
 
-      // Validate system section
       if (!config.system.name || !config.system.version) {
         errors.push('System name and version are required');
       }
 
-      // Validate database section
       if (!config.database.path) {
         errors.push('Database path is required');
       }
 
-      // Validate service ports
       const ports = [
         config.services.gateway?.port,
         config.services.kiosk?.port,
@@ -323,13 +331,11 @@ export class ConfigManager {
         }
       }
 
-      // Check for port conflicts
       const uniquePorts = new Set(ports);
       if (uniquePorts.size !== ports.length) {
         errors.push('Port conflicts detected in service configuration');
       }
 
-      // Validate timing parameters
       if (config.lockers.reserve_ttl_seconds < 30) {
         warnings.push('Reserve TTL less than 30 seconds may cause user experience issues');
       }
@@ -338,12 +344,10 @@ export class ConfigManager {
         warnings.push('Modbus pulse duration outside recommended range (100-1000ms)');
       }
 
-      // Validate rate limits
       if (config.security.rate_limits.ip_per_minute < 10) {
         warnings.push('IP rate limit very low, may affect normal operation');
       }
 
-      // Validate secrets
       if (config.security.provisioning_secret === 'change-this-in-production' && config.system.environment === 'production') {
         errors.push('Provisioning secret must be changed in production');
       }
@@ -356,33 +360,28 @@ export class ConfigManager {
         errors.push('QR HMAC secret must be changed in production');
       }
 
-      // Validate i18n configuration
       if (!config.i18n.supported_languages.includes(config.i18n.default_language)) {
         errors.push('Default language must be in supported languages list');
       }
 
-      // Validate zones configuration (if enabled)
       if (config.features?.zones_enabled && config.zones) {
         for (const zone of config.zones) {
           if (!zone.id || typeof zone.id !== 'string') {
             errors.push('Zone ID is required and must be a string');
           }
           
-          // Ranges must exist only for enabled zones; disabled zones may have empty ranges
           if (zone.enabled) {
             if (!Array.isArray(zone.ranges) || zone.ranges.length === 0) {
               errors.push(`Zone ${zone.id}: ranges array is required and cannot be empty when zone is enabled`);
             }
           }
           
-          // relay_cards must exist only for enabled zones; disabled zones may be empty
           if (zone.enabled) {
             if (!Array.isArray(zone.relay_cards) || zone.relay_cards.length === 0) {
               errors.push(`Zone ${zone.id}: relay_cards array is required and cannot be empty when zone is enabled`);
             }
           }
           
-          // Validate range format
           if (Array.isArray(zone.ranges) && zone.ranges.length > 0) {
             for (const range of zone.ranges) {
               if (!Array.isArray(range) || range.length !== 2 || range[0] >= range[1]) {
@@ -391,7 +390,6 @@ export class ConfigManager {
             }
           }
           
-          // Validate relay card references
           const availableCards = config.hardware.relay_cards.map((card: RelayCard) => card.slave_address);
           for (const cardId of zone.relay_cards) {
             if (!availableCards.includes(cardId)) {
@@ -413,7 +411,9 @@ export class ConfigManager {
   }
 
   /**
-   * Get default configuration
+   * Returns a complete, default configuration object.
+   * @private
+   * @returns {CompleteSystemConfig} The default configuration.
    */
   private getDefaultConfiguration(): CompleteSystemConfig {
     return {
@@ -516,7 +516,8 @@ export class ConfigManager {
   }
 
   /**
-   * Save configuration to file
+   * Saves the current configuration object to its file path.
+   * @private
    */
   private async saveConfiguration(): Promise<void> {
     if (!this.config) {
@@ -528,7 +529,9 @@ export class ConfigManager {
   }
 
   /**
-   * Log configuration change
+   * Logs a configuration change event to the database for auditing.
+   * @private
+   * @param {ConfigChangeEvent} change - The details of the configuration change.
    */
   private async logConfigChange(change: ConfigChangeEvent): Promise<void> {
     if (!this.eventRepository) {
@@ -546,10 +549,10 @@ export class ConfigManager {
           new_value: change.new_value,
           reason: change.reason
         },
-        undefined, // lockerId
-        undefined, // rfidCard
-        undefined, // deviceId
-        change.changed_by // staffUser
+        undefined,
+        undefined,
+        undefined,
+        change.changed_by
       );
     } catch (error) {
       console.error('Failed to log config change:', error);
@@ -557,22 +560,22 @@ export class ConfigManager {
   }
 
   /**
-   * Sync zones with hardware configuration
-   * Called when hardware changes and zones are enabled
+   * Automatically synchronizes zone definitions with the hardware configuration.
+   * This is called internally when hardware settings are changed.
+   * @private
+   * @param {number} totalLockers - The total number of lockers available according to the hardware.
+   * @param {string} reason - The reason for the sync.
    */
   private async syncZonesWithHardware(totalLockers: number, reason: string): Promise<void> {
     try {
       console.log(`🔄 Zone sync triggered: ${totalLockers} total lockers (${reason})`);
       
-      // Import ZoneExtensionService
       const { ZoneExtensionService } = await import('./zone-extension-service');
       const zoneService = new ZoneExtensionService();
       
-      // Create configuration backup before zone modifications
       const backupResult = await this.createConfigurationBackup('zone-sync', reason);
       if (!backupResult.success) {
         console.warn('⚠️ Failed to create configuration backup:', backupResult.error);
-        // Continue with sync but log the backup failure
         await this.logConfigChange({
           timestamp: new Date(),
           changed_by: 'auto-sync-backup-warning',
@@ -585,13 +588,11 @@ export class ConfigManager {
         console.log(`📋 Configuration backup created: ${backupResult.backupPath}`);
       }
       
-      // Validate zone extension before applying
       const validation = zoneService.validateZoneExtension(this.config!, totalLockers);
       
       if (!validation.valid) {
         console.error('❌ Zone extension validation failed:', validation.errors.join(', '));
         
-        // Log validation failure
         await this.logConfigChange({
           timestamp: new Date(),
           changed_by: 'auto-sync-zone-validation',
@@ -608,13 +609,11 @@ export class ConfigManager {
         console.warn('⚠️ Zone extension warnings:', validation.warnings.join(', '));
       }
       
-      // Perform zone sync
       const syncResult = await zoneService.syncZonesWithHardware(this.config!, totalLockers);
       
       if (syncResult.error) {
         console.error('❌ Zone sync failed:', syncResult.error);
         
-        // Log sync failure
         await this.logConfigChange({
           timestamp: new Date(),
           changed_by: 'auto-sync-zone-error',
@@ -638,10 +637,8 @@ export class ConfigManager {
           console.log(`🔧 Relay cards updated: ${JSON.stringify(syncResult.updatedRelayCards)}`);
         }
         
-        // Save the updated configuration (zones were modified in-place)
         await this.saveConfiguration();
         
-        // Log successful zone extension
         await this.logConfigChange({
           timestamp: new Date(),
           changed_by: 'auto-sync-zone-extension',
@@ -663,7 +660,6 @@ export class ConfigManager {
     } catch (error) {
       console.error('❌ Zone sync error:', error);
       
-      // Log sync error
       try {
         await this.logConfigChange({
           timestamp: new Date(),
@@ -676,40 +672,35 @@ export class ConfigManager {
       } catch (logError) {
         console.error('Failed to log zone sync error:', logError);
       }
-      
-      // Don't throw - allow hardware sync to continue even if zone sync fails
     }
   }
 
   /**
-   * Trigger locker sync when hardware configuration changes
+   * Triggers a locker database sync when the hardware configuration changes.
+   * @private
+   * @param {string} reason - The reason for the sync.
    */
   private async triggerLockerSync(reason: string): Promise<void> {
     try {
       console.log(`🔄 Config change detected: triggering locker sync (${reason})`);
       
-      // Calculate new total channels from updated hardware config
       const enabledCards = this.config!.hardware.relay_cards.filter(card => card.enabled);
       const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
       
       if (totalChannels > 0) {
-        // Sync zones with hardware if zones are enabled
         if (this.config!.features?.zones_enabled) {
           await this.syncZonesWithHardware(totalChannels, reason);
         }
         
-        // Import and sync for all known kiosks (typically just kiosk-1)
         const { LockerStateManager } = await import('./locker-state-manager');
         const { DatabaseConnection } = await import('../database/connection');
         
         const db = DatabaseConnection.getInstance();
         const stateManager = new LockerStateManager(db);
         
-        // Sync for default kiosk (could be extended to support multiple kiosks)
         const kioskId = 'kiosk-1';
         await stateManager.syncLockersWithHardware(kioskId, totalChannels);
         
-        // Update locker count in config to match hardware
         if (this.config!.lockers.total_count !== totalChannels) {
           console.log(`🔧 Auto-updating locker count: ${this.config!.lockers.total_count} → ${totalChannels}`);
           this.config!.lockers.total_count = totalChannels;
@@ -720,13 +711,14 @@ export class ConfigManager {
       }
     } catch (error) {
       console.error('❌ Auto-sync failed after config change:', error);
-      // Don't throw - config update should still succeed even if sync fails
     }
   }
 
   /**
-   * Manually trigger zone sync with hardware
-   * Public method for external zone sync requests
+   * Manually triggers a synchronization between the zone definitions and the hardware configuration.
+   * @param {string} changedBy - The identifier of the user or system requesting the sync.
+   * @param {string} [reason] - An optional reason for the sync.
+   * @returns {Promise<{ success: boolean; message: string; details?: any }>} The result of the sync operation.
    */
   async manualZoneSync(changedBy: string, reason?: string): Promise<{ success: boolean; message: string; details?: any }> {
     try {
@@ -738,7 +730,6 @@ export class ConfigManager {
         return { success: false, message: 'Zones are not enabled in configuration' };
       }
 
-      // Calculate total channels from hardware config
       const enabledCards = this.config.hardware.relay_cards.filter(card => card.enabled);
       const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
 
@@ -746,7 +737,6 @@ export class ConfigManager {
         return { success: false, message: 'No enabled relay cards found in hardware configuration' };
       }
 
-      // Perform zone sync
       await this.syncZonesWithHardware(totalChannels, reason || `Manual zone sync by ${changedBy}`);
 
       return { 
@@ -768,8 +758,10 @@ export class ConfigManager {
   }
 
   /**
-   * Validate zone configuration before applying updates
-   * Enhanced validation to prevent invalid zone configurations
+   * Validates a proposed update to the zone configuration.
+   * @param {Partial<CompleteSystemConfig['zones']>} zoneUpdates - The proposed zone configuration.
+   * @param {string} changedBy - The identifier of the user or system making the change.
+   * @returns {Promise<{ valid: boolean; errors: string[]; warnings: string[] }>} The validation result.
    */
   async validateZoneConfigurationUpdate(
     zoneUpdates: Partial<CompleteSystemConfig['zones']>,
@@ -783,52 +775,42 @@ export class ConfigManager {
     const warnings: string[] = [];
 
     try {
-      // Create test configuration with proposed zone updates
       const testConfig = {
         ...this.config,
         zones: Array.isArray(zoneUpdates) ? zoneUpdates : this.config.zones
       };
 
-      // Use ZoneExtensionService for validation
       const { ZoneExtensionService } = await import('./zone-extension-service');
       const zoneService = new ZoneExtensionService();
 
-      // Calculate total hardware capacity
       const enabledCards = this.config.hardware.relay_cards.filter(card => card.enabled);
       const totalHardwareCapacity = enabledCards.reduce((sum, card) => sum + card.channels, 0);
 
-      // Validate the zone configuration
       const validation = zoneService.validateZoneExtension(testConfig as CompleteSystemConfig, totalHardwareCapacity);
       
       errors.push(...validation.errors);
       warnings.push(...validation.warnings);
 
-      // Additional ConfigManager-specific validations
       if (testConfig.zones && testConfig.features?.zones_enabled && Array.isArray(testConfig.zones)) {
-        // Filter out any undefined zones and ensure type safety
         const validZones = testConfig.zones.filter((zone): zone is NonNullable<typeof zone> => zone != null);
         
-        // Check for duplicate zone IDs
         const zoneIds = validZones.map(zone => zone.id);
         const duplicateIds = zoneIds.filter((id, index) => zoneIds.indexOf(id) !== index);
         if (duplicateIds.length > 0) {
           errors.push(`Duplicate zone IDs found: ${duplicateIds.join(', ')}`);
         }
 
-        // Check for empty zone IDs
         const emptyIds = validZones.filter(zone => !zone.id || zone.id.trim() === '');
         if (emptyIds.length > 0) {
           errors.push('Zone IDs cannot be empty');
         }
 
-        // Check for invalid characters in zone IDs
         const invalidIdPattern = /[^a-zA-Z0-9_-]/;
         const invalidIds = validZones.filter(zone => invalidIdPattern.test(zone.id));
         if (invalidIds.length > 0) {
           errors.push(`Zone IDs contain invalid characters: ${invalidIds.map(z => z.id).join(', ')}`);
         }
 
-        // Validate relay card references
         const availableCards = this.config.hardware.relay_cards
           .filter(card => card.enabled)
           .map(card => card.slave_address);
@@ -844,7 +826,6 @@ export class ConfigManager {
         }
       }
 
-      // Log validation attempt
       await this.logConfigChange({
         timestamp: new Date(),
         changed_by: changedBy,
@@ -877,7 +858,9 @@ export class ConfigManager {
   }
 
   /**
-   * Get configuration change history
+   * Retrieves the history of configuration changes.
+   * @param {number} [limit=50] - The maximum number of history records to return.
+   * @returns {Promise<ConfigChangeEvent[]>} An array of configuration change events.
    */
   async getConfigChangeHistory(limit: number = 50): Promise<ConfigChangeEvent[]> {
     if (!this.eventRepository) {
@@ -905,11 +888,10 @@ export class ConfigManager {
   }
 
   /**
-   * Create a backup of the current configuration before modifications
-   * 
-   * @param operation - The operation that triggered the backup
-   * @param reason - Reason for the backup
-   * @returns Backup result with success status and backup path
+   * Creates a timestamped backup of the current configuration file.
+   * @param {string} operation - The operation that triggered the backup (e.g., 'pre-restore').
+   * @param {string} reason - The reason for the backup.
+   * @returns {Promise<{ success: boolean; backupPath?: string; error?: string }>} The result of the backup operation.
    */
   async createConfigurationBackup(
     operation: string, 
@@ -920,22 +902,18 @@ export class ConfigManager {
         return { success: false, error: 'No configuration loaded to backup' };
       }
 
-      // Create backup filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupFilename = `system-config-backup-${operation}-${timestamp}.json`;
       const backupPath = `./config/backups/${backupFilename}`;
 
-      // Ensure backup directory exists
       const { mkdir } = await import('fs/promises');
       const { dirname } = await import('path');
       
       try {
         await mkdir(dirname(backupPath), { recursive: true });
       } catch (mkdirError) {
-        // Directory might already exist, continue
       }
 
-      // Create backup with metadata
       const backupData = {
         metadata: {
           backup_timestamp: new Date().toISOString(),
@@ -947,10 +925,8 @@ export class ConfigManager {
         configuration: this.config
       };
 
-      // Write backup file
       await writeFile(backupPath, JSON.stringify(backupData, null, 2), 'utf8');
 
-      // Log the backup creation
       await this.logConfigChange({
         timestamp: new Date(),
         changed_by: 'system-backup',
@@ -976,30 +952,25 @@ export class ConfigManager {
   }
 
   /**
-   * Restore configuration from backup
-   * 
-   * @param backupPath - Path to the backup file
-   * @param restoredBy - User or system performing the restore
-   * @returns Restore result
+   * Restores the system configuration from a specified backup file.
+   * @param {string} backupPath - The path to the backup file.
+   * @param {string} restoredBy - The identifier of the user or system performing the restore.
+   * @returns {Promise<{ success: boolean; error?: string }>} The result of the restore operation.
    */
   async restoreConfigurationFromBackup(
     backupPath: string,
     restoredBy: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      // Check if backup file exists
       await access(backupPath);
 
-      // Read backup file
       const backupContent = await readFile(backupPath, 'utf8');
       const backupData = JSON.parse(backupContent);
 
-      // Validate backup structure
       if (!backupData.configuration || !backupData.metadata) {
         return { success: false, error: 'Invalid backup file structure' };
       }
 
-      // Create a backup of current config before restore
       const currentBackupResult = await this.createConfigurationBackup(
         'pre-restore', 
         `Backup before restoring from ${backupPath}`
@@ -1009,7 +980,6 @@ export class ConfigManager {
         console.warn('Failed to backup current config before restore:', currentBackupResult.error);
       }
 
-      // Validate the backup configuration
       const validationResult = await this.validateConfiguration(backupData.configuration);
       if (!validationResult.valid) {
         return { 
@@ -1018,16 +988,12 @@ export class ConfigManager {
         };
       }
 
-      // Store old configuration for logging
       const oldConfig = this.config;
 
-      // Apply the restored configuration
       this.config = backupData.configuration;
 
-      // Save the restored configuration
       await this.saveConfiguration();
 
-      // Log the restore operation
       await this.logConfigChange({
         timestamp: new Date(),
         changed_by: restoredBy,
@@ -1056,10 +1022,10 @@ export class ConfigManager {
   }
 
   /**
-   * Generate a hash of the configuration for change detection
-   * 
-   * @param config - Configuration to hash
-   * @returns Configuration hash string
+   * Generates a SHA-256 hash of a configuration object for quick comparison.
+   * @private
+   * @param {CompleteSystemConfig | null} config - The configuration object to hash.
+   * @returns {string} A 16-character hash string.
    */
   private generateConfigHash(config: CompleteSystemConfig | null): string {
     if (!config) return 'null';
@@ -1074,5 +1040,7 @@ export class ConfigManager {
   }
 }
 
-// Export singleton instance
+/**
+ * A singleton instance of the ConfigManager for easy access throughout the application.
+ */
 export const configManager = ConfigManager.getInstance();

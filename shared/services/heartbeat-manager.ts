@@ -4,13 +4,25 @@ import { EventLogger } from './event-logger';
 import { DatabaseConnection } from '../database/connection';
 import { KioskHeartbeat, KioskStatus, EventType } from '../types/core-entities';
 
+/**
+ * Defines the configuration options for the HeartbeatManager.
+ */
 export interface HeartbeatConfig {
-  heartbeatIntervalMs: number; // Default: 10000 (10 seconds)
-  offlineThresholdMs: number;  // Default: 30000 (30 seconds)
-  pollIntervalMs: number;      // Default: 2000 (2 seconds)
-  cleanupIntervalMs: number;   // Default: 60000 (1 minute)
+  /** The interval at which kiosks should send heartbeats. */
+  heartbeatIntervalMs: number;
+  /** The duration after which a kiosk is considered offline if no heartbeat is received. */
+  offlineThresholdMs: number;
+  /** The interval at which kiosks should poll for new commands. */
+  pollIntervalMs: number;
+  /** The interval for running cleanup tasks, such as marking kiosks offline. */
+  cleanupIntervalMs: number;
 }
 
+/**
+ * Manages the kiosk heartbeat system, which is crucial for monitoring the online
+ * status of all kiosks. It handles kiosk registration, processes incoming heartbeats,
+ * and runs periodic checks to mark stale kiosks as offline.
+ */
 export class HeartbeatManager {
   private heartbeatRepo: KioskHeartbeatRepository;
   private commandQueue: CommandQueueManager;
@@ -19,6 +31,12 @@ export class HeartbeatManager {
   private cleanupTimer?: NodeJS.Timeout;
   private isRunning = false;
 
+  /**
+   * Creates an instance of HeartbeatManager.
+   * @param {Partial<HeartbeatConfig>} [config={}] - Optional configuration overrides.
+   * @param {EventLogger} [eventLogger] - An optional logger for recording events.
+   * @param {DatabaseConnection} [db] - An optional database connection.
+   */
   constructor(config: Partial<HeartbeatConfig> = {}, eventLogger?: EventLogger, db?: DatabaseConnection) {
     const dbConnection = db || DatabaseConnection.getInstance();
     this.heartbeatRepo = new KioskHeartbeatRepository(dbConnection);
@@ -35,7 +53,8 @@ export class HeartbeatManager {
   }
 
   /**
-   * Start the heartbeat monitoring system
+   * Starts the heartbeat monitoring system. This includes recovering any stale commands
+   * and setting up a periodic timer to mark offline kiosks.
    */
   async start(): Promise<void> {
     if (this.isRunning) {
@@ -45,10 +64,8 @@ export class HeartbeatManager {
     this.isRunning = true;
     console.log('Starting heartbeat manager...');
 
-    // Recover stale executing commands on startup
     await this.recoverStaleCommands();
 
-    // Start periodic cleanup of offline kiosks and stale commands
     this.cleanupTimer = setInterval(async () => {
       try {
         await this.markOfflineKiosks();
@@ -62,7 +79,7 @@ export class HeartbeatManager {
   }
 
   /**
-   * Stop the heartbeat monitoring system
+   * Stops the heartbeat monitoring system and clears any running timers.
    */
   async stop(): Promise<void> {
     if (!this.isRunning) {
@@ -80,7 +97,13 @@ export class HeartbeatManager {
   }
 
   /**
-   * Register a new kiosk
+   * Registers a new kiosk with the system.
+   * @param {string} kioskId - The unique ID of the kiosk.
+   * @param {string} zone - The zone the kiosk belongs to.
+   * @param {string} version - The software version of the kiosk.
+   * @param {string} [hardwareId] - An optional unique hardware identifier.
+   * @param {string} [registrationSecret] - An optional secret for registration.
+   * @returns {Promise<KioskHeartbeat>} The created kiosk heartbeat record.
    */
   async registerKiosk(
     kioskId: string,
@@ -98,7 +121,6 @@ export class HeartbeatManager {
         registrationSecret
       );
 
-      // Log registration event
       if (this.eventLogger) {
         await this.eventLogger.logEvent(
           kioskId,
@@ -121,7 +143,11 @@ export class HeartbeatManager {
   }
 
   /**
-   * Update heartbeat for a kiosk
+   * Processes a heartbeat from a kiosk, updating its last seen time and online status.
+   * @param {string} kioskId - The ID of the kiosk sending the heartbeat.
+   * @param {string} [version] - The current software version of the kiosk.
+   * @param {string} [configHash] - The hash of the kiosk's current configuration.
+   * @returns {Promise<KioskHeartbeat>} The updated kiosk heartbeat record.
    */
   async updateHeartbeat(
     kioskId: string,
@@ -131,7 +157,6 @@ export class HeartbeatManager {
     try {
       const kiosk = await this.heartbeatRepo.updateHeartbeat(kioskId, version, configHash);
       
-      // If kiosk was offline and is now online, log the event
       if (kiosk.status === 'online') {
         const wasOffline = await this.wasKioskOffline(kioskId);
         if (wasOffline) {
@@ -158,28 +183,33 @@ export class HeartbeatManager {
   }
 
   /**
-   * Get all kiosks with their status
+   * Retrieves all registered kiosks and their current status.
+   * @returns {Promise<KioskHeartbeat[]>} An array of all kiosk heartbeat records.
    */
   async getAllKiosks(): Promise<KioskHeartbeat[]> {
     return this.heartbeatRepo.findAll();
   }
 
   /**
-   * Get kiosks by zone
+   * Retrieves all kiosks within a specific zone.
+   * @param {string} zone - The zone to filter by.
+   * @returns {Promise<KioskHeartbeat[]>} An array of kiosk heartbeat records.
    */
   async getKiosksByZone(zone: string): Promise<KioskHeartbeat[]> {
     return this.heartbeatRepo.getByZone(zone);
   }
 
   /**
-   * Get all zones
+   * Retrieves a list of all unique zone names.
+   * @returns {Promise<string[]>} An array of zone names.
    */
   async getAllZones(): Promise<string[]> {
     return this.heartbeatRepo.getAllZones();
   }
 
   /**
-   * Get kiosk statistics
+   * Retrieves statistics about the kiosk fleet, such as online/offline counts.
+   * @returns {Promise<object>} An object containing kiosk statistics.
    */
   async getStatistics(): Promise<{
     total: number;
@@ -194,7 +224,10 @@ export class HeartbeatManager {
   }
 
   /**
-   * Get pending commands for a kiosk (used by kiosk polling)
+   * Retrieves pending commands for a kiosk. This is typically called by the kiosk during polling.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} [limit=10] - The maximum number of commands to retrieve.
+   * @returns {Promise<any[]>} An array of pending commands.
    */
   async getPendingCommands(kioskId: string, limit: number = 10): Promise<any[]> {
     try {
@@ -206,7 +239,9 @@ export class HeartbeatManager {
   }
 
   /**
-   * Mark command as completed (called by kiosk after executing command)
+   * Marks a command as completed. This is called by the kiosk after successfully executing a command.
+   * @param {string} commandId - The ID of the completed command.
+   * @returns {Promise<boolean>} True if the command was successfully marked.
    */
   async markCommandCompleted(commandId: string): Promise<boolean> {
     try {
@@ -218,7 +253,10 @@ export class HeartbeatManager {
   }
 
   /**
-   * Mark command as failed (called by kiosk if command execution fails)
+   * Marks a command as failed. This is called by the kiosk if command execution fails.
+   * @param {string} commandId - The ID of the failed command.
+   * @param {string} error - A description of the error.
+   * @returns {Promise<boolean>} True if the command was successfully marked.
    */
   async markCommandFailed(commandId: string, error: string): Promise<boolean> {
     try {
@@ -230,13 +268,15 @@ export class HeartbeatManager {
   }
 
   /**
-   * Update kiosk status manually
+   * Manually updates the status of a kiosk (e.g., to 'maintenance').
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {KioskStatus} status - The new status to set.
+   * @returns {Promise<KioskHeartbeat>} The updated kiosk heartbeat record.
    */
   async updateKioskStatus(kioskId: string, status: KioskStatus): Promise<KioskHeartbeat> {
     try {
       const kiosk = await this.heartbeatRepo.updateStatus(kioskId, status);
       
-      // Log status change event
       if (this.eventLogger) {
         await this.eventLogger.logEvent(
           kioskId,
@@ -257,7 +297,9 @@ export class HeartbeatManager {
   }
 
   /**
-   * Clear pending commands for a kiosk (used on restart)
+   * Clears all pending commands for a kiosk, typically used on kiosk restart.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<number>} The number of commands that were cleared.
    */
   async clearPendingCommands(kioskId: string): Promise<number> {
     try {
@@ -284,7 +326,9 @@ export class HeartbeatManager {
   }
 
   /**
-   * Get kiosk health information
+   * Retrieves a combined health report for a specific kiosk, including its status and command queue stats.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<object>} A combined health report for the kiosk.
    */
   async getKioskHealth(kioskId: string): Promise<{
     kiosk: KioskHeartbeat | null;
@@ -314,20 +358,19 @@ export class HeartbeatManager {
   }
 
   /**
-   * Private method to mark offline kiosks
+   * Scans for and marks kiosks as 'offline' if they have not sent a heartbeat within the configured threshold.
+   * @private
    */
   private async markOfflineKiosks(): Promise<void> {
     try {
       const markedOffline = await this.heartbeatRepo.markOfflineKiosks();
       
       if (markedOffline > 0) {
-        // Get the newly offline kiosks to log events
         const offlineKiosks = await this.heartbeatRepo.getOfflineKiosks();
         
         for (const kiosk of offlineKiosks) {
           const timeSinceLastSeen = Date.now() - kiosk.last_seen.getTime();
           
-          // Only log if recently went offline (within the last cleanup interval)
           if (timeSinceLastSeen < this.config.cleanupIntervalMs + this.config.offlineThresholdMs) {
             if (this.eventLogger) {
               await this.eventLogger.logEvent(
@@ -351,12 +394,13 @@ export class HeartbeatManager {
   }
 
   /**
-   * Private method to check if kiosk was previously offline
+   * Checks if a kiosk was previously marked as offline.
+   * @private
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<boolean>} True if the kiosk was offline.
    */
   private async wasKioskOffline(kioskId: string): Promise<boolean> {
     try {
-      // This is a simple check - in a more sophisticated system,
-      // we might track status changes in a separate table
       const kiosk = await this.heartbeatRepo.findById(kioskId);
       return kiosk?.status === 'offline';
     } catch (error) {
@@ -365,7 +409,8 @@ export class HeartbeatManager {
   }
 
   /**
-   * Get configuration for kiosk polling
+   * Gets the configuration settings relevant for kiosk polling.
+   * @returns {{ heartbeatIntervalMs: number; pollIntervalMs: number }} The polling configuration.
    */
   getPollingConfig(): {
     heartbeatIntervalMs: number;
@@ -378,7 +423,9 @@ export class HeartbeatManager {
   }
 
   /**
-   * Cleanup old command queue entries
+   * Deletes old, finalized command queue entries.
+   * @param {number} [retentionDays=7] - The number of days to keep finalized commands.
+   * @returns {Promise<number>} The number of commands cleaned up.
    */
   async cleanupOldCommands(retentionDays: number = 7): Promise<number> {
     try {
@@ -390,12 +437,13 @@ export class HeartbeatManager {
   }
 
   /**
-   * Recover stale executing commands (older than 120 seconds)
-   * Move them back to pending or mark as failed
+   * Finds and recovers commands that have been in the 'executing' state for too long.
+   * These stale commands are marked as failed to prevent them from getting stuck.
+   * @private
    */
   private async recoverStaleCommands(): Promise<void> {
     try {
-      const staleThresholdMs = 120 * 1000; // 120 seconds
+      const staleThresholdMs = 120 * 1000;
       const staleCommands = await this.commandQueue.findStaleExecutingCommands(staleThresholdMs);
       
       if (staleCommands.length > 0) {
@@ -404,7 +452,6 @@ export class HeartbeatManager {
         for (const command of staleCommands) {
           const staleDurationMs = Date.now() - command.executed_at!.getTime();
           
-          // Mark as failed if it's been executing for too long
           await this.commandQueue.markCommandFailed(
             command.command_id,
             `Command timed out after ${Math.round(staleDurationMs / 1000)}s (stale command recovery)`
@@ -412,7 +459,6 @@ export class HeartbeatManager {
           
           console.log(`Recovered stale command ${command.command_id} (${command.command_type}) after ${Math.round(staleDurationMs / 1000)}s`);
           
-          // Log recovery event
           if (this.eventLogger) {
             await this.eventLogger.logEvent(
               command.kiosk_id,

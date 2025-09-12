@@ -6,15 +6,20 @@ import path from 'path';
 import crypto from 'crypto';
 
 /**
- * Log Retention and Anonymization Manager
- * Implements automatic log cleanup and privacy protection
- * Requirements: Log Retention Policy
+ * Manages the retention and anonymization of logs and database records
+ * to maintain system performance and protect user privacy.
  */
 export class LogRetentionManager {
   private db: DatabaseConnection;
   private eventLogger: EventLogger;
   private config: RetentionConfig;
 
+  /**
+   * Creates an instance of LogRetentionManager.
+   * @param {DatabaseConnection} db - The database connection.
+   * @param {EventLogger} eventLogger - The logger for recording cleanup events.
+   * @param {Partial<RetentionConfig>} [config={}] - Optional configuration overrides.
+   */
   constructor(
     db: DatabaseConnection,
     eventLogger: EventLogger,
@@ -36,7 +41,9 @@ export class LogRetentionManager {
   }
 
   /**
-   * Run comprehensive log cleanup
+   * Runs a comprehensive cleanup process, including deleting old events and files,
+   * and anonymizing old records.
+   * @returns {Promise<CleanupResult>} A summary of the cleanup operation.
    */
   async runCleanup(): Promise<CleanupResult> {
     const startTime = Date.now();
@@ -50,18 +57,12 @@ export class LogRetentionManager {
     };
 
     try {
-      // Clean up old events
       result.events_deleted = await this.cleanupOldEvents();
-
-      // Clean up old file logs
       result.files_deleted = await this.cleanupOldFileLogs();
-
-      // Anonymize old records
       if (this.config.anonymization_enabled) {
         result.records_anonymized = await this.anonymizeOldRecords();
       }
 
-      // Log cleanup activity
       await this.eventLogger.logEvent(
         'system',
         'log_cleanup_completed' as EventType,
@@ -91,12 +92,12 @@ export class LogRetentionManager {
   }
 
   /**
-   * Clean up old events based on retention policy
+   * Deletes old event records from the database based on the configured retention periods.
+   * @returns {Promise<number>} The total number of event records deleted.
    */
   async cleanupOldEvents(): Promise<number> {
     let totalDeleted = 0;
 
-    // Clean up regular events
     const eventCutoff = new Date();
     eventCutoff.setDate(eventCutoff.getDate() - this.config.event_retention_days);
 
@@ -111,7 +112,6 @@ export class LogRetentionManager {
     const eventResult = await this.db.run(eventDeleteSql, [eventCutoff.toISOString()]);
     totalDeleted += eventResult.changes;
 
-    // Clean up audit events (staff actions) with longer retention
     const auditCutoff = new Date();
     auditCutoff.setDate(auditCutoff.getDate() - this.config.audit_retention_days);
 
@@ -132,7 +132,8 @@ export class LogRetentionManager {
   }
 
   /**
-   * Clean up old file logs
+   * Deletes old log files from the file system based on the configured retention period.
+   * @returns {Promise<number>} The total number of files deleted.
    */
   async cleanupOldFileLogs(): Promise<number> {
     const logDirectories = [
@@ -162,7 +163,6 @@ export class LogRetentionManager {
           }
         }
       } catch (error) {
-        // Directory might not exist, continue with other directories
         continue;
       }
     }
@@ -171,30 +171,25 @@ export class LogRetentionManager {
   }
 
   /**
-   * Anonymize old records for privacy protection
+   * Anonymizes sensitive data in old database records to protect user privacy.
+   * @returns {Promise<number>} The total number of records anonymized.
    */
   async anonymizeOldRecords(): Promise<number> {
     let totalAnonymized = 0;
-
-    // Anonymize device IDs in old events
     totalAnonymized += await this.anonymizeDeviceIds();
-
-    // Anonymize RFID cards in old events (keep recent for operational needs)
     totalAnonymized += await this.anonymizeRfidCards();
-
-    // Anonymize IP addresses in QR access logs
     totalAnonymized += await this.anonymizeIpAddresses();
-
     return totalAnonymized;
   }
 
   /**
-   * Anonymize device IDs in old events
+   * Anonymizes device IDs in old event records.
+   * @private
    */
   private async anonymizeDeviceIds(): Promise<number> {
     try {
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 7); // Anonymize after 7 days
+    cutoffDate.setDate(cutoffDate.getDate() - 7);
 
     const sql = `
       UPDATE events 
@@ -204,7 +199,6 @@ export class LogRetentionManager {
         AND device_id NOT LIKE 'anon_%'
     `;
 
-    // Get records to anonymize
     interface DeviceRecord {
       id: number;
       device_id: string;
@@ -230,7 +224,6 @@ export class LogRetentionManager {
         details = {};
       }
 
-      // Update device_hash in details if present
       if ((details as any).device_hash) {
         (details as any).device_hash = anonymizedDeviceId;
       }
@@ -250,14 +243,14 @@ export class LogRetentionManager {
   }
 
   /**
-   * Anonymize RFID cards in old events
+   * Anonymizes RFID card numbers in old event records.
+   * @private
    */
   private async anonymizeRfidCards(): Promise<number> {
     try {
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 30); // Anonymize after 30 days
+    cutoffDate.setDate(cutoffDate.getDate() - 30);
 
-    // Get records to anonymize
     const records = await this.db.all(
       `SELECT id, rfid_card FROM events 
        WHERE rfid_card IS NOT NULL 
@@ -286,14 +279,14 @@ export class LogRetentionManager {
   }
 
   /**
-   * Anonymize IP addresses in event details
+   * Anonymizes IP addresses stored in the details of old event records.
+   * @private
    */
   private async anonymizeIpAddresses(): Promise<number> {
     try {
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 1); // Anonymize IP addresses after 1 day
+    cutoffDate.setDate(cutoffDate.getDate() - 1);
 
-    // Get QR access events with IP addresses
     const records = await this.db.all(
       `SELECT id, details FROM events 
        WHERE (event_type = 'qr_assign' OR event_type = 'qr_release')
@@ -319,7 +312,6 @@ export class LogRetentionManager {
           anonymized++;
         }
       } catch {
-        // Skip records with invalid JSON
         continue;
       }
     }
@@ -331,7 +323,10 @@ export class LogRetentionManager {
   }
 
   /**
-   * Hash sensitive data for anonymization
+   * Hashes sensitive data using a salted SHA-256 algorithm for anonymization.
+   * @private
+   * @param {string} data - The data to hash.
+   * @returns {string} The anonymized (hashed) string.
    */
   private hashSensitiveData(data: string): string {
     const hash = crypto
@@ -344,7 +339,10 @@ export class LogRetentionManager {
   }
 
   /**
-   * Check if file is a log file
+   * Checks if a filename matches common log file patterns.
+   * @private
+   * @param {string} filename - The filename to check.
+   * @returns {boolean} True if the file is identified as a log file.
    */
   private isLogFile(filename: string): boolean {
     const logExtensions = ['.log', '.txt', '.out'];
@@ -362,7 +360,8 @@ export class LogRetentionManager {
   }
 
   /**
-   * Get retention statistics
+   * Retrieves statistics about data retention, including record counts by age and estimated cleanup size.
+   * @returns {Promise<RetentionStatistics>} An object containing retention statistics.
    */
   async getRetentionStatistics(): Promise<RetentionStatistics> {
     const stats: RetentionStatistics = {
@@ -375,11 +374,9 @@ export class LogRetentionManager {
       retention_config: this.config
     };
 
-    // Get total events
     const totalResult = await this.db.get('SELECT COUNT(*) as count FROM events');
     stats.total_events = (totalResult as any)?.count || 0;
 
-    // Get events by age ranges
     const ageRanges = [
       { label: '0-7 days', days: 7 },
       { label: '8-30 days', days: 30 },
@@ -407,7 +404,6 @@ export class LogRetentionManager {
       previousDays = range.days;
     }
 
-    // Count anonymized records
     const anonymizedResult = await this.db.get(`
       SELECT COUNT(*) as count FROM events 
       WHERE device_id LIKE 'anon_%' 
@@ -416,7 +412,6 @@ export class LogRetentionManager {
     `);
     stats.anonymized_records = (anonymizedResult as any)?.count || 0;
 
-    // Estimate cleanup size (events older than retention period)
     const eventCutoff = new Date();
     eventCutoff.setDate(eventCutoff.getDate() - this.config.event_retention_days);
     
@@ -426,7 +421,6 @@ export class LogRetentionManager {
     );
     stats.estimated_cleanup_size = (cleanupResult as any)?.count || 0;
 
-    // Calculate next cleanup date
     stats.next_cleanup_date = new Date();
     stats.next_cleanup_date.setHours(stats.next_cleanup_date.getHours() + this.config.cleanup_interval_hours);
 
@@ -434,7 +428,11 @@ export class LogRetentionManager {
   }
 
   /**
-   * Create anonymized data export for compliance
+   * Creates an anonymized export of event data for compliance or analysis purposes.
+   * @param {Date} fromDate - The start date for the export.
+   * @param {Date} toDate - The end date for the export.
+   * @param {string[]} [includeTypes=[]] - An optional array of event types to include.
+   * @returns {Promise<AnonymizedExport>} The exported data.
    */
   async createAnonymizedExport(
     fromDate: Date,
@@ -504,23 +502,23 @@ export class LogRetentionManager {
   }
 
   /**
-   * Anonymize details object for export
+   * Anonymizes the details of an event record for export.
+   * @private
+   * @param {string} detailsJson - The JSON string of the event details.
+   * @returns {Record<string, any>} The anonymized details object.
    */
   private anonymizeDetailsForExport(detailsJson: string): Record<string, any> {
     try {
       const details = JSON.parse(detailsJson || '{}');
       
-      // Anonymize IP addresses
       if (details.ip_address && !details.ip_address.startsWith('anon_')) {
         details.ip_address = 'anon_export_ip';
       }
       
-      // Anonymize device hashes
       if (details.device_hash && !details.device_hash.startsWith('anon_')) {
         details.device_hash = 'anon_export_hash';
       }
       
-      // Remove user agent strings
       if (details.user_agent) {
         details.user_agent = 'anon_user_agent';
       }
@@ -532,14 +530,17 @@ export class LogRetentionManager {
   }
 
   /**
-   * Generate unique export ID
+   * Generates a unique ID for a data export.
+   * @private
+   * @returns {string} The unique export ID.
    */
   private generateExportId(): string {
     return `export_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
-   * Schedule automatic cleanup
+   * Schedules the automatic cleanup process to run at a regular interval.
+   * @returns {NodeJS.Timeout} The timer object for the scheduled task.
    */
   startAutomaticCleanup(): NodeJS.Timeout {
     const intervalMs = this.config.cleanup_interval_hours * 60 * 60 * 1000;
@@ -554,21 +555,25 @@ export class LogRetentionManager {
   }
 
   /**
-   * Update retention configuration
+   * Updates the retention configuration settings.
+   * @param {Partial<RetentionConfig>} newConfig - The new configuration values to apply.
    */
   updateConfig(newConfig: Partial<RetentionConfig>): void {
     this.config = { ...this.config, ...newConfig };
   }
 
   /**
-   * Get current configuration
+   * Gets the current retention configuration.
+   * @returns {RetentionConfig} The current configuration object.
    */
   getConfig(): RetentionConfig {
     return { ...this.config };
   }
 }
 
-// Type definitions
+/**
+ * Defines the configuration options for the log retention and anonymization service.
+ */
 export interface RetentionConfig {
   event_retention_days: number;
   audit_retention_days: number;
@@ -580,6 +585,9 @@ export interface RetentionConfig {
   batch_size: number;
 }
 
+/**
+ * Represents the result of a single cleanup operation.
+ */
 export interface CleanupResult {
   timestamp: Date;
   events_deleted: number;
@@ -589,6 +597,9 @@ export interface CleanupResult {
   execution_time_ms: number;
 }
 
+/**
+ * Represents statistics about the current data retention state.
+ */
 export interface RetentionStatistics {
   total_events: number;
   events_by_age: Record<string, number>;
@@ -599,6 +610,9 @@ export interface RetentionStatistics {
   retention_config: RetentionConfig;
 }
 
+/**
+ * Represents the structure of an anonymized data export.
+ */
 export interface AnonymizedExport {
   export_id: string;
   created_at: Date;
@@ -609,6 +623,9 @@ export interface AnonymizedExport {
   data: AnonymizedRecord[];
 }
 
+/**
+ * Represents a single anonymized record within a data export.
+ */
 export interface AnonymizedRecord {
   timestamp: string;
   kiosk_id: string;

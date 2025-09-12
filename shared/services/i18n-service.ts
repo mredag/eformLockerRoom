@@ -1,14 +1,20 @@
 /**
- * Internationalization service for the Eform Locker System
- * Supports Turkish and English languages with parameterized messages
+ * Provides an internationalization (i18n) service for the E-form Locker System.
+ * It supports both Turkish and English languages and allows for parameterized messages
+ * to include dynamic data in translated strings.
  */
 
+/**
+ * Defines the structure for parameters that can be passed to a message string.
+ */
 export interface MessageParams {
   [key: string]: string | number;
 }
 
+/**
+ * Defines the nested structure of all translation messages, organized by application section.
+ */
 export interface Messages {
-  // Kiosk messages
   kiosk: {
     scan_card: string;
     scan_card_subtitle: string;
@@ -43,7 +49,6 @@ export interface Messages {
     error_unknown: string;
   };
   
-  // QR messages
   qr: {
     vip_blocked: string;
     network_required: string;
@@ -55,7 +60,6 @@ export interface Messages {
     invalid_request: string;
   };
   
-  // Panel messages
   panel: {
     // Navigation
     dashboard: string;
@@ -156,6 +160,10 @@ export interface Messages {
 
 export type SupportedLanguage = 'tr' | 'en';
 
+/**
+ * A service class for handling internationalization (i18n).
+ * It loads and manages translation messages for different languages.
+ */
 export class I18nService {
   private currentLanguage: SupportedLanguage = 'tr';
   private messages: Record<SupportedLanguage, Messages>;
@@ -168,7 +176,8 @@ export class I18nService {
   }
 
   /**
-   * Set the current language
+   * Sets the active language for the service.
+   * @param {SupportedLanguage} language - The language to set (e.g., 'en', 'tr').
    */
   setLanguage(language: SupportedLanguage): void {
     if (this.messages[language]) {
@@ -177,32 +186,36 @@ export class I18nService {
   }
 
   /**
-   * Get the current language
+   * Gets the currently active language.
+   * @returns {SupportedLanguage} The current language code.
    */
   getCurrentLanguage(): SupportedLanguage {
     return this.currentLanguage;
   }
 
   /**
-   * Get available languages
+   * Gets a list of all available languages.
+   * @returns {SupportedLanguage[]} An array of supported language codes.
    */
   getAvailableLanguages(): SupportedLanguage[] {
     return Object.keys(this.messages) as SupportedLanguage[];
   }
 
   /**
-   * Get a message by key path with optional parameters
+   * Retrieves a translated message string using a dot-notation key path
+   * and replaces any placeholders with the provided parameters.
+   * @param {string} keyPath - The dot-notation path to the message (e.g., 'kiosk.scan_card').
+   * @param {MessageParams} [params={}] - An object of parameters to replace in the message string.
+   * @returns {string} The translated and formatted message, or the key path if not found.
    */
   get(keyPath: string, params: MessageParams = {}): string {
     const keys = keyPath.split('.');
     let message: any = this.messages[this.currentLanguage];
 
-    // Navigate through the nested object
     for (const key of keys) {
       if (message && typeof message === 'object' && key in message) {
         message = message[key];
       } else {
-        // Return the key path if message not found
         return keyPath;
       }
     }
@@ -211,26 +224,32 @@ export class I18nService {
       return keyPath;
     }
 
-    // Replace parameters in message
     return this.replaceParams(message, params);
   }
 
   /**
-   * Get all messages for current language
+   * Retrieves the entire message object for the currently active language.
+   * @returns {Messages} The complete message tree.
    */
   getAllMessages(): Messages {
     return this.messages[this.currentLanguage];
   }
 
   /**
-   * Get messages for a specific section
+   * Retrieves a specific section of the message tree for the current language.
+   * @param {keyof Messages} section - The section to retrieve (e.g., 'kiosk', 'panel').
+   * @returns {any} The message sub-tree for the requested section.
    */
   getSection(section: keyof Messages): any {
     return this.messages[this.currentLanguage][section];
   }
 
   /**
-   * Replace parameters in a message string
+   * Replaces placeholders in a message string with their corresponding values.
+   * @private
+   * @param {string} message - The message string with placeholders (e.g., 'Hello, {name}').
+   * @param {MessageParams} params - The parameters to substitute.
+   * @returns {string} The formatted message string.
    */
   private replaceParams(message: string, params: MessageParams): string {
     let result = message;
@@ -242,7 +261,9 @@ export class I18nService {
   }
 
   /**
-   * Turkish messages
+   * Provides the full set of Turkish translations.
+   * @private
+   * @returns {Messages} The Turkish message tree.
    */
   private getTurkishMessages(): Messages {
     return {
@@ -389,7 +410,9 @@ export class I18nService {
   }
 
   /**
-   * English messages
+   * Provides the full set of English translations.
+   * @private
+   * @returns {Messages} The English message tree.
    */
   private getEnglishMessages(): Messages {
     return {
@@ -536,5 +559,7 @@ export class I18nService {
   }
 }
 
-// Export singleton instance
+/**
+ * A singleton instance of the I18nService for easy access throughout the application.
+ */
 export const i18nService = new I18nService();

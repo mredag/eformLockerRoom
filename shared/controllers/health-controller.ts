@@ -3,26 +3,36 @@ import { HealthMonitor } from '../services/health-monitor';
 import { HealthCheckResponse } from '../types/core-entities';
 
 /**
- * Health Check Controller
- * Provides standardized health endpoints for all services
- * Requirements: 10.3, 10.5
+ * Manages health check endpoints for all services.
+ * This class provides standardized endpoints to monitor service health,
+ * run diagnostics, and perform maintenance tasks like log rotation.
+ * It integrates with a HealthMonitor to fetch the underlying health data.
+ * @see HealthMonitor
+ * @see {@link ../docs/SYSTEM_DOCUMENTATION.md#health-checks}
  */
 export class HealthController {
   private healthMonitor: HealthMonitor;
 
+  /**
+   * Creates an instance of HealthController.
+   * @param {HealthMonitor} healthMonitor - The service responsible for performing health checks.
+   */
   constructor(healthMonitor: HealthMonitor) {
     this.healthMonitor = healthMonitor;
   }
 
   /**
-   * Basic health check endpoint
-   * GET /health
+   * Retrieves the basic health status of the system.
+   * Responds with a 200 status for 'healthy' or 'degraded' states, and 503 for 'unhealthy'.
+   * @route GET /health
+   * @param {FastifyRequest} request - The request object from Fastify.
+   * @param {FastifyReply} reply - The reply object from Fastify.
+   * @returns {Promise<HealthCheckResponse>} A promise that resolves to the system's health status.
    */
   async getHealth(request: FastifyRequest, reply: FastifyReply): Promise<HealthCheckResponse> {
     try {
       const health = await this.healthMonitor.getSystemHealth();
       
-      // Set appropriate HTTP status based on health
       const statusCode = health.status === 'healthy' ? 200 : 
                         health.status === 'degraded' ? 200 : 503;
       
@@ -32,8 +42,8 @@ export class HealthController {
       reply.code(503);
       return {
         status: 'unhealthy',
-        version: '1.0.0',
-        uptime: 0,
+        version: '1.0.0', // Consider making version dynamic
+        uptime: process.uptime(),
         components: {
           database: 'error',
           hardware: 'error',
@@ -48,8 +58,11 @@ export class HealthController {
   }
 
   /**
-   * Detailed health check with diagnostics
-   * GET /health/detailed
+   * Retrieves a detailed health status including diagnostic information.
+   * @route GET /health/detailed
+   * @param {FastifyRequest} request - The request object from Fastify.
+   * @param {FastifyReply} reply - The reply object from Fastify.
+   * @returns {Promise<any>} A promise that resolves to a detailed health report.
    */
   async getDetailedHealth(request: FastifyRequest, reply: FastifyReply): Promise<any> {
     try {
@@ -76,8 +89,11 @@ export class HealthController {
   }
 
   /**
-   * Kiosk-specific health check
-   * GET /health/kiosk/:kioskId
+   * Retrieves the health status for a specific kiosk.
+   * @route GET /health/kiosk/:kioskId
+   * @param {FastifyRequest<{ Params: { kioskId: string } }>} request - The request, containing the kioskId parameter.
+   * @param {FastifyReply} reply - The reply object from Fastify.
+   * @returns {Promise<any>} A promise that resolves to the kiosk's health status.
    */
   async getKioskHealth(
     request: FastifyRequest<{ Params: { kioskId: string } }>, 
@@ -87,7 +103,6 @@ export class HealthController {
       const { kioskId } = request.params;
       const kioskHealth = await this.healthMonitor.getKioskHealth(kioskId);
       
-      // Determine status based on component health
       const hasErrors = kioskHealth.database.status === 'error' || 
                        kioskHealth.rs485.status === 'error';
       
@@ -111,8 +126,11 @@ export class HealthController {
   }
 
   /**
-   * Generate diagnostic report
-   * GET /health/diagnostics/report
+   * Generates and returns a plain-text diagnostic report.
+   * @route GET /health/diagnostics/report
+   * @param {FastifyRequest} request - The request object from Fastify.
+   * @param {FastifyReply} reply - The reply object from Fastify.
+   * @returns {Promise<any>} A promise that resolves to the diagnostic report as a string.
    */
   async getDiagnosticReport(request: FastifyRequest, reply: FastifyReply): Promise<any> {
     try {
@@ -130,8 +148,12 @@ export class HealthController {
   }
 
   /**
-   * Trigger log rotation
-   * POST /health/maintenance/rotate-logs
+   * Triggers a log file rotation and cleanup process.
+   * The log directory and retention days can be specified in the request body.
+   * @route POST /health/maintenance/rotate-logs
+   * @param {FastifyRequest<{ Body: { log_directory?: string; retention_days?: number; } }>} request - The request, optionally containing log directory and retention settings.
+   * @param {FastifyReply} reply - The reply object from Fastify.
+   * @returns {Promise<any>} A promise that resolves to the result of the log rotation process.
    */
   async rotateLogFiles(
     request: FastifyRequest<{ 
@@ -162,14 +184,20 @@ export class HealthController {
   }
 
   /**
-   * Register health routes with Fastify instance
+   * Registers all health-related routes with a Fastify instance.
+   * This static method centralizes route registration for the controller.
+   * @param {any} fastify - The Fastify instance to register routes with.
+   * @param {HealthController} healthController - The instance of the controller whose methods will handle the routes.
    */
   static registerRoutes(fastify: any, healthController: HealthController): void {
     // Basic health check
     fastify.get('/health', {
       schema: {
+        description: 'Get basic system health status.',
+        tags: ['Health'],
         response: {
           200: {
+            description: 'Successful response for healthy or degraded status.',
             type: 'object',
             properties: {
               status: { type: 'string', enum: ['healthy', 'degraded', 'unhealthy'] },
@@ -185,6 +213,13 @@ export class HealthController {
                 }
               }
             }
+          },
+          503: {
+            description: 'Service is unhealthy.',
+            type: 'object',
+            properties: {
+              status: { type: 'string', enum: ['unhealthy'] }
+            }
           }
         }
       }
@@ -193,10 +228,16 @@ export class HealthController {
     // Detailed health check
     fastify.get('/health/detailed', {
       schema: {
+        description: 'Get detailed system health including diagnostics.',
+        tags: ['Health'],
         response: {
           200: {
+            description: 'Successful response.',
             type: 'object',
             additionalProperties: true
+          },
+          503: {
+            description: 'Service is unhealthy.'
           }
         }
       }
@@ -205,12 +246,18 @@ export class HealthController {
     // Kiosk-specific health
     fastify.get('/health/kiosk/:kioskId', {
       schema: {
+        description: 'Get health status for a specific kiosk.',
+        tags: ['Health', 'Kiosk'],
         params: {
           type: 'object',
           properties: {
-            kioskId: { type: 'string' }
+            kioskId: { type: 'string', description: 'The unique identifier for the kiosk.' }
           },
           required: ['kioskId']
+        },
+        response: {
+          200: { description: 'Kiosk is healthy.'},
+          503: { description: 'Kiosk is unhealthy.'}
         }
       }
     }, healthController.getKioskHealth.bind(healthController));
@@ -218,9 +265,15 @@ export class HealthController {
     // Diagnostic report
     fastify.get('/health/diagnostics/report', {
       schema: {
+        description: 'Generate and retrieve a plain-text diagnostic report.',
+        tags: ['Health', 'Diagnostics'],
         response: {
           200: {
+            description: 'A plain-text diagnostic report.',
             type: 'string'
+          },
+          500: {
+            description: 'Failed to generate report.'
           }
         }
       }
@@ -229,11 +282,27 @@ export class HealthController {
     // Log rotation endpoint
     fastify.post('/health/maintenance/rotate-logs', {
       schema: {
+        description: 'Trigger log file rotation and cleanup.',
+        tags: ['Health', 'Maintenance'],
         body: {
           type: 'object',
           properties: {
-            log_directory: { type: 'string' },
-            retention_days: { type: 'number', minimum: 1, maximum: 365 }
+            log_directory: { type: 'string', description: 'The directory where logs are stored.', default: './logs' },
+            retention_days: { type: 'number', minimum: 1, maximum: 365, description: 'How many days of logs to keep.', default: 30 }
+          }
+        },
+        response: {
+          200: {
+            description: 'Log rotation completed successfully.',
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              rotated: { type: 'array', items: { type: 'string' } },
+              deleted: { type: 'array', items: { type: 'string' } }
+            }
+          },
+          500: {
+            description: 'Log rotation failed.'
           }
         }
       }

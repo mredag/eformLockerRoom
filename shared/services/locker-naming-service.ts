@@ -1,12 +1,18 @@
 import { DatabaseConnection } from '../database/connection';
 import { LockerRepository } from '../database/locker-repository';
 
+/**
+ * Represents the result of a name validation check.
+ */
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
   suggestions?: string[];
 }
 
+/**
+ * Represents a single entry in the locker name audit trail.
+ */
 export interface LockerNameAudit {
   id: number;
   kiosk_id: string;
@@ -17,6 +23,9 @@ export interface LockerNameAudit {
   changed_at: Date;
 }
 
+/**
+ * Represents the data structure for a printable map of lockers for installers.
+ */
 export interface PrintableMap {
   kiosk_id: string;
   generated_at: Date;
@@ -29,26 +38,34 @@ export interface PrintableMap {
 }
 
 /**
- * Service for managing locker display names with Turkish character support
- * Implements requirements 5.1, 5.3, 5.5, 5.10 from the locker UI improvements spec
+ * A service for managing the display names of lockers.
+ * It handles setting, retrieving, validating, and auditing custom locker names,
+ * with special considerations for Turkish character support and name uniqueness.
  */
 export class LockerNamingService {
   private db: DatabaseConnection;
   private lockerRepository: LockerRepository;
 
-  // Turkish character validation regex - allows Turkish letters, numbers, spaces, and common punctuation
   private readonly TURKISH_CHAR_REGEX = /^[a-zA-ZçÇğĞıİöÖşŞüÜ0-9\s\-\.]+$/;
   private readonly MAX_NAME_LENGTH = 20;
 
+  /**
+   * Creates an instance of LockerNamingService.
+   * @param {DatabaseConnection} db - The database connection instance.
+   */
   constructor(db: DatabaseConnection) {
     this.db = db;
     this.lockerRepository = new LockerRepository(db);
   }
 
   /**
-   * Set display name for a locker with validation and audit logging
-   * Requirement 5.1: Turkish letters and numbers with maximum 20 characters
-   * Requirement 5.8: Keep audit note for tracking
+   * Sets the display name for a specific locker after validating it.
+   * This operation is audited.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {string} name - The new display name for the locker.
+   * @param {string} updatedBy - The identifier of the user or system making the change.
+   * @throws {Error} If the name is invalid or already in use.
    */
   async setDisplayName(
     kioskId: string, 
@@ -56,25 +73,21 @@ export class LockerNamingService {
     name: string, 
     updatedBy: string
   ): Promise<void> {
-    // Validate the name
     const validation = this.validateName(name);
     if (!validation.isValid) {
       throw new Error(`Invalid locker name: ${validation.errors.join(', ')}`);
     }
 
-    // Check if name is unique within the kiosk (excluding current locker)
     const existingLocker = await this.findLockerByDisplayName(kioskId, name, lockerId);
     if (existingLocker) {
       throw new Error(`Display name "${name}" is already used by locker ${existingLocker.id} in this kiosk`);
     }
 
-    // Get current locker to check version
     const currentLocker = await this.lockerRepository.findByKioskAndId(kioskId, lockerId);
     if (!currentLocker) {
       throw new Error(`Locker ${lockerId} not found in kiosk ${kioskId}`);
     }
 
-    // Update the locker with new display name and audit info
     await this.lockerRepository.updateLocker(
       kioskId,
       lockerId,
@@ -87,8 +100,11 @@ export class LockerNamingService {
   }
 
   /**
-   * Get display name for a locker
-   * Requirement 5.6: Returns custom name or fallback to "Dolap [relay_number]"
+   * Retrieves the display name for a locker. If no custom name is set,
+   * it returns a default name (e.g., "Dolap 1").
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @returns {Promise<string>} The custom or default display name.
    */
   async getDisplayName(kioskId: string, lockerId: number): Promise<string> {
     const locker = await this.lockerRepository.findByKioskAndId(kioskId, lockerId);
@@ -96,7 +112,6 @@ export class LockerNamingService {
       throw new Error(`Locker ${lockerId} not found in kiosk ${kioskId}`);
     }
 
-    // Return custom name if set, otherwise fallback to default format
     if (locker.display_name && locker.display_name.trim()) {
       return locker.display_name.trim();
     }
@@ -105,15 +120,14 @@ export class LockerNamingService {
   }
 
   /**
-   * Validate locker name according to Turkish character requirements
-   * Requirement 5.1: Turkish letters and numbers with maximum 20 characters
-   * Requirement 5.3: Validation for Turkish character support
+   * Validates a locker name against the defined rules (length, characters, etc.).
+   * @param {string} name - The name to validate.
+   * @returns {ValidationResult} The result of the validation, including any errors or suggestions.
    */
   validateName(name: string): ValidationResult {
     const errors: string[] = [];
     const suggestions: string[] = [];
 
-    // Check if name is provided and is a string
     if (name === null || name === undefined || typeof name !== 'string') {
       errors.push('Name is required and must be a string');
       return { isValid: false, errors, suggestions };
@@ -121,30 +135,25 @@ export class LockerNamingService {
 
     const trimmedName = name.trim();
 
-    // Check if name is empty after trimming (this covers both empty string and whitespace-only)
     if (trimmedName.length === 0) {
       errors.push('Name cannot be empty');
       return { isValid: false, errors, suggestions };
     }
 
-    // Check length constraint
     if (trimmedName.length > this.MAX_NAME_LENGTH) {
       errors.push(`Name must be ${this.MAX_NAME_LENGTH} characters or less (current: ${trimmedName.length})`);
       suggestions.push(`Try shortening to: "${trimmedName.substring(0, this.MAX_NAME_LENGTH)}"`);
     }
 
-    // Check Turkish character constraint
     if (!this.TURKISH_CHAR_REGEX.test(trimmedName)) {
       errors.push('Name contains invalid characters. Only Turkish letters, numbers, spaces, hyphens, and dots are allowed');
       
-      // Suggest removing invalid characters
       const cleanedName = trimmedName.replace(/[^a-zA-ZçÇğĞıİöÖşŞüÜ0-9\s\-\.]/g, '');
       if (cleanedName.length > 0 && cleanedName !== trimmedName) {
         suggestions.push(`Try: "${cleanedName}"`);
       }
     }
 
-    // Check for excessive whitespace
     if (trimmedName.includes('  ')) {
       suggestions.push(`Remove extra spaces: "${trimmedName.replace(/\s+/g, ' ')}"`);
     }
@@ -157,8 +166,8 @@ export class LockerNamingService {
   }
 
   /**
-   * Generate preset name suggestions with Turkish examples
-   * Requirement 5.5: Generate presets with Turkish examples ("Kapı A1", "Dolap 101")
+   * Generates a list of preset name suggestions, including Turkish examples.
+   * @returns {string[]} An array of preset name strings.
    */
   generatePresets(): string[] {
     return [
@@ -191,8 +200,10 @@ export class LockerNamingService {
   }
 
   /**
-   * Get audit history for locker name changes
-   * Requirement 5.8: Audit logging for name changes
+   * Retrieves the audit history of name changes for a kiosk or a specific locker.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} [lockerId] - An optional locker ID to filter the history.
+   * @returns {Promise<LockerNameAudit[]>} An array of audit records.
    */
   async getNameAuditHistory(kioskId: string, lockerId?: number): Promise<LockerNameAudit[]> {
     let sql = `
@@ -222,8 +233,10 @@ export class LockerNamingService {
   }
 
   /**
-   * Export printable map for installers
-   * Requirement 5.9: Printable map generation for installers
+   * Generates a data structure for a printable map of lockers,
+   * which can be used by installers to label the physical hardware.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<PrintableMap>} The data for the printable map.
    */
   async exportPrintableMap(kioskId: string): Promise<PrintableMap> {
     const lockers = await this.lockerRepository.findAll({ kiosk_id: kioskId });
@@ -234,8 +247,8 @@ export class LockerNamingService {
       lockers: lockers.map(locker => ({
         id: locker.id,
         display_name: locker.display_name?.trim() || `Dolap ${locker.id}`,
-        relay_number: locker.id, // In this system, locker ID is the relay number
-        position: this.calculateGridPosition(locker.id) // Optional grid positioning
+        relay_number: locker.id,
+        position: this.calculateGridPosition(locker.id)
       }))
     };
 
@@ -243,8 +256,11 @@ export class LockerNamingService {
   }
 
   /**
-   * Bulk update locker names from a mapping
-   * Useful for initial setup or mass updates
+   * Updates the names of multiple lockers at once from a provided mapping.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {Record<number, string>} nameMapping - An object mapping locker IDs to their new names.
+   * @param {string} updatedBy - The identifier of the user or system making the change.
+   * @returns {Promise<object>} An object summarizing the successful and failed updates.
    */
   async bulkUpdateNames(
     kioskId: string, 
@@ -269,7 +285,10 @@ export class LockerNamingService {
   }
 
   /**
-   * Clear display name for a locker (revert to default)
+   * Clears the custom display name for a locker, reverting it to its default name.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {string} updatedBy - The identifier of the user or system making the change.
    */
   async clearDisplayName(kioskId: string, lockerId: number, updatedBy: string): Promise<void> {
     const currentLocker = await this.lockerRepository.findByKioskAndId(kioskId, lockerId);
@@ -289,16 +308,15 @@ export class LockerNamingService {
   }
 
   /**
-   * Find locker by display name within a kiosk
-   * Used for uniqueness validation
+   * Finds a locker by its display name within a specific kiosk.
+   * This is used to enforce name uniqueness.
+   * @private
    */
   private async findLockerByDisplayName(
     kioskId: string, 
     displayName: string, 
     excludeLockerId?: number
   ): Promise<{ id: number } | null> {
-    // Use case-insensitive comparison by normalizing both strings in JavaScript
-    // This ensures proper handling of Turkish characters
     const normalizedSearchName = displayName.trim().toLowerCase();
     
     let sql = `
@@ -314,7 +332,6 @@ export class LockerNamingService {
 
     const rows = await this.db.all(sql, params);
     
-    // Find matching name using JavaScript comparison for proper Turkish character handling
     const matchingRow = rows.find((row: any) => 
       row.display_name && row.display_name.trim().toLowerCase() === normalizedSearchName
     );
@@ -323,11 +340,10 @@ export class LockerNamingService {
   }
 
   /**
-   * Calculate grid position for locker (optional feature for map layout)
-   * Assumes a standard grid layout - can be customized per installation
+   * Calculates the grid position (row, column) for a locker.
+   * @private
    */
   private calculateGridPosition(lockerId: number): { row: number; col: number } {
-    // Standard 4-column grid layout
     const cols = 4;
     const row = Math.ceil(lockerId / cols);
     const col = ((lockerId - 1) % cols) + 1;

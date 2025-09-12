@@ -2,6 +2,9 @@ import { BaseRepository } from './base-repository';
 import { DatabaseConnection } from './connection';
 import { VipContractHistory } from '../types/core-entities';
 
+/**
+ * Defines the filtering criteria for querying VIP contract history records.
+ */
 export interface VipHistoryFilter {
   contract_id?: number;
   action_type?: string | string[];
@@ -12,26 +15,44 @@ export interface VipHistoryFilter {
   offset?: number;
 }
 
+/**
+ * Manages the persistence and retrieval of `VipContractHistory` entities.
+ * This repository is dedicated to creating an audit trail for all significant
+ * actions performed on VIP contracts.
+ * @extends {BaseRepository<VipContractHistory>}
+ */
 export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
   private dbManager: any;
 
+  /**
+   * Creates an instance of VipHistoryRepository.
+   * @param {DatabaseConnection | any} dbOrManager - An instance of `DatabaseConnection` or a manager that has a `getDatabase` method.
+   */
   constructor(dbOrManager: DatabaseConnection | any) {
     if (dbOrManager.getDatabase) {
-      // It's a DatabaseManager
       super(dbOrManager.getDatabase(), 'vip_contract_history');
       this.dbManager = dbOrManager;
     } else {
-      // It's a DatabaseConnection
       super(dbOrManager, 'vip_contract_history');
     }
   }
 
+  /**
+   * Finds a history record by its unique ID.
+   * @param {string | number} id - The ID of the history record.
+   * @returns {Promise<VipContractHistory | null>} The found record or null.
+   */
   async findById(id: string | number): Promise<VipContractHistory | null> {
     const sql = `SELECT * FROM ${this.tableName} WHERE id = ?`;
     const row = await this.db.get(sql, [id]);
     return row ? this.mapRowToEntity(row) : null;
   }
 
+  /**
+   * Finds all history records matching the specified filter criteria.
+   * @param {VipHistoryFilter} [filter] - The filter to apply.
+   * @returns {Promise<VipContractHistory[]>} An array of matching history records.
+   */
   async findAll(filter?: VipHistoryFilter): Promise<VipContractHistory[]> {
     let sql = `SELECT * FROM ${this.tableName}`;
     const params: any[] = [];
@@ -87,6 +108,11 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * Creates a new history record for a VIP contract action.
+   * @param {Omit<VipContractHistory, 'id' | 'timestamp' | 'version'>} history - The history data to create.
+   * @returns {Promise<VipContractHistory>} The newly created history record.
+   */
   async create(history: Omit<VipContractHistory, 'id' | 'timestamp' | 'version'>): Promise<VipContractHistory> {
     const sql = `
       INSERT INTO ${this.tableName} (
@@ -115,15 +141,20 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
     return created;
   }
 
+  /**
+   * Updates a history record. This should be used with caution as history is typically immutable.
+   * @param {string | number} id - The ID of the history record to update.
+   * @param {Partial<VipContractHistory>} updates - The fields to update.
+   * @param {number} [expectedVersion=1] - The expected version for optimistic locking (not used here).
+   * @returns {Promise<VipContractHistory>} The updated history record.
+   */
   async update(id: string | number, updates: Partial<VipContractHistory>, expectedVersion: number = 1): Promise<VipContractHistory> {
-    // History entries are typically immutable, but allow updates for corrections
     const setClause: string[] = [];
     const params: any[] = [];
 
-    // Build SET clause dynamically
     for (const [key, value] of Object.entries(updates)) {
       if (key === 'id' || key === 'timestamp') {
-        continue; // Skip immutable fields
+        continue;
       }
 
       setClause.push(`${key} = ?`);
@@ -161,15 +192,27 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
     return updated;
   }
 
+  /**
+   * Deletes a history record. This should be used with extreme caution.
+   * @param {string | number} id - The ID of the history record to delete.
+   * @returns {Promise<boolean>} True if the deletion was successful.
+   */
   async delete(id: string | number): Promise<boolean> {
-    // History entries should typically not be deleted, but allow for cleanup
     const sql = `DELETE FROM ${this.tableName} WHERE id = ?`;
     const result = await this.db.run(sql, [id]);
     return result.changes > 0;
   }
 
   /**
-   * Log a VIP contract action
+   * A convenience method to log a new action for a VIP contract.
+   * @param {number} contractId - The ID of the related contract.
+   * @param {'created' | 'extended' | 'card_changed' | 'transferred' | 'cancelled'} actionType - The type of action.
+   * @param {string} performedBy - The user who performed the action.
+   * @param {Record<string, any>} [oldValues] - A JSON object representing the state before the change.
+   * @param {Record<string, any>} [newValues] - A JSON object representing the state after the change.
+   * @param {string} [reason] - The reason for the action.
+   * @param {Record<string, any>} [details={}] - Additional details about the action.
+   * @returns {Promise<VipContractHistory>} The created history record.
    */
   async logAction(
     contractId: number,
@@ -192,7 +235,10 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
   }
 
   /**
-   * Get history for a specific contract
+   * Retrieves the full history for a specific VIP contract.
+   * @param {number} contractId - The ID of the contract.
+   * @param {number} [limit] - An optional limit on the number of records returned.
+   * @returns {Promise<VipContractHistory[]>} An array of history records.
    */
   async getContractHistory(contractId: number, limit?: number): Promise<VipContractHistory[]> {
     return this.findAll({
@@ -202,7 +248,11 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
   }
 
   /**
-   * Get audit trail for a staff user
+   * Retrieves a full audit trail for a specific staff member.
+   * @param {string} staffUser - The username of the staff member.
+   * @param {Date} [fromDate] - The start date for the audit trail.
+   * @param {Date} [toDate] - The end date for the audit trail.
+   * @returns {Promise<VipContractHistory[]>} An array of history records for the specified user.
    */
   async getStaffAuditTrail(staffUser: string, fromDate?: Date, toDate?: Date): Promise<VipContractHistory[]> {
     return this.findAll({
@@ -213,14 +263,18 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
   }
 
   /**
-   * Get recent VIP actions
+   * Retrieves the most recent VIP actions across all contracts.
+   * @param {number} [limit=50] - The maximum number of records to return.
+   * @returns {Promise<VipContractHistory[]>} An array of recent history records.
    */
   async getRecentActions(limit: number = 50): Promise<VipContractHistory[]> {
     return this.findAll({ limit });
   }
 
   /**
-   * Clean up old history entries
+   * Deletes old history records to save space.
+   * @param {number} [retentionDays=365] - The number of days to keep history records.
+   * @returns {Promise<number>} The number of deleted rows.
    */
   async cleanupOldHistory(retentionDays: number = 365): Promise<number> {
     const sql = `
@@ -232,6 +286,12 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
     return result.changes;
   }
 
+  /**
+   * Maps a raw database row to a structured `VipContractHistory` entity.
+   * @protected
+   * @param {any} row - The raw data from the database.
+   * @returns {VipContractHistory} The mapped entity.
+   */
   protected mapRowToEntity(row: any): VipContractHistory {
     return {
       id: row.id,
@@ -247,6 +307,12 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
     };
   }
 
+  /**
+   * Maps a `VipContractHistory` entity to a raw object for database insertion.
+   * @protected
+   * @param {Partial<VipContractHistory>} entity - The entity to map.
+   * @returns {Record<string, any>} The mapped raw object.
+   */
   protected mapEntityToRow(entity: Partial<VipContractHistory>): Record<string, any> {
     const row: Record<string, any> = {};
 

@@ -1,13 +1,42 @@
 import { FastifyRequest } from 'fastify';
 
+/**
+ * A utility class for detecting and resolving session conflicts.
+ * This can occur when a user rapidly creates multiple sessions, for example,
+ * by quickly scanning a QR code multiple times. This class helps ensure
+ * that only the most recent session for a user remains active, preventing
+ * unexpected behavior from stale or duplicate sessions.
+ */
 export class SessionConflictDetector {
+  /**
+   * The maximum number of concurrent sessions allowed per user.
+   * @private
+   */
   private static readonly MAX_SESSIONS_PER_USER = 3;
+
+  /**
+   * The time window in milliseconds for detecting session conflicts.
+   * If multiple sessions are created within this window, they are considered a conflict.
+   * @private
+   */
   private static readonly CONFLICT_DETECTION_WINDOW = 5000; // 5 seconds
   
+  /**
+   * A map to track recent sessions for each user.
+   * The key is the user ID, and the value contains the timestamp of the last activity
+   * and a set of session IDs created within the conflict detection window.
+   * @private
+   */
   private static recentSessions = new Map<string, { timestamp: number; sessionIds: Set<string> }>();
   
   /**
-   * Detect and resolve session conflicts for a user
+   * Detects and resolves session conflicts for a given user.
+   * If multiple sessions are created for the same user within the `CONFLICT_DETECTION_WINDOW`,
+   * this method will destroy all but the newest session.
+   * @param {number} userId - The ID of the user.
+   * @param {string} newSessionId - The ID of the newly created session.
+   * @param {any} sessionManager - The session manager instance, which must have a `destroySession` method.
+   * @returns {boolean} `true` if a conflict was detected and resolved, otherwise `false`.
    */
   static detectAndResolve(userId: number, newSessionId: string, sessionManager: any): boolean {
     const userKey = userId.toString();
@@ -51,7 +80,10 @@ export class SessionConflictDetector {
   }
   
   /**
-   * Clean up old session tracking entries
+   * Cleans up old session tracking entries from the `recentSessions` map.
+   * An entry is considered old if its last update timestamp is outside the `CONFLICT_DETECTION_WINDOW`.
+   * @param {number} now - The current timestamp.
+   * @private
    */
   private static cleanupOldEntries(now: number): void {
     for (const [userKey, data] of this.recentSessions.entries()) {
@@ -62,7 +94,12 @@ export class SessionConflictDetector {
   }
   
   /**
-   * Check if request has multiple session cookies (browser conflict)
+   * Detects if a browser sends multiple session cookies in a single request.
+   * This can happen due to browser bugs or misconfigurations and can lead to
+   * unpredictable session handling.
+   * @param {FastifyRequest} request - The incoming Fastify request object.
+   * @returns {string[]} An array of session cookie values found in the request.
+   * An array with more than one element indicates a browser-level conflict.
    */
   static detectBrowserConflict(request: FastifyRequest): string[] {
     const cookieHeader = request.headers.cookie;

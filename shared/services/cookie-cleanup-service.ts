@@ -1,8 +1,17 @@
 import { FastifyInstance } from 'fastify';
 
+/**
+ * A service to handle the cleanup of old or conflicting session cookies on the client-side.
+ * This service works by injecting a small JavaScript snippet into HTML responses,
+ * which checks for and removes duplicate session cookies, preventing potential authentication issues.
+ */
 export class CookieCleanupService {
   private static instance: CookieCleanupService;
   
+  /**
+   * Gets the singleton instance of the CookieCleanupService.
+   * @returns {CookieCleanupService} The singleton instance.
+   */
   static getInstance(): CookieCleanupService {
     if (!this.instance) {
       this.instance = new CookieCleanupService();
@@ -11,12 +20,13 @@ export class CookieCleanupService {
   }
   
   /**
-   * Start automatic cookie cleanup
+   * Starts the cookie cleanup service by registering hooks with the Fastify instance.
+   * This method sets up a route to serve a cleanup script and injects the script
+   * into all outgoing HTML pages.
+   * @param {FastifyInstance} fastify - The Fastify server instance.
    */
   startCleanup(fastify: FastifyInstance): void {
-    // Add cleanup route that's called periodically
     fastify.get('/internal/cleanup-cookies', async (request, reply) => {
-      // This endpoint helps browsers clean up old cookies
       reply.type('text/javascript');
       return `
         // Automatic cookie cleanup script
@@ -31,11 +41,9 @@ export class CookieCleanupService {
             }
           });
           
-          // If multiple session cookies, keep only the last one
           if (sessionCookies.length > 1) {
             console.log('🧹 Cleaning up', sessionCookies.length - 1, 'old session cookies');
             
-            // Clear all but the last session cookie
             for (let i = 0; i < sessionCookies.length - 1; i++) {
               const cookieName = sessionCookies[i].split('=')[0];
               document.cookie = cookieName + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
@@ -45,18 +53,18 @@ export class CookieCleanupService {
       `;
     });
     
-    // Add to all HTML pages
     this.injectCleanupScript(fastify);
     
     console.log('🧹 Cookie cleanup service started');
   }
   
   /**
-   * Inject cleanup script into HTML responses
+   * Injects the cookie cleanup script into outgoing HTML responses using a Fastify `onSend` hook.
+   * @private
+   * @param {FastifyInstance} fastify - The Fastify server instance.
    */
   private injectCleanupScript(fastify: FastifyInstance): void {
     fastify.addHook('onSend', async (request, reply, payload) => {
-      // Only inject into HTML responses
       const contentType = reply.getHeader('content-type');
       if (typeof contentType === 'string' && contentType.includes('text/html')) {
         if (typeof payload === 'string' && payload.includes('</body>')) {
@@ -70,13 +78,11 @@ export class CookieCleanupService {
   if (sessionCookies.length > 1) {
     console.log('🧹 Auto-cleaning', sessionCookies.length - 1, 'conflicting session cookies');
     
-    // Keep only the most recent session cookie
     sessionCookies.slice(0, -1).forEach(cookie => {
       const name = cookie.trim().split('=')[0];
       document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
     
-    // Reload page to use clean cookies
     setTimeout(() => window.location.reload(), 100);
   }
 })();
