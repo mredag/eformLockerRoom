@@ -1,10 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
-import { exec } from "child_process";
-import { promisify } from "util";
+import { spawn } from "child_process";
 import { User } from "../services/auth-service";
 import { PermissionService, Permission } from "../services/permission-service";
-
-const execAsync = promisify(exec);
 
 export async function systemRoutes(
   fastify: FastifyInstance,
@@ -30,41 +27,40 @@ export async function systemRoutes(
             properties: {
               success: { type: "boolean" },
               message: { type: "string" },
-              output: { type: "string" },
             },
           },
           500: {
             type: "object",
             properties: {
               error: { type: "string" },
-              output: { type: "string" },
             },
           },
         },
       },
     },
     async (request, reply) => {
+      const user = request.user as User;
+      fastify.log.info(`System restart initiated by user: ${user.username}`);
+
+      // The restart script should be executed in a detached process so that it doesn't
+      // get terminated when the panel service itself is restarted.
+      const restartScript = "/home/pi/eform-locker/scripts/maintenance/restart-systemd-services.sh";
+
       try {
-        const { stdout, stderr } = await execAsync(
-          "bash /home/pi/eform-locker/scripts/maintenance/restart-systemd-services.sh"
-        );
-
-        if (stderr) {
-          fastify.log.warn("Restart script produced stderr:", stderr);
-        }
-
-        fastify.log.info("System restart initiated by user:", (request.user as User).username);
+        const child = spawn("bash", [restartScript], {
+          detached: true,
+          stdio: "ignore",
+        });
+        child.unref();
 
         reply.send({
           success: true,
-          message: "System restart initiated successfully.",
-          output: stdout,
+          message: "System restart initiated. Services should be back online shortly.",
         });
       } catch (error: any) {
-        fastify.log.error("Failed to restart system:", error);
+        fastify.log.error("Failed to spawn restart process:", error);
         reply.code(500).send({
-          error: "Failed to execute restart script.",
-          output: error.stderr || error.stdout || error.message,
+          error: "Failed to start the restart script.",
         });
       }
     }
