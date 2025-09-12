@@ -5,16 +5,16 @@ echo "🚀 Restarting all eForm Locker services via systemd..."
 echo "====================================================="
 
 # Check if the eform-locker service exists
-if ! systemctl list-units --type=service --all | grep -q 'eform-locker.service'; then
-    echo "❌ Error: The 'eform-locker.service' does not seem to be installed."
+if ! systemctl list-units --type=service --all | grep -q 'eform.service'; then
+    echo "❌ Error: The 'eform.service' does not seem to be installed."
     echo "   Please run the installation script first:"
-    echo "   sudo bash scripts/deployment/install-startup-system.sh"
+    echo "   sudo bash scripts/deployment/install-systemd-services.sh"
     exit 1
 fi
 
 # Restart the main service
 # Using sudo because systemctl requires root privileges
-sudo systemctl restart eform-locker.service
+sudo systemctl restart eform.service
 
 echo "⏳ Waiting for services to come back online..."
 sleep 5 # Give services a moment to initialize
