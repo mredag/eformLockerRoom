@@ -5,7 +5,7 @@ Wants=network-online.target avahi-daemon.service
 
 [Service]
 EnvironmentFile=-/etc/kiosk.conf
-ExecStart=/usr/bin/env python3 /home/pi/eform-locker/scripts/kiosk-launch/discover_and_launch.py
+ExecStart=/home/pi/eform-locker/scripts/kiosk-launch/venv/bin/python3 /home/pi/eform-locker/scripts/kiosk-launch/discover_and_launch.py
 Restart=always
 RestartSec=8
 User=pi

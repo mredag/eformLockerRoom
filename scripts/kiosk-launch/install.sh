@@ -12,12 +12,21 @@ echo "Installing kiosk launcher..."
 
 # Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+VENV_DIR="/home/pi/eform-locker/scripts/kiosk-launch/venv"
 
 # Install dependencies
 echo "Installing dependencies..."
 apt-get update
-apt-get install -y python3-pip chromium-browser unclutter avahi-daemon libnss-mdns procps
-pip3 install -r "$SCRIPT_DIR/requirements.txt"
+apt-get install -y python3-pip python3-venv chromium-browser unclutter avahi-daemon libnss-mdns procps
+
+# Create virtual environment
+echo "Creating Python virtual environment at $VENV_DIR..."
+python3 -m venv "$VENV_DIR"
+
+# Install Python packages into the virtual environment
+echo "Installing Python packages..."
+"$VENV_DIR/bin/pip" install -r "$SCRIPT_DIR/requirements.txt"
+
 
 # Enable Avahi daemon
 echo "Enabling Avahi daemon..."

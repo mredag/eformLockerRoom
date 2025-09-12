@@ -50,8 +50,9 @@ sudo bash scripts/kiosk-launch/install.sh
 ```
 
 The installer will:
-- Install `python3-pip`, `chromium-browser`, `unclutter`, `avahi-daemon`, `libnss-mdns`, and `procps`.
-- Install the Python dependencies `requests` and `zeroconf`.
+- Install `python3-pip`, `python3-venv`, `chromium-browser`, `unclutter`, `avahi-daemon`, `libnss-mdns`, and `procps`.
+- Create a Python virtual environment at `/home/pi/eform-locker/scripts/kiosk-launch/venv`.
+- Install the Python dependencies `requests` and `zeroconf` into the virtual environment.
 - Enable and start the `avahi-daemon` service.
 - Copy the offline screen to `/usr/share/kiosk-offline/`.
 - Create a default `/etc/kiosk.conf` if one doesn't exist.
