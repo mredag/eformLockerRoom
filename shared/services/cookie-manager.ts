@@ -39,15 +39,15 @@ export class CookieManager {
       httpOnly: true,
     };
     
-    reply.clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/' });
-    reply.clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/auth' });
+    (reply as any).clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/' });
+    (reply as any).clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/auth' });
     
     const cookieOptions = {
       ...this.getDefaultCookieOptions(),
       ...options
     };
     
-    reply.setCookie(this.COOKIE_NAME, sessionId, cookieOptions);
+    (reply as any).setCookie(this.COOKIE_NAME, sessionId, cookieOptions);
     
     console.log(
       '🍪 Set session cookie:',
@@ -70,8 +70,8 @@ export class CookieManager {
       httpOnly: true,
     };
 
-    reply.clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/' });
-    reply.clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/auth' });
+    (reply as any).clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/' });
+    (reply as any).clearCookie(this.COOKIE_NAME, { ...clearOptions, path: '/auth' });
     
     console.log('🗑️ Cleared session cookies');
   }
