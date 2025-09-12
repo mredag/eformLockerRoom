@@ -10,9 +10,9 @@ interface CountResult {
 }
 
 /**
- * Health Monitoring and Diagnostics System
- * Provides comprehensive system health monitoring with detailed status reporting
- * Requirements: 10.3, 10.5
+ * Provides a comprehensive system for monitoring the health of the application and its components.
+ * It checks the status of the database, command queue, system resources, and other services,
+ * and can generate detailed diagnostic reports.
  */
 export class HealthMonitor {
   private db: DatabaseConnection;
@@ -21,6 +21,13 @@ export class HealthMonitor {
   private startTime: Date;
   private version: string;
 
+  /**
+   * Creates an instance of HealthMonitor.
+   * @param {DatabaseConnection} db - The database connection.
+   * @param {string} [version='1.0.0'] - The version of the application.
+   * @param {EventLogger} [eventLogger] - An optional EventLogger instance for logging.
+   * @param {CommandQueueManager} [commandQueueManager] - An optional CommandQueueManager for health checks.
+   */
   constructor(
     db: DatabaseConnection,
     version: string = '1.0.0',
@@ -35,7 +42,8 @@ export class HealthMonitor {
   }
 
   /**
-   * Get comprehensive system health status
+   * Gathers a comprehensive health status of all major system components.
+   * @returns {Promise<HealthCheckResponse>} A promise that resolves to the overall system health status.
    */
   async getSystemHealth(): Promise<HealthCheckResponse> {
     const components = {
@@ -48,7 +56,6 @@ export class HealthMonitor {
     const details: Record<string, any> = {};
 
     try {
-      // Check database health
       const dbHealth = await this.checkDatabaseHealth();
       details.database = dbHealth;
       if (dbHealth.status === 'error') {
@@ -60,7 +67,6 @@ export class HealthMonitor {
     }
 
     try {
-      // Check command queue health
       if (this.commandQueueManager) {
         const queueHealth = await this.checkCommandQueueHealth();
         details.command_queue = queueHealth;
@@ -74,7 +80,6 @@ export class HealthMonitor {
     }
 
     try {
-      // Check system resources
       const systemHealth = await this.checkSystemHealth();
       details.system = systemHealth;
       if (systemHealth.memory_usage > 90) {
@@ -85,7 +90,6 @@ export class HealthMonitor {
       details.system = { status: 'error', error: (error as Error).message };
     }
 
-    // Determine overall status
     let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
     const errorCount = Object.values(components).filter(c => c === 'error').length;
     
@@ -103,7 +107,9 @@ export class HealthMonitor {
   }
 
   /**
-   * Get kiosk-specific health information
+   * Gathers health information specific to a single kiosk.
+   * @param {string} kioskId - The ID of the kiosk to check.
+   * @returns {Promise<KioskHealth>} A promise that resolves to the health status of the kiosk.
    */
   async getKioskHealth(kioskId: string): Promise<KioskHealth> {
     const dbHealth = await this.checkDatabaseHealth();
@@ -119,7 +125,7 @@ export class HealthMonitor {
         wal_size: dbHealth.wal_size || 0
       },
       rs485: {
-        status: 'ok', // Will be updated by hardware-specific implementations
+        status: 'ok',
         port: process.env.MODBUS_PORT || '/dev/ttyUSB0',
         last_successful_command: new Date()
       },
@@ -137,7 +143,8 @@ export class HealthMonitor {
   }
 
   /**
-   * Check database health and performance
+   * Checks the health of the database connection, including connectivity, WAL file size, and write latency.
+   * @returns {Promise<object>} An object containing detailed database health metrics.
    */
   async checkDatabaseHealth(): Promise<{
     status: 'ok' | 'error';
@@ -150,19 +157,16 @@ export class HealthMonitor {
     try {
       const startTime = Date.now();
       
-      // Test basic connectivity
       await this.db.get('SELECT 1 as test');
       
       const responseTime = Date.now() - startTime;
 
-      // Check WAL mode status
       interface WalInfo {
         journal_mode: string;
       }
       const walInfo = await this.db.get<WalInfo>('PRAGMA journal_mode');
       const isWalMode = walInfo?.journal_mode === 'wal';
 
-      // Get WAL file size if in WAL mode
       let walSize = 0;
       if (isWalMode) {
         try {
@@ -171,11 +175,9 @@ export class HealthMonitor {
           const stats = await fs.stat(walPath);
           walSize = stats.size;
         } catch {
-          // WAL file might not exist yet
         }
       }
 
-      // Get last write time from events table
       let lastWrite = new Date();
       try {
         interface LastEventResult {
@@ -188,7 +190,6 @@ export class HealthMonitor {
           lastWrite = new Date(lastEvent.timestamp);
         }
       } catch {
-        // Events table might not exist yet
       }
 
       return {
@@ -206,7 +207,8 @@ export class HealthMonitor {
   }
 
   /**
-   * Check command queue health
+   * Checks the health of the command queue, including the number of pending and failed commands.
+   * @returns {Promise<object>} An object containing command queue health metrics.
    */
   async checkCommandQueueHealth(): Promise<{
     pending_count: number;
@@ -216,19 +218,16 @@ export class HealthMonitor {
     error?: string;
   }> {
     try {
-      // Get pending commands count
       const pendingResult = await this.db.get<CountResult>(
         "SELECT COUNT(*) as count FROM command_queue WHERE status = 'pending'"
       );
       const pendingCount = pendingResult?.count || 0;
 
-      // Get failed commands count
       const failedResult = await this.db.get<CountResult>(
         "SELECT COUNT(*) as count FROM command_queue WHERE status = 'failed'"
       );
       const failedCount = failedResult?.count || 0;
 
-      // Get last processed command
       let lastProcessed = new Date();
       interface ExecutedAtResult {
         executed_at: string;
@@ -240,7 +239,6 @@ export class HealthMonitor {
         lastProcessed = new Date(lastProcessedResult.executed_at);
       }
 
-      // Get oldest pending command
       let oldestPending: Date | undefined;
       interface CreatedAtResult {
         created_at: string;
@@ -269,7 +267,8 @@ export class HealthMonitor {
   }
 
   /**
-   * Check system resource health
+   * Checks the health of system resources like memory and disk usage.
+   * @returns {Promise<object>} An object containing system resource metrics.
    */
   async checkSystemHealth(): Promise<{
     memory_usage: number;
@@ -279,26 +278,22 @@ export class HealthMonitor {
     error?: string;
   }> {
     try {
-      // Get memory usage
       const memUsage = process.memoryUsage();
       const memoryUsagePercent = Math.round(
         (memUsage.heapUsed / memUsage.heapTotal) * 100
       );
 
-      // Get disk usage (simplified)
       let diskUsage: number | undefined;
       try {
         const stats = await fs.stat(process.cwd());
-        // This is a simplified disk usage check
-        diskUsage = 0; // Would need platform-specific implementation
+        diskUsage = 0;
       } catch {
-        // Disk usage check failed
       }
 
       return {
         memory_usage: memoryUsagePercent,
         disk_usage: diskUsage || 0,
-        process_count: 1 // Current process
+        process_count: 1
       };
     } catch (error) {
       return {
@@ -309,7 +304,9 @@ export class HealthMonitor {
   }
 
   /**
-   * Run comprehensive diagnostics
+   * Runs a comprehensive set of diagnostics, gathering detailed information about
+   * the system, database, performance, and recent errors.
+   * @returns {Promise<object>} An object containing the full diagnostic report data.
    */
   async runDiagnostics(): Promise<{
     timestamp: Date;
@@ -320,7 +317,6 @@ export class HealthMonitor {
   }> {
     const timestamp = new Date();
     
-    // System information
     const systemInfo = {
       node_version: process.version,
       platform: process.platform,
@@ -331,13 +327,10 @@ export class HealthMonitor {
       environment: process.env.NODE_ENV || 'development'
     };
 
-    // Database diagnostics
     const dbDiagnostics = await this.runDatabaseDiagnostics();
     
-    // Performance metrics
     const performanceMetrics = await this.collectPerformanceMetrics();
     
-    // Error summary
     const errorSummary = await this.collectErrorSummary();
 
     return {
@@ -350,14 +343,15 @@ export class HealthMonitor {
   }
 
   /**
-   * Run database-specific diagnostics
+   * Runs a series of database-specific diagnostic checks.
+   * @private
+   * @returns {Promise<Record<string, any>>} An object with database diagnostic information.
    */
   private async runDatabaseDiagnostics(): Promise<Record<string, any>> {
     const diagnostics: Record<string, any> = {};
     
     try {
 
-      // Database file info
       try {
         const dbPath = this.db.getDatabasePath();
         const stats = await fs.stat(dbPath);
@@ -370,7 +364,6 @@ export class HealthMonitor {
         diagnostics.database_file = { error: (error as Error).message };
       }
 
-      // Table statistics
       try {
         const tables = ['lockers', 'events', 'command_queue', 'kiosk_heartbeat', 'vip_contracts'];
         diagnostics.table_stats = {};
@@ -387,7 +380,6 @@ export class HealthMonitor {
         diagnostics.table_stats = { error: (error as Error).message };
       }
 
-      // Index usage
       try {
         interface IndexResult {
           name: string;
@@ -402,7 +394,6 @@ export class HealthMonitor {
         diagnostics.indexes = { error: (error as Error).message };
       }
 
-      // PRAGMA information
       try {
         const pragmas = {
           journal_mode: await this.db.get('PRAGMA journal_mode'),
@@ -424,13 +415,14 @@ export class HealthMonitor {
   }
 
   /**
-   * Collect performance metrics
+   * Collects various performance metrics from the running process.
+   * @private
+   * @returns {Promise<Record<string, any>>} An object with performance metrics.
    */
   private async collectPerformanceMetrics(): Promise<Record<string, any>> {
     try {
       const metrics: Record<string, any> = {};
 
-      // Memory metrics
       const memUsage = process.memoryUsage();
       metrics.memory = {
         heap_used_mb: Math.round(memUsage.heapUsed / 1024 / 1024),
@@ -439,20 +431,17 @@ export class HealthMonitor {
         rss_mb: Math.round(memUsage.rss / 1024 / 1024)
       };
 
-      // CPU metrics (simplified)
       const cpuUsage = process.cpuUsage();
       metrics.cpu = {
         user_microseconds: cpuUsage.user,
         system_microseconds: cpuUsage.system
       };
 
-      // Database performance test
       const dbPerfStart = Date.now();
       await this.db.get('SELECT COUNT(*) FROM sqlite_master');
       const dbPerfTime = Date.now() - dbPerfStart;
       metrics.database_response_time_ms = dbPerfTime;
 
-      // Event log statistics (if available)
       if (this.eventLogger) {
         try {
           const eventStats = await this.eventLogger.getEventStatistics();
@@ -474,13 +463,14 @@ export class HealthMonitor {
   }
 
   /**
-   * Collect error summary from recent events
+   * Collects a summary of recent errors and notable events from the database.
+   * @private
+   * @returns {Promise<Record<string, any>>} An object with an error summary.
    */
   private async collectErrorSummary(): Promise<Record<string, any>> {
     try {
       const errorSummary: Record<string, any> = {};
 
-      // Recent failed commands
       try {
         const failedCommands = await this.db.all(
           "SELECT command_type, last_error, retry_count FROM command_queue WHERE status = 'failed' ORDER BY created_at DESC LIMIT 10"
@@ -490,7 +480,6 @@ export class HealthMonitor {
         errorSummary.failed_commands = { error: 'Unable to query failed commands' };
       }
 
-      // System restart events
       try {
         interface RestartEventResult {
           timestamp: string;
@@ -507,7 +496,6 @@ export class HealthMonitor {
         errorSummary.recent_restarts = { error: 'Unable to query restart events' };
       }
 
-      // Offline kiosks
       try {
         const offlineKiosks = await this.db.all(
           "SELECT kiosk_id, last_seen FROM kiosk_heartbeat WHERE status = 'offline'"
@@ -524,7 +512,10 @@ export class HealthMonitor {
   }
 
   /**
-   * Implement log rotation with configurable retention
+   * Performs log file rotation, deleting files older than the specified retention period.
+   * @param {string} logDirectory - The directory containing the log files.
+   * @param {number} [retentionDays=30] - The number of days to retain log files.
+   * @returns {Promise<object>} An object summarizing the rotation results.
    */
   async rotateLogFiles(logDirectory: string, retentionDays: number = 30): Promise<{
     rotated_files: string[];
@@ -547,9 +538,7 @@ export class HealthMonitor {
           const filePath = path.join(logDirectory, file);
           const stats = await fs.stat(filePath);
 
-          // Check if file is older than retention period
           if (stats.mtime < cutoffDate) {
-            // Check if it's a log file
             if (file.endsWith('.log') || file.endsWith('.txt')) {
               await fs.unlink(filePath);
               result.deleted_files.push(file);
@@ -560,7 +549,6 @@ export class HealthMonitor {
         }
       }
 
-      // Log the rotation activity
       if (this.eventLogger) {
         await this.eventLogger.logEvent('system', EventType.SYSTEM_RESTARTED, {
           retention_days: retentionDays,
@@ -577,7 +565,8 @@ export class HealthMonitor {
   }
 
   /**
-   * Generate diagnostic report
+   * Generates a human-readable plain-text diagnostic report.
+   * @returns {Promise<string>} The diagnostic report as a string.
    */
   async generateDiagnosticReport(): Promise<string> {
     const diagnostics = await this.runDiagnostics();

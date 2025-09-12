@@ -3,29 +3,39 @@ import { DatabaseConnection } from '../database/connection';
 import { Command, CommandType, CommandStatus, CommandPayload } from '../types/core-entities';
 
 /**
- * CommandQueueManager handles the complete command lifecycle:
- * 
- * COMMAND LIFECYCLE:
- * 1. pending → Command created and waiting to be processed by kiosk
- * 2. executing → Kiosk has picked up the command and is processing it
- * 3. completed → Command successfully executed by kiosk
- * 4. failed → Command failed after max retries (kiosk updates error_message)
- * 5. cancelled → Command cancelled by admin or system
- * 
- * RESPONSIBILITIES:
- * - Admin Panel: Enqueues commands with UUID v4 command_id
- * - Kiosk Service: Updates status and error_message during processing
- * - Both: Use shared SQLite database with WAL mode and busy_timeout=5000
+ * Manages the lifecycle of asynchronous commands between the central server and kiosks.
+ *
+ * This class provides a robust system for queueing commands, handling their execution states,
+ * and managing retries with exponential backoff.
+ *
+ * ### Command Lifecycle:
+ * 1.  `pending`: A new command waiting for a kiosk to process it.
+ * 2.  `executing`: A kiosk has picked up the command and is actively processing it.
+ * 3.  `completed`: The command was successfully executed by the kiosk.
+ * 4.  `failed`: The command failed after reaching its maximum retry count.
+ * 5.  `cancelled`: The command was cancelled by an admin or an automated process.
+ *
+ * This manager is used by the admin panel to enqueue commands and by the kiosk service
+ * to fetch and update the status of those commands, ensuring reliable remote operations.
  */
 export class CommandQueueManager {
   private db: DatabaseConnection;
 
+  /**
+   * Creates an instance of CommandQueueManager.
+   * @param {DatabaseConnection} [db] - An optional database connection instance. If not provided, a default singleton instance is used.
+   */
   constructor(db?: DatabaseConnection) {
     this.db = db || DatabaseConnection.getInstance();
   }
 
   /**
-   * Enqueue a new command
+   * Adds a new command to the queue for a specific kiosk.
+   * @param {string} kioskId - The ID of the target kiosk.
+   * @param {CommandType} commandType - The type of command to enqueue.
+   * @param {CommandPayload} payload - The data required for the command.
+   * @param {number} [maxRetries=3] - The maximum number of times to retry the command on failure.
+   * @returns {Promise<string>} The unique ID of the enqueued command.
    */
   async enqueueCommand(
     kioskId: string, 
@@ -56,7 +66,10 @@ export class CommandQueueManager {
   }
 
   /**
-   * Get pending commands for a kiosk
+   * Retrieves all pending commands for a specific kiosk that are ready to be executed.
+   * @param {string} kioskId - The ID of the kiosk fetching commands.
+   * @param {number} [limit=10] - The maximum number of commands to retrieve.
+   * @returns {Promise<Command[]>} An array of pending commands.
    */
   async getPendingCommands(kioskId: string, limit: number = 10): Promise<Command[]> {
     const commands = await this.db.all<any>(
@@ -70,7 +83,9 @@ export class CommandQueueManager {
   }
 
   /**
-   * Get command by ID
+   * Retrieves a specific command by its ID.
+   * @param {string} commandId - The ID of the command to retrieve.
+   * @returns {Promise<Command | null>} The command object, or null if not found.
    */
   async getCommand(commandId: string): Promise<Command | null> {
     const row = await this.db.get<any>(
@@ -82,12 +97,14 @@ export class CommandQueueManager {
   }
 
   /**
-   * Mark command as executing (atomic update of status and executed_at)
+   * Marks a command's status as 'executing'. This is an atomic operation
+   * that ensures a command is only picked up once.
+   * @param {string} commandId - The ID of the command.
+   * @returns {Promise<boolean>} True if the command was successfully marked, false otherwise (e.g., if already executing).
    */
   async markCommandExecuting(commandId: string): Promise<boolean> {
     const now = new Date().toISOString();
     
-    // Atomic update: set status and executed_at in single transaction
     const result = await this.db.run(
       `UPDATE command_queue 
        SET status = 'executing', 
@@ -100,12 +117,14 @@ export class CommandQueueManager {
   }
 
   /**
-   * Mark command as completed (atomic update of status, completed_at, and duration_ms)
+   * Marks a command as 'completed' and records its execution duration.
+   * This is an atomic operation.
+   * @param {string} commandId - The ID of the completed command.
+   * @returns {Promise<boolean>} True if the command was successfully updated.
    */
   async markCommandCompleted(commandId: string): Promise<boolean> {
     const now = new Date().toISOString();
     
-    // Atomic update: calculate duration and set completion fields in single transaction
     const result = await this.db.run(
       `UPDATE command_queue 
        SET status = 'completed', 
@@ -124,7 +143,11 @@ export class CommandQueueManager {
   }
 
   /**
-   * Mark command as failed and schedule retry if retries remaining
+   * Marks a command as failed. If retry attempts are remaining, it schedules a retry
+   * with exponential backoff. Otherwise, it marks the command as permanently 'failed'.
+   * @param {string} commandId - The ID of the failed command.
+   * @param {string} error - A description of the error.
+   * @returns {Promise<boolean>} True if the command status was updated.
    */
   async markCommandFailed(commandId: string, error: string): Promise<boolean> {
     const command = await this.getCommand(commandId);
@@ -135,7 +158,6 @@ export class CommandQueueManager {
     const newRetryCount = command.retry_count + 1;
     
     if (newRetryCount >= command.max_retries) {
-      // Max retries reached, mark as failed
       const result = await this.db.run(
         `UPDATE command_queue 
          SET status = 'failed', retry_count = ?, last_error = ?, completed_at = ?
@@ -146,8 +168,7 @@ export class CommandQueueManager {
       console.log(`Command ${commandId} failed permanently after ${newRetryCount} attempts`);
       return result.changes > 0;
     } else {
-      // Schedule retry with exponential backoff
-      const backoffSeconds = Math.pow(2, newRetryCount) * 30; // 30s, 60s, 120s, etc.
+      const backoffSeconds = Math.pow(2, newRetryCount) * 30;
       const nextAttempt = new Date(Date.now() + backoffSeconds * 1000);
 
       const result = await this.db.run(
@@ -163,7 +184,9 @@ export class CommandQueueManager {
   }
 
   /**
-   * Cancel a command
+   * Cancels a pending or executing command.
+   * @param {string} commandId - The ID of the command to cancel.
+   * @returns {Promise<boolean>} True if the command was successfully cancelled.
    */
   async cancelCommand(commandId: string): Promise<boolean> {
     const result = await this.db.run(
@@ -182,7 +205,9 @@ export class CommandQueueManager {
   }
 
   /**
-   * Get command queue statistics for a kiosk
+   * Retrieves statistics about the command queue for a specific kiosk.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @returns {Promise<object>} An object containing queue statistics.
    */
   async getQueueStats(kioskId: string): Promise<{
     pending: number;
@@ -212,7 +237,9 @@ export class CommandQueueManager {
   }
 
   /**
-   * Clean up old completed/failed commands
+   * Deletes old, finalized (completed, failed, cancelled) commands from the database.
+   * @param {number} [retentionDays=7] - The number of days to keep finalized commands.
+   * @returns {Promise<number>} The number of rows deleted.
    */
   async cleanupOldCommands(retentionDays: number = 7): Promise<number> {
     const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
@@ -232,7 +259,10 @@ export class CommandQueueManager {
   }
 
   /**
-   * Clear all pending commands for a kiosk (used on restart)
+   * Cancels all pending or executing commands for a specific kiosk.
+   * This is useful for cleaning up the queue on system startup.
+   * @param {string} kioskId - The ID of the kiosk whose commands should be cleared.
+   * @returns {Promise<number>} The number of commands that were cancelled.
    */
   async clearPendingCommands(kioskId: string): Promise<number> {
     const result = await this.db.run(
@@ -250,7 +280,10 @@ export class CommandQueueManager {
   }
 
   /**
-   * Get command history for a kiosk
+   * Retrieves the command history for a specific kiosk.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} [limit=50] - The maximum number of commands to return.
+   * @returns {Promise<Command[]>} An array of recent commands.
    */
   async getCommandHistory(kioskId: string, limit: number = 50): Promise<Command[]> {
     const commands = await this.db.all<any>(
@@ -264,7 +297,12 @@ export class CommandQueueManager {
   }
 
   /**
-   * Bulk enqueue commands (for bulk operations)
+   * Enqueues multiple commands of the same type for a single kiosk.
+   * @param {string} kioskId - The ID of the target kiosk.
+   * @param {CommandType} commandType - The type of command to enqueue.
+   * @param {CommandPayload[]} payloads - An array of payloads, one for each command.
+   * @param {number} [maxRetries=3] - The maximum number of retries for each command.
+   * @returns {Promise<string[]>} An array of the enqueued command IDs.
    */
   async enqueueBulkCommands(
     kioskId: string,
@@ -300,7 +338,10 @@ export class CommandQueueManager {
   }
 
   /**
-   * Map database row to Command object
+   * Maps a raw database row to a structured `Command` object.
+   * @private
+   * @param {any} row - The raw data object from the database.
+   * @returns {Command} The mapped command entity.
    */
   private mapRowToCommand(row: any): Command {
     return {
@@ -321,7 +362,10 @@ export class CommandQueueManager {
   }
 
   /**
-   * Find stale executing commands (older than threshold)
+   * Finds commands that have been in the 'executing' state for longer than a given threshold.
+   * This is useful for detecting and recovering from stuck commands.
+   * @param {number} thresholdMs - The time in milliseconds to consider a command stale.
+   * @returns {Promise<Command[]>} An array of stale commands.
    */
   async findStaleExecutingCommands(thresholdMs: number): Promise<Command[]> {
     const cutoffTime = new Date(Date.now() - thresholdMs);

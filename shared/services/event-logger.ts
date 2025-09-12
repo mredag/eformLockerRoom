@@ -2,14 +2,19 @@ import { EventRepository } from '../database/event-repository';
 import { Event, EventType, EventDetails, ValidationResult, ValidationError } from '../types/core-entities';
 
 /**
- * Comprehensive Event Logging System
- * Implements standardized event types with schema validation
- * Requirements: 8.4, 9.3
+ * Provides a high-level, standardized interface for logging system events.
+ * This class ensures that all events are created with a consistent structure,
+ * validates event details against predefined schemas, and handles the
+ * sanitization of sensitive data before persisting events to the database.
  */
 export class EventLogger {
   private eventRepository: EventRepository;
   private validationSchemas: Map<EventType, EventSchema>;
 
+  /**
+   * Creates an instance of EventLogger.
+   * @param {EventRepository} eventRepository - The repository for persisting event data.
+   */
   constructor(eventRepository: EventRepository) {
     this.eventRepository = eventRepository;
     this.validationSchemas = new Map();
@@ -17,7 +22,10 @@ export class EventLogger {
   }
 
   /**
-   * Log a system restart event
+   * Logs a system restart event.
+   * @param {string} kioskId - The ID of the kiosk that restarted.
+   * @param {object} [details={}] - Additional details about the restart.
+   * @returns {Promise<Event>} The created event object.
    */
   async logSystemRestart(kioskId: string, details: {
     previous_uptime?: number;
@@ -29,7 +37,12 @@ export class EventLogger {
   }
 
   /**
-   * Log RFID assignment event
+   * Logs an event for an RFID card being assigned to a locker.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {string} rfidCard - The RFID card ID.
+   * @param {object} details - Details about the assignment.
+   * @returns {Promise<Event>} The created event object.
    */
   async logRfidAssign(
     kioskId: string,
@@ -51,7 +64,12 @@ export class EventLogger {
   }
 
   /**
-   * Log RFID release event
+   * Logs an event for a locker being released by an RFID card.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {string} rfidCard - The RFID card ID.
+   * @param {object} details - Details about the release.
+   * @returns {Promise<Event>} The created event object.
    */
   async logRfidRelease(
     kioskId: string,
@@ -72,7 +90,13 @@ export class EventLogger {
   }
 
   /**
-   * Log QR code access event
+   * Logs an event for a locker being accessed via a QR code.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {string} deviceId - A unique identifier for the user's device.
+   * @param {'assign' | 'release'} action - The action performed.
+   * @param {object} details - Details about the QR access.
+   * @returns {Promise<Event>} The created event object.
    */
   async logQrAccess(
     kioskId: string,
@@ -98,7 +122,12 @@ export class EventLogger {
   }
 
   /**
-   * Log staff operation
+   * Logs an event for an operation performed by a staff member.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {EventType.STAFF_OPEN | EventType.STAFF_BLOCK | EventType.STAFF_UNBLOCK} eventType - The type of staff operation.
+   * @param {string} staffUser - The username of the staff member.
+   * @param {object} details - Details about the operation.
+   * @returns {Promise<Event>} The created event object.
    */
   async logStaffOperation(
     kioskId: string,
@@ -123,7 +152,11 @@ export class EventLogger {
   }
 
   /**
-   * Log bulk operation
+   * Logs an event for a bulk operation (e.g., opening all lockers).
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {string} staffUser - The username of the staff member.
+   * @param {object} details - Details about the bulk operation.
+   * @returns {Promise<Event>} The created event object.
    */
   async logBulkOperation(
     kioskId: string,
@@ -148,7 +181,11 @@ export class EventLogger {
   }
 
   /**
-   * Log master PIN usage
+   * Logs an event for the use of a master PIN.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} lockerId - The ID of the locker accessed.
+   * @param {object} details - Details about the PIN usage.
+   * @returns {Promise<Event>} The created event object.
    */
   async logMasterPinUsage(
     kioskId: string,
@@ -168,7 +205,12 @@ export class EventLogger {
   }
 
   /**
-   * Log VIP contract operations
+   * Logs an event related to a VIP contract operation.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {EventType.VIP_CONTRACT_CREATED | EventType.VIP_CONTRACT_EXTENDED | EventType.VIP_CONTRACT_CANCELLED} eventType - The type of VIP operation.
+   * @param {string} staffUser - The username of the staff member.
+   * @param {object} details - Details about the operation.
+   * @returns {Promise<Event>} The created event object.
    */
   async logVipContractOperation(
     kioskId: string,
@@ -196,7 +238,12 @@ export class EventLogger {
   }
 
   /**
-   * Log VIP transfer operations
+   * Logs an event related to a VIP contract transfer.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {EventType.VIP_TRANSFER_REQUESTED | EventType.VIP_TRANSFER_APPROVED | EventType.VIP_TRANSFER_REJECTED | EventType.VIP_TRANSFER_COMPLETED} eventType - The type of transfer operation.
+   * @param {string} staffUser - The username of the staff member.
+   * @param {object} details - Details about the transfer.
+   * @returns {Promise<Event>} The created event object.
    */
   async logVipTransferOperation(
     kioskId: string,
@@ -226,7 +273,11 @@ export class EventLogger {
   }
 
   /**
-   * Log kiosk status changes
+   * Logs an event for a change in kiosk status (online/offline).
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {EventType.KIOSK_ONLINE | EventType.KIOSK_OFFLINE} eventType - The new status.
+   * @param {object} details - Details about the status change.
+   * @returns {Promise<Event>} The created event object.
    */
   async logKioskStatusChange(
     kioskId: string,
@@ -242,7 +293,17 @@ export class EventLogger {
   }
 
   /**
-   * Generic event logging with validation
+   * A generic method to log any type of event. It validates the event details against
+   * a schema and sanitizes sensitive information before persisting the event.
+   * @param {string} kioskId - The ID of the kiosk where the event occurred.
+   * @param {EventType} eventType - The type of the event.
+   * @param {Record<string, any>} [details={}] - A JSON object with additional event details.
+   * @param {number} [lockerId] - The associated locker ID, if any.
+   * @param {string} [rfidCard] - The associated RFID card ID, if any.
+   * @param {string} [deviceId] - The associated device ID, if any.
+   * @param {string} [staffUser] - The staff user who initiated the event, if any.
+   * @returns {Promise<Event>} The created event object.
+   * @throws {Error} If the event details fail validation.
    */
   async logEvent(
     kioskId: string,
@@ -253,18 +314,15 @@ export class EventLogger {
     deviceId?: string,
     staffUser?: string
   ): Promise<Event> {
-    // Validate event details against schema
     const validationResult = this.validateEventDetails(eventType, details);
     if (!validationResult.valid) {
       throw new Error(`Event validation failed: ${validationResult.errors.map(e => e.message).join(', ')}`);
     }
 
-    // Validate staff operations have staff_user
     if (this.isStaffEvent(eventType) && !staffUser) {
       throw new Error(`Staff event ${eventType} requires staff_user field`);
     }
 
-    // Hash sensitive data in details
     const sanitizedDetails = this.sanitizeEventDetails(details, deviceId);
 
     return this.eventRepository.create({
@@ -279,7 +337,9 @@ export class EventLogger {
   }
 
   /**
-   * Query events with filtering
+   * Queries the event log using a flexible set of filters.
+   * @param {object} filter - The filtering criteria.
+   * @returns {Promise<Event[]>} An array of events matching the filter.
    */
   async queryEvents(filter: {
     kiosk_id?: string;
@@ -304,7 +364,10 @@ export class EventLogger {
   }
 
   /**
-   * Get event statistics
+   * Retrieves statistics about logged events.
+   * @param {Date} [fromDate] - The start date for the statistics.
+   * @param {Date} [toDate] - The end date for the statistics.
+   * @returns {Promise<object>} An object containing event statistics.
    */
   async getEventStatistics(fromDate?: Date, toDate?: Date): Promise<{
     total: number;
@@ -318,21 +381,28 @@ export class EventLogger {
   }
 
   /**
-   * Get staff audit trail
+   * Retrieves a full audit trail for a specific staff member.
+   * @param {string} [staffUser] - The username of the staff member.
+   * @param {Date} [fromDate] - The start date for the audit trail.
+   * @param {Date} [toDate] - The end date for the audit trail.
+   * @returns {Promise<Event[]>} An array of events performed by the specified user.
    */
   async getStaffAuditTrail(staffUser?: string, fromDate?: Date, toDate?: Date): Promise<Event[]> {
     return this.eventRepository.findStaffActions(staffUser, fromDate, toDate);
   }
 
   /**
-   * Clean up old events
+   * Deletes old event records to save space.
+   * @param {number} [retentionDays=30] - The number of days to keep event records.
+   * @returns {Promise<number>} The number of deleted rows.
    */
   async cleanupOldEvents(retentionDays: number = 30): Promise<number> {
     return this.eventRepository.cleanupOldEvents(retentionDays);
   }
 
   /**
-   * Initialize validation schemas for event types
+   * Initializes the validation schemas for each event type.
+   * @private
    */
   private initializeSchemas(): void {
     // System events
@@ -522,18 +592,20 @@ export class EventLogger {
   }
 
   /**
-   * Validate event details against schema
+   * Validates the details of an event against its registered schema.
+   * @private
+   * @param {EventType} eventType - The type of the event.
+   * @param {Record<string, any>} details - The details object to validate.
+   * @returns {ValidationResult} The result of the validation.
    */
   private validateEventDetails(eventType: EventType, details: Record<string, any>): ValidationResult {
     const schema = this.validationSchemas.get(eventType);
     const errors: ValidationError[] = [];
 
     if (!schema) {
-      // No schema defined, allow any details
       return { valid: true, errors: [] };
     }
 
-    // Check required fields
     if (schema.required) {
       for (const field of schema.required) {
         if (!(field in details)) {
@@ -546,7 +618,6 @@ export class EventLogger {
       }
     }
 
-    // Check field types
     if (schema.types) {
       for (const [field, expectedType] of Object.entries(schema.types)) {
         if (field in details) {
@@ -564,7 +635,6 @@ export class EventLogger {
       }
     }
 
-    // Check enum values
     if (schema.enums) {
       for (const [field, allowedValues] of Object.entries(schema.enums)) {
         if (field in details) {
@@ -587,7 +657,10 @@ export class EventLogger {
   }
 
   /**
-   * Check if event type is a staff event
+   * Checks if a given event type is considered a staff-initiated event.
+   * @private
+   * @param {EventType} eventType - The event type to check.
+   * @returns {boolean} True if the event is a staff event.
    */
   private isStaffEvent(eventType: EventType): boolean {
     const staffEvents = [
@@ -608,23 +681,23 @@ export class EventLogger {
   }
 
   /**
-   * Sanitize event details for privacy protection
+   * Sanitizes event details to protect user privacy, for example, by hashing IP addresses.
+   * @private
+   * @param {Record<string, any>} details - The original event details.
+   * @param {string} [deviceId] - The device ID, used for context.
+   * @returns {Record<string, any>} The sanitized details.
    */
   private sanitizeEventDetails(details: Record<string, any>, deviceId?: string): Record<string, any> {
     const sanitized = { ...details };
 
-    // Hash device_id if present in details
     if (sanitized.device_hash && deviceId) {
-      // Keep the hash, remove any raw device_id
       delete sanitized.device_id;
     }
 
-    // Hash IP addresses for privacy
     if (sanitized.ip_address) {
       sanitized.ip_address = this.hashSensitiveData(sanitized.ip_address);
     }
 
-    // Truncate user agent strings
     if (sanitized.user_agent && sanitized.user_agent.length > 100) {
       sanitized.user_agent = sanitized.user_agent.substring(0, 100) + '...';
     }
@@ -633,7 +706,10 @@ export class EventLogger {
   }
 
   /**
-   * Hash sensitive data for privacy protection
+   * Hashes a string for privacy. In a real application, a more secure hashing algorithm should be used.
+   * @private
+   * @param {string} data - The string to hash.
+   * @returns {string} The hashed string.
    */
   private hashSensitiveData(data: string): string {
     // Simple hash for privacy - in production, use crypto.createHash
@@ -648,7 +724,8 @@ export class EventLogger {
 }
 
 /**
- * Event validation schema interface
+ * @private
+ * Defines the schema for validating the details of a specific event type.
  */
 interface EventSchema {
   required?: string[];

@@ -2,6 +2,9 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { DatabaseConnection } from './connection';
 
+/**
+ * Represents a single migration record as stored in the `schema_migrations` table.
+ */
 export interface Migration {
   id: number;
   filename: string;
@@ -9,17 +12,27 @@ export interface Migration {
   checksum: string;
 }
 
+/**
+ * Manages the database schema migration process.
+ * This class is responsible for finding, applying, and verifying SQL migration files
+ * to ensure the database schema is up-to-date and consistent.
+ */
 export class MigrationRunner {
   private db: DatabaseConnection;
   private migrationsPath: string;
 
+  /**
+   * Creates an instance of MigrationRunner.
+   * @param {string} [migrationsPath='./migrations'] - The path to the directory containing SQL migration files.
+   */
   constructor(migrationsPath: string = './migrations') {
     this.db = DatabaseConnection.getInstance();
     this.migrationsPath = migrationsPath;
   }
 
   /**
-   * Initialize the migrations table
+   * Ensures the `schema_migrations` table exists in the database.
+   * This table is used to track which migrations have been applied.
    */
   async initializeMigrationsTable(): Promise<void> {
     const sql = `
@@ -34,7 +47,8 @@ export class MigrationRunner {
   }
 
   /**
-   * Get list of applied migrations
+   * Retrieves a list of all migrations that have been applied to the database.
+   * @returns {Promise<Migration[]>} A promise that resolves to an array of applied migrations.
    */
   async getAppliedMigrations(): Promise<Migration[]> {
     await this.initializeMigrationsTable();
@@ -44,30 +58,28 @@ export class MigrationRunner {
   }
 
   /**
-   * Get list of pending migrations
+   * Compares the migrations on disk with the applied migrations in the database
+   * to determine which migrations need to be run.
+   * @returns {Promise<string[]>} A promise that resolves to an array of pending migration filenames.
    */
   async getPendingMigrations(): Promise<string[]> {
     const appliedMigrations = await this.getAppliedMigrations();
-    console.log('DEBUG: Applied migrations from DB:', JSON.stringify(appliedMigrations, null, 2));
-
     const appliedFilenames = new Set(appliedMigrations.map(m => m.filename.trim()));
-    console.log('DEBUG: Set of applied filenames:', appliedFilenames);
     
     const allMigrationFiles = readdirSync(this.migrationsPath)
       .filter(file => file.endsWith('.sql'))
       .map(file => file.trim())
       .sort();
 
-    console.log('DEBUG: All migration files from disk:', allMigrationFiles);
-
     const pending = allMigrationFiles.filter(file => !appliedFilenames.has(file));
-    console.log('DEBUG: Calculated pending migrations:', pending);
-
     return pending;
   }
 
   /**
-   * Calculate checksum for migration file
+   * Calculates the SHA-256 checksum of a migration file's content.
+   * @private
+   * @param {string} content - The content of the migration file.
+   * @returns {Promise<string>} The hex-encoded checksum.
    */
   private async calculateChecksum(content: string): Promise<string> {
     const { createHash } = await import('crypto');
@@ -75,7 +87,11 @@ export class MigrationRunner {
   }
 
   /**
-   * Extract migration ID from filename
+   * Extracts the numeric ID from the beginning of a migration filename (e.g., "001_...").
+   * @private
+   * @param {string} filename - The migration filename.
+   * @returns {number} The extracted migration ID.
+   * @throws {Error} If the filename is not in the expected format.
    */
   private extractMigrationId(filename: string): number {
     const match = filename.match(/^(\d+)_/);
@@ -86,7 +102,10 @@ export class MigrationRunner {
   }
 
   /**
-   * Apply a single migration
+   * Applies a single migration file to the database within a transaction.
+   * If the migration succeeds, a record is added to the `schema_migrations` table.
+   * If it fails, the transaction is rolled back.
+   * @param {string} filename - The filename of the migration to apply.
    */
   async applyMigration(filename: string): Promise<void> {
     const migrationPath = join(this.migrationsPath, filename);
@@ -97,22 +116,17 @@ export class MigrationRunner {
     console.log(`Applying migration: ${filename}`);
 
     try {
-      // Execute the migration SQL
       await this.db.beginTransaction();
       
-      // Execute the entire migration as one statement
-      // SQLite can handle multiple statements separated by semicolons
       console.log(`Executing migration SQL...`);
       
       try {
-        // Use exec for multiple statements
         await this.db.exec(content);
       } catch (error) {
         console.error(`Error executing migration: ${error}`);
         throw error;
       }
 
-      // Record the migration as applied
       await this.db.run(
         'INSERT INTO schema_migrations (id, filename, checksum) VALUES (?, ?, ?)',
         [migrationId, filename, checksum]
@@ -129,7 +143,7 @@ export class MigrationRunner {
   }
 
   /**
-   * Apply all pending migrations
+   * Finds and applies all pending migrations in order.
    */
   async runMigrations(): Promise<void> {
     const pendingMigrations = await this.getPendingMigrations();
@@ -149,7 +163,9 @@ export class MigrationRunner {
   }
 
   /**
-   * Verify migration checksums
+   * Verifies the integrity of applied migrations by comparing the checksums stored
+   * in the database with the current checksums of the migration files on disk.
+   * @returns {Promise<boolean>} True if all checksums match, false otherwise.
    */
   async verifyMigrations(): Promise<boolean> {
     const appliedMigrations = await this.getAppliedMigrations();
@@ -170,10 +186,7 @@ export class MigrationRunner {
           console.log(`✓ Migration ${migration.filename} checksum valid`);
         }
       } catch (error) {
-        // For missing migration files that are already applied, just warn but don't fail
-        // This handles cases where migrations were applied but files were later removed
         console.warn(`⚠ Migration ${migration.filename} file not found (already applied)`);
-        // Don't set allValid = false for missing files of applied migrations
       }
     }
 
@@ -181,7 +194,8 @@ export class MigrationRunner {
   }
 
   /**
-   * Get migration status
+   * Gets the current status of all migrations, including which have been applied and which are pending.
+   * @returns {Promise<object>} An object containing the applied and pending migrations.
    */
   async getStatus(): Promise<{
     applied: Migration[];

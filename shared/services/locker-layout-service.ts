@@ -3,6 +3,9 @@ import { LockerNamingService } from './locker-naming-service';
 import { DatabaseConnection } from '../database/connection';
 import { getLockersInZone } from './zone-helpers';
 
+/**
+ * Represents the detailed layout and hardware mapping for a single locker.
+ */
 export interface LockerLayoutInfo {
   id: number;
   cardId: number;
@@ -14,6 +17,9 @@ export interface LockerLayoutInfo {
   cardDescription: string;
 }
 
+/**
+ * Represents the complete grid layout for a kiosk or zone, including all locker details.
+ */
 export interface LayoutGrid {
   rows: number;
   columns: number;
@@ -22,8 +28,9 @@ export interface LayoutGrid {
 }
 
 /**
- * Service for generating locker layouts based on Modbus configuration
- * Ensures UI matches hardware configuration exactly
+ * A service responsible for generating locker layouts based on the system's hardware configuration.
+ * It ensures that the UI accurately reflects the physical hardware setup and handles
+ * auto-synchronization between the configured hardware and the locker records in the database.
  */
 export class LockerLayoutService {
   private configManager: ConfigManager;
@@ -35,30 +42,28 @@ export class LockerLayoutService {
   }
 
   /**
-   * Generate locker layout based on current Modbus configuration
-   * Now includes actual display names from the database
-   * Auto-syncs database with hardware configuration
-   * @param kioskId - Kiosk identifier (default: 'kiosk-1')
-   * @param zoneId - Optional zone ID to filter lockers by zone
+   * Generates the complete locker layout grid.
+   * This method reads the hardware configuration, auto-syncs the database to ensure a record
+   * exists for each physical locker, and then generates the layout details for each locker,
+   * including its hardware mapping and display name. It can also filter the layout by a specific zone.
+   * @param {string} [kioskId='kiosk-1'] - The identifier for the kiosk.
+   * @param {string} [zoneId] - An optional zone ID to filter the lockers.
+   * @returns {Promise<LayoutGrid>} The generated layout grid.
    */
   async generateLockerLayout(kioskId: string = 'kiosk-1', zoneId?: string): Promise<LayoutGrid> {
     await this.configManager.initialize();
     const config = this.configManager.getConfiguration();
 
-    // Auto-sync: Calculate total channels and ensure database has matching lockers
     const enabledCards = config.hardware.relay_cards.filter(card => card.enabled);
     const totalChannels = enabledCards.reduce((sum, card) => sum + card.channels, 0);
     const configuredLockers = config.lockers.total_count;
     
-    // Use the higher value for maximum compatibility
     const targetLockerCount = Math.max(totalChannels, configuredLockers);
     
-    // Auto-sync database if needed
     if (totalChannels !== configuredLockers || targetLockerCount > configuredLockers) {
       console.log(`🔄 Layout service auto-sync: ensuring ${targetLockerCount} lockers exist`);
       
       try {
-        // Import and use the locker state manager to sync
         const { LockerStateManager } = await import('./locker-state-manager');
         const { DatabaseConnection } = await import('../database/connection');
         
@@ -66,7 +71,6 @@ export class LockerLayoutService {
         const stateManager = new LockerStateManager(db);
         await stateManager.syncLockersWithHardware(kioskId, targetLockerCount);
         
-        // Update configuration if hardware has more channels
         if (totalChannels > configuredLockers) {
           await this.configManager.updateParameter(
             'lockers',
@@ -83,27 +87,20 @@ export class LockerLayoutService {
 
     const lockers: LockerLayoutInfo[] = [];
     
-    // Determine which lockers to include based on zone configuration
     let targetLockerIds: number[];
     
     if (config.features?.zones_enabled && zoneId) {
-      // Use zone-filtered locker list
       targetLockerIds = getLockersInZone(zoneId, config);
       console.log(`🎯 Zone-aware layout: generating ${targetLockerIds.length} lockers for zone "${zoneId}"`);
     } else {
-      // Use existing logic: generate full list based on hardware configuration
       const totalLockers = Math.min(config.lockers.total_count, targetLockerCount);
       targetLockerIds = Array.from({ length: totalLockers }, (_, i) => i + 1);
     }
 
-    // Generate locker info for each target locker
     for (const lockerId of targetLockerIds) {
-      // Calculate hardware mapping for this locker
       const cardIndex = Math.floor((lockerId - 1) / 16);
       const relayId = ((lockerId - 1) % 16) + 1;
       
-      // Find the corresponding relay card
-      const enabledCards = config.hardware.relay_cards.filter(card => card.enabled);
       if (cardIndex >= enabledCards.length) {
         console.warn(`⚠️  Locker ${lockerId} maps to card index ${cardIndex} but only ${enabledCards.length} cards available`);
         continue;
@@ -111,12 +108,10 @@ export class LockerLayoutService {
       
       const card = enabledCards[cardIndex];
 
-      // Get the actual display name from the database
       let displayName: string;
       try {
         displayName = await this.namingService.getDisplayName(kioskId, lockerId);
       } catch (error) {
-        // Fallback to default name if naming service fails
         displayName = `Dolap ${lockerId}`;
       }
 
@@ -134,7 +129,6 @@ export class LockerLayoutService {
       lockers.push(lockerInfo);
     }
 
-    // Calculate layout dimensions based on actual lockers
     const actualTotalLockers = lockers.length;
     const layoutRows = config.lockers.layout.rows;
     const layoutColumns = config.lockers.layout.columns;
@@ -148,7 +142,8 @@ export class LockerLayoutService {
   }
 
   /**
-   * Generate CSS grid layout based on configuration
+   * Generates a CSS string for a grid layout based on the configuration.
+   * @returns {Promise<string>} The generated CSS string.
    */
   async generateGridCSS(): Promise<string> {
     const layout = await this.generateLockerLayout();
@@ -195,7 +190,11 @@ export class LockerLayoutService {
   }
 
   /**
-   * Get locker mapping information for hardware control
+   * Retrieves the hardware mapping information for a specific locker.
+   * @param {number} lockerId - The ID of the locker.
+   * @param {string} [kioskId='kiosk-1'] - The ID of the kiosk.
+   * @param {string} [zoneId] - An optional zone ID.
+   * @returns {Promise<LockerLayoutInfo | null>} The locker's layout info, or null if not found.
    */
   async getLockerMapping(lockerId: number, kioskId: string = 'kiosk-1', zoneId?: string): Promise<LockerLayoutInfo | null> {
     const layout = await this.generateLockerLayout(kioskId, zoneId);
@@ -203,7 +202,11 @@ export class LockerLayoutService {
   }
 
   /**
-   * Validate that locker ID is within configured range
+   * Validates whether a given locker ID exists within the configured layout.
+   * @param {number} lockerId - The ID of the locker to validate.
+   * @param {string} [kioskId='kiosk-1'] - The ID of the kiosk.
+   * @param {string} [zoneId] - An optional zone ID.
+   * @returns {Promise<boolean>} True if the locker ID is valid.
    */
   async isValidLockerId(lockerId: number, kioskId: string = 'kiosk-1', zoneId?: string): Promise<boolean> {
     const layout = await this.generateLockerLayout(kioskId, zoneId);
@@ -211,7 +214,8 @@ export class LockerLayoutService {
   }
 
   /**
-   * Get hardware statistics based on configuration
+   * Retrieves statistics about the configured hardware.
+   * @returns {Promise<object>} An object containing hardware statistics.
    */
   async getHardwareStats(): Promise<{
     totalCards: number;
@@ -241,7 +245,10 @@ export class LockerLayoutService {
   }
 
   /**
-   * Generate locker cards for admin panel
+   * Generates HTML for the locker cards displayed in the admin panel.
+   * @param {string} [kioskId='kiosk-1'] - The ID of the kiosk.
+   * @param {string} [zoneId] - An optional zone ID.
+   * @returns {Promise<string>} An HTML string of locker cards.
    */
   async generatePanelCards(kioskId: string = 'kiosk-1', zoneId?: string): Promise<string> {
     const layout = await this.generateLockerLayout(kioskId, zoneId);
@@ -274,7 +281,10 @@ export class LockerLayoutService {
   }
 
   /**
-   * Generate locker tiles for kiosk interface
+   * Generates HTML for the locker tiles displayed on the kiosk interface.
+   * @param {string} [kioskId='kiosk-1'] - The ID of the kiosk.
+   * @param {string} [zoneId] - An optional zone ID.
+   * @returns {Promise<string>} An HTML string of locker tiles.
    */
   async generateKioskTiles(kioskId: string = 'kiosk-1', zoneId?: string): Promise<string> {
     const layout = await this.generateLockerLayout(kioskId, zoneId);
@@ -299,7 +309,9 @@ export class LockerLayoutService {
   }
 
   /**
-   * Get relay card information for a specific locker
+   * Retrieves the relay card information for a specific locker.
+   * @param {number} lockerId - The ID of the locker.
+   * @returns {Promise<object | null>} An object with the card and relay info, or null if not found.
    */
   async getRelayCardInfo(lockerId: number): Promise<{
     cardId: number;
@@ -319,5 +331,7 @@ export class LockerLayoutService {
   }
 }
 
-// Export singleton instance
+/**
+ * A singleton instance of the LockerLayoutService for easy access throughout the application.
+ */
 export const lockerLayoutService = new LockerLayoutService();

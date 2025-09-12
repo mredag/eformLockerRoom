@@ -1,6 +1,9 @@
 import { DatabaseConnection } from './connection';
 import { KioskHeartbeat, KioskStatus } from '../types/core-entities';
 
+/**
+ * Defines the filtering criteria for querying kiosk heartbeat records.
+ */
 export interface KioskFilter {
   zone?: string;
   status?: KioskStatus | KioskStatus[];
@@ -9,20 +12,39 @@ export interface KioskFilter {
   version?: string;
 }
 
+/**
+ * Manages the persistence and retrieval of `KioskHeartbeat` entities.
+ * This repository is responsible for tracking the status of each kiosk,
+ * including its last seen time, zone, version, and current status (online/offline).
+ */
 export class KioskHeartbeatRepository {
   protected db: DatabaseConnection;
   protected tableName: string = 'kiosk_heartbeat';
 
+  /**
+   * Creates an instance of KioskHeartbeatRepository.
+   * @param {DatabaseConnection} db - The database connection instance.
+   */
   constructor(db: DatabaseConnection) {
     this.db = db;
   }
 
+  /**
+   * Finds a kiosk heartbeat record by its unique kiosk ID.
+   * @param {string | number} id - The ID of the kiosk.
+   * @returns {Promise<KioskHeartbeat | null>} The found heartbeat record or null.
+   */
   async findById(id: string | number): Promise<KioskHeartbeat | null> {
     const sql = `SELECT * FROM ${this.tableName} WHERE kiosk_id = ?`;
     const row = await this.db.get(sql, [id]);
     return row ? this.mapRowToEntity(row) : null;
   }
 
+  /**
+   * Finds all kiosk heartbeat records that match the specified filter criteria.
+   * @param {KioskFilter} [filter] - The filter to apply.
+   * @returns {Promise<KioskHeartbeat[]>} An array of matching heartbeat records.
+   */
   async findAll(filter?: KioskFilter): Promise<KioskHeartbeat[]> {
     let sql = `SELECT * FROM ${this.tableName}`;
     const params: any[] = [];
@@ -71,6 +93,11 @@ export class KioskHeartbeatRepository {
     return rows.map(row => this.mapRowToEntity(row));
   }
 
+  /**
+   * Creates a new kiosk heartbeat record.
+   * @param {Omit<KioskHeartbeat, 'created_at' | 'updated_at'>} kiosk - The kiosk data to insert.
+   * @returns {Promise<KioskHeartbeat>} The newly created kiosk heartbeat record.
+   */
   async create(kiosk: Omit<KioskHeartbeat, 'created_at' | 'updated_at'>): Promise<KioskHeartbeat> {
     const sql = `
       INSERT INTO ${this.tableName} (
@@ -102,14 +129,19 @@ export class KioskHeartbeatRepository {
     return created;
   }
 
+  /**
+   * Updates an existing kiosk heartbeat record.
+   * @param {string | number} id - The ID of the kiosk to update.
+   * @param {Partial<KioskHeartbeat>} updates - The fields to update.
+   * @returns {Promise<KioskHeartbeat>} The updated kiosk heartbeat record.
+   */
   async update(id: string | number, updates: Partial<KioskHeartbeat>): Promise<KioskHeartbeat> {
     const setClause: string[] = [];
     const params: any[] = [];
 
-    // Build SET clause dynamically
     for (const [key, value] of Object.entries(updates)) {
       if (key === 'kiosk_id' || key === 'created_at' || key === 'updated_at') {
-        continue; // Skip immutable fields
+        continue;
       }
 
       setClause.push(`${key} = ?`);
@@ -125,7 +157,6 @@ export class KioskHeartbeatRepository {
       throw new Error('No valid fields to update');
     }
 
-    // Add updated_at timestamp
     setClause.push('updated_at = CURRENT_TIMESTAMP');
 
     const sql = `
@@ -150,6 +181,11 @@ export class KioskHeartbeatRepository {
     return updated;
   }
 
+  /**
+   * Deletes a kiosk heartbeat record.
+   * @param {string | number} id - The ID of the kiosk to delete.
+   * @returns {Promise<boolean>} True if the deletion was successful.
+   */
   async delete(id: string | number): Promise<boolean> {
     const sql = `DELETE FROM ${this.tableName} WHERE kiosk_id = ?`;
     const result = await this.db.run(sql, [id]);
@@ -157,7 +193,13 @@ export class KioskHeartbeatRepository {
   }
 
   /**
-   * Update heartbeat for a kiosk
+   * Updates the heartbeat for a specific kiosk, setting its status to 'online'
+   * and updating its last seen timestamp.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {string} [version] - The current software version of the kiosk.
+   * @param {string} [configHash] - The hash of the configuration currently loaded by the kiosk.
+   * @returns {Promise<KioskHeartbeat>} The updated kiosk heartbeat record.
+   * @throws {Error} If the kiosk is not registered.
    */
   async updateHeartbeat(kioskId: string, version?: string, configHash?: string): Promise<KioskHeartbeat> {
     const updates: Partial<KioskHeartbeat> = {
@@ -173,17 +215,22 @@ export class KioskHeartbeatRepository {
       updates.last_config_hash = configHash;
     }
 
-    // Try to update existing record
     try {
       return await this.update(kioskId, updates);
     } catch (error) {
-      // If kiosk doesn't exist, we can't create it here without zone info
       throw new Error(`Kiosk ${kioskId} not registered. Use registerKiosk first.`);
     }
   }
 
   /**
-   * Register a new kiosk
+   * Registers a new kiosk in the system. If the kiosk already exists, it updates the existing record.
+   * This "upsert" logic is crucial for handling initial kiosk provisioning and re-registration.
+   * @param {string} kioskId - The unique ID for the kiosk.
+   * @param {string} zone - The zone the kiosk belongs to.
+   * @param {string} version - The software version of the kiosk.
+   * @param {string} [hardwareId] - An optional unique hardware identifier.
+   * @param {string} [registrationSecret] - An optional secret for registration.
+   * @returns {Promise<KioskHeartbeat>} The created or updated kiosk heartbeat record.
    */
   async registerKiosk(
     kioskId: string, 
@@ -193,7 +240,6 @@ export class KioskHeartbeatRepository {
     registrationSecret?: string
   ): Promise<KioskHeartbeat> {
     try {
-      // Try to create new kiosk
       return await this.create({
         kiosk_id: kioskId,
         last_seen: new Date(),
@@ -206,7 +252,6 @@ export class KioskHeartbeatRepository {
       });
     } catch (error: any) {
       console.log('Registration error:', error.code, error.message);
-      // If kiosk already exists, update it instead
       if (error.code === 'SQLITE_CONSTRAINT' && error.message.includes('UNIQUE constraint failed')) {
         console.log(`Kiosk ${kioskId} already exists, updating instead...`);
         const updateData = {
@@ -233,7 +278,9 @@ export class KioskHeartbeatRepository {
   }
 
   /**
-   * Mark offline kiosks based on threshold
+   * Scans all online kiosks and marks any as 'offline' if their `last_seen`
+   * timestamp exceeds their configured `offline_threshold_seconds`.
+   * @returns {Promise<number>} The number of kiosks marked as offline.
    */
   async markOfflineKiosks(): Promise<number> {
     const sql = `
@@ -249,21 +296,25 @@ export class KioskHeartbeatRepository {
   }
 
   /**
-   * Get offline kiosks
+   * Retrieves all kiosks that are currently marked as offline.
+   * @returns {Promise<KioskHeartbeat[]>} An array of offline kiosk records.
    */
   async getOfflineKiosks(): Promise<KioskHeartbeat[]> {
     return this.findAll({ status: 'offline' });
   }
 
   /**
-   * Get kiosks by zone
+   * Retrieves all kiosks belonging to a specific zone.
+   * @param {string} zone - The zone to filter by.
+   * @returns {Promise<KioskHeartbeat[]>} An array of kiosk records in the specified zone.
    */
   async getByZone(zone: string): Promise<KioskHeartbeat[]> {
     return this.findAll({ zone });
   }
 
   /**
-   * Get all zones
+   * Retrieves a list of all unique zone names present in the database.
+   * @returns {Promise<string[]>} An array of zone names.
    */
   async getAllZones(): Promise<string[]> {
     const sql = `SELECT DISTINCT zone FROM ${this.tableName} ORDER BY zone`;
@@ -272,7 +323,9 @@ export class KioskHeartbeatRepository {
   }
 
   /**
-   * Get kiosk statistics
+   * Gathers statistics about the kiosk fleet, including total counts
+   * and breakdowns by status, zone, and version.
+   * @returns {Promise<object>} An object containing kiosk statistics.
    */
   async getStatistics(): Promise<{
     total: number;
@@ -343,7 +396,9 @@ export class KioskHeartbeatRepository {
   }
 
   /**
-   * Find kiosk by hardware ID
+   * Finds a kiosk by its unique hardware ID.
+   * @param {string} hardwareId - The hardware ID to search for.
+   * @returns {Promise<KioskHeartbeat | null>} The found kiosk record or null.
    */
   async findByHardwareId(hardwareId: string): Promise<KioskHeartbeat | null> {
     const sql = `SELECT * FROM ${this.tableName} WHERE hardware_id = ?`;
@@ -352,12 +407,21 @@ export class KioskHeartbeatRepository {
   }
 
   /**
-   * Update kiosk status
+   * Updates the status of a specific kiosk.
+   * @param {string} kioskId - The ID of the kiosk to update.
+   * @param {KioskStatus} status - The new status to set.
+   * @returns {Promise<KioskHeartbeat>} The updated kiosk record.
    */
   async updateStatus(kioskId: string, status: KioskStatus): Promise<KioskHeartbeat> {
     return this.update(kioskId, { status });
   }
 
+  /**
+   * Maps a raw database row to a structured `KioskHeartbeat` entity.
+   * @protected
+   * @param {any} row - The raw data from the database.
+   * @returns {KioskHeartbeat} The mapped entity.
+   */
   protected mapRowToEntity(row: any): KioskHeartbeat {
     return {
       kiosk_id: row.kiosk_id,
@@ -374,6 +438,12 @@ export class KioskHeartbeatRepository {
     };
   }
 
+  /**
+   * Maps a `KioskHeartbeat` entity to a raw object for database insertion/updates.
+   * @protected
+   * @param {Partial<KioskHeartbeat>} entity - The entity to map.
+   * @returns {Record<string, any>} The mapped raw object.
+   */
   protected mapEntityToRow(entity: Partial<KioskHeartbeat>): Record<string, any> {
     const row: Record<string, any> = {};
 

@@ -1,22 +1,21 @@
-/**
- * Performance Monitor Service
- * 
- * Implements comprehensive performance tracking and metrics collection
- * for the eForm Locker System as specified in requirements 8.1-8.4
- */
-
 import { Database } from 'sqlite3';
 import { promisify } from 'util';
 
+/**
+ * Represents a collection of key performance metrics for the system.
+ */
 export interface PerformanceMetrics {
-  timeToOpen: number[]; // Array of response times in ms
-  errorRate: number; // Percentage
+  timeToOpen: number[];
+  errorRate: number;
   sessionsPerHour: number;
   mostSelectedLockers: { lockerId: number; displayName: string; count: number }[];
-  averageIdleTime: number; // Seconds
-  uiUpdateLatency: number[]; // Array of update times in ms
+  averageIdleTime: number;
+  uiUpdateLatency: number[];
 }
 
+/**
+ * Represents a snapshot of system performance metrics at a specific point in time.
+ */
 export interface SystemPerformanceSnapshot {
   timestamp: Date;
   metrics: PerformanceMetrics;
@@ -24,6 +23,9 @@ export interface SystemPerformanceSnapshot {
   period: 'hour' | 'day' | 'week' | 'month';
 }
 
+/**
+ * Represents usage statistics for a single locker.
+ */
 export interface LockerUsageStats {
   lockerId: number;
   displayName: string;
@@ -34,33 +36,48 @@ export interface LockerUsageStats {
   successRate: number;
 }
 
+/**
+ * Represents metrics collected for a single user session.
+ */
 export interface SessionMetrics {
   sessionId: string;
   kioskId: string;
   cardId: string;
   startTime: Date;
   endTime?: Date;
-  duration?: number; // seconds
+  duration?: number;
   outcome: 'completed' | 'timeout' | 'cancelled' | 'error';
   selectedLockerId?: number;
-  timeToSelection?: number; // seconds
+  timeToSelection?: number;
 }
 
+/**
+ * Represents metrics for a single UI performance event.
+ */
 export interface UIPerformanceMetrics {
   timestamp: Date;
   kioskId: string;
   eventType: 'state_update' | 'session_start' | 'locker_selection' | 'ui_render';
-  latency: number; // milliseconds
+  latency: number;
   success: boolean;
   errorMessage?: string;
 }
 
+/**
+ * A service for tracking and analyzing system performance metrics.
+ * It provides methods to initialize database tables for metrics, record various
+ * performance-related events, and generate reports and trends.
+ */
 export class PerformanceMonitor {
   private db: Database;
   private dbRun: (sql: string, params?: any[]) => Promise<any>;
   private dbGet: (sql: string, params?: any[]) => Promise<any>;
   private dbAll: (sql: string, params?: any[]) => Promise<any[]>;
 
+  /**
+   * Creates an instance of PerformanceMonitor.
+   * @param {Database} database - The SQLite database instance.
+   */
   constructor(database: Database) {
     this.db = database;
     this.dbRun = promisify(this.db.run.bind(this.db));
@@ -69,15 +86,18 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Initialize performance monitoring tables
+   * Initializes the performance monitoring system by creating the necessary database tables.
    */
   async initialize(): Promise<void> {
     await this.createTables();
     console.log('📊 Performance Monitor initialized');
   }
 
+  /**
+   * Creates the database tables required for storing performance metrics.
+   * @private
+   */
   private async createTables(): Promise<void> {
-    // Session metrics table
     await this.dbRun(`
       CREATE TABLE IF NOT EXISTS session_metrics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,7 +115,6 @@ export class PerformanceMonitor {
       )
     `);
 
-    // UI performance metrics table
     await this.dbRun(`
       CREATE TABLE IF NOT EXISTS ui_performance_metrics (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,7 +129,6 @@ export class PerformanceMonitor {
       )
     `);
 
-    // Performance snapshots table for aggregated metrics
     await this.dbRun(`
       CREATE TABLE IF NOT EXISTS performance_snapshots (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,7 +141,6 @@ export class PerformanceMonitor {
       )
     `);
 
-    // Create indexes for performance
     await this.dbRun(`CREATE INDEX IF NOT EXISTS idx_session_metrics_kiosk_time ON session_metrics(kiosk_id, start_time)`);
     await this.dbRun(`CREATE INDEX IF NOT EXISTS idx_session_metrics_outcome ON session_metrics(outcome)`);
     await this.dbRun(`CREATE INDEX IF NOT EXISTS idx_ui_performance_kiosk_time ON ui_performance_metrics(kiosk_id, timestamp)`);
@@ -132,7 +149,10 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Record session start
+   * Records the start of a new user session.
+   * @param {string} sessionId - The unique ID for the session.
+   * @param {string} kioskId - The ID of the kiosk where the session started.
+   * @param {string} cardId - The RFID card ID used to start the session.
    */
   async recordSessionStart(sessionId: string, kioskId: string, cardId: string): Promise<void> {
     await this.dbRun(`
@@ -142,7 +162,11 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Record session completion
+   * Records the end of a user session with its outcome.
+   * @param {string} sessionId - The ID of the session to end.
+   * @param {'completed' | 'timeout' | 'cancelled' | 'error'} outcome - The outcome of the session.
+   * @param {number} [selectedLockerId] - The ID of the locker selected during the session.
+   * @param {number} [timeToSelection] - The time in seconds it took for the user to make a selection.
    */
   async recordSessionEnd(
     sessionId: string, 
@@ -152,7 +176,6 @@ export class PerformanceMonitor {
   ): Promise<void> {
     const endTime = new Date();
     
-    // Get session start time to calculate duration
     const session = await this.dbGet(`
       SELECT start_time FROM session_metrics 
       WHERE session_id = ? AND outcome = 'active'
@@ -172,7 +195,12 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Record UI performance event
+   * Records a UI performance event, such as render time or update latency.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {'state_update' | 'session_start' | 'locker_selection' | 'ui_render'} eventType - The type of UI event.
+   * @param {number} latency - The measured latency in milliseconds.
+   * @param {boolean} success - Whether the event was successful.
+   * @param {string} [errorMessage] - An optional error message.
    */
   async recordUIPerformance(
     kioskId: string,
@@ -188,7 +216,10 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Record locker operation timing (from command queue)
+   * Records the duration of a locker operation command.
+   * @param {string} commandId - The ID of the command.
+   * @param {number} duration - The duration of the operation in milliseconds.
+   * @param {boolean} success - Whether the operation was successful.
    */
   async recordLockerOperation(commandId: string, duration: number, success: boolean): Promise<void> {
     await this.dbRun(`
@@ -199,12 +230,14 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Get current performance metrics for a kiosk
+   * Retrieves a snapshot of the current performance metrics for a kiosk over a given period.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} [periodHours=24] - The time period in hours to calculate metrics over.
+   * @returns {Promise<PerformanceMetrics>} An object containing the calculated performance metrics.
    */
   async getCurrentMetrics(kioskId: string, periodHours: number = 24): Promise<PerformanceMetrics> {
     const since = new Date(Date.now() - periodHours * 60 * 60 * 1000);
 
-    // Get time to open metrics from command queue
     const timeToOpenData = await this.dbAll(`
       SELECT duration_ms FROM command_queue 
       WHERE kiosk_id = ? AND created_at >= ? AND duration_ms IS NOT NULL AND status = 'completed'
@@ -213,7 +246,6 @@ export class PerformanceMonitor {
 
     const timeToOpen = timeToOpenData.map(row => row.duration_ms);
 
-    // Calculate error rate
     const totalCommands = await this.dbGet(`
       SELECT COUNT(*) as total FROM command_queue 
       WHERE kiosk_id = ? AND created_at >= ?
@@ -227,7 +259,6 @@ export class PerformanceMonitor {
     const errorRate = totalCommands.total > 0 ? 
       (failedCommands.failed / totalCommands.total) * 100 : 0;
 
-    // Get sessions per hour
     const sessionCount = await this.dbGet(`
       SELECT COUNT(*) as count FROM session_metrics 
       WHERE kiosk_id = ? AND start_time >= ? AND outcome != 'active'
@@ -235,7 +266,6 @@ export class PerformanceMonitor {
 
     const sessionsPerHour = sessionCount.count / periodHours;
 
-    // Get most selected lockers
     const mostSelectedData = await this.dbAll(`
       SELECT 
         sm.selected_locker_id as lockerId,
@@ -256,15 +286,13 @@ export class PerformanceMonitor {
       count: row.count
     }));
 
-    // Calculate average idle time
     const avgIdleData = await this.dbGet(`
       SELECT AVG(duration_seconds) as avgIdle FROM session_metrics 
       WHERE kiosk_id = ? AND start_time >= ? AND outcome = 'timeout'
     `, [kioskId, since.toISOString()]);
 
-    const averageIdleTime = avgIdleData.avgIdle || 20; // Default session timeout
+    const averageIdleTime = avgIdleData.avgIdle || 20;
 
-    // Get UI update latency
     const uiLatencyData = await this.dbAll(`
       SELECT latency_ms FROM ui_performance_metrics 
       WHERE kiosk_id = ? AND timestamp >= ? AND event_type = 'state_update' AND success = 1
@@ -284,7 +312,10 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Get locker usage statistics
+   * Retrieves usage statistics for each locker on a given kiosk.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {number} [periodDays=7] - The time period in days to calculate stats over.
+   * @returns {Promise<LockerUsageStats[]>} An array of usage statistics for each locker.
    */
   async getLockerUsageStats(kioskId: string, periodDays: number = 7): Promise<LockerUsageStats[]> {
     const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
@@ -323,7 +354,9 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Create performance snapshot for a period
+   * Creates and stores a snapshot of performance metrics for a specified period.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {'hour' | 'day' | 'week' | 'month'} period - The time period for the snapshot.
    */
   async createPerformanceSnapshot(
     kioskId: string, 
@@ -345,7 +378,11 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Get performance trends over time
+   * Retrieves a series of historical performance snapshots to analyze trends.
+   * @param {string} kioskId - The ID of the kiosk.
+   * @param {'hour' | 'day' | 'week' | 'month'} period - The time period of the snapshots to retrieve.
+   * @param {number} [limit=24] - The maximum number of snapshots to return.
+   * @returns {Promise<SystemPerformanceSnapshot[]>} An array of performance snapshots.
    */
   async getPerformanceTrends(
     kioskId: string, 
@@ -368,7 +405,9 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Check if system meets performance criteria (Requirements 8.2-8.4)
+   * Checks if the system's performance meets the defined success criteria.
+   * @param {string} kioskId - The ID of the kiosk to check.
+   * @returns {Promise<object>} An object indicating whether the criteria are met, along with a summary.
    */
   async checkPerformanceCriteria(kioskId: string): Promise<{
     meets95PercentUnder2Seconds: boolean;
@@ -378,15 +417,12 @@ export class PerformanceMonitor {
   }> {
     const metrics = await this.getCurrentMetrics(kioskId, 24);
 
-    // Check 95% of locker opens complete under 2 seconds
     const under2Seconds = metrics.timeToOpen.filter(time => time <= 2000).length;
     const meets95PercentUnder2Seconds = metrics.timeToOpen.length === 0 || 
       (under2Seconds / metrics.timeToOpen.length) >= 0.95;
 
-    // Check error rate under 2%
     const errorRateUnder2Percent = metrics.errorRate <= 2;
 
-    // Check UI updates under 2 seconds
     const uiUnder2Seconds = metrics.uiUpdateLatency.filter(latency => latency <= 2000).length;
     const uiUpdatesUnder2Seconds = metrics.uiUpdateLatency.length === 0 ||
       (uiUnder2Seconds / metrics.uiUpdateLatency.length) >= 0.95;
@@ -408,7 +444,8 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Clean up old performance data
+   * Cleans up old performance data to save space.
+   * @param {number} [retentionDays=30] - The number of days to retain performance data.
    */
   async cleanupOldData(retentionDays: number = 30): Promise<void> {
     const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
