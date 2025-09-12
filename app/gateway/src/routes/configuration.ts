@@ -1,9 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { ConfigurationController } from '../controllers/configuration';
-import { DatabaseManager } from '@eform/shared/database/database-manager';
 
-export async function configurationRoutes(fastify: FastifyInstance, options: { dbManager: DatabaseManager }) {
-  const configController = new ConfigurationController(options.dbManager);
+export async function configurationRoutes(fastify: FastifyInstance) {
+  const configController = new ConfigurationController();
 
   // Panel endpoints (staff management interface)
   

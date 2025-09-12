@@ -156,28 +156,6 @@ export class KioskHeartbeatRepository {
     return result.changes > 0;
   }
 
-  async upsert(kiosk: Partial<KioskHeartbeat> & { kiosk_id: string }): Promise<KioskHeartbeat> {
-    const existing = await this.findById(kiosk.kiosk_id);
-    if (existing) {
-      // Don't update kiosk_id
-      const { kiosk_id, ...updates } = kiosk;
-      return this.update(kiosk.kiosk_id, updates);
-    } else {
-      const newKiosk: Omit<KioskHeartbeat, 'created_at' | 'updated_at'> = {
-        kiosk_id: kiosk.kiosk_id,
-        last_seen: kiosk.last_seen || new Date(),
-        zone: kiosk.zone || 'default',
-        status: kiosk.status || 'online',
-        version: kiosk.version || '1.0.0',
-        offline_threshold_seconds: kiosk.offline_threshold_seconds || 30,
-        last_config_hash: kiosk.last_config_hash,
-        hardware_id: kiosk.hardware_id,
-        registration_secret: kiosk.registration_secret,
-      };
-      return this.create(newKiosk);
-    }
-  }
-
   /**
    * Update heartbeat for a kiosk
    */

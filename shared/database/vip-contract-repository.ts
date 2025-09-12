@@ -14,11 +14,20 @@ export interface VipContractFilter {
 }
 
 export class VipContractRepository extends BaseRepository<VipContract> {
+  private dbManager: any;
   private historyRepository: VipHistoryRepository;
 
-  constructor(db: DatabaseConnection) {
-    super(db, 'vip_contracts');
-    this.historyRepository = new VipHistoryRepository(db);
+  constructor(dbOrManager: DatabaseConnection | any) {
+    if (dbOrManager.getDatabase) {
+      // It's a DatabaseManager
+      super(dbOrManager.getDatabase(), 'vip_contracts');
+      this.dbManager = dbOrManager;
+      this.historyRepository = new VipHistoryRepository(dbOrManager);
+    } else {
+      // It's a DatabaseConnection
+      super(dbOrManager, 'vip_contracts');
+      this.historyRepository = new VipHistoryRepository(dbOrManager);
+    }
   }
 
   async findById(id: string | number): Promise<VipContract | null> {

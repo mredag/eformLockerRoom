@@ -8,7 +8,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@eform/shared': path.resolve(__dirname, '../../shared'),
+      '@shared': path.resolve(__dirname, '../../shared'),
     },
   },
 });

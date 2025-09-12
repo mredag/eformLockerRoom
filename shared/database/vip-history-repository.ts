@@ -16,9 +16,9 @@ export class VipHistoryRepository extends BaseRepository<VipContractHistory> {
   private dbManager: any;
 
   constructor(dbOrManager: DatabaseConnection | any) {
-    if (dbOrManager.getConnection) {
+    if (dbOrManager.getDatabase) {
       // It's a DatabaseManager
-      super(dbOrManager.getConnection(), 'vip_contract_history');
+      super(dbOrManager.getDatabase(), 'vip_contract_history');
       this.dbManager = dbOrManager;
     } else {
       // It's a DatabaseConnection

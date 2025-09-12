@@ -42,7 +42,7 @@ class VipTransferValidation {
 
   async validateDatabaseSchema(): Promise<void> {
     try {
-      const db = this.dbManager.getConnection().getDatabase();
+      const db = this.dbManager.getDatabase();
       
       // Check VIP transfer requests table
       const transferTable = db.prepare(`
@@ -198,7 +198,7 @@ class VipTransferValidation {
   async validateWorkflowIntegration(): Promise<void> {
     try {
       // Create test data
-      const db = this.dbManager.getConnection().getDatabase();
+      const db = this.dbManager.getDatabase();
       
       // Create test lockers
       db.prepare(`

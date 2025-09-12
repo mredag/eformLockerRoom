@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS lockers (
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-  kiosk_id TEXT,
+  kiosk_id TEXT NOT NULL,
   locker_id INTEGER,
   event_type TEXT NOT NULL,
   rfid_card TEXT,
