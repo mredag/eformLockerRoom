@@ -738,18 +738,19 @@ class SimpleKioskApp {
             `;
             const panel = document.createElement('div');
             panel.style.cssText = `
-                background: #161b22; color: #c9d1d9; width: 90%; max-width: 600px; border-radius: 16px;
-                border: 1px solid #30363d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 24px; text-align: center;
+                background: #161b22; color: #c9d1d9; width: 95vw; height: 95vh; max-width: 95vw; border-radius: 16px;
+                border: 1px solid #30363d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding: 4vw; text-align: center;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2vh;
             `;
             panel.innerHTML = `
-                <h2 id="owned-decision-title" style="margin: 0 0 12px; font-size: 2rem; color: #fff;">Dolabınız</h2>
-                <p id="owned-decision-desc" style="margin: 0 0 24px; font-size: 1.2rem; opacity: .85;">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
-                <div style="display:flex; gap:16px; justify-content: center; flex-wrap: wrap;">
-                    <button id="btn-open-only" style="flex:1; min-width:220px; padding: 20px 24px; font-size: 1.2rem; font-weight:700; border-radius:12px; border: 2px solid #238636; background:#2ea043; color:#fff; cursor: pointer;">Eşyamı almak için aç</button>
-                    <button id="btn-finish-release" style="flex:1; min-width:220px; padding: 20px 24px; font-size: 1.2rem; font-weight:700; border-radius:12px; border: 2px solid #da3633; background:#f85149; color:#fff; cursor: pointer;">Dolabı teslim etmek istiyorum</button>
+                <h2 id="owned-decision-title" style="margin: 0; font-size: 5vh; color: #fff; flex-shrink: 0;">Dolabınız</h2>
+                <p id="owned-decision-desc" style="margin: 0; font-size: 3vh; opacity: .85; flex-shrink: 0;">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
+                <div style="display:flex; gap: 2vw; justify-content: center; flex-wrap: wrap; width: 100%; flex-grow: 1;">
+                    <button id="btn-open-only" style="flex: 1; min-width: 40vw; padding: 2vh 2vw; font-size: 4vh; font-weight:700; border-radius:12px; border: 2px solid #238636; background:#2ea043; color:#fff; cursor: pointer; display: flex; align-items: center; justify-content: center;">Eşyamı almak için aç</button>
+                    <button id="btn-finish-release" style="flex: 1; min-width: 40vw; padding: 2vh 2vw; font-size: 4vh; font-weight:700; border-radius:12px; border: 2px solid #da3633; background:#f85149; color:#fff; cursor: pointer; display: flex; align-items: center; justify-content: center;">Dolabı teslim etmek istiyorum</button>
                 </div>
-                <div style="margin-top:16px; font-size: 1rem; opacity:.7;">Teslim ettiğinizde dolap başkaları için uygun olur.</div>
+                <div style="margin-top: 1vh; font-size: 2vh; opacity:.7; flex-shrink: 0;">Teslim ettiğinizde dolap başkaları için uygun olur.</div>
             `;
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
