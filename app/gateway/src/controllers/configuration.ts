@@ -1,13 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ConfigurationService } from '../services/configuration';
 import { SystemConfig } from '../../../../shared/types/index';
-import { DatabaseManager } from '../../../../shared/database/database-manager';
 
 export class ConfigurationController {
   private configService: ConfigurationService;
 
-  constructor(dbManager: DatabaseManager) {
-    this.configService = new ConfigurationService(dbManager);
+  constructor() {
+    this.configService = new ConfigurationService();
   }
 
   /**

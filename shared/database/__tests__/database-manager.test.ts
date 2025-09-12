@@ -15,10 +15,7 @@ describe('DatabaseManager', () => {
     await DatabaseManager.resetAllInstances();
     
     // Create new manager with in-memory database
-    manager = DatabaseManager.getInstance({
-      path: testDbPath,
-      migrationsPath: path.join(__dirname, '../../../migrations'),
-    });
+    manager = DatabaseManager.getInstance({ path: testDbPath });
     
     // Initialize connection with shorter timeout for tests
     try {
@@ -36,14 +33,8 @@ describe('DatabaseManager', () => {
 
   describe('getInstance', () => {
     it('should return singleton instance', () => {
-      const manager1 = DatabaseManager.getInstance({
-        path: ':memory:',
-        migrationsPath: path.join(__dirname, '../../../migrations'),
-      });
-      const manager2 = DatabaseManager.getInstance({
-        path: ':memory:',
-        migrationsPath: path.join(__dirname, '../../../migrations'),
-      });
+      const manager1 = DatabaseManager.getInstance();
+      const manager2 = DatabaseManager.getInstance();
       
       expect(manager1).toBe(manager2);
     });

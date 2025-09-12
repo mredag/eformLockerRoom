@@ -53,10 +53,7 @@ async function syncLockersWithHardware() {
     }
     
     // Initialize database
-    const dbManager = DatabaseManager.getInstance({
-      path: process.env.EFORM_DB_PATH,
-      migrationsPath: path.join(process.cwd(), 'migrations')
-    });
+    const dbManager = DatabaseManager.getInstance();
     await dbManager.initialize();
     
     // Initialize locker state manager

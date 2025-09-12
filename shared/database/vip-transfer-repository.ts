@@ -17,9 +17,9 @@ export class VipTransferRepository extends BaseRepository<VipTransferRequest> {
   private dbManager: any;
 
   constructor(dbOrManager: DatabaseConnection | any) {
-    if (dbOrManager.getConnection) {
+    if (dbOrManager.getDatabase) {
       // It's a DatabaseManager
-      super(dbOrManager.getConnection(), 'vip_transfer_requests');
+      super(dbOrManager.getDatabase(), 'vip_transfer_requests');
       this.dbManager = dbOrManager;
     } else {
       // It's a DatabaseConnection
