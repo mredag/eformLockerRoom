@@ -530,21 +530,22 @@ export class VipContractRepository extends BaseRepository<VipContract> {
     const history = await this.historyRepository.getContractHistory(contractId);
 
     // Get related events from events table
-    const db = this.dbManager ? this.dbManager.getConnection().getDatabase() : this.db;
-    const events = db.prepare(`
+    const eventsSql = `
       SELECT * FROM events 
       WHERE (kiosk_id = ? AND locker_id = ?) 
       AND (event_type LIKE 'vip_%' OR JSON_EXTRACT(details, '$.contract_id') = ?)
       ORDER BY timestamp DESC 
       LIMIT 100
-    `).all(contract.kiosk_id, contract.locker_id, contractId);
+    `;
+    const events = await this.db.all(eventsSql, [contract.kiosk_id, contract.locker_id, contractId]);
 
     // Get transfer requests
-    const transfers = db.prepare(`
+    const transfersSql = `
       SELECT * FROM vip_transfer_requests 
       WHERE contract_id = ?
       ORDER BY created_at DESC
-    `).all(contractId);
+    `;
+    const transfers = await this.db.all(transfersSql, [contractId]);
 
     return {
       contract,
