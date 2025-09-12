@@ -284,7 +284,7 @@
                 if (response.ok) {
                     alert('Servisler başarıyla yeniden başlatıldı.');
                 } else {
-                    showError(`Hata: ${data.error || 'Bilinmeyen bir hata oluştu.'}`);
+                    showError(`Hata: ${data.error || 'Bilinmeyen bir hata oluştu.'} - Detaylar: ${data.output || 'yok'}`);
                 }
             } catch (error) {
                 showError('Servisleri yeniden başlatırken bir hata oluştu.');
