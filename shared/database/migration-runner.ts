@@ -48,10 +48,11 @@ export class MigrationRunner {
    */
   async getPendingMigrations(): Promise<string[]> {
     const appliedMigrations = await this.getAppliedMigrations();
-    const appliedFilenames = new Set(appliedMigrations.map(m => m.filename));
+    const appliedFilenames = new Set(appliedMigrations.map(m => m.filename.trim()));
     
     const allMigrationFiles = readdirSync(this.migrationsPath)
       .filter(file => file.endsWith('.sql'))
+      .map(file => file.trim())
       .sort();
 
     return allMigrationFiles.filter(file => !appliedFilenames.has(file));
