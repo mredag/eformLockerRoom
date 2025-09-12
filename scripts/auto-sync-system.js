@@ -71,7 +71,10 @@ async function autoSyncSystem() {
     
     // Step 3: Initialize database and sync lockers
     console.log(`\n🗄️  Step 2: Syncing database lockers...`);
-    const dbManager = DatabaseManager.getInstance();
+    const dbManager = DatabaseManager.getInstance({
+      path: process.env.EFORM_DB_PATH,
+      migrationsPath: path.join(projectRoot, 'migrations')
+    });
     await dbManager.initialize();
     
     const stateManager = new LockerStateManager();
