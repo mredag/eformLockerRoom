@@ -286,6 +286,35 @@ static routers=192.168.1.1
 static domain_name_servers=192.168.1.1
 ```
 
+### Setting a Static IP with the Script
+
+For a more automated way to set a static IP, you can use the `set-static-ip.sh` script. This script will automatically detect your network settings, check if the desired IP is already in use, and configure the static IP for you.
+
+**Usage:**
+
+1.  Navigate to the scripts directory:
+    ```bash
+    cd /path/to/eform-locker/scripts/maintenance
+    ```
+
+2.  Run the script with `sudo` and provide the desired static IP address as an argument:
+    ```bash
+    sudo ./set-static-ip.sh 192.168.1.100
+    ```
+
+3.  The script will perform the following actions:
+    -   Check if the IP address is already in use on the network.
+    -   Detect your active network interface (e.g., `eth0`), gateway, and subnet.
+    -   Back up your existing `/etc/dhcpcd.conf` to `/etc/dhcpcd.conf.bak`.
+    -   Append the new static IP configuration to `/etc/dhcpcd.conf`.
+
+4.  After the script finishes, you will need to restart the networking service or reboot your Raspberry Pi for the changes to take effect.
+    ```bash
+    sudo systemctl restart dhcpcd
+    # Or
+    sudo reboot
+    ```
+
 ## Service Configuration
 
 ### Systemd Service Setup
