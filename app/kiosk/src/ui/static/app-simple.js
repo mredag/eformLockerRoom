@@ -747,12 +747,12 @@ class SimpleKioskApp {
                 <h2 id="owned-decision-title" style="margin: 0; font-size: 32px; color: #E6EAF2; flex-shrink: 0;">Dolabınız</h2>
                 <p id="owned-decision-desc" style="margin: 0; font-size: 20px; opacity: .85; flex-shrink: 0; max-width: 400px; margin-bottom: 40px;">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
                 <div style="display:flex; gap: 2vw; justify-content: center; flex-wrap: wrap; width: 100%; flex-grow: 1;">
-                    <button id="btn-open-only" style="flex: 1; min-width: 300px; max-width: 400px; height: 200px; padding: 2vh 2vw; font-size: 24px; font-weight:700; border-radius:12px; border: 1px solid #1F2937; background:#151A24; color:#E6EAF2; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; transition: background-color 0.2s ease, border-color 0.2s ease;">
+                    <button id="btn-open-only" style="flex: 1; min-width: 300px; max-width: 450px; height: 250px; padding: 2vh 2vw; font-size: 24px; font-weight:700; border-radius:12px; border: 1px solid #1F2937; background:#151A24; color:#E6EAF2; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; transition: background-color 0.2s ease, border-color 0.2s ease;">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"></path><path d="M12 11v6"></path><path d="M12 11V9a3 3 0 0 0-3-3M12 11V9a3 3 0 0 1 3-3"></path></svg>
                         <span>Eşyamı almak için aç</span>
                         <span style="font-size: 16px; font-weight: 400; opacity: 0.7;">Dolabınızın kilidi açık kalır</span>
                     </button>
-                    <button id="btn-finish-release" style="flex: 1; min-width: 300px; max-width: 400px; height: 200px; padding: 2vh 2vw; font-size: 24px; font-weight:700; border-radius:12px; border: 1px solid #1F2937; background:#151A24; color:#E6EAF2; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; transition: background-color 0.2s ease, border-color 0.2s ease;">
+                    <button id="btn-finish-release" style="flex: 1; min-width: 300px; max-width: 450px; height: 250px; padding: 2vh 2vw; font-size: 24px; font-weight:700; border-radius:12px; border: 1px solid #1F2937; background:#151A24; color:#E6EAF2; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; transition: background-color 0.2s ease, border-color 0.2s ease;">
                         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
                         <span>Dolabı teslim etmek istiyorum</span>
                         <span style="font-size: 16px; font-weight: 400; opacity: 0.7;">Dolap kullanıma açılır</span>
@@ -797,76 +797,25 @@ class SimpleKioskApp {
             btnFinish2.style.borderColor = '#1F2937';
         });
 
+        btnOpen2.addEventListener('focus', () => btnOpen2.style.borderColor = '#2563EB');
+        btnOpen2.addEventListener('blur', () => btnOpen2.style.borderColor = '#1F2937');
+        btnOpen2.addEventListener('mousedown', () => btnOpen2.style.backgroundColor = '#2563EB');
+        btnOpen2.addEventListener('mouseup', () => btnOpen2.style.backgroundColor = '#151A24');
+
+        btnFinish2.addEventListener('focus', () => btnFinish2.style.borderColor = '#7C3AED');
+        btnFinish2.addEventListener('blur', () => btnFinish2.style.borderColor = '#1F2937');
+        btnFinish2.addEventListener('mousedown', () => btnFinish2.style.backgroundColor = '#7C3AED');
+        btnFinish2.addEventListener('mouseup', () => btnFinish2.style.backgroundColor = '#151A24');
+
 
         btnOpen2.addEventListener('click', async () => {
             closeOverlay();
             await this.openOwnedLockerOnly(cardId);
         });
-        btnFinish2.addEventListener('click', () => {
-            this.showConfirmationDialog(
-                'Dolabı Teslim Et',
-                'Dolabı teslim etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
-                async () => {
-                    closeOverlay();
-                    await this.openAndReleaseLocker(cardId, lockerId);
-                },
-                () => {
-                    // Do nothing on cancel
-                }
-            );
+        btnFinish2.addEventListener('click', async () => {
+            closeOverlay();
+            await this.openAndReleaseLocker(cardId, lockerId);
         });
-    }
-
-    /**
-     * Show a confirmation dialog
-     */
-    showConfirmationDialog(title, message, onConfirm, onCancel) {
-        let dialog = document.getElementById('confirmation-dialog');
-        if (!dialog) {
-            dialog = document.createElement('div');
-            dialog.id = 'confirmation-dialog';
-            dialog.style.cssText = `
-                position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-                display: flex; align-items: center; justify-content: center;
-                z-index: 10000;
-            `;
-            const panel = document.createElement('div');
-            panel.style.cssText = `
-                background: #151A24; color: #E6EAF2; width: 90vw; max-width: 500px; border-radius: 12px;
-                border: 1px solid #1F2937; padding: 24px; text-align: center;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            `;
-            panel.innerHTML = `
-                <h2 id="confirm-title" style="margin: 0 0 16px; font-size: 24px; color: #E6EAF2;"></h2>
-                <p id="confirm-message" style="margin: 0 0 24px; font-size: 18px; opacity: .85;"></p>
-                <div id="confirm-actions" style="display:flex; gap: 16px; justify-content: flex-end;">
-                    <button id="btn-confirm-cancel" style="padding: 12px 24px; font-size: 16px; font-weight:700; border-radius:8px; border: 1px solid #1F2937; background:#151A24; color:#E6EAF2; cursor: pointer;">İptal</button>
-                    <button id="btn-confirm-ok" style="padding: 12px 24px; font-size: 16px; font-weight:700; border-radius:8px; border: none; background:#7C3AED; color:#E6EAF2; cursor: pointer;">Onayla</button>
-                </div>
-            `;
-            dialog.appendChild(panel);
-            document.body.appendChild(dialog);
-        }
-
-        document.getElementById('confirm-title').textContent = title;
-        document.getElementById('confirm-message').textContent = message;
-
-        dialog.style.display = 'flex';
-
-        const btnOk = document.getElementById('btn-confirm-ok');
-        const btnCancel = document.getElementById('btn-confirm-cancel');
-
-        const closeDialog = () => { dialog.style.display = 'none'; };
-
-        btnOk.onclick = () => {
-            closeDialog();
-            onConfirm();
-        };
-
-        btnCancel.onclick = () => {
-            closeDialog();
-            onCancel();
-        };
     }
 
     /**
