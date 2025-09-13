@@ -1,0 +1,16 @@
+[Unit]
+Description=Kiosk Launcher
+After=network-online.target avahi-daemon.service
+Wants=network-online.target avahi-daemon.service
+
+[Service]
+EnvironmentFile=-/etc/kiosk.conf
+ExecStart=/home/pi/eform-locker/scripts/kiosk-launch/venv/bin/python3 /home/pi/eform-locker/scripts/kiosk-launch/discover_and_launch.py
+Restart=always
+RestartSec=8
+User=pi
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

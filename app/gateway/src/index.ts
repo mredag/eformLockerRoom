@@ -22,6 +22,8 @@ import { configurationRoutes } from "./routes/configuration.js";
 import { heartbeatRoutes } from "./routes/heartbeat.js";
 import { registerAdminRoutes } from "./routes/admin.js";
 import { mkdirSync } from "fs";
+import { Bonjour } from 'bonjour-service';
+import { randomBytes } from 'crypto';
 
 const fastify = Fastify({
   logger: true,
@@ -69,6 +71,17 @@ fastify.get("/health", async () => {
   };
 });
 
+const token = randomBytes(16).toString('hex');
+
+fastify.get('/discover', async () => ({
+  role: 'main-server',
+  kioskPort: 3002,
+  gatewayPort: 3000,
+  name: 'eform',
+  ts: new Date().toISOString(),
+  token: token
+}));
+
 // Serve configuration panel
 fastify.get("/config-panel", async (_request, reply) => {
   const { readFileSync } = await import("fs");
@@ -100,6 +113,23 @@ const start = async () => {
     await fastify.listen({ port, host });
     console.log(`Eform Gateway Service started on port ${port}`);
     
+    // Start mDNS advertising
+    const bonjour = new Bonjour();
+    bonjour.publish({
+      name: 'E-Form Main Server',
+      type: 'eform',
+      port: port,
+      txt: {
+        role: 'main-server',
+        kioskPort: '3002',
+        gatewayPort: port.toString(),
+        name: 'eform',
+        version: '1',
+        token: token,
+      },
+    });
+    console.log('mDNS service advertised.');
+
     // Note: WebSocket server is initialized by the Kiosk service on port 8080
     // Gateway service coordinates but doesn't host the WebSocket server
     console.log(`🔌 WebSocket coordination: Kiosk services handle real-time updates on port 8080`);
