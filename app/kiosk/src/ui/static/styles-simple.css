@@ -1448,6 +1448,10 @@ html, body {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 1.5rem;
     padding: 0; /* Remove padding from grid itself */
+    flex-grow: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
 
 .locker-tile {
