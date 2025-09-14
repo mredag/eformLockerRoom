@@ -1454,16 +1454,16 @@ html, body {
     background: #21262d;
     border: 1px solid #30363d;
     border-radius: 8px;
-    padding: 1rem;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     min-height: 160px;
+    overflow: hidden;
 }
 
 .locker-number {
-    font-size: 8rem;
+    font-size: 10rem;
     font-weight: bold;
     color: #c9d1d9;
     line-height: 1;
