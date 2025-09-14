@@ -1445,8 +1445,8 @@ html, body {
 
 .locker-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1.5rem;
     padding: 0; /* Remove padding from grid itself */
 }
 
@@ -1457,14 +1457,16 @@ html, body {
     padding: 1rem;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    min-height: 120px;
+    justify-content: center;
+    align-items: center;
+    min-height: 160px;
 }
 
 .locker-number {
-    font-size: 2rem;
+    font-size: 6rem;
     font-weight: bold;
     color: #c9d1d9;
+    line-height: 1;
 }
 
 .locker-size {
