@@ -402,7 +402,7 @@ html, body {
     min-width: 60px;
     min-height: 60px;
     /* Proper touch target spacing to prevent mis-taps (Requirement 8.3) */
-    margin: 6px;
+    margin: 0;
     /* Immediate visual feedback for touch events (Requirement 8.2) */
     transition: background-color 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
     /* Enhanced touch interaction */
@@ -1460,10 +1460,12 @@ html, body {
     align-items: center;
     min-height: 160px;
     overflow: hidden;
+    padding: 0;
+    margin: 0;
 }
 
 .locker-number {
-    font-size: 10rem;
+    font-size: 12rem;
     font-weight: bold;
     color: #c9d1d9;
     line-height: 1;
