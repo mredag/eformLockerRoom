@@ -109,8 +109,8 @@ const start = async () => {
   try {
     const configPath = path.join(projectRoot, 'config', 'system.json');
     configManager.setConfigPath(configPath);
-    await configManager.initialize();
     await initializeDatabase();
+    await configManager.initialize();
     const port = parseInt(process.env.PORT || "3000", 10);
     const host = process.env.HOST || "0.0.0.0";
 
