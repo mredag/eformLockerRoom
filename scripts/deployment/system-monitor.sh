@@ -175,7 +175,7 @@ while true; do
     # Check service health
     GATEWAY_STATUS=$(check_service_health "gateway" "3000" "/health")
     KIOSK_STATUS=$(check_service_health "kiosk" "3002" "/health")
-    PANEL_STATUS=$(check_service_health "panel" "3001" "")
+    PANEL_STATUS=$(check_service_health "panel" "3001" "/health")
     
     # Update status file with service status
     echo "GATEWAY_STATUS=$GATEWAY_STATUS" >> "$STATUS_FILE"
