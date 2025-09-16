@@ -24,9 +24,6 @@ interface AdminBulkOpenRequest {
 
 export async function registerAdminRoutes(fastify: FastifyInstance) {
   
-  const hardwareConfig = configManager.getConfiguration().hardware;
-  const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
-
   // Open single locker (admin)
   fastify.post('/api/admin/lockers/:lockerId/open', async (
     request: FastifyRequest<{
@@ -36,6 +33,9 @@ export async function registerAdminRoutes(fastify: FastifyInstance) {
     reply: FastifyReply
   ) => {
     try {
+      const hardwareConfig = configManager.getConfiguration().hardware;
+      const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
+
       const lockerId = parseInt(request.params.lockerId);
       const { staff_user, reason } = request.body;
 
@@ -124,6 +124,9 @@ export async function registerAdminRoutes(fastify: FastifyInstance) {
         });
       }
 
+      const hardwareConfig = configManager.getConfiguration().hardware;
+      const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
+
       // Validate locker IDs
       const invalidIds = locker_ids.filter(id => id < 1 || id > totalRelays);
       if (invalidIds.length > 0) {
@@ -201,6 +204,8 @@ export async function registerAdminRoutes(fastify: FastifyInstance) {
     reply: FastifyReply
   ) => {
     try {
+      const hardwareConfig = configManager.getConfiguration().hardware;
+      const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
       const lockerId = parseInt(request.params.lockerId);
 
       if (!lockerId || lockerId < 1 || lockerId > totalRelays) {
