@@ -14,16 +14,18 @@ class SimpleRelayService {
   private isConnected: boolean = false;
   private lastConnectionTime: number = 0;
   private connectionTimeout: number = 30 * 60 * 1000; // 30 minutes
-  private config = {
-    port: '/dev/ttyUSB0',
-    baudRate: 9600,
-    slaveId: 1,
-    timeout: 2000,
-    pulseDuration: 500
-  };
+  private config: any;
+  private hardwareConfig: any;
 
-  constructor() {
+  constructor(hardwareConfig: any) {
     this.serialPort = null;
+    this.hardwareConfig = hardwareConfig;
+    this.config = {
+      port: hardwareConfig.modbus.port || '/dev/ttyUSB0',
+      baudRate: hardwareConfig.modbus.baudrate || 9600,
+      timeout: hardwareConfig.modbus.timeout_ms || 2000,
+      pulseDuration: hardwareConfig.modbus.pulse_duration_ms || 500,
+    };
   }
 
   private isConnectionStale(): boolean {
@@ -271,15 +273,36 @@ class SimpleRelayService {
       }
 
       // Direct hardware access (when Kiosk service is not running)
-      const cardId = Math.ceil(relayNumber / 16);
-      const relayId = ((relayNumber - 1) % 16) + 1;
-      const coilAddress = relayId - 1;
+      const getRelayLocation = (globalRelayNumber: number) => {
+        let relayOffset = 0;
+        for (const card of this.hardwareConfig.relay_cards) {
+          if (!card.enabled) continue;
+
+          if (globalRelayNumber > relayOffset && globalRelayNumber <= relayOffset + card.channels) {
+            const localRelayId = globalRelayNumber - relayOffset;
+            return {
+              slaveAddress: card.slave_address,
+              coilAddress: localRelayId - 1,
+              cardDescription: card.description
+            };
+          }
+          relayOffset += card.channels;
+        }
+        return null;
+      };
+
+      const location = getRelayLocation(relayNumber);
+      if (!location) {
+        throw new Error(`Relay number ${relayNumber} is out of bounds or maps to a disabled card.`);
+      }
+
+      const { slaveAddress, coilAddress, cardDescription } = location;
       
-      console.log(`🔌 Direct hardware activation: locker ${relayNumber} -> Card ${cardId}, Relay ${relayId} (coil ${coilAddress})`);
+      console.log(`🔌 Direct hardware activation: locker ${relayNumber} -> Card ${slaveAddress} (${cardDescription}), Coil ${coilAddress}`);
       console.log(`🔄 Using WORKING software pulse method (same as Kiosk fix)`);
       
       // Use the SAME working method as Kiosk: basic ON/OFF commands (0x05)
-      const turnOnCommand = this.buildModbusCommand(cardId, 0x05, coilAddress, 0xFF00);
+      const turnOnCommand = this.buildModbusCommand(slaveAddress, 0x05, coilAddress, 0xFF00);
       console.log(`📡 ON command: ${turnOnCommand.toString('hex').toUpperCase()}`);
       
       await this.writeCommand(turnOnCommand);
@@ -288,13 +311,13 @@ class SimpleRelayService {
       // Wait for pulse duration
       await new Promise(resolve => setTimeout(resolve, this.config.pulseDuration));
       
-      const turnOffCommand = this.buildModbusCommand(cardId, 0x05, coilAddress, 0x0000);
+      const turnOffCommand = this.buildModbusCommand(slaveAddress, 0x05, coilAddress, 0x0000);
       console.log(`📡 OFF command: ${turnOffCommand.toString('hex').toUpperCase()}`);
       
       await this.writeCommand(turnOffCommand);
       console.log(`🔌 Relay ${relayNumber} turned OFF (safety)`);
       
-      console.log(`✅ Locker ${relayNumber} activated successfully (Card ${cardId}, Relay ${relayId})`);
+      console.log(`✅ Locker ${relayNumber} activated successfully (Card ${slaveAddress})`);
       return true;
       
     } catch (error) {
@@ -384,9 +407,9 @@ class SimpleRelayService {
 let relayService: SimpleRelayService | null = null;
 let healthCheckInterval: NodeJS.Timeout | null = null;
 
-function getRelayService(): SimpleRelayService {
+function getRelayService(hardwareConfig: any): SimpleRelayService {
   if (!relayService) {
-    relayService = new SimpleRelayService();
+    relayService = new SimpleRelayService(hardwareConfig);
     
     // Start periodic health check
     if (!healthCheckInterval) {
@@ -441,9 +464,9 @@ interface RelayTestRequest {
 }
 
 export async function registerRelayRoutes(fastify: FastifyInstance) {
-  const relayService = getRelayService();
-
   const hardwareConfig = configManager.getConfiguration().hardware;
+  const relayService = getRelayService(hardwareConfig);
+
   const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
 
 
