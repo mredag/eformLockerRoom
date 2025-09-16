@@ -16,7 +16,8 @@ if (!process.env.EFORM_DB_PATH) {
 
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
-import { DatabaseManager } from "../../../shared/database/database-manager.js";
+import { DatabaseManager } from "@eform/shared/database/database-manager";
+import { configManager } from "@eform/shared/services/config-manager";
 import { provisioningRoutes } from "./routes/provisioning.js";
 import { configurationRoutes } from "./routes/configuration.js";
 import { heartbeatRoutes } from "./routes/heartbeat.js";
@@ -106,6 +107,7 @@ fastify.get("/config-panel", async (_request, reply) => {
 // Start server
 const start = async () => {
   try {
+    await configManager.initialize();
     await initializeDatabase();
     const port = parseInt(process.env.PORT || "3000", 10);
     const host = process.env.HOST || "0.0.0.0";
