@@ -4,6 +4,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { configManager } from '../../../shared/services/config-manager';
 
 // Use SerialPort with working commands (same as Kiosk fix)
 import { SerialPort } from 'serialport';
@@ -442,6 +443,10 @@ interface RelayTestRequest {
 export async function registerRelayRoutes(fastify: FastifyInstance) {
   const relayService = getRelayService();
 
+  const hardwareConfig = configManager.getConfiguration().hardware;
+  const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
+
+
   // Test relay connection
   fastify.post('/api/relay/test', async (request: FastifyRequest<RelayTestRequest>, reply: FastifyReply) => {
     try {
@@ -500,10 +505,10 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
     try {
       const { relay_number, staff_user, reason } = request.body;
       
-      if (!relay_number || relay_number < 1 || relay_number > 30) {
+      if (!relay_number || relay_number < 1 || relay_number > totalRelays) {
         return reply.status(400).send({
           success: false,
-          error: 'Invalid relay number. Must be between 1 and 30.'
+          error: `Invalid relay number. Must be between 1 and ${totalRelays}.`
         });
       }
       
@@ -572,11 +577,11 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
       }
       
       // Validate relay numbers
-      const invalidRelays = relay_numbers.filter(num => num < 1 || num > 30);
+      const invalidRelays = relay_numbers.filter(num => num < 1 || num > totalRelays);
       if (invalidRelays.length > 0) {
         return reply.status(400).send({
           success: false,
-          error: `Invalid relay numbers: ${invalidRelays.join(', ')}. Must be between 1 and 30.`
+          error: `Invalid relay numbers: ${invalidRelays.join(', ')}. Must be between 1 and ${totalRelays}.`
         });
       }
       
@@ -635,6 +640,11 @@ export async function registerRelayRoutes(fastify: FastifyInstance) {
         error: errorMessage
       });
     }
+  });
+
+  // Get total relay count
+  fastify.get('/api/relay/total', async (request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({ totalRelays });
   });
 
   console.log('✅ Relay control routes registered');
