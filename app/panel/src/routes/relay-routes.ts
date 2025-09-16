@@ -4,7 +4,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { configManager } from '../../../shared/services/config-manager';
+import { configManager } from '../../../../shared/services/config-manager';
 
 // Use SerialPort with working commands (same as Kiosk fix)
 import { SerialPort } from 'serialport';
