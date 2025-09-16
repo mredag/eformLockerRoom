@@ -13,7 +13,7 @@ if (!process.env.EFORM_DB_PATH) {
 }
 
 import Fastify from "fastify";
-import { DatabaseManager } from "../../../shared/database/database-manager";
+import { DatabaseManager } from "@eform/shared/database/database-manager";
 import { AuthService } from "./services/auth-service";
 import { SessionManager } from "./services/session-manager";
 import { createAuthMiddleware } from "./middleware/auth-middleware";
@@ -24,12 +24,12 @@ import {
 import { authRoutes } from "./routes/auth-routes";
 import { lockerRoutes } from "./routes/locker-routes";
 import { vipRoutes } from "./routes/vip-routes";
-import { EventRepository } from "../../../shared/database/event-repository";
+import { EventRepository } from "@eform/shared/database/event-repository";
 import { I18nController } from "./controllers/i18n-controller";
 import { ConfigController } from "./controllers/config-controller";
-import { configManager } from "../../../shared/services/config-manager";
-import { CookieCleanupService } from "../../../shared/services/cookie-cleanup-service";
-import { webSocketService } from "../../../shared/services/websocket-service";
+import { configManager } from "@eform/shared/services/config-manager";
+import { CookieCleanupService } from "@eform/shared/services/cookie-cleanup-service";
+import { webSocketService } from "@eform/shared/services/websocket-service";
 
 // Main application startup function
 async function startPanelService() {
@@ -45,6 +45,8 @@ async function startPanelService() {
     await dbManager.initialize();
 
     // Initialize configuration manager
+    const configPath = path.join(projectRoot, 'config', 'system.json');
+    configManager.setConfigPath(configPath);
     await configManager.initialize();
 
     // Initialize services

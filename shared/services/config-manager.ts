@@ -61,6 +61,14 @@ export class ConfigManager {
   }
 
   /**
+   * Sets the path to the configuration file. This should be called before initialize().
+   * @param {string} path - The new path to the configuration file.
+   */
+  setConfigPath(path: string): void {
+    this.configPath = path;
+  }
+
+  /**
    * Initializes the configuration manager by loading the configuration from its file
    * and setting up the event repository for logging changes.
    */
