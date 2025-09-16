@@ -4,6 +4,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { configManager } from '../../../shared/services/config-manager';
 
 interface AdminLockerOpenRequest {
   Body: {
@@ -23,6 +24,9 @@ interface AdminBulkOpenRequest {
 
 export async function registerAdminRoutes(fastify: FastifyInstance) {
   
+  const hardwareConfig = configManager.getConfiguration().hardware;
+  const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
+
   // Open single locker (admin)
   fastify.post('/api/admin/lockers/:lockerId/open', async (
     request: FastifyRequest<{
@@ -35,10 +39,10 @@ export async function registerAdminRoutes(fastify: FastifyInstance) {
       const lockerId = parseInt(request.params.lockerId);
       const { staff_user, reason } = request.body;
 
-      if (!lockerId || lockerId < 1 || lockerId > 30) {
+      if (!lockerId || lockerId < 1 || lockerId > totalRelays) {
         return reply.status(400).send({
           success: false,
-          error: 'Invalid locker ID. Must be between 1 and 30.'
+          error: `Invalid locker ID. Must be between 1 and ${totalRelays}.`
         });
       }
 
@@ -121,11 +125,11 @@ export async function registerAdminRoutes(fastify: FastifyInstance) {
       }
 
       // Validate locker IDs
-      const invalidIds = locker_ids.filter(id => id < 1 || id > 30);
+      const invalidIds = locker_ids.filter(id => id < 1 || id > totalRelays);
       if (invalidIds.length > 0) {
         return reply.status(400).send({
           success: false,
-          error: `Invalid locker IDs: ${invalidIds.join(', ')}. Must be between 1 and 30.`
+          error: `Invalid locker IDs: ${invalidIds.join(', ')}. Must be between 1 and ${totalRelays}.`
         });
       }
 
@@ -199,10 +203,10 @@ export async function registerAdminRoutes(fastify: FastifyInstance) {
     try {
       const lockerId = parseInt(request.params.lockerId);
 
-      if (!lockerId || lockerId < 1 || lockerId > 30) {
+      if (!lockerId || lockerId < 1 || lockerId > totalRelays) {
         return reply.status(400).send({
           success: false,
-          error: 'Invalid locker ID. Must be between 1 and 30.'
+          error: `Invalid locker ID. Must be between 1 and ${totalRelays}.`
         });
       }
 

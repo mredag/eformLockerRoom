@@ -297,12 +297,16 @@ class SimpleRelayService {
       }
 
       const { slaveAddress, coilAddress, cardDescription } = location;
+
+      console.log(`[RELAY DEBUG] Activating relay ${relayNumber}. Mapped to: slaveAddress=${slaveAddress}, coilAddress=${coilAddress}, description='${cardDescription}'`);
       
       console.log(`🔌 Direct hardware activation: locker ${relayNumber} -> Card ${slaveAddress} (${cardDescription}), Coil ${coilAddress}`);
       console.log(`🔄 Using WORKING software pulse method (same as Kiosk fix)`);
       
       // Use the SAME working method as Kiosk: basic ON/OFF commands (0x05)
+      console.log('[RELAY DEBUG] Building ON command...');
       const turnOnCommand = this.buildModbusCommand(slaveAddress, 0x05, coilAddress, 0xFF00);
+      console.log(`[RELAY DEBUG] ON command buffer: ${turnOnCommand.toString('hex')}`);
       console.log(`📡 ON command: ${turnOnCommand.toString('hex').toUpperCase()}`);
       
       await this.writeCommand(turnOnCommand);
