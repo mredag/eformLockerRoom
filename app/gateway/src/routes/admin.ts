@@ -4,7 +4,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { configManager } from '../../../shared/services/config-manager';
+import { configManager } from '@eform/shared/services/config-manager';
 
 interface AdminLockerOpenRequest {
   Body: {
