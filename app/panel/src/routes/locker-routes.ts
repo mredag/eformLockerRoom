@@ -1,13 +1,14 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { DatabaseManager } from '../../../../shared/database/database-manager';
-import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
-import { EventRepository } from '../../../../shared/database/event-repository';
-import { CommandQueueManager } from '../../../../shared/services/command-queue-manager';
+import { configManager } from '@eform/shared/services/config-manager';
+import { DatabaseManager } from '@eform/shared/database/database-manager';
+import { LockerStateManager } from '@eform/shared/services/locker-state-manager';
+import { EventRepository } from '@eform/shared/database/event-repository';
+import { CommandQueueManager } from '@eform/shared/services/command-queue-manager';
 import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
 import { Permission } from '../services/permission-service';
 import { User } from '../services/auth-service';
-import { webSocketService } from '../../../../shared/services/websocket-service';
-import { lockerLayoutService } from '../../../../shared/services/locker-layout-service';
+import { webSocketService } from '@eform/shared/services/websocket-service';
+import { lockerLayoutService } from '@eform/shared/services/locker-layout-service';
 
 interface LockerRouteOptions extends FastifyPluginOptions {
   dbManager: DatabaseManager;
@@ -74,10 +75,13 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
   const eventRepository = new EventRepository(dbManager);
   const commandQueue = new CommandQueueManager();
 
+  const hardwareConfig = configManager.getConfiguration().hardware;
+  const totalRelays = hardwareConfig.relay_cards.reduce((sum, card) => sum + (card.enabled ? card.channels : 0), 0);
+
   // Validation helper functions
   async function validateKioskExists(kioskId: string): Promise<boolean> {
     try {
-      const { KioskHeartbeatRepository } = require('../../../../shared/database/kiosk-heartbeat-repository');
+      const { KioskHeartbeatRepository } = require('@eform/shared/database/kiosk-heartbeat-repository');
       const heartbeatRepo = new KioskHeartbeatRepository(dbManager.getConnection());
       const kiosk = await heartbeatRepo.findById(kioskId);
       return kiosk !== null;
@@ -94,8 +98,8 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
     if (lockerId < 1) {
       return { valid: false, error: 'Locker ID must be a positive number' };
     }
-    if (lockerId > 32) {
-      return { valid: false, error: 'Locker ID must be between 1 and 32' };
+    if (lockerId > totalRelays) {
+      return { valid: false, error: `Locker ID must be between 1 and ${totalRelays}` };
     }
     return { valid: true };
   }
@@ -642,7 +646,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       if (uniqueLockerIds.length === 0) {
         return reply.code(400).send({
           code: 'bad_request',
-          message: 'No valid locker IDs provided - locker IDs must be integers between 1 and 32'
+          message: `No valid locker IDs provided - locker IDs must be integers between 1 and ${totalRelays}`
         });
       }
 
@@ -655,7 +659,7 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       if (invalidLockerIds.length > 0) {
         return reply.code(400).send({
           code: 'bad_request',
-          message: `Invalid locker IDs: ${invalidLockerIds.join(', ')} - locker IDs must be integers between 1 and 32`
+          message: `Invalid locker IDs: ${invalidLockerIds.join(', ')} - locker IDs must be integers between 1 and ${totalRelays}`
         });
       }
 
