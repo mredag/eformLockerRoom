@@ -189,6 +189,7 @@ fastify.get("/api/lockers/available", {
           available.push({
             id: lockerInfo.id,
             status: 'Free',
+            displayName: lockerInfo.displayName,
             is_vip: locker.is_vip || false
           });
         }

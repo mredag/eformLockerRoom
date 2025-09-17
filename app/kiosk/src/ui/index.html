@@ -101,9 +101,62 @@
                             </button>
                         </div>
                     </div>
-                    <div class="locker-grid" id="locker-grid">
-                        <!-- Locker tiles will be generated dynamically -->
-                    </div>
+
+                    <aside class="session-meta" id="session-meta" aria-label="Kart bilgileri ve seçim adımları">
+                        <h3 class="meta-title">Kartınız onaylandı</h3>
+                        <p class="meta-description">Orta bölümdeki dolaplardan birini dokunarak seçin. Seçtiğiniz dolap hemen açılacaktır.</p>
+                        <ul class="session-steps" aria-label="Dolap seçme adımları">
+                            <li class="session-step">
+                                <span class="session-step-number">1</span>
+                                <span class="session-step-label">Yeşil renkle gösterilen müsait dolabı seçin.</span>
+                            </li>
+                            <li class="session-step">
+                                <span class="session-step-number">2</span>
+                                <span class="session-step-label">Dolap numarasını kapaktaki etiketle karşılaştırın.</span>
+                            </li>
+                            <li class="session-step">
+                                <span class="session-step-number">3</span>
+                                <span class="session-step-label">Dolap açıldığında eşyalarınızı yerleştirin ve kapatın.</span>
+                            </li>
+                        </ul>
+                        <div class="session-hint" role="note">
+                            <span class="session-hint-title">İpucu</span>
+                            <p class="session-hint-text">Süre 15 saniyenin altına düştüğünde sayaç turuncu renge döner ve kalan süreyi vurgular.</p>
+                        </div>
+                    </aside>
+
+                    <section class="session-main" aria-label="Müsait dolap listesi">
+                        <div class="session-main-header">
+                            <h2 id="session-title-compact" class="session-title-compact">Dolap seçiniz</h2>
+                            <p class="session-main-subtitle">İhtiyacınıza uygun dolabı seçmek için numaraları takip edin. Liste alfabetik sıraya göre düzenlenmiştir.</p>
+                        </div>
+                        <div class="locker-grid" id="locker-grid">
+                            <!-- Locker tiles will be generated dynamically -->
+                        </div>
+                    </section>
+
+                    <aside class="session-legend" id="session-legend" aria-label="Dolap durumlarının açıklaması">
+                        <h3 class="legend-title">Durum Açıklamaları</h3>
+                        <ul class="legend-list">
+                            <li class="legend-item">
+                                <span class="legend-dot available" aria-hidden="true"></span>
+                                <span>Müsait dolap – seçim yapılabilir</span>
+                            </li>
+                            <li class="legend-item">
+                                <span class="legend-dot occupied" aria-hidden="true"></span>
+                                <span>Dolu dolap – başkası kullanıyor</span>
+                            </li>
+                            <li class="legend-item">
+                                <span class="legend-dot disabled" aria-hidden="true"></span>
+                                <span>Kullanım dışı – görevliyle iletişime geçin</span>
+                            </li>
+                        </ul>
+                        <p class="legend-note">Tüm dolaplar büyük harflerle gösterilir, böylece dolap üzerindeki etiketle eşleştirmek kolaylaşır.</p>
+                    </aside>
+
+                    <footer class="session-footer" aria-label="Yardım bilgisi">
+                        <p>Ekrandaki dolap adları, kapak üzerindeki etiketlerle birebir aynıdır. Yardıma ihtiyaç duyarsanız görevliye haber verin.</p>
+                    </footer>
                 </div>
             </div>
 

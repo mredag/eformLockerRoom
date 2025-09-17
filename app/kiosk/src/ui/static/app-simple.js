@@ -1301,34 +1301,80 @@ class SimpleKioskApp {
             
             // Apply dynamic CSS
             this.applyDynamicGridCSS(layoutData.gridCSS);
-            
+
             // Clear existing grid
             this.elements.lockerGrid.innerHTML = '';
-            
-            // Create locker tiles based on hardware configuration
-            layoutData.layout.lockers.forEach(locker => {
+
+            const layoutLockers = Array.isArray(layoutData.layout?.lockers) ? layoutData.layout.lockers : [];
+            const layoutLockerMap = new Map(layoutLockers.map(locker => [locker.id, locker]));
+            const hasAvailableLockers = Array.isArray(this.state.availableLockers) && this.state.availableLockers.length > 0;
+
+            if (hasAvailableLockers) {
+                const mergedLockers = this.state.availableLockers.map(locker => {
+                    const layoutLocker = layoutLockerMap.get(locker.id);
+                    const displayName = layoutLocker?.displayName || locker.displayName || `Dolap ${locker.id}`;
+                    return {
+                        ...locker,
+                        displayName,
+                        cardId: layoutLocker?.cardId ?? locker.cardId ?? null,
+                        relayId: layoutLocker?.relayId ?? locker.relayId ?? null,
+                        slaveAddress: layoutLocker?.slaveAddress ?? locker.slaveAddress ?? null,
+                        size: layoutLocker?.size ?? locker.size ?? ''
+                    };
+                });
+
+                mergedLockers.sort((a, b) => {
+                    const nameA = a.displayName || `${a.id}`;
+                    const nameB = b.displayName || `${b.id}`;
+                    return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+                });
+
+                this.state.availableLockers = mergedLockers;
+            }
+
+            const lockersToRender = hasAvailableLockers
+                ? this.state.availableLockers
+                : layoutLockers.map(locker => ({
+                    id: locker.id,
+                    displayName: locker.displayName,
+                    status: 'available',
+                    cardId: locker.cardId,
+                    relayId: locker.relayId,
+                    slaveAddress: locker.slaveAddress,
+                    size: locker.size
+                }));
+
+            lockersToRender.forEach(locker => {
                 const tile = document.createElement('div');
-                tile.className = `locker-tile available`; // Default to available, will be updated by status
+                const statusClass = locker.status || 'available';
+                tile.className = `locker-tile ${statusClass}`;
                 tile.dataset.lockerId = locker.id;
-                tile.dataset.cardId = locker.cardId;
-                tile.dataset.relayId = locker.relayId;
-                tile.dataset.slaveAddress = locker.slaveAddress;
-                
+
+                if (locker.cardId !== undefined && locker.cardId !== null) {
+                    tile.dataset.cardId = String(locker.cardId);
+                }
+                if (locker.relayId !== undefined && locker.relayId !== null) {
+                    tile.dataset.relayId = String(locker.relayId);
+                }
+                if (locker.slaveAddress !== undefined && locker.slaveAddress !== null) {
+                    tile.dataset.slaveAddress = String(locker.slaveAddress);
+                }
+
                 tile.setAttribute('role', 'button');
-                tile.setAttribute('tabindex', '0');
-                tile.setAttribute('aria-label', `Dolap ${locker.displayName}, Boş`);
-                
+                tile.setAttribute('tabindex', statusClass === 'available' ? '0' : '-1');
+                tile.setAttribute('aria-label', `Dolap ${locker.displayName || locker.id}, ${this.getStatusText(statusClass)}`);
+
                 // Add touch-friendly attributes (Requirements 8.1, 8.2, 8.3)
                 tile.setAttribute('data-touch-target', 'true');
-                tile.setAttribute('data-status', 'available');
-                
+                tile.setAttribute('data-status', statusClass);
+
                 // Enhanced visual content with hardware info
                 tile.innerHTML = `
-                    <div class.locker-number">${locker.displayName}</div>
+                    <div class="locker-number">${locker.displayName || locker.id}</div>
                     <div class="locker-size">${locker.size || ''}</div>
-                    <div class="locker-status">BOŞ</div>
+                    <div class="locker-status">${this.getStatusText(statusClass)}</div>
                 `;
-                
+
                 // Add keyboard support
                 tile.addEventListener('keydown', (event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -1336,21 +1382,9 @@ class SimpleKioskApp {
                         this.handleLockerClick(event);
                     }
                 });
-                
+
                 this.elements.lockerGrid.appendChild(tile);
             });
-            
-            // Hide tiles not available (session shows only available)
-            try {
-                const availableSet = new Set((this.state.availableLockers || []).map(l => l.id));
-                if (availableSet.size > 0) {
-                    const tiles = this.elements.lockerGrid.querySelectorAll('.locker-tile');
-                    tiles.forEach(t => {
-                        const id = parseInt(t.dataset.lockerId);
-                        if (!availableSet.has(id)) t.style.display = 'none';
-                    });
-                }
-            } catch (_) {}
 
             // Update locker statuses if we have state data
             if (this.state.availableLockers) {
@@ -1358,9 +1392,10 @@ class SimpleKioskApp {
             }
             
             // Adjust grid for large locker counts to ensure they fit on screen
-            this.adjustGridForLockerCount(layoutData.layout.lockers.length);
+            this.adjustGridForLockerCount(lockersToRender.length);
 
-            console.log(`🎯 Rendered ${layoutData.layout.lockers.length} locker tiles from hardware config`);
+            const renderLogSuffix = hasAvailableLockers ? ' (sorted by display name)' : '';
+            console.log(`🎯 Rendered ${lockersToRender.length} locker tiles from hardware config${renderLogSuffix}`);
             console.log(`📊 Hardware: ${layoutData.stats.enabledCards} cards, ${layoutData.stats.totalChannels} channels`);
             
         } catch (error) {
@@ -1461,18 +1496,26 @@ class SimpleKioskApp {
             const grid = this.elements.lockerGrid;
             if (!sessionScreen || !grid) return;
 
-            // Hide legacy header if present
             const legacyHeader = sessionScreen.querySelector('.session-header');
             if (legacyHeader) legacyHeader.style.display = 'none';
 
-            // Create or update compact title element
+            const mainHeader = sessionScreen.querySelector('.session-main-header');
+
             let title = sessionScreen.querySelector('#session-title-compact');
             if (!title) {
                 title = document.createElement('h2');
                 title.id = 'session-title-compact';
                 title.className = 'session-title-compact';
+            }
+
+            if (mainHeader) {
+                if (!mainHeader.contains(title)) {
+                    mainHeader.insertBefore(title, mainHeader.firstChild || null);
+                }
+            } else if (title.parentElement !== grid.parentNode || title.nextSibling !== grid) {
                 grid.parentNode.insertBefore(title, grid);
             }
+
             title.textContent = 'Dolap seçiniz';
         } catch (_) {}
     }
@@ -1506,51 +1549,59 @@ class SimpleKioskApp {
         if (!this.elements.lockerGrid || !this.state.availableLockers) {
             return;
         }
-        
+
         console.log('⚠️ Using fallback static locker grid rendering');
-        
+
         // Clear existing grid
         this.elements.lockerGrid.innerHTML = '';
-        
+
         // Optimize grid layout for current screen
         this.optimizeLockerGridForScreen();
-        
+
+        const lockers = Array.isArray(this.state.availableLockers) ? this.state.availableLockers : [];
+        if (lockers.length === 0) {
+            return;
+        }
+
         // Create locker tiles with enhanced visual clarity and touch optimization
-        this.state.availableLockers.forEach(locker => {
+        lockers.forEach(locker => {
+            const statusClass = locker.status || 'available';
+            const displayName = locker.displayName || `Dolap ${locker.id}`;
+            const statusText = this.getStatusText(statusClass);
             const tile = document.createElement('div');
-            tile.className = `locker-tile ${locker.status}`;
+            tile.className = `locker-tile ${statusClass}`;
             tile.dataset.lockerId = locker.id;
-            
+
             // Add accessibility attributes
             tile.setAttribute('role', 'button');
-            tile.setAttribute('tabindex', locker.status === 'available' ? '0' : '-1');
-            tile.setAttribute('aria-label', `Dolap ${locker.displayName || locker.id}, ${this.getStatusText(locker.status)}`);
-            
+            tile.setAttribute('tabindex', statusClass === 'available' ? '0' : '-1');
+            tile.setAttribute('aria-label', `Dolap ${displayName}, ${statusText}`);
+
             // Add touch-friendly attributes (Requirements 8.1, 8.2, 8.3)
-            if (locker.status === 'available') {
+            if (statusClass === 'available') {
                 tile.setAttribute('aria-describedby', 'touch-hint');
                 tile.style.cursor = 'pointer';
             }
-            
+
             // Enhanced visual content
             tile.innerHTML = `
-                <div class="locker-number">${locker.displayName || locker.id}</div>
-                <div class="locker-status">${this.getStatusText(locker.status)}</div>
+                <div class="locker-number">${displayName}</div>
+                <div class="locker-status">${statusText}</div>
             `;
-            
+
             // Add visual state indicators
-            if (locker.status === 'available') {
+            if (statusClass === 'available') {
                 tile.setAttribute('aria-describedby', 'Seçmek için dokunun');
-            } else if (locker.status === 'occupied') {
+            } else if (statusClass === 'occupied') {
                 tile.setAttribute('aria-describedby', 'Dolu - seçilemez');
-            } else if (locker.status === 'disabled') {
+            } else if (statusClass === 'disabled') {
                 tile.setAttribute('aria-describedby', 'Kapalı - seçilemez');
             }
-            
+
             this.elements.lockerGrid.appendChild(tile);
         });
-        
-        console.log(`🎯 Rendered ${this.state.availableLockers.length} locker tiles (static fallback)`);
+
+        console.log(`🎯 Rendered ${lockers.length} locker tiles (static fallback)`);
     }
 
     /**
