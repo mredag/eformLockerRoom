@@ -102,26 +102,13 @@
                         </div>
                     </div>
 
-                    <aside class="session-meta" id="session-meta" aria-label="Kart bilgileri ve seçim adımları">
-                        <h3 class="meta-title">Kartınız onaylandı</h3>
-                        <p class="meta-description">Orta bölümdeki dolaplardan birini dokunarak seçin. Seçtiğiniz dolap hemen açılacaktır.</p>
-                        <ul class="session-steps" aria-label="Dolap seçme adımları">
-                            <li class="session-step">
-                                <span class="session-step-number">1</span>
-                                <span class="session-step-label">Yeşil renkle gösterilen müsait dolabı seçin.</span>
-                            </li>
-                            <li class="session-step">
-                                <span class="session-step-number">2</span>
-                                <span class="session-step-label">Dolap numarasını kapaktaki etiketle karşılaştırın.</span>
-                            </li>
-                            <li class="session-step">
-                                <span class="session-step-number">3</span>
-                                <span class="session-step-label">Dolap açıldığında eşyalarınızı yerleştirin ve kapatın.</span>
-                            </li>
-                        </ul>
-                        <div class="session-hint" role="note">
-                            <span class="session-hint-title">İpucu</span>
-                            <p class="session-hint-text">Süre 15 saniyenin altına düştüğünde sayaç turuncu renge döner ve kalan süreyi vurgular.</p>
+                    <aside class="session-meta" id="session-meta" aria-label="Dolabı kapatma bilgisi">
+                        <div class="session-meta-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 3v5h5"/><path d="M12 12a2 2 0 1 0-4 0v2"/><path d="M6 15h8"/></svg>
+                        </div>
+                        <div class="session-meta-copy">
+                            <h3 class="meta-title">Dolabı güvenle kapatın</h3>
+                            <p class="meta-description">Eşyalarınızı yerleştirdikten sonra kapağı kapatıp nazikçe ittirdiğinizde kilit otomatik devreye girer. Kapanmazsa görevliden yardım isteyin.</p>
                         </div>
                     </aside>
 
@@ -134,25 +121,6 @@
                             <!-- Locker tiles will be generated dynamically -->
                         </div>
                     </section>
-
-                    <aside class="session-legend" id="session-legend" aria-label="Dolap durumlarının açıklaması">
-                        <h3 class="legend-title">Durum Açıklamaları</h3>
-                        <ul class="legend-list">
-                            <li class="legend-item">
-                                <span class="legend-dot available" aria-hidden="true"></span>
-                                <span>Müsait dolap – seçim yapılabilir</span>
-                            </li>
-                            <li class="legend-item">
-                                <span class="legend-dot occupied" aria-hidden="true"></span>
-                                <span>Dolu dolap – başkası kullanıyor</span>
-                            </li>
-                            <li class="legend-item">
-                                <span class="legend-dot disabled" aria-hidden="true"></span>
-                                <span>Kullanım dışı – görevliyle iletişime geçin</span>
-                            </li>
-                        </ul>
-                        <p class="legend-note">Tüm dolaplar büyük harflerle gösterilir, böylece dolap üzerindeki etiketle eşleştirmek kolaylaşır.</p>
-                    </aside>
 
                     <footer class="session-footer" aria-label="Yardım bilgisi">
                         <p>Ekrandaki dolap adları, kapak üzerindeki etiketlerle birebir aynıdır. Yardıma ihtiyaç duyarsanız görevliye haber verin.</p>
