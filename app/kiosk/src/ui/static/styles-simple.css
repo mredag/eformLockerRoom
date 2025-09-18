@@ -1761,8 +1761,8 @@ html, body {
     background: rgba(5, 10, 22, 0.92);
     backdrop-filter: blur(14px);
     color: #F8FAFF;
-    width: min(940px, calc(100% - clamp(56px, 8vw, 180px)));
-    max-height: clamp(540px, 74vh, 760px);
+    width: min(1920px, calc(100% - clamp(56px, 10vw, 300px)));
+    max-height: clamp(540px, 120vh, 760px);
     border-radius: 36px;
     padding: clamp(28px, 4.6vh, 72px) clamp(36px, 6.5vw, 96px);
     font-family: 'Inter', 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', sans-serif;
@@ -1772,12 +1772,11 @@ html, body {
     align-items: center;
     gap: clamp(28px, 5.2vh, 64px);
     box-shadow: 0 28px 76px rgba(5, 10, 26, 0.62);
-    overflow: hidden;
 }
 
 
 .owned-decision-header {
-    width: min(900px, 100%);
+    width: min(1280px, 100%);
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -1794,7 +1793,7 @@ html, body {
 }
 
 .owned-decision-title-prefix {
-    font-size: clamp(22px, 2.6vh, 32px);
+    font-size: clamp(24px, 3vh, 36px);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1802,7 +1801,7 @@ html, body {
 }
 
 .owned-decision-title-locker {
-    font-size: clamp(46px, 6.2vh, 68px);
+    font-size: clamp(52px, 6.8vh, 82px);
     line-height: 1.05;
     font-weight: 700;
     letter-spacing: -0.015em;
@@ -1811,7 +1810,7 @@ html, body {
 
 #owned-decision-desc {
     margin: 0;
-    font-size: clamp(22px, 2.5vh, 32px);
+    font-size: clamp(24px, 2.9vh, 36px);
     line-height: 1.38;
     color: rgba(198, 212, 240, 0.9);
     max-width: 820px;
@@ -1820,8 +1819,8 @@ html, body {
 .owned-decision-buttons {
     display: flex;
     flex-direction: column;
-    gap: clamp(24px, 3.6vh, 44px);
-    width: min(880px, 100%);
+    gap: clamp(28px, 4vh, 48px);
+    width: min(1320px, 100%);
     margin: 0 auto;
 }
 
@@ -1878,8 +1877,8 @@ html, body {
 }
 
 .owned-decision-icon {
-    width: clamp(64px, 7vh, 96px);
-    height: clamp(64px, 7vh, 96px);
+    width: clamp(72px, 8vh, 112px);
+    height: clamp(72px, 8vh, 112px);
     border-radius: 24px;
     display: flex;
     align-items: center;
@@ -1901,34 +1900,34 @@ html, body {
 .owned-decision-copy {
     display: flex;
     flex-direction: column;
-    gap: clamp(10px, 1.6vh, 20px);
+    gap: clamp(12px, 2vh, 24px);
     flex: 1;
 }
 
 .owned-decision-button-title {
     display: block;
-    font-size: clamp(32px, 3.8vh, 46px);
+    font-size: clamp(36px, 4.2vh, 52px);
     font-weight: 700;
     color: #F8FAFF;
     letter-spacing: -0.01em;
 }
 
 .owned-decision-button--secondary .owned-decision-button-title {
-    font-size: clamp(22px, 2.8vh, 32px);
+    font-size: clamp(24px, 3vh, 34px);
     font-weight: 600;
     color: rgba(226, 232, 240, 0.86);
 }
 
 .owned-decision-button-subtitle {
     display: block;
-    font-size: clamp(20px, 2.4vh, 26px);
+    font-size: clamp(22px, 2.6vh, 28px);
     font-weight: 500;
     color: rgba(200, 213, 235, 0.9);
     max-width: 520px;
 }
 
 .owned-decision-button--secondary .owned-decision-button-subtitle {
-    font-size: clamp(16px, 2.1vh, 22px);
+    font-size: clamp(18px, 2.3vh, 24px);
     color: rgba(203, 213, 225, 0.78);
 }
 
@@ -1940,11 +1939,11 @@ html, body {
     background: rgba(10, 18, 35, 0.9);
     border: 1px solid rgba(148, 163, 184, 0.32);
     color: rgba(226, 232, 240, 0.92);
-    padding: clamp(22px, 2.8vh, 38px) clamp(28px, 4vw, 56px);
+    padding: clamp(26px, 3.2vh, 44px) clamp(32px, 5vw, 64px);
     border-radius: 28px;
-    margin: clamp(8px, 1.6vh, 28px) auto 0;
-    font-size: clamp(18px, 2.1vh, 24px);
-    max-width: min(760px, 100%);
+    margin: clamp(12px, 2vh, 32px) auto 0;
+    font-size: clamp(20px, 2.4vh, 26px);
+    max-width: min(980px, 100%);
     text-align: center;
     line-height: 1.6;
     box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
