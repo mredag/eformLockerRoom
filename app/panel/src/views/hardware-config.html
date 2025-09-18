@@ -428,7 +428,11 @@
             document.getElementById('lockerLayoutRows').value = config.lockers.layout.rows;
             document.getElementById('lockerLayoutColumns').value = config.lockers.layout.columns;
             document.getElementById('lockerNumberingScheme').value = config.lockers.layout.numbering_scheme;
-            document.getElementById('lockerAutoReleaseHours').value = config.lockers.auto_release_hours;
+            const autoReleaseInput = document.getElementById('lockerAutoReleaseHours');
+            autoReleaseInput.value =
+                config.lockers.auto_release_hours !== undefined && config.lockers.auto_release_hours !== null
+                    ? config.lockers.auto_release_hours
+                    : '';
             document.getElementById('lockerMaintenanceMode').checked = config.lockers.maintenance_mode;
         }
 
@@ -726,7 +730,13 @@
                 currentConfig.lockers.layout.rows = parseInt(document.getElementById('lockerLayoutRows').value);
                 currentConfig.lockers.layout.columns = parseInt(document.getElementById('lockerLayoutColumns').value);
                 currentConfig.lockers.layout.numbering_scheme = document.getElementById('lockerNumberingScheme').value;
-                currentConfig.lockers.auto_release_hours = parseInt(document.getElementById('lockerAutoReleaseHours').value);
+                const autoReleaseValue = document.getElementById('lockerAutoReleaseHours').value;
+                const parsedAutoRelease = parseInt(autoReleaseValue, 10);
+                if (Number.isNaN(parsedAutoRelease)) {
+                    delete currentConfig.lockers.auto_release_hours;
+                } else {
+                    currentConfig.lockers.auto_release_hours = parsedAutoRelease;
+                }
                 currentConfig.lockers.maintenance_mode = document.getElementById('lockerMaintenanceMode').checked;
                 
                 const response = await fetch('/api/hardware-config', {
