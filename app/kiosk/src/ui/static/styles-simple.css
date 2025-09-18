@@ -69,37 +69,6 @@ html, body {
     border-bottom: 2px solid #475569;
 }
 
-.header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 20px;
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-.status-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #10b981; /* Green for online */
-}
-
-.status-dot.offline {
-    background: #dc2626; /* Red for offline */
-}
-
-.status-dot.reconnecting {
-    background: #f59e0b; /* Orange for reconnecting */
-}
-
 /* Session Timer - Clear countdown display (Requirement 5.5) */
 .session-timer {
     display: flex;
@@ -121,18 +90,6 @@ html, body {
     background: rgba(220, 38, 38, 0.1);
     border-color: rgba(220, 38, 38, 0.3);
     animation: pulse-warning 1s ease-in-out infinite;
-}
-
-.timer-text {
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.timer-value {
-    font-size: 1.6rem;
-    font-weight: 800;
-    min-width: 35px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes pulse-warning {
@@ -231,15 +188,6 @@ html, body {
 .info-note {margin: 18px auto 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(52,211,153,0.35); color: #d1fae5; padding: 14px 18px; border-radius: 12px; }
 .info-note strong { color: #34d399; }
 
-/* RFID Card Icon for Visual Clarity */
-.rfid-icon {
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 30px;
-    color: #60a5fa;
-    opacity: 0.8;
-}
-
 /* Idle State Animation - Subtle breathing effect */
 .idle-message {
     animation: breathe 3s ease-in-out infinite;
@@ -248,117 +196,6 @@ html, body {
 @keyframes breathe {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.85; }
-}
-
-/* Idle Scan Area Attention Animation (GPU-friendly: transform/opacity only) */
-.scan-area {
-    position: relative;
-    width: 200px;
-    height: 200px;
-    margin: 0 auto 24px;
-    pointer-events: none; /* purely decorative */
-    transform: translateZ(0);
-    will-change: transform, opacity;
-}
-
-/* Soft radial glow under the scan area */
-.scan-area::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 160px;
-    height: 160px;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(59,130,246,0.28) 0%, rgba(59,130,246,0.16) 45%, rgba(59,130,246,0.06) 70%, rgba(59,130,246,0) 78%);
-}
-
-/* Place the icon in the center of the scan area */
-.scan-area .rfid-icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    margin: 0;
-    z-index: 3;
-}
-
-/* Expanding rings to draw attention */
-.scan-area .pulse {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 130px;
-    height: 130px;
-    transform: translate(-50%, -50%) scale(1);
-    border-radius: 50%;
-    border: 3px solid rgba(96, 165, 250, 0.55);
-    opacity: 0.8;
-    will-change: transform, opacity;
-    animation: scan-pulse 2.4s ease-out infinite !important;
-}
-
-.scan-area .pulse.delay-1 { animation-delay: 0.8s !important; }
-.scan-area .pulse.delay-2 { animation-delay: 1.6s !important; }
-
-/* Rotating beam around the ring */
-.scan-area .scan-beam {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 170px;
-    height: 170px;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: conic-gradient(
-        from 0deg,
-        rgba(96,165,250,0) 0deg,
-        rgba(96,165,250,0.65) 25deg,
-        rgba(96,165,250,0) 70deg,
-        rgba(96,165,250,0) 360deg
-    );
-    /* Hollow out the center to form a ring */
-    -webkit-mask: radial-gradient(circle, transparent 0 62px, #000 62px);
-            mask: radial-gradient(circle, transparent 0 62px, #000 62px);
-    opacity: 0.9;
-    will-change: transform;
-    animation: rotate-beam 3.2s linear infinite !important;
-}
-
-@keyframes scan-pulse {
-    0%   { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
-    70%  { opacity: 0.15; }
-    100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
-}
-
-@keyframes rotate-beam {
-    from { transform: translate(-50%, -50%) rotate(0deg); }
-    to   { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-/* Session State - "Select a locker" with countdown (Requirement 5.5) */
-.session-screen {
-    width: 100%;
-    max-width: 1200px;
-    padding: 20px;
-}
-
-.session-header {
-    display: none; /* Hide legacy header block in session */
-}
-
-.session-title {
-    display: none; /* Hidden with legacy header */
-}
-
-.session-subtitle {
-    display: none !important;
-}
-
-/* Session Instructions */
-.session-instructions {
-    display: none !important;
 }
 
 /* Compact session title (new) */
@@ -412,10 +249,6 @@ html, body {
 }
 
 /* Session view: hide status labels to simplify UI */
-#session-screen .locker-hardware {
-    display: none !important;
-}
-
 /* Enhanced touch and hover feedback (Requirement 8.2) */
 .locker-tile.available:hover {
     background-color: #059669 !important;
@@ -568,24 +401,9 @@ html, body {
     animation: spin 1.2s linear infinite;
 }
 
-/* Simple dots loading alternative */
-.loading-dots {
-    display: inline-block;
-    font-size: 2rem;
-    color: #60a5fa;
-    animation: dots 1.5s ease-in-out infinite;
-}
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
-}
-
-@keyframes dots {
-    0%, 20% { content: ''; }
-    40% { content: '.'; }
-    60% { content: '..'; }
-    80%, 100% { content: '...'; }
 }
 
 /* Enhanced Error State - Turkish Error Handling (Requirements 6.1-6.6) */
@@ -722,13 +540,6 @@ html, body {
 }
 
 /* Connection Status Error Styling */
-.status-indicator.error {
-    background: rgba(220, 38, 38, 0.2);
-    border: 1px solid rgba(220, 38, 38, 0.4);
-    border-radius: 6px;
-    padding: 4px 8px;
-}
-
 /* Responsive Error Display */
 @media (max-width: 800px) {
     .error-screen {
@@ -778,93 +589,12 @@ html, body {
     }
 }
 
-/* Footer removed - no longer needed */
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.legend-color.available {
-    background: #10b981;
-    border-color: #059669;
-}
-
-.legend-color.occupied {
-    background: #dc2626;
-    border-color: #b91c1c;
-}
-
-.legend-color.disabled {
-    background: #6b7280;
-    border-color: #4b5563;
-}
-
-.legend-color.opening {
-    background: #f59e0b;
-    border-color: #d97706;
-}
-
-.legend-color.error {
-    background: #7c2d12;
-    border-color: #991b1b;
-}
-
-/* Status Messages */
-.status-message {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 15;
-    padding: 20px 30px;
-    border-radius: 8px;
-    font-size: 1.3rem;
-    font-weight: 600;
-    text-align: center;
-    max-width: 400px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
-}
-
-.status-message.show {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.status-message.success {
-    background: #dcfce7;
-    color: #166534;
-    border: 2px solid #bbf7d0;
-}
-
-.status-message.error {
-    background: #fef2f2;
-    color: #dc2626;
-    border: 2px solid #fecaca;
-}
-
-.status-message.info {
-    background: #dbeafe;
-    color: #1d4ed8;
-    border: 2px solid #bfdbfe;
-}
-
-.status-message.warning {
-    background: #fef3c7;
-    color: #d97706;
-    border: 2px solid #fed7aa;
-}
-
 /* Responsive Design for Different Pi Screen Resolutions */
 
 /* 1024x768 (Common Pi touchscreen) - Touch-Optimized (Requirements 8.4, 8.5) */
 @media (max-width: 1024px) {
     .main-prompt {
         font-size: 2.5rem;
-    }
-    
-    .session-title {
-        font-size: 1.8rem;
     }
     
     .locker-grid {
@@ -891,11 +621,6 @@ html, body {
         font-size: 1.2rem;
     }
     
-    .legend {
-        gap: 16px;
-        flex-wrap: wrap;
-    }
-    
     /* Enhanced button sizing for tablets */
     .retry-button,
     .return-button {
@@ -918,21 +643,12 @@ html, body {
         padding: 15px;
     }
     
-    .footer {
-        height: 70px;
-        padding: 0 15px;
-    }
-    
     .main-prompt {
         font-size: 2rem;
     }
     
     .sub-prompt {
         font-size: 1.2rem;
-    }
-    
-    .session-title {
-        font-size: 1.6rem;
     }
     
     .locker-grid {
@@ -961,18 +677,6 @@ html, body {
     
     .locker-status {
         font-size: 0.7rem;
-    }
-    
-    .legend {
-        gap: 12px;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    .legend-item {
-        font-size: 0.8rem;
-        min-height: 40px;
-        padding: 6px 10px;
     }
     
     /* Enhanced button sizing for small screens */
@@ -1021,57 +725,6 @@ html, body {
         transition: transform 0.05s ease;
     }
     
-    /* Header elements touch-friendly sizing */
-    .status-indicator,
-    .session-timer {
-        min-height: 44px;
-        padding: 8px 12px;
-    }
-    
-    /* Footer legend items with proper spacing */
-    .legend-item {
-        min-height: 45px;
-        padding: 8px 12px;
-        margin: 4px 8px;
-    }
-    
-    /* Ensure proper spacing in locker grid */
-    .locker-grid {
-        gap: 16px;
-        padding: 20px 16px;
-    }
-    
-    /* Error buttons with proper touch sizing */
-    .retry-button,
-    .return-button {
-        min-height: 60px;
-        min-width: 60px;
-        padding: 20px 40px;
-        /* Add spacing between buttons to prevent mis-taps */
-        margin: 12px 8px;
-    }
-    
-    /* Enhanced button feedback */
-    .retry-button:active,
-    .return-button:active {
-        transform: scale(0.95);
-        transition: transform 0.05s ease;
-    }
-    
-    /* Header elements touch-friendly sizing */
-    .status-indicator,
-    .session-timer {
-        min-height: 44px;
-        padding: 8px 12px;
-    }
-    
-    /* Footer legend items with proper spacing */
-    .legend-item {
-        min-height: 44px;
-        padding: 8px 12px;
-        margin: 4px 8px;
-    }
-    
     /* Ensure proper spacing in locker grid */
     .locker-grid {
         gap: 16px;
@@ -1086,11 +739,6 @@ html, body {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         width: min(100%, 1400px);
         margin: 0 auto;
-    }
-    
-    .session-header {
-        max-width: 800px;
-        margin: 0 auto 30px;
     }
     
     .error-actions {
@@ -1113,11 +761,6 @@ html, body {
         line-height: 1.1;
     }
     
-    .session-title {
-        font-size: 2.2rem;
-        line-height: 1.2;
-    }
-    
     .error-actions {
         flex-direction: column;
         gap: 16px;
@@ -1136,16 +779,6 @@ html, body {
         font-weight: 700;
     }
     
-    .status-dot {
-        width: 10px;
-        height: 10px;
-    }
-    
-    .legend-color {
-        width: 18px;
-        height: 18px;
-        border-width: 1px;
-    }
 }
 
 /* Performance optimizations for Raspberry Pi GPU */
@@ -1164,7 +797,6 @@ html, body {
     /* Force hardware acceleration for critical elements */
     .locker-tile,
     .header,
-    .footer,
     .main-content,
     .screen {
         transform: translateZ(0);
@@ -1261,10 +893,6 @@ button:focus-visible,
 /* Utility classes */
 .hidden {
     display: none !important;
-}
-
-.visible {
-    display: block !important;
 }
 
 /* Screen state management */
