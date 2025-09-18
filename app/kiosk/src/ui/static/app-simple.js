@@ -747,7 +747,10 @@ class SimpleKioskApp {
 
             panel.innerHTML = `
                 <div class="owned-decision-header">
-                    <h2 id="owned-decision-title" class="owned-decision-title">Dolabınız</h2>
+                    <h2 class="owned-decision-title">
+                        <span class="owned-decision-title-prefix">Dolabınız</span>
+                        <span id="owned-decision-locker" class="owned-decision-title-locker">Dolap</span>
+                    </h2>
                     <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
                 </div>
                 <div class="owned-decision-buttons">
@@ -780,10 +783,10 @@ class SimpleKioskApp {
         }
 
         // Update content with locker id
-        const title = document.getElementById('owned-decision-title');
-        if (title) {
+        const lockerLabel = document.getElementById('owned-decision-locker');
+        if (lockerLabel) {
             const resolvedName = displayName || `Dolap ${lockerId}`;
-            title.textContent = `Dolabınız – ${resolvedName}`;
+            lockerLabel.textContent = resolvedName;
         }
 
         overlay.style.display = 'flex';
