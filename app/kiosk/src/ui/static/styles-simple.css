@@ -1769,17 +1769,18 @@ html, body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-    gap: clamp(32px, 5vh, 72px);
+    align-items: stretch;
+    gap: clamp(36px, 6vh, 80px);
     box-shadow: 0 24px 64px rgba(5, 10, 26, 0.6);
 }
 
 .owned-decision-header {
     width: min(960px, 100%);
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: clamp(12px, 2vh, 28px);
+    gap: clamp(14px, 2.2vh, 32px);
     text-align: left;
 }
 
@@ -1801,27 +1802,27 @@ html, body {
 }
 
 .owned-decision-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(24px, 4vh, 48px);
+    display: grid;
+    gap: clamp(28px, 5vh, 56px);
     justify-content: center;
     align-items: stretch;
     width: min(980px, 100%);
+    margin: 0 auto;
 }
 
 .owned-decision-button {
     border: 2px solid transparent;
     border-radius: 28px;
-    padding: clamp(28px, 5vh, 80px) clamp(32px, 6vw, 96px);
+    padding: clamp(32px, 5.5vh, 88px) clamp(36px, 6.5vw, 104px);
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: clamp(20px, 5vw, 48px);
+    gap: clamp(22px, 5vw, 52px);
     background: rgba(17, 24, 39, 0.9);
     color: #E6EAF2;
     text-align: left;
     cursor: pointer;
-    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.35);
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
@@ -1835,9 +1836,9 @@ html, body {
 }
 
 .owned-decision-button--primary {
-    background: linear-gradient(140deg, #7C3AED 0%, #4C1D95 45%, #312E81 100%);
-    border-color: rgba(194, 169, 255, 0.65);
-    box-shadow: 0 28px 48px rgba(76, 29, 149, 0.45);
+    background: linear-gradient(145deg, #7C3AED 0%, #5B21B6 42%, #1E1B4B 100%);
+    border-color: rgba(194, 169, 255, 0.7);
+    box-shadow: 0 32px 64px rgba(76, 29, 149, 0.5);
 }
 
 .owned-decision-button--primary:hover {
@@ -1848,10 +1849,10 @@ html, body {
 .owned-decision-button--secondary {
     background: rgba(9, 14, 26, 0.82);
     border-color: rgba(56, 189, 248, 0.25);
-    box-shadow: 0 12px 32px rgba(2, 6, 23, 0.5);
+    box-shadow: 0 16px 36px rgba(2, 6, 23, 0.55);
     max-width: min(100%, 620px);
     margin: 0 auto;
-    padding-block: clamp(22px, 4vh, 52px);
+    padding-block: clamp(24px, 4.2vh, 56px);
     grid-template-columns: auto 1fr;
 }
 
@@ -1889,21 +1890,27 @@ html, body {
 
 .owned-decision-button-title {
     display: block;
-    font-size: clamp(26px, 3vw, 42px);
+    font-size: clamp(28px, 3.4vw, 46px);
     font-weight: 700;
     color: #F8FAFF;
+    letter-spacing: -0.01em;
 }
 
 .owned-decision-button--secondary .owned-decision-button-title {
-    font-size: clamp(22px, 2.4vw, 32px);
+    font-size: clamp(22px, 2.3vw, 32px);
+}
+
+.owned-decision-button--secondary .owned-decision-button-subtitle {
+    font-size: clamp(16px, 1.8vw, 24px);
+    color: rgba(203, 213, 225, 0.82);
 }
 
 .owned-decision-button-subtitle {
     display: block;
-    font-size: clamp(18px, 2vw, 26px);
+    font-size: clamp(18px, 2.1vw, 28px);
     font-weight: 500;
-    color: rgba(200, 213, 235, 0.88);
-    max-width: 520px;
+    color: rgba(200, 213, 235, 0.9);
+    max-width: 540px;
 }
 
 .owned-decision-chevron svg {
@@ -1911,17 +1918,33 @@ html, body {
 }
 
 .owned-decision-info {
-    background: rgba(10, 18, 35, 0.88);
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    color: rgba(226, 232, 240, 0.9);
-    padding: clamp(20px, 3.5vh, 44px) clamp(28px, 5vw, 56px);
-    border-radius: 22px;
-    margin-top: clamp(16px, 3vh, 40px);
-    font-size: clamp(18px, 1.8vw, 26px);
+    background: rgba(10, 18, 35, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.32);
+    color: rgba(226, 232, 240, 0.92);
+    padding: clamp(24px, 3.8vh, 48px) clamp(32px, 5.2vw, 60px);
+    border-radius: 24px;
+    margin: clamp(12px, 2.4vh, 36px) auto 0;
+    font-size: clamp(18px, 1.9vw, 27px);
     max-width: min(880px, 100%);
     text-align: center;
-    line-height: 1.5;
-    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.08);
+    line-height: 1.55;
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
+}
+
+@media (min-width: 1080px) {
+    .owned-decision-buttons {
+        grid-template-columns: minmax(0, 1fr) clamp(320px, 32%, 420px);
+        align-items: stretch;
+    }
+
+    .owned-decision-button--primary {
+        min-height: clamp(220px, 34vh, 340px);
+    }
+
+    .owned-decision-button--secondary {
+        margin: 0;
+        justify-content: center;
+    }
 }
 
 @media (max-width: 768px) {

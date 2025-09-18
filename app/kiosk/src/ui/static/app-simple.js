@@ -748,7 +748,7 @@ class SimpleKioskApp {
             panel.innerHTML = `
                 <div class="owned-decision-header">
                     <h2 id="owned-decision-title" class="owned-decision-title">Dolabınız</h2>
-                    <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
+                    <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
                 </div>
                 <div class="owned-decision-buttons">
                     <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
@@ -756,7 +756,7 @@ class SimpleKioskApp {
                             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
                         </div>
                         <div class="owned-decision-copy">
-                            <span class="owned-decision-button-title">Dolabı teslim etmek istiyorum</span>
+                            <span class="owned-decision-button-title">Dolabı teslim et ve kilidi aç</span>
                             <span class="owned-decision-button-subtitle">Dolap başkaları için kullanıma açılır</span>
                         </div>
                         <div class="owned-decision-chevron" aria-hidden="true">
@@ -773,7 +773,7 @@ class SimpleKioskApp {
                         </div>
                     </button>
                 </div>
-                <div id="bottom-info" class="owned-decision-info">Teslim ettiğinizde dolap başkaları için uygun olur.</div>
+                <div id="bottom-info" class="owned-decision-info">Teslim ettiğinizde dolap yeniden kilitlenir ve başkalarının kullanımına açılır.</div>
             `;
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
