@@ -325,7 +325,7 @@ class SimpleKioskApp {
             'idle-screen', 'session-screen', 'loading-screen', 'error-screen',
             'locker-grid', 'session-timer', 'countdown-value', 'connection-status',
             'loading-text', 'error-text', 'error-description', 'error-recovery',
-            'return-button', 'retry-button',
+            'return-button', 'retry-button', 'session-close-button',
             'feedback-screen', 'feedback-icon', 'feedback-text'
         ];
         
@@ -366,6 +366,12 @@ class SimpleKioskApp {
         // Return to main button
         if (this.elements.returnButton) {
             this.elements.returnButton.addEventListener('click', () => {
+                this.handleReturnToMain();
+            });
+        }
+
+        if (this.elements.sessionCloseButton) {
+            this.elements.sessionCloseButton.addEventListener('click', () => {
                 this.handleReturnToMain();
             });
         }
@@ -746,6 +752,9 @@ class SimpleKioskApp {
             panel.className = 'owned-decision-panel';
 
             panel.innerHTML = `
+                <button id="owned-decision-close" class="owned-decision-close" aria-label="Ana ekrana dön">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
                 <div class="owned-decision-header">
                     <h2 class="owned-decision-title">
                         <span class="owned-decision-title-prefix">Dolabınız</span>
@@ -794,15 +803,20 @@ class SimpleKioskApp {
         // Wire buttons
         const btnOpen = document.getElementById('btn-open-only');
         const btnFinish = document.getElementById('btn-finish-release');
+        const btnClose = document.getElementById('owned-decision-close');
 
         const closeOverlay = () => { overlay.style.display = 'none'; };
 
         // Ensure old listeners do not stack
         btnOpen.replaceWith(btnOpen.cloneNode(true));
         btnFinish.replaceWith(btnFinish.cloneNode(true));
+        if (btnClose) {
+            btnClose.replaceWith(btnClose.cloneNode(true));
+        }
 
         const btnOpen2 = document.getElementById('btn-open-only');
         const btnFinish2 = document.getElementById('btn-finish-release');
+        const btnClose2 = document.getElementById('owned-decision-close');
 
         btnOpen2.addEventListener('click', async () => {
             closeOverlay();
@@ -812,6 +826,12 @@ class SimpleKioskApp {
             closeOverlay();
             await this.openAndReleaseLocker(cardId, lockerId);
         });
+        if (btnClose2) {
+            btnClose2.addEventListener('click', () => {
+                closeOverlay();
+                this.handleReturnToMain();
+            });
+        }
     }
 
     /**
