@@ -763,6 +763,7 @@ class SimpleKioskApp {
                     <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
                 </div>
                 <div class="owned-decision-buttons">
+                    <!-- Temporarily removed: "Eşyamı almak için aç" (btn-open-only) secondary action -->
                     <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
                         <div class="owned-decision-icon" aria-hidden="true">
                             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
@@ -773,15 +774,6 @@ class SimpleKioskApp {
                         </div>
                         <div class="owned-decision-chevron" aria-hidden="true">
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-                        </div>
-                    </button>
-                    <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
-                        <div class="owned-decision-icon" aria-hidden="true">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="9" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path><path d="M12 15v2"></path></svg>
-                        </div>
-                        <div class="owned-decision-copy">
-                            <span class="owned-decision-button-title">Eşyamı almak için aç</span>
-                            <span class="owned-decision-button-subtitle">Dolabınızın kilidi kısa süreliğine açık kalır</span>
                         </div>
                     </button>
                 </div>
@@ -801,27 +793,20 @@ class SimpleKioskApp {
         overlay.style.display = 'flex';
 
         // Wire buttons
-        const btnOpen = document.getElementById('btn-open-only');
         const btnFinish = document.getElementById('btn-finish-release');
         const btnClose = document.getElementById('owned-decision-close');
 
         const closeOverlay = () => { overlay.style.display = 'none'; };
 
         // Ensure old listeners do not stack
-        btnOpen.replaceWith(btnOpen.cloneNode(true));
         btnFinish.replaceWith(btnFinish.cloneNode(true));
         if (btnClose) {
             btnClose.replaceWith(btnClose.cloneNode(true));
         }
 
-        const btnOpen2 = document.getElementById('btn-open-only');
         const btnFinish2 = document.getElementById('btn-finish-release');
         const btnClose2 = document.getElementById('owned-decision-close');
 
-        btnOpen2.addEventListener('click', async () => {
-            closeOverlay();
-            await this.openOwnedLockerOnly(cardId);
-        });
         btnFinish2.addEventListener('click', async () => {
             closeOverlay();
             await this.openAndReleaseLocker(cardId, lockerId);
