@@ -582,7 +582,7 @@ class SimpleKioskApp {
             if (existingLocker) {
                 // Decision screen: open only vs. finish & release (Idea 5)
                 this.state.selectedCard = cardId;
-                await this.showOwnedDecision(cardId, existingLocker.lockerId);
+                await this.showOwnedDecision(cardId, existingLocker.lockerId, existingLocker.displayName);
             } else {
                 // Start new session for locker selection
                 await this.startLockerSelection(cardId);
@@ -652,7 +652,16 @@ class SimpleKioskApp {
             }
             
             const result = await response.json();
-            return result.hasLocker ? result : null;
+            if (result.hasLocker) {
+                return {
+                    hasLocker: true,
+                    lockerId: result.lockerId,
+                    displayName: result.displayName || null,
+                    message: result.message
+                };
+            }
+
+            return null;
             
         } catch (error) {
             if (error.name === 'TypeError' || error.message.includes('fetch')) {
@@ -725,7 +734,7 @@ class SimpleKioskApp {
     /**
      * Show decision screen for owned locker: Open vs Finish & Release (Idea 5)
      */
-    async showOwnedDecision(cardId, lockerId) {
+    async showOwnedDecision(cardId, lockerId, displayName) {
         // Build lightweight overlay if not exists
         let overlay = document.getElementById('owned-decision-overlay');
         if (!overlay) {
@@ -759,7 +768,10 @@ class SimpleKioskApp {
 
         // Update content with locker id
         const title = document.getElementById('owned-decision-title');
-        if (title) title.textContent = `Dolabınız – Dolap ${lockerId}`;
+        if (title) {
+            const resolvedName = displayName || `Dolap ${lockerId}`;
+            title.textContent = `Dolabınız – ${resolvedName}`;
+        }
 
         overlay.style.display = 'flex';
 

@@ -986,7 +986,8 @@ export class UiController {
         return {
           hasLocker: true,
           lockerId: existingLocker.id,
-          message: `Dolap ${existingLocker.id} zaten atanmış`
+          displayName: existingLocker.display_name ?? null,
+          message: `Dolap ${(existingLocker.display_name || existingLocker.id)} zaten atanmış`
         };
       } else {
         return {
