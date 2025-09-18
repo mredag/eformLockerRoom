@@ -582,7 +582,7 @@ class SimpleKioskApp {
             if (existingLocker) {
                 // Decision screen: open only vs. finish & release (Idea 5)
                 this.state.selectedCard = cardId;
-                await this.showOwnedDecision(cardId, existingLocker.lockerId);
+                await this.showOwnedDecision(cardId, existingLocker.lockerId, existingLocker.displayName);
             } else {
                 // Start new session for locker selection
                 await this.startLockerSelection(cardId);
@@ -652,7 +652,16 @@ class SimpleKioskApp {
             }
             
             const result = await response.json();
-            return result.hasLocker ? result : null;
+            if (result.hasLocker) {
+                return {
+                    hasLocker: true,
+                    lockerId: result.lockerId,
+                    displayName: result.displayName || null,
+                    message: result.message
+                };
+            }
+
+            return null;
             
         } catch (error) {
             if (error.name === 'TypeError' || error.message.includes('fetch')) {
@@ -725,7 +734,7 @@ class SimpleKioskApp {
     /**
      * Show decision screen for owned locker: Open vs Finish & Release (Idea 5)
      */
-    async showOwnedDecision(cardId, lockerId) {
+    async showOwnedDecision(cardId, lockerId, displayName) {
         // Build lightweight overlay if not exists
         let overlay = document.getElementById('owned-decision-overlay');
         if (!overlay) {
@@ -737,29 +746,48 @@ class SimpleKioskApp {
             panel.className = 'owned-decision-panel';
 
             panel.innerHTML = `
-                <h2 id="owned-decision-title" style="margin: 0; font-size: 32px; color: #E6EAF2; flex-shrink: 0;">Dolabınız</h2>
-                <p id="owned-decision-desc" style="margin: 0; font-size: 20px; opacity: .85; flex-shrink: 0; max-width: 400px; margin-bottom: 40px;">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim etmek mi?</p>
+                <div class="owned-decision-header">
+                    <h2 class="owned-decision-title">
+                        <span class="owned-decision-title-prefix">Dolabınız</span>
+                        <span id="owned-decision-locker" class="owned-decision-title-locker">Dolap</span>
+                    </h2>
+                    <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
+                </div>
                 <div class="owned-decision-buttons">
-                    <button id="btn-open-only" class="owned-decision-button">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"></path><path d="M12 11v6"></path><path d="M12 11V9a3 3 0 0 0-3-3M12 11V9a3 3 0 0 1 3-3"></path></svg>
-                        <span>Eşyamı almak için aç</span>
-                        <span style="font-size: 16px; font-weight: 400; opacity: 0.7;">Dolabınızın kilidi açık kalır</span>
+                    <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
+                        <div class="owned-decision-icon" aria-hidden="true">
+                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+                        </div>
+                        <div class="owned-decision-copy">
+                            <span class="owned-decision-button-title">Dolabı teslim et ve kilidi aç</span>
+                            <span class="owned-decision-button-subtitle">Dolap başkaları için kullanıma açılır</span>
+                        </div>
+                        <div class="owned-decision-chevron" aria-hidden="true">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                        </div>
                     </button>
-                    <button id="btn-finish-release" class="owned-decision-button">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-                        <span>Dolabı teslim etmek istiyorum</span>
-                        <span style="font-size: 16px; font-weight: 400; opacity: 0.7;">Dolap kullanıma açılır</span>
+                    <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
+                        <div class="owned-decision-icon" aria-hidden="true">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="9" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path><path d="M12 15v2"></path></svg>
+                        </div>
+                        <div class="owned-decision-copy">
+                            <span class="owned-decision-button-title">Eşyamı almak için aç</span>
+                            <span class="owned-decision-button-subtitle">Dolabınızın kilidi kısa süreliğine açık kalır</span>
+                        </div>
                     </button>
                 </div>
-                <div id="bottom-info" class="owned-decision-info">Teslim ettiğinizde dolap başkaları için uygun olur.</div>
+                <div id="bottom-info" class="owned-decision-info">Teslim ettiğinizde dolap yeniden kilitlenir ve başkalarının kullanımına açılır.</div>
             `;
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
         }
 
         // Update content with locker id
-        const title = document.getElementById('owned-decision-title');
-        if (title) title.textContent = `Dolabınız – Dolap ${lockerId}`;
+        const lockerLabel = document.getElementById('owned-decision-locker');
+        if (lockerLabel) {
+            const resolvedName = displayName || `Dolap ${lockerId}`;
+            lockerLabel.textContent = resolvedName;
+        }
 
         overlay.style.display = 'flex';
 
@@ -775,31 +803,6 @@ class SimpleKioskApp {
 
         const btnOpen2 = document.getElementById('btn-open-only');
         const btnFinish2 = document.getElementById('btn-finish-release');
-
-        btnOpen2.addEventListener('mouseenter', () => {
-            btnOpen2.style.borderColor = '#2563EB';
-        });
-        btnOpen2.addEventListener('mouseleave', () => {
-            btnOpen2.style.borderColor = '#1F2937';
-        });
-
-        btnFinish2.addEventListener('mouseenter', () => {
-            btnFinish2.style.borderColor = '#7C3AED';
-        });
-        btnFinish2.addEventListener('mouseleave', () => {
-            btnFinish2.style.borderColor = '#1F2937';
-        });
-
-        btnOpen2.addEventListener('focus', () => btnOpen2.style.borderColor = '#2563EB');
-        btnOpen2.addEventListener('blur', () => btnOpen2.style.borderColor = '#1F2937');
-        btnOpen2.addEventListener('mousedown', () => btnOpen2.style.backgroundColor = '#2563EB');
-        btnOpen2.addEventListener('mouseup', () => btnOpen2.style.backgroundColor = '#151A24');
-
-        btnFinish2.addEventListener('focus', () => btnFinish2.style.borderColor = '#7C3AED');
-        btnFinish2.addEventListener('blur', () => btnFinish2.style.borderColor = '#1F2937');
-        btnFinish2.addEventListener('mousedown', () => btnFinish2.style.backgroundColor = '#7C3AED');
-        btnFinish2.addEventListener('mouseup', () => btnFinish2.style.backgroundColor = '#151A24');
-
 
         btnOpen2.addEventListener('click', async () => {
             closeOverlay();
@@ -1496,18 +1499,26 @@ class SimpleKioskApp {
             const grid = this.elements.lockerGrid;
             if (!sessionScreen || !grid) return;
 
-            // Hide legacy header if present
             const legacyHeader = sessionScreen.querySelector('.session-header');
             if (legacyHeader) legacyHeader.style.display = 'none';
 
-            // Create or update compact title element
+            const mainHeader = sessionScreen.querySelector('.session-main-header');
+
             let title = sessionScreen.querySelector('#session-title-compact');
             if (!title) {
                 title = document.createElement('h2');
                 title.id = 'session-title-compact';
                 title.className = 'session-title-compact';
+            }
+
+            if (mainHeader) {
+                if (!mainHeader.contains(title)) {
+                    mainHeader.insertBefore(title, mainHeader.firstChild || null);
+                }
+            } else if (title.parentElement !== grid.parentNode || title.nextSibling !== grid) {
                 grid.parentNode.insertBefore(title, grid);
             }
+
             title.textContent = 'Dolap seçiniz';
         } catch (_) {}
     }

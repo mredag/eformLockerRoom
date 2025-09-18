@@ -101,9 +101,30 @@
                             </button>
                         </div>
                     </div>
-                    <div class="locker-grid" id="locker-grid">
-                        <!-- Locker tiles will be generated dynamically -->
-                    </div>
+
+                    <aside class="session-meta" id="session-meta" aria-label="Dolabı kapatma bilgisi">
+                        <div class="session-meta-icon" aria-hidden="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 3v5h5"/><path d="M12 12a2 2 0 1 0-4 0v2"/><path d="M6 15h8"/></svg>
+                        </div>
+                        <div class="session-meta-copy">
+                            <h3 class="meta-title">Dolabı güvenle kapatın</h3>
+                            <p class="meta-description">Eşyalarınızı yerleştirdikten sonra kapağı kapatıp nazikçe ittirdiğinizde kilit otomatik devreye girer. Kapanmazsa görevliden yardım isteyin.</p>
+                        </div>
+                    </aside>
+
+                    <section class="session-main" aria-label="Müsait dolap listesi">
+                        <div class="session-main-header">
+                            <h2 id="session-title-compact" class="session-title-compact">Dolap seçiniz</h2>
+                            <p class="session-main-subtitle">İhtiyacınıza uygun dolabı seçmek için numaraları takip edin. Liste alfabetik sıraya göre düzenlenmiştir.</p>
+                        </div>
+                        <div class="locker-grid" id="locker-grid">
+                            <!-- Locker tiles will be generated dynamically -->
+                        </div>
+                    </section>
+
+                    <footer class="session-footer" aria-label="Yardım bilgisi">
+                        <p>Ekrandaki dolap adları, kapak üzerindeki etiketlerle birebir aynıdır. Yardıma ihtiyaç duyarsanız görevliye haber verin.</p>
+                    </footer>
                 </div>
             </div>
 
