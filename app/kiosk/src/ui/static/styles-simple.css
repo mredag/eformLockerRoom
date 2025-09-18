@@ -1761,47 +1761,49 @@ html, body {
     background: rgba(5, 10, 22, 0.92);
     backdrop-filter: blur(14px);
     color: #F8FAFF;
-    width: min(1140px, 100%);
-    max-height: 100%;
+    width: min(1040px, calc(100% - 40px));
+    max-height: min(92vh, 860px);
     border-radius: 32px;
-    padding: clamp(32px, 6vh, 88px) clamp(28px, 6vw, 96px);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: clamp(28px, 5vh, 72px) clamp(26px, 5.5vw, 80px);
+    font-family: 'Inter', 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', sans-serif;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: stretch;
-    gap: clamp(36px, 6vh, 80px);
+    align-items: center;
+    gap: clamp(28px, 5vh, 56px);
     box-shadow: 0 24px 64px rgba(5, 10, 26, 0.6);
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 
 .owned-decision-header {
-    width: min(960px, 100%);
+    width: min(880px, 100%);
     margin: 0 auto;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: clamp(14px, 2.2vh, 32px);
-    text-align: left;
+    align-items: center;
+    gap: clamp(12px, 2vh, 28px);
+    text-align: center;
 }
 
 .owned-decision-title {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: clamp(6px, 1.5vh, 16px);
+    gap: clamp(4px, 1.2vh, 12px);
 }
 
 .owned-decision-title-prefix {
-    font-size: clamp(24px, 2.6vw, 36px);
-    font-weight: 500;
-    letter-spacing: 0.04em;
+    font-size: clamp(22px, 2.4vw, 32px);
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: rgba(226, 232, 240, 0.82);
 }
 
 .owned-decision-title-locker {
-    font-size: clamp(46px, 5.4vw, 76px);
+    font-size: clamp(48px, 5.2vw, 70px);
     line-height: 1.05;
     font-weight: 700;
     letter-spacing: -0.015em;
@@ -1810,28 +1812,28 @@ html, body {
 
 #owned-decision-desc {
     margin: 0;
-    font-size: clamp(22px, 2.5vw, 34px);
-    line-height: 1.4;
-    color: rgba(198, 212, 240, 0.88);
-    max-width: 880px;
+    font-size: clamp(22px, 2.3vw, 30px);
+    line-height: 1.45;
+    color: rgba(198, 212, 240, 0.9);
+    max-width: 760px;
 }
 
 .owned-decision-buttons {
     display: flex;
     flex-direction: column;
-    gap: clamp(28px, 5vh, 48px);
-    width: min(820px, 100%);
+    gap: clamp(24px, 4.5vh, 44px);
+    width: min(760px, 100%);
     margin: 0 auto;
 }
 
 .owned-decision-button {
     border: 2px solid transparent;
-    border-radius: 28px;
-    padding: clamp(28px, 5vh, 72px) clamp(28px, 5.5vw, 80px);
+    border-radius: 26px;
+    padding: clamp(26px, 4.8vh, 68px) clamp(24px, 5vw, 72px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: clamp(22px, 5vw, 42px);
+    gap: clamp(20px, 4.4vw, 40px);
     background: rgba(17, 24, 39, 0.9);
     color: #E6EAF2;
     text-align: left;
@@ -1850,30 +1852,32 @@ html, body {
 }
 
 .owned-decision-button--primary {
-    background: linear-gradient(145deg, #7C3AED 0%, #5B21B6 42%, #1E1B4B 100%);
-    border-color: rgba(194, 169, 255, 0.7);
+    background: linear-gradient(150deg, #7C3AED 0%, #5B21B6 38%, #312E81 100%);
+    border-color: rgba(194, 169, 255, 0.75);
     box-shadow: 0 32px 64px rgba(76, 29, 149, 0.5);
+    padding-block: clamp(32px, 5.4vh, 78px);
 }
 
 .owned-decision-button--primary:hover {
-    box-shadow: 0 36px 64px rgba(76, 29, 149, 0.55);
+    box-shadow: 0 36px 68px rgba(76, 29, 149, 0.6);
     transform: translateY(-4px);
 }
 
 .owned-decision-button--secondary {
-    background: rgba(9, 14, 26, 0.82);
-    border-color: rgba(56, 189, 248, 0.25);
+    background: rgba(11, 20, 36, 0.85);
+    border-color: rgba(56, 189, 248, 0.35);
+    padding-block: clamp(22px, 3.8vh, 56px);
     box-shadow: 0 16px 36px rgba(2, 6, 23, 0.55);
 }
 
 .owned-decision-button--secondary:hover {
-    border-color: rgba(56, 189, 248, 0.6);
+    border-color: rgba(56, 189, 248, 0.55);
     background: rgba(11, 20, 36, 0.92);
 }
 
 .owned-decision-icon {
-    width: clamp(64px, 7vw, 96px);
-    height: clamp(64px, 7vw, 96px);
+    width: clamp(64px, 6.4vw, 92px);
+    height: clamp(64px, 6.4vw, 92px);
     border-radius: 22px;
     display: flex;
     align-items: center;
@@ -1883,45 +1887,47 @@ html, body {
 }
 
 .owned-decision-button--primary .owned-decision-icon {
-    background: rgba(16, 9, 38, 0.45);
-    border-color: rgba(226, 212, 255, 0.4);
+    background: rgba(16, 9, 38, 0.55);
+    border-color: rgba(226, 212, 255, 0.45);
 }
 
 .owned-decision-button--secondary .owned-decision-icon {
-    background: rgba(15, 23, 42, 0.55);
-    border-color: rgba(56, 189, 248, 0.25);
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(56, 189, 248, 0.28);
 }
 
 .owned-decision-copy {
     display: flex;
     flex-direction: column;
-    gap: clamp(8px, 1.5vh, 14px);
+    gap: clamp(8px, 1.4vh, 16px);
     flex: 1;
 }
 
 .owned-decision-button-title {
     display: block;
-    font-size: clamp(28px, 3.4vw, 46px);
+    font-size: clamp(30px, 3.6vw, 48px);
     font-weight: 700;
     color: #F8FAFF;
     letter-spacing: -0.01em;
 }
 
 .owned-decision-button--secondary .owned-decision-button-title {
-    font-size: clamp(22px, 2.3vw, 32px);
-}
-
-.owned-decision-button--secondary .owned-decision-button-subtitle {
-    font-size: clamp(16px, 1.8vw, 24px);
-    color: rgba(203, 213, 225, 0.82);
+    font-size: clamp(20px, 2.1vw, 30px);
+    font-weight: 600;
+    color: rgba(226, 232, 240, 0.86);
 }
 
 .owned-decision-button-subtitle {
     display: block;
-    font-size: clamp(18px, 2.1vw, 26px);
+    font-size: clamp(18px, 2vw, 26px);
     font-weight: 500;
     color: rgba(200, 213, 235, 0.9);
-    max-width: 540px;
+    max-width: 520px;
+}
+
+.owned-decision-button--secondary .owned-decision-button-subtitle {
+    font-size: clamp(15px, 1.7vw, 22px);
+    color: rgba(203, 213, 225, 0.78);
 }
 
 .owned-decision-chevron svg {
@@ -1932,11 +1938,11 @@ html, body {
     background: rgba(10, 18, 35, 0.9);
     border: 1px solid rgba(148, 163, 184, 0.32);
     color: rgba(226, 232, 240, 0.92);
-    padding: clamp(24px, 3.8vh, 44px) clamp(32px, 5.2vw, 60px);
+    padding: clamp(22px, 3.4vh, 40px) clamp(28px, 4.6vw, 52px);
     border-radius: 24px;
-    margin: clamp(12px, 2.4vh, 36px) auto 0;
-    font-size: clamp(18px, 1.9vw, 26px);
-    max-width: min(820px, 100%);
+    margin: clamp(8px, 1.8vh, 28px) auto 0;
+    font-size: clamp(18px, 1.8vw, 24px);
+    max-width: min(720px, 100%);
     text-align: center;
     line-height: 1.55;
     box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
