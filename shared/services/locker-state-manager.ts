@@ -140,7 +140,10 @@ export class LockerStateManager {
         lastChanged: new Date(),
         // Use current locker data if available, fallback to parameters
         ownerKey: currentLocker?.owner_key || ownerKey,
-        ownerType: currentLocker?.owner_type || ownerType
+        ownerType: currentLocker?.owner_type || ownerType,
+        ownedAt: currentLocker?.owned_at ?? null,
+        reservedAt: currentLocker?.reserved_at ?? null,
+        isVip: currentLocker?.is_vip
       };
 
       console.log(`🔄 Broadcasting state update for locker ${kioskId}-${lockerId}:`, {

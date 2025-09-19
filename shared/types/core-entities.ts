@@ -583,6 +583,9 @@ export interface LockerStateUpdate {
   lastChanged: Date;
   ownerKey?: string;
   ownerType?: OwnerType;
+  ownedAt?: string | null;
+  reservedAt?: string | null;
+  isVip?: boolean;
 }
 
 export interface ConnectionStatus {

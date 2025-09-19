@@ -348,6 +348,36 @@
             margin-bottom: 0.25rem;
         }
 
+        .auto-release-info {
+            margin-top: 0.25rem;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: #fff3cd;
+            color: #856404;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            font-size: 0.85rem;
+            line-height: 1.3;
+        }
+
+        .auto-release-info.overdue {
+            background: #f8d7da;
+            color: #721c24;
+            font-weight: 600;
+        }
+
+        .auto-release-info .auto-release-icon {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .auto-release-info .auto-release-deadline {
+            font-size: 0.8rem;
+            color: inherit;
+            opacity: 0.85;
+        }
+
         /* RFID Display Styles - Task 3 */
         .locker-owner {
             font-weight: 500;
@@ -1016,6 +1046,7 @@
         let kiosks = [];
         let zones = [];
         let selectedLockers = new Set();
+        let autoReleaseHours = null;
         
         // Status Translation Service - Task 2
         const StatusTranslationService = {
@@ -1354,7 +1385,17 @@
                 lockers[lockerIndex].owner_type = update.ownerType || null;
                 lockers[lockerIndex].display_name = update.displayName || lockers[lockerIndex].display_name;
                 lockers[lockerIndex].is_vip = update.isVip || lockers[lockerIndex].is_vip || false;
-                
+                if (Object.prototype.hasOwnProperty.call(update, 'ownedAt')) {
+                    lockers[lockerIndex].owned_at = update.ownedAt;
+                } else if (newStatus === 'Free') {
+                    lockers[lockerIndex].owned_at = null;
+                }
+                if (Object.prototype.hasOwnProperty.call(update, 'reservedAt')) {
+                    lockers[lockerIndex].reserved_at = update.reservedAt;
+                } else if (newStatus === 'Free') {
+                    lockers[lockerIndex].reserved_at = null;
+                }
+
                 // Update the specific locker card in real-time without full re-render
                 updateLockerCardInPlace(lockers[lockerIndex], previousState, previousOwner);
                 
@@ -1495,8 +1536,33 @@
                         console.warn('updateLockerCardInPlace: Invalid date format:', locker.updated_at);
                         lastChanged = 'Geçersiz tarih';
                     }
-                    
+
                     lastChangeElement.textContent = `Son değişiklik: ${lastChanged}`;
+                }
+
+                const autoReleaseInfo = buildAutoReleaseInfo(locker);
+                const lockerDetails = lockerCard.querySelector('.locker-details');
+                const existingAutoRelease = lockerCard.querySelector('.auto-release-info');
+
+                if (autoReleaseInfo) {
+                    if (existingAutoRelease) {
+                        existingAutoRelease.outerHTML = renderAutoReleaseInfo(autoReleaseInfo);
+                    } else if (lockerDetails) {
+                        lockerDetails.insertAdjacentHTML('beforeend', renderAutoReleaseInfo(autoReleaseInfo));
+                    }
+                    if (autoReleaseInfo.cutoffIso) {
+                        lockerCard.setAttribute('data-auto-release-cutoff', autoReleaseInfo.cutoffIso);
+                    } else {
+                        lockerCard.removeAttribute('data-auto-release-cutoff');
+                    }
+                    lockerCard.setAttribute('data-auto-release-remaining-ms', String(autoReleaseInfo.remainingMs));
+                } else if (existingAutoRelease) {
+                    existingAutoRelease.remove();
+                    lockerCard.removeAttribute('data-auto-release-cutoff');
+                    lockerCard.removeAttribute('data-auto-release-remaining-ms');
+                } else {
+                    lockerCard.removeAttribute('data-auto-release-cutoff');
+                    lockerCard.removeAttribute('data-auto-release-remaining-ms');
                 }
 
                 // Update card border color and classes based on status
@@ -1648,13 +1714,146 @@
             }
         }
 
+        async function loadAutoReleaseSettings() {
+            try {
+                const response = await fetch('/api/hardware-config', {
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    console.warn('⚠️ Auto release config request failed with status', response.status);
+                    autoReleaseHours = null;
+                    return;
+                }
+
+                const config = await response.json();
+                const hours = config?.lockers?.auto_release_hours;
+
+                if (typeof hours === 'number' && hours > 0) {
+                    autoReleaseHours = hours;
+                } else {
+                    autoReleaseHours = null;
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to load auto release configuration:', error);
+                autoReleaseHours = null;
+            }
+        }
+
+        function formatDurationShort(ms) {
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            const parts = [];
+            if (hours > 0) {
+                parts.push(`${hours} saat`);
+            }
+            if (minutes > 0) {
+                parts.push(`${minutes} dk`);
+            }
+            if (hours === 0 && minutes < 10 && seconds > 0) {
+                parts.push(`${seconds} sn`);
+            }
+
+            if (parts.length === 0) {
+                return 'az kaldı';
+            }
+
+            return parts.join(' ');
+        }
+
+        function buildAutoReleaseInfo(locker) {
+            if (!autoReleaseHours || autoReleaseHours <= 0) {
+                return null;
+            }
+
+            const status = (locker.status || '').toLowerCase();
+            if (!['owned', 'opening'].includes(status)) {
+                return null;
+            }
+
+            const referenceTimestamp = locker.owned_at || locker.reserved_at;
+            if (!referenceTimestamp) {
+                return null;
+            }
+
+            const referenceMs = Date.parse(referenceTimestamp);
+            if (Number.isNaN(referenceMs)) {
+                return {
+                    remainingMs: 0,
+                    cutoffIso: null,
+                    displayText: 'Geçersiz zaman damgası',
+                    cutoffDisplay: null,
+                    overdue: true
+                };
+            }
+
+            const cutoffMs = referenceMs + autoReleaseHours * 3600 * 1000;
+            const remainingMs = cutoffMs - Date.now();
+            const cutoffIso = new Date(cutoffMs).toISOString();
+
+            let cutoffDisplay = '';
+            try {
+                cutoffDisplay = new Date(cutoffMs).toLocaleString('tr-TR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                cutoffDisplay = null;
+            }
+
+            if (remainingMs <= 0) {
+                return {
+                    remainingMs,
+                    cutoffIso,
+                    displayText: `Süre doldu (${formatDurationShort(Math.abs(remainingMs))} gecikti)`,
+                    cutoffDisplay,
+                    overdue: true
+                };
+            }
+
+            return {
+                remainingMs,
+                cutoffIso,
+                displayText: `${formatDurationShort(remainingMs)} kaldı`,
+                cutoffDisplay,
+                overdue: false
+            };
+        }
+
+        function renderAutoReleaseInfo(info) {
+            if (!info) {
+                return '';
+            }
+
+            const classes = info.overdue ? 'auto-release-info overdue' : 'auto-release-info';
+            const cutoff = info.cutoffDisplay ? `<div class="auto-release-deadline">Hedef: ${escapeHtml(info.cutoffDisplay)}</div>` : '';
+
+            const html = `
+                <div class="${classes}">
+                    <span class="auto-release-icon">⏱️</span>
+                    <div>
+                        <div><strong>Oto serbest:</strong> ${escapeHtml(info.displayText)}</div>
+                        ${cutoff}
+                    </div>
+                </div>
+            `;
+
+            return html.trim();
+        }
+
         async function loadData() {
             try {
                 showLoading(true);
-                
+
+                await loadAutoReleaseSettings();
                 // Load kiosks and heartbeat data
                 await loadKiosks();
-                
+
                 // Load lockers with filters
                 await loadLockers();
                 
@@ -2052,9 +2251,11 @@
                     ownerDisplay = 'Hata';
                 }
 
+                const autoReleaseInfo = buildAutoReleaseInfo(locker);
+
                 // Determine selection state
                 const isSelected = selectedLockers.has(locker.kiosk_id + '-' + locker.id);
-                
+
                 // Task 4.3: Add data attributes for easier testing and debugging
                 const dataAttributes = [
                     `data-status="${escapeHtml(locker.status)}"`,
@@ -2066,7 +2267,16 @@
                     `data-display-name="${escapeHtml(displayName)}"`,
                     `data-last-updated="${escapeHtml(locker.updated_at || '')}"`,
                     `data-version="${locker.version || 1}"`
-                ].join(' ');
+                ];
+
+                if (autoReleaseInfo) {
+                    if (autoReleaseInfo.cutoffIso) {
+                        dataAttributes.push(`data-auto-release-cutoff="${escapeHtml(autoReleaseInfo.cutoffIso)}"`);
+                    }
+                    dataAttributes.push(`data-auto-release-remaining-ms="${autoReleaseInfo.remainingMs}"`);
+                }
+
+                const dataAttributeString = dataAttributes.join(' ');
 
                 // Build CSS classes with proper status class application
                 const cardClasses = [
@@ -2076,9 +2286,9 @@
                 ].filter(Boolean).join(' ');
 
                 return `
-                    <div class="${cardClasses}" 
+                    <div class="${cardClasses}"
                          onclick="toggleLocker('${escapeHtml(locker.kiosk_id)}', ${locker.id})"
-                         ${dataAttributes}>
+                         ${dataAttributeString}>
                         <div class="locker-header">
                             <div class="locker-display-name">${escapeHtml(displayName)}</div>
                             <div class="locker-state-chip ${statusClass}">${escapeHtml(turkishState)}</div>
@@ -2097,11 +2307,12 @@
                         ` : ''}
                         <div class="locker-details">
                             ${locker.is_vip ? '<div><strong>VIP Dolap</strong></div>' : ''}
-                            ${ownerDisplay !== 'Yok' ? 
-                                `<div>Sahip: <span id="${ownerElementId}" class="${ownerClasses}">${escapeHtml(ownerDisplay)}</span></div>` : 
+                            ${ownerDisplay !== 'Yok' ?
+                                `<div>Sahip: <span id="${ownerElementId}" class="${ownerClasses}">${escapeHtml(ownerDisplay)}</span></div>` :
                                 '<div>Sahip: Yok</div>'
                             }
                             <div class="last-change-time">Son değişiklik: ${escapeHtml(lastChanged)}</div>
+                            ${renderAutoReleaseInfo(autoReleaseInfo)}
                         </div>
                         <div class="locker-actions" onclick="event.stopPropagation()">
                             <button class="btn btn-sm btn-primary" onclick="openSingleLocker('${escapeHtml(locker.kiosk_id)}', ${locker.id})" 
