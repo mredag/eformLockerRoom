@@ -35,7 +35,6 @@ Unit tests are organized within each service's `__tests__` directory:
 - Authentication and authorization tests
 - Route handler tests  
 - Service layer tests
-- Maksisoft integration tests
 - UI improvement tests
 
 #### Kiosk Service (`app/kiosk/src/__tests__/`)

@@ -46,13 +46,6 @@
       },
       {
         "type": "reorganize",
-        "source": ".kiro\\steering\\maksisoft-spec-help.md",
-        "target": "docs\\maksisoft-spec-help.md",
-        "reason": "Move maksisoft-spec-help.md to docs",
-        "executed": true
-      },
-      {
-        "type": "reorganize",
         "source": ".kiro\\steering\\project-development-guide.md",
         "target": "docs\\project-development-guide.md",
         "reason": "Move project-development-guide.md to docs",
@@ -280,34 +273,6 @@
         "source": "docs\\MAINTENANCE_SYSTEM_TEST_RESULTS.md",
         "target": "docs\\MAINTENANCE_SYSTEM_TEST_RESULTS.md",
         "reason": "Move MAINTENANCE_SYSTEM_TEST_RESULTS.md to docs",
-        "executed": true
-      },
-      {
-        "type": "reorganize",
-        "source": "docs\\maksi-config.md",
-        "target": "docs\\maksi-config.md",
-        "reason": "Move maksi-config.md to docs",
-        "executed": true
-      },
-      {
-        "type": "reorganize",
-        "source": "docs\\maksi-test-summary.md",
-        "target": "docs\\maksi-test-summary.md",
-        "reason": "Move maksi-test-summary.md to docs",
-        "executed": true
-      },
-      {
-        "type": "reorganize",
-        "source": "docs\\maksisoft-integration-guide.md",
-        "target": "docs\\maksisoft-integration-guide.md",
-        "reason": "Move maksisoft-integration-guide.md to docs",
-        "executed": true
-      },
-      {
-        "type": "reorganize",
-        "source": "docs\\MAKSISOFT_MVP_VALIDATION_REPORT.md",
-        "target": "docs\\MAKSISOFT_MVP_VALIDATION_REPORT.md",
-        "reason": "Move MAKSISOFT_MVP_VALIDATION_REPORT.md to docs",
         "executed": true
       },
       {
@@ -560,13 +525,6 @@
         "source": "scripts\\maintenance\\deploy-kiosk-ui.sh",
         "target": "scripts\\maintenance\\deploy-kiosk-ui.sh",
         "reason": "Move deploy-kiosk-ui.sh to scripts/maintenance",
-        "executed": true
-      },
-      {
-        "type": "reorganize",
-        "source": "scripts\\maintenance\\deploy-maksisoft-to-pi.sh",
-        "target": "scripts\\maintenance\\deploy-maksisoft-to-pi.sh",
-        "reason": "Move deploy-maksisoft-to-pi.sh to scripts/maintenance",
         "executed": true
       },
       {

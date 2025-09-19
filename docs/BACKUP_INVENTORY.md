@@ -55,20 +55,10 @@ This document provides a comprehensive inventory of all files affected by the re
 
 | File Path | Size (bytes) | Purpose | Backup Location | Content Summary |
 |-----------|-------------|---------|-----------------|-----------------|
-| `debug-maksisoft-button-click.js` | 1,456 | Debug Maksisoft button interaction | Git history | Button click event debugging |
-| `debug-maksisoft-button-issue.js` | 2,847 | Debug Maksisoft button display issue | Git history | Button visibility debugging |
-| `debug-maksisoft-buttons.js` | 1,234 | Debug Maksisoft button functionality | Git history | General button debugging |
-| `debug-maksisoft-error.js` | 987 | Debug Maksisoft error handling | Git history | Error handling debugging |
 | `test-actual-rfid-assignment.js` | 3,456 | Test RFID card assignment | Git history | RFID assignment testing |
 | `test-assignment.json` | 567 | Test assignment data | Git history | Assignment test data |
 | `test-env-vars.js` | 789 | Test environment variables | Git history | Environment testing |
 | `test-locker-assignment.js` | 2,345 | Test locker assignment logic | Git history | Locker assignment testing |
-| `test-maksisoft-button-fix.js` | 1,678 | Test Maksisoft button fix | Git history | Button fix validation |
-| `test-maksisoft-buttons-working.html` | 4,567 | Test Maksisoft button functionality | Git history | HTML button testing |
-| `test-maksisoft-buttons.html` | 3,890 | Test Maksisoft button display | Git history | HTML button display testing |
-| `test-maksisoft-connection.js` | 2,123 | Test Maksisoft API connection | Git history | API connection testing |
-| `test-maksisoft-final-verification.js` | 1,890 | Final Maksisoft integration test | Git history | Integration verification |
-| `test-maksisoft-timeout-fix.js` | 1,456 | Test Maksisoft timeout handling | Git history | Timeout fix testing |
 | `test-rfid-flow-fixed.js` | 2,678 | Test RFID flow after fixes | Git history | RFID flow validation |
 | `test-status-display.html` | 3,234 | Test status display functionality | Git history | Status display testing |
 | `test-status-fix.js` | 1,567 | Test status fix implementation | Git history | Status fix validation |

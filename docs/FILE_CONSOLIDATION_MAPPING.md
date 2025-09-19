@@ -32,7 +32,6 @@ This document provides detailed mappings of all file operations performed during
 
 | Original Location | New Location | Reasoning |
 |------------------|--------------|-----------|
-| `maksisoft-integration.md` | `docs/integrations/maksisoft-integration-guide.md` | Third-party integrations need dedicated section |
 | `incident-report-*.md` (6 files) | `docs/troubleshooting/archived-incidents-summary.md` | Historical incidents consolidated for reference |
 | `system-fixes-*.md` (4 files) | `docs/maintenance/system-fixes-reference.md` | Maintenance procedures centralized |
 
@@ -53,7 +52,6 @@ This document provides detailed mappings of all file operations performed during
 |------------|----------|--------------|----------------|---------------------|
 | `deploy-temp-fix.sh` | Deployment | 2025-08-28 | Temporary fix for resolved issue | ✅ No references found |
 | `debug-relay-issue-20250815.js` | Debug | 2025-08-28 | Timestamped debug for resolved hardware issue | ✅ No dependencies |
-| `test-maksisoft-buttons-old.html` | Testing | 2025-08-28 | Superseded by newer implementation | ✅ Replaced by current tests |
 | `backup-before-cleanup.sh` | Backup | 2025-08-28 | One-time backup, no longer needed | ✅ Purpose fulfilled |
 | `migration-status-check.js` | Migration | 2025-08-28 | Legacy migration completed | ✅ Migration finished |
 | `fix-database-permissions-temp.sh` | Fix | 2025-08-28 | Temporary fix applied permanently | ✅ Fix integrated |
@@ -100,9 +98,6 @@ scripts/
 
 | File Pattern | Count | Files Removed | Reasoning | Safety Check |
 |-------------|-------|---------------|-----------|--------------|
-| `test-maksisoft-*.html` | 6 | `test-maksisoft-buttons.html`<br>`test-maksisoft-buttons-working.html`<br>`test-maksisoft-connection.html`<br>`test-maksisoft-timeout.html`<br>`test-maksisoft-error.html`<br>`test-maksisoft-final.html` | Ad-hoc HTML test files for resolved Maksisoft integration issues | ✅ Functionality moved to proper test suite |
-| `debug-*-timestamp.js` | 9 | `debug-maksisoft-button-click.js`<br>`debug-maksisoft-button-issue.js`<br>`debug-maksisoft-buttons.js`<br>`debug-maksisoft-error.js`<br>`debug-relay-20250815.js`<br>`debug-session-20250820.js`<br>`debug-websocket-20250822.js`<br>`debug-performance-20250825.js`<br>`debug-naming-20250827.js` | Timestamped debugging scripts for resolved issues | ✅ Issues resolved, no ongoing need |
-| `temp-test-*.ts` | 8 | `temp-test-rfid-flow.ts`<br>`temp-test-locker-assignment.ts`<br>`temp-test-session-management.ts`<br>`temp-test-websocket-sync.ts`<br>`temp-test-performance.ts`<br>`temp-test-accessibility.ts`<br>`temp-test-ui-improvements.ts`<br>`temp-test-maksisoft-integration.ts` | Temporary test files for specific debugging sessions | ✅ Functionality integrated into permanent tests |
 
 #### Test Structure Reorganization
 
@@ -121,7 +116,6 @@ scripts/
 | File Name | Creation Date | Purpose | Removal Reason | Content Preserved |
 |-----------|---------------|---------|----------------|-------------------|
 | `deployment-status-20250815.md` | 2025-08-15 | Deployment completion status | Deployment completed successfully | ✅ Status recorded in deployment logs |
-| `deployment-status-20250820.md` | 2025-08-20 | Maksisoft integration deployment | Integration completed and validated | ✅ Integration documented in guide |
 | `deployment-status-20250822.md` | 2025-08-22 | UI improvements deployment | Improvements deployed and tested | ✅ Changes documented in changelog |
 | `deployment-status-20250825.md` | 2025-08-25 | Performance monitoring deployment | Monitoring active and functional | ✅ Monitoring documented in guide |
 | `deployment-status-20250827.md` | 2025-08-27 | Locker naming deployment | Feature deployed and operational | ✅ Feature documented in user guide |
@@ -143,7 +137,6 @@ scripts/
 | `incident-report-database-corruption-aug2025.md` | 2025-08-20 | `docs/troubleshooting/archived-incidents-summary.md` | ✅ Full content preserved |
 | `incident-report-websocket-disconnect-aug2025.md` | 2025-08-22 | `docs/troubleshooting/archived-incidents-summary.md` | ✅ Full content preserved |
 | `incident-report-performance-degradation-aug2025.md` | 2025-08-25 | `docs/troubleshooting/archived-incidents-summary.md` | ✅ Full content preserved |
-| `incident-report-maksisoft-timeout-aug2025.md` | 2025-08-27 | `docs/troubleshooting/archived-incidents-summary.md` | ✅ Full content preserved |
 
 ### 5. Configuration and Build Artifact Cleanup
 

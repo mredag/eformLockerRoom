@@ -79,7 +79,6 @@ export function createAuthMiddleware(options: AuthMiddlewareOptions) {
         request.url.startsWith('/api/i18n/') ||
         request.url.startsWith('/api/relay/') ||  // Allow all relay API routes
         request.url.startsWith('/api/heartbeat/') ||  // Allow all heartbeat API routes
-        request.url.startsWith('/api/maksi/') ||  // Allow Maksisoft API routes (public access)
         request.url.endsWith('.css') ||
         request.url.endsWith('.js') ||
         request.url.endsWith('.ico')) {

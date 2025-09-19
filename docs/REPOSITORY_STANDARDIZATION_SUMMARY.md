@@ -9,8 +9,6 @@ This document summarizes the changes made to standardize the eForm Locker System
 ### 1. File Relocations
 
 #### Deployment Scripts
-- **Moved**: `deploy-maksisoft-to-pi.ps1` → `scripts/deployment/deploy-maksisoft-to-pi.ps1`
-- **Moved**: `deploy-maksisoft-to-pi.sh` → `scripts/deployment/deploy-maksisoft-to-pi.sh`
 - **Reason**: Consolidate all deployment scripts in dedicated directory
 
 #### Legacy Source Code
