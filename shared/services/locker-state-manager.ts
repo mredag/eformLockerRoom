@@ -141,8 +141,8 @@ export class LockerStateManager {
         // Use current locker data if available, fallback to parameters
         ownerKey: currentLocker?.owner_key || ownerKey,
         ownerType: currentLocker?.owner_type || ownerType,
-        ownedAt: currentLocker?.owned_at ?? null,
-        reservedAt: currentLocker?.reserved_at ?? null,
+        ownedAt: currentLocker?.owned_at ? new Date(currentLocker.owned_at).toISOString() : null,
+        reservedAt: currentLocker?.reserved_at ? new Date(currentLocker.reserved_at).toISOString() : null,
         isVip: currentLocker?.is_vip
       };
 
