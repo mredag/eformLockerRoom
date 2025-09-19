@@ -133,8 +133,8 @@ export class ConfigManager {
     const config = this.getConfiguration();
     return {
       BULK_INTERVAL_MS: config.lockers.bulk_operation_interval_ms,
-      RESERVE_TTL_SECONDS: config.lockers.reserve_ttl_seconds,
-      AUTO_RELEASE_HOURS: config.lockers.auto_release_hours,
+      RESERVE_TTL_SECONDS: config.lockers.reserve_ttl_seconds ?? null,
+      AUTO_RELEASE_HOURS: config.lockers.auto_release_hours ?? null,
       OPEN_PULSE_MS: config.hardware.modbus.pulse_duration_ms,
       OPEN_BURST_SECONDS: config.hardware.modbus.burst_duration_seconds,
       OPEN_BURST_INTERVAL_MS: config.hardware.modbus.burst_interval_ms,
@@ -345,11 +345,14 @@ export class ConfigManager {
         errors.push('Port conflicts detected in service configuration');
       }
 
-      if (config.lockers.reserve_ttl_seconds < 30) {
+      if (
+        typeof config.lockers.reserve_ttl_seconds === 'number' &&
+        config.lockers.reserve_ttl_seconds < 30
+      ) {
         warnings.push('Reserve TTL less than 30 seconds may cause user experience issues');
       }
 
-      if (config.lockers.auto_release_hours !== undefined) {
+      if (config.lockers.auto_release_hours !== undefined && config.lockers.auto_release_hours !== null) {
         if (typeof config.lockers.auto_release_hours !== 'number' || isNaN(config.lockers.auto_release_hours)) {
           errors.push('Auto release hours must be a numeric value');
         } else if (config.lockers.auto_release_hours <= 0) {
@@ -437,100 +440,214 @@ export class ConfigManager {
   private getDefaultConfiguration(): CompleteSystemConfig {
     return {
       system: {
-        name: 'Eform Locker System',
+        name: 'Eform Locker Room System',
         version: '1.0.0',
-        environment: 'production'
+        environment: 'production',
+        location: 'Locker Room - Raspberry Pi',
+        installation_date: '2025-08-22',
+        hardware_platform: 'raspberry_pi_4'
       },
+      features: {
+        zones_enabled: true
+      },
+      zones: [
+        {
+          id: 'mens',
+          ranges: [[1, 32]],
+          relay_cards: [1, 2],
+          enabled: true
+        },
+        {
+          id: 'womens',
+          ranges: [[33, 48]],
+          relay_cards: [3],
+          enabled: true
+        }
+      ],
       database: {
         path: './data/eform.db',
         wal_mode: true,
-        backup_interval_hours: 24,
-        retention_days: 30
+        backup_interval_hours: 6,
+        retention_days: 90,
+        vacuum_interval_hours: 168,
+        checkpoint_interval_seconds: 300
       },
       services: {
         gateway: {
           port: 3000,
           host: '0.0.0.0',
-          max_connections: 100
+          max_connections: 50,
+          request_timeout_ms: 30000,
+          keep_alive_timeout_ms: 5000
         },
         kiosk: {
-          port: 3001,
-          heartbeat_interval_seconds: 10,
-          command_poll_interval_seconds: 2
+          port: 3002,
+          host: '0.0.0.0',
+          heartbeat_interval_seconds: 5,
+          command_poll_interval_seconds: 1,
+          hardware_check_interval_seconds: 30,
+          ui_timeout_seconds: 60
         },
         panel: {
-          port: 3002,
-          session_timeout_minutes: 60,
-          max_login_attempts: 5
+          port: 3001,
+          host: '0.0.0.0',
+          session_timeout_minutes: 120,
+          max_login_attempts: 3,
+          lockout_duration_minutes: 15,
+          csrf_protection: true
         },
         agent: {
-          update_check_interval_minutes: 30,
-          update_server_url: 'https://updates.eform.local'
+          update_check_interval_minutes: 60,
+          update_server_url: 'https://github.com/mredag/eformLockerRoom/releases',
+          auto_update: false,
+          backup_before_update: true
         }
       },
       hardware: {
         modbus: {
           port: '/dev/ttyUSB0',
           baudrate: 9600,
-          timeout_ms: 1000,
+          timeout_ms: 2000,
           pulse_duration_ms: 400,
           burst_duration_seconds: 10,
           burst_interval_ms: 2000,
-          command_interval_ms: 300
+          command_interval_ms: 300,
+          use_multiple_coils: true,
+          verify_writes: true,
+          max_retries: 4,
+          retry_delay_base_ms: 1000,
+          connection_retry_attempts: 5,
+          test_mode: false
         },
         relay_cards: [
           {
             slave_address: 1,
             channels: 16,
             type: 'waveshare_16ch',
-            description: 'Main Locker Bank 1-16',
+            dip_switches: '00000001',
+            description: 'Locker Bank 1-16 (Card 1)',
+            enabled: true
+          },
+          {
+            slave_address: 2,
+            channels: 16,
+            type: 'waveshare_16ch',
+            dip_switches: '00000010',
+            description: 'Locker Bank 17-32 (Card 2)',
+            enabled: true
+          },
+          {
+            slave_address: 3,
+            channels: 16,
+            type: 'waveshare_16ch',
+            dip_switches: '00000011',
+            description: 'Dolap Bankası 33-48',
             enabled: true
           }
         ],
         rfid: {
           reader_type: 'hid',
-          debounce_ms: 500,
-          scan_timeout_ms: 5000
+          debounce_ms: 1000,
+          scan_timeout_ms: 10000,
+          auto_detect: true,
+          fallback_to_keyboard: true,
+          vendor_id: null,
+          product_id: null
+        },
+        display: {
+          type: 'touchscreen',
+          resolution: '1024x600',
+          brightness: 80,
+          screensaver_timeout_minutes: 5
         }
       },
       security: {
-        provisioning_secret: 'change-this-in-production',
-        session_secret: 'change-this-in-production',
-        pin_rotation_days: 90,
-        lockout_duration_minutes: 5,
+        provisioning_secret: 'eform-pi-locker-2025-secure-key-change-in-prod',
+        session_secret: 'eform-session-secret-2025-change-in-production',
+        pin_rotation_days: 30,
+        lockout_duration_minutes: 10,
         rate_limits: {
-          ip_per_minute: 30,
-          card_per_minute: 60,
-          locker_per_minute: 6,
-          device_per_20_seconds: 1
+          ip_per_minute: 20,
+          card_per_minute: 30,
+          locker_per_minute: 3,
+          device_per_20_seconds: 1,
+          api_per_minute: 100
+        },
+        encryption: {
+          algorithm: 'aes-256-gcm',
+          key_rotation_days: 90
+        },
+        audit: {
+          log_all_actions: true,
+          retention_days: 365,
+          alert_on_suspicious: true
         }
       },
       lockers: {
-        total_count: 16,
-        reserve_ttl_seconds: 90,
-        auto_release_hours: 24,
-        offline_threshold_seconds: 30,
-        bulk_operation_interval_ms: 300,
-        master_lockout_fails: 5,
-        master_lockout_minutes: 5,
+        total_count: 48,
+        offline_threshold_seconds: 60,
+        bulk_operation_interval_ms: 500,
+        master_lockout_fails: 3,
+        master_lockout_minutes: 30,
+        auto_release_hours: 2,
+        maintenance_mode: false,
         layout: {
-          rows: 4,
-          columns: 4
-        }
+          rows: 7,
+          columns: 7,
+          numbering_scheme: 'sequential'
+        },
+        reserve_ttl_seconds: null
       },
       qr: {
-        token_ttl_seconds: 5,
-        hmac_secret: 'change-this-in-production'
+        token_ttl_seconds: 10,
+        hmac_secret: 'eform-qr-hmac-secret-2025-change-in-production',
+        max_scans_per_token: 1,
+        rate_limit_per_minute: 10
       },
       logging: {
         level: 'info',
-        retention_days: 30,
-        max_file_size_mb: 100,
-        rotate_daily: true
+        retention_days: 90,
+        max_file_size_mb: 50,
+        rotate_daily: true,
+        compress_old_logs: true,
+        syslog_enabled: false,
+        remote_logging: false
       },
       i18n: {
         default_language: 'tr',
-        supported_languages: ['tr', 'en']
+        supported_languages: ['tr', 'en'],
+        fallback_language: 'en',
+        auto_detect_browser: true
+      },
+      monitoring: {
+        health_check_interval_seconds: 30,
+        performance_metrics: true,
+        hardware_monitoring: true,
+        disk_space_alert_threshold_percent: 85,
+        memory_alert_threshold_percent: 90,
+        temperature_alert_celsius: 70
+      },
+      backup: {
+        enabled: true,
+        schedule: '0 2 * * *',
+        retention_count: 7,
+        compress: true,
+        remote_backup: false,
+        backup_path: './backups'
+      },
+      network: {
+        hostname: 'pi-eform-locker',
+        wifi_fallback: true,
+        ethernet_priority: true,
+        ntp_servers: ['pool.ntp.org', 'time.google.com'],
+        dns_servers: ['8.8.8.8', '1.1.1.1']
+      },
+      maintenance: {
+        auto_restart_on_error: true,
+        max_restart_attempts: 3,
+        restart_cooldown_minutes: 5,
+        scheduled_maintenance_hour: 3,
+        update_notifications: true
       }
     };
   }
