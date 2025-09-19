@@ -134,6 +134,7 @@ export class ConfigManager {
     return {
       BULK_INTERVAL_MS: config.lockers.bulk_operation_interval_ms,
       RESERVE_TTL_SECONDS: config.lockers.reserve_ttl_seconds,
+      AUTO_RELEASE_HOURS: config.lockers.auto_release_hours,
       OPEN_PULSE_MS: config.hardware.modbus.pulse_duration_ms,
       OPEN_BURST_SECONDS: config.hardware.modbus.burst_duration_seconds,
       OPEN_BURST_INTERVAL_MS: config.hardware.modbus.burst_interval_ms,
@@ -348,6 +349,16 @@ export class ConfigManager {
         warnings.push('Reserve TTL less than 30 seconds may cause user experience issues');
       }
 
+      if (config.lockers.auto_release_hours !== undefined) {
+        if (typeof config.lockers.auto_release_hours !== 'number' || isNaN(config.lockers.auto_release_hours)) {
+          errors.push('Auto release hours must be a numeric value');
+        } else if (config.lockers.auto_release_hours <= 0) {
+          warnings.push('Auto release hours is non-positive; automatic cleanup will be disabled');
+        } else if (config.lockers.auto_release_hours < 0.5) {
+          warnings.push('Auto release hours less than 0.5 may release lockers too aggressively');
+        }
+      }
+
       if (config.hardware.modbus.pulse_duration_ms < 100 || config.hardware.modbus.pulse_duration_ms > 1000) {
         warnings.push('Modbus pulse duration outside recommended range (100-1000ms)');
       }
@@ -497,6 +508,7 @@ export class ConfigManager {
       lockers: {
         total_count: 16,
         reserve_ttl_seconds: 90,
+        auto_release_hours: 24,
         offline_threshold_seconds: 30,
         bulk_operation_interval_ms: 300,
         master_lockout_fails: 5,

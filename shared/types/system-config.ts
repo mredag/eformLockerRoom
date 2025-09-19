@@ -7,6 +7,7 @@ export interface SystemConfig {
   // Locker operation timing
   BULK_INTERVAL_MS: number; // Default: 300
   RESERVE_TTL_SECONDS: number; // Default: 90
+  AUTO_RELEASE_HOURS?: number; // Optional: auto-release threshold in hours
   OPEN_PULSE_MS: number; // Default: 400
   OPEN_BURST_SECONDS: number; // Default: 10
   OPEN_BURST_INTERVAL_MS: number; // Default: 2000

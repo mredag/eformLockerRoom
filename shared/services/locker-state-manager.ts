@@ -2,11 +2,36 @@ import { DatabaseConnection } from '../database/connection';
 import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition, LockerStateUpdate } from '../types/core-entities';
 import { webSocketService } from './websocket-service';
 import { LockerNamingService } from './locker-naming-service';
+import { ConfigManager } from './config-manager';
+
+interface LockerStateManagerOptions {
+  /**
+   * Override the auto release threshold in hours. Useful for tests or specialized flows.
+   * When undefined the value from configuration will be used. When null or a non-positive
+   * number is provided, auto release will be treated as disabled.
+   */
+  autoReleaseHoursOverride?: number | null;
+  /**
+   * Interval in milliseconds between automatic cleanup checks. Defaults to 5 minutes.
+   */
+  autoReleaseCheckIntervalMs?: number;
+}
+
+interface ReleaseOptions {
+  eventType?: EventType;
+  triggeredBy?: string;
+  reason?: string;
+  staffUser?: string;
+  metadata?: Record<string, any>;
+}
 
 export class LockerStateManager {
   private db: DatabaseConnection;
   private dbManager: any;
-  // Automatic cleanup disabled - no timeout variables needed
+  private cleanupTimer: NodeJS.Timeout | null = null;
+  private configManager: ConfigManager;
+  private configInitialized = false;
+  private options: LockerStateManagerOptions;
   private namingService: LockerNamingService;
 
   // Define valid state transitions supporting both Turkish and English state names
@@ -16,6 +41,8 @@ export class LockerStateManager {
     { from: 'Owned', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
     { from: 'Owned', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Owned', to: 'Free', trigger: 'timeout', conditions: ['auto_release'] },
+    { from: 'Opening', to: 'Free', trigger: 'timeout', conditions: ['auto_release'] },
     { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
     { from: 'Owned', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
     { from: 'Opening', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
@@ -31,6 +58,8 @@ export class LockerStateManager {
     { from: 'Owned', to: 'Opening', trigger: 'confirm_opening', conditions: ['same_owner'] },
     { from: 'Owned', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
     { from: 'Opening', to: 'Free', trigger: 'release', conditions: ['same_owner'] },
+    { from: 'Owned', to: 'Free', trigger: 'timeout', conditions: ['auto_release'] },
+    { from: 'Opening', to: 'Free', trigger: 'timeout', conditions: ['auto_release'] },
     { from: 'Free', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
     { from: 'Owned', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
     { from: 'Opening', to: 'Blocked', trigger: 'staff_block', conditions: ['staff_action'] },
@@ -42,16 +71,54 @@ export class LockerStateManager {
     { from: 'Error', to: 'Free', trigger: 'error_resolved', conditions: ['system_recovery'] }
   ];
 
-  constructor(dbManager?: any) {
+  constructor(dbManager?: any, options: LockerStateManagerOptions = {}) {
     if (dbManager) {
-      this.dbManager = dbManager;
-      this.db = dbManager.getConnection().getDatabase();
+      if (typeof dbManager.getConnection === 'function') {
+        this.dbManager = dbManager;
+        this.db = dbManager.getConnection();
+      } else if (typeof dbManager.run === 'function' && typeof dbManager.all === 'function') {
+        this.db = dbManager;
+      } else if (typeof dbManager.getDatabase === 'function') {
+        this.db = dbManager as DatabaseConnection;
+      } else {
+        this.db = DatabaseConnection.getInstance();
+      }
     } else {
       this.db = DatabaseConnection.getInstance();
     }
+
+    this.options = options;
+    this.configManager = ConfigManager.getInstance();
     this.namingService = new LockerNamingService(this.db);
-    // Automatic cleanup disabled - lockers will only be released manually
-    console.log('🔒 Automatic locker timeout disabled - manual release only');
+
+    void this.initializeAutoRelease();
+  }
+
+  /**
+   * Initialize automatic locker release configuration and timers.
+   */
+  private async initializeAutoRelease(): Promise<void> {
+    if (this.options.autoReleaseHoursOverride !== undefined) {
+      const override = this.options.autoReleaseHoursOverride;
+      if (typeof override === 'number' && override > 0) {
+        console.log(`⏱️ Auto-release override enabled: ${override} hour(s)`);
+        this.startCleanupTimer();
+        await this.cleanupExpiredReservations();
+      } else {
+        console.log('⏸️ Auto-release disabled via override configuration');
+      }
+      return;
+    }
+
+    try {
+      await this.configManager.initialize();
+      this.configInitialized = true;
+    } catch (error) {
+      console.warn('⚠️  Failed to initialize configuration for auto-release:', error);
+    }
+
+    this.startCleanupTimer();
+    await this.cleanupExpiredReservations();
   }
 
 
@@ -93,8 +160,37 @@ export class LockerStateManager {
    * Automatic timeout feature has been removed per user request
    */
   private startCleanupTimer(): void {
-    // Automatic cleanup disabled - lockers will only be released manually
-    console.log('🚫 Automatic locker cleanup timer disabled');
+    const override = this.options.autoReleaseHoursOverride;
+    if (override !== undefined && (!override || override <= 0)) {
+      return;
+    }
+
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+
+    const intervalMs = this.options.autoReleaseCheckIntervalMs ?? 5 * 60 * 1000;
+    if (!intervalMs || intervalMs <= 0) {
+      console.warn('⚠️  Invalid auto-release interval; skipping cleanup timer setup');
+      return;
+    }
+
+    this.cleanupTimer = setInterval(async () => {
+      try {
+        await this.cleanupExpiredReservations();
+      } catch (error) {
+        console.error('❌ Automatic locker cleanup failed:', error);
+      }
+    }, intervalMs);
+
+    if (typeof this.cleanupTimer.unref === 'function') {
+      this.cleanupTimer.unref();
+    }
+
+    console.log(
+      `⏱️ Automatic locker cleanup scheduled every ${Math.round(intervalMs / 60000) || 1} minute(s)`
+    );
   }
 
   /**
@@ -102,7 +198,11 @@ export class LockerStateManager {
    * No cleanup timer to stop since automatic timeout is disabled
    */
   public stopCleanupTimer(): void {
-    console.log('🚫 No cleanup timer to stop - automatic timeout disabled');
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+      console.log('⏹️ Automatic locker cleanup timer stopped');
+    }
   }
 
   /**
@@ -428,7 +528,13 @@ export class LockerStateManager {
    * Release locker (Opening/Owned -> Free transition)
    * Immediate ownership removal as per requirements
    */
-  async releaseLocker(kioskId: string, lockerId: number, ownerKey?: string): Promise<boolean> {
+  async releaseLocker(
+    kioskId: string,
+    lockerId: number,
+    ownerKey?: string,
+    ownerType?: OwnerType | null,
+    options: ReleaseOptions = {}
+  ): Promise<boolean> {
     const locker = await this.getLocker(kioskId, lockerId);
     if (!locker) {
       return false;
@@ -444,52 +550,61 @@ export class LockerStateManager {
       return false;
     }
 
+    if (ownerType && locker.owner_type !== ownerType) {
+      return false;
+    }
+
     try {
       const now = new Date().toISOString();
-      
-      if (this.dbManager) {
-        const connection = this.dbManager.getConnection();
+      const resolvedOwnerType = (ownerType || locker.owner_type) as OwnerType | undefined;
+
+      const runRelease = async (connection: DatabaseConnection) => {
         const result = await connection.run(
-          `UPDATE lockers 
-           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
+          `UPDATE lockers
+           SET status = 'Free', owner_type = NULL, owner_key = NULL,
                reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
            WHERE kiosk_id = ? AND id = ? AND version = ?`,
           [now, kioskId, lockerId, locker.version]
         );
 
         if (result.changes > 0) {
-          // Broadcast state update
           await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
-          
-          // Log the release event
-          const eventType = locker.owner_type === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE;
-          await this.logEvent(kioskId, lockerId, eventType, {
-            owner_type: locker.owner_type,
+
+          const eventType = options.eventType
+            || (resolvedOwnerType === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE);
+
+          const logDetails: Record<string, any> = {
+            owner_type: resolvedOwnerType || locker.owner_type,
             owner_key: locker.owner_key,
             previous_status: locker.status
-          });
+          };
+
+          if (options.triggeredBy) {
+            logDetails.triggered_by = options.triggeredBy;
+          }
+          if (options.reason) {
+            logDetails.reason = options.reason;
+          }
+          if (options.metadata) {
+            Object.assign(logDetails, options.metadata);
+          }
+
+          await this.logEvent(kioskId, lockerId, eventType, logDetails, options.staffUser);
           return true;
         }
-      } else {
-        const result = await this.db.run(
-          `UPDATE lockers 
-           SET status = 'Free', owner_type = NULL, owner_key = NULL, 
-               reserved_at = NULL, owned_at = NULL, version = version + 1, updated_at = ?
-           WHERE kiosk_id = ? AND id = ? AND version = ? AND status IN ('Owned', 'Opening')`,
-          [now, kioskId, lockerId, locker.version]
-        );
 
-        if (result.changes > 0) {
-          // Broadcast state update
-          await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
-          
-          // Log the release event
-          const eventType = locker.owner_type === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE;
-          await this.logEvent(kioskId, lockerId, eventType, {
-            owner_type: locker.owner_type,
-            owner_key: locker.owner_key,
-            previous_status: locker.status
-          });
+        return false;
+      };
+
+      if (this.dbManager) {
+        const connection = this.dbManager.getConnection();
+        const success = await runRelease(connection);
+        if (success) {
+          return true;
+        }
+      } else if (this.db) {
+        const success = await runRelease(this.db);
+        if (success) {
           return true;
         }
       }
@@ -625,9 +740,94 @@ export class LockerStateManager {
    * Clean up expired reservations - DISABLED
    * This method has been disabled per user request - no automatic timeouts
    */
+  private async getAutoReleaseHours(): Promise<number | null> {
+    if (this.options.autoReleaseHoursOverride !== undefined) {
+      const override = this.options.autoReleaseHoursOverride;
+      return typeof override === 'number' && override > 0 ? override : null;
+    }
+
+    try {
+      if (!this.configInitialized) {
+        await this.configManager.initialize();
+        this.configInitialized = true;
+      } else if (process.env.NODE_ENV !== 'test') {
+        await this.configManager.loadConfiguration();
+      }
+
+      const config = this.configManager.getConfiguration();
+      const hours = config.lockers?.auto_release_hours;
+      if (typeof hours === 'number' && hours > 0) {
+        return hours;
+      }
+    } catch (error) {
+      console.warn('⚠️  Unable to read auto-release configuration:', error);
+    }
+
+    return null;
+  }
+
   async cleanupExpiredReservations(): Promise<number> {
-    console.log('🚫 Automatic cleanup disabled - lockers will only be released manually');
-    return 0;
+    try {
+      const autoReleaseHours = await this.getAutoReleaseHours();
+      if (!autoReleaseHours || autoReleaseHours <= 0) {
+        console.log('⏸️ Automatic locker cleanup skipped - auto_release_hours disabled or not configured');
+        return 0;
+      }
+
+      const cutoffIso = new Date(Date.now() - autoReleaseHours * 3600 * 1000).toISOString();
+
+      const expiredLockers = await this.db.all<Locker>(
+        `SELECT * FROM lockers
+         WHERE status IN ('Owned', 'Opening')
+           AND is_vip = 0
+           AND (owner_type IS NULL OR owner_type != 'vip')
+           AND (
+             (owned_at IS NOT NULL AND owned_at <= ?)
+             OR (owned_at IS NULL AND reserved_at IS NOT NULL AND reserved_at <= ?)
+           )`,
+        [cutoffIso, cutoffIso]
+      );
+
+      if (!expiredLockers || expiredLockers.length === 0) {
+        return 0;
+      }
+
+      let releasedCount = 0;
+
+      for (const locker of expiredLockers) {
+        const releaseSuccess = await this.releaseLocker(
+          locker.kiosk_id,
+          locker.id,
+          undefined,
+          locker.owner_type as OwnerType | undefined,
+          {
+            eventType: EventType.AUTO_RELEASE,
+            triggeredBy: 'auto_release',
+            reason: `auto_release_after_${autoReleaseHours}_hours`,
+            metadata: {
+              cutoff: cutoffIso,
+              reserved_at: locker.reserved_at,
+              owned_at: locker.owned_at
+            }
+          }
+        );
+
+        if (releaseSuccess) {
+          releasedCount++;
+        }
+      }
+
+      if (releasedCount > 0) {
+        console.log(
+          `✅ Auto-release cleaned up ${releasedCount} locker(s) exceeding ${autoReleaseHours} hour(s)`
+        );
+      }
+
+      return releasedCount;
+    } catch (error) {
+      console.error('❌ Error during automatic locker cleanup:', error);
+      return 0;
+    }
   }
 
   /**
