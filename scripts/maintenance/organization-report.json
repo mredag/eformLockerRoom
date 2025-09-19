@@ -696,12 +696,6 @@
     {
       "type": "placement",
       "severity": "warning",
-      "message": "Script file outside scripts/ directory: maksi-routes.ts",
-      "path": "app\\panel\\src\\routes\\maksi-routes.ts"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
       "message": "Script file outside scripts/ directory: performance-routes.ts",
       "path": "app\\panel\\src\\routes\\performance-routes.ts"
     },
@@ -728,18 +722,6 @@
       "severity": "warning",
       "message": "Script file outside scripts/ directory: authorization-service.ts",
       "path": "app\\panel\\src\\services\\authorization-service.ts"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Script file outside scripts/ directory: maksi-types.ts",
-      "path": "app\\panel\\src\\services\\maksi-types.ts"
-    },
-    {
-      "type": "placement",
-      "severity": "warning",
-      "message": "Script file outside scripts/ directory: maksi.ts",
-      "path": "app\\panel\\src\\services\\maksi.ts"
     },
     {
       "type": "placement",
@@ -818,48 +800,6 @@
       "severity": "warning",
       "message": "Filename not in kebab-case: locker-routes-vip.test",
       "path": "app\\panel\\src\\__tests__\\locker-routes-vip.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: maksi-data-mapping.test",
-      "path": "app\\panel\\src\\__tests__\\maksi-data-mapping.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: maksi-integration.test",
-      "path": "app\\panel\\src\\__tests__\\maksi-integration.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: maksi-modal-display.test",
-      "path": "app\\panel\\src\\__tests__\\maksi-modal-display.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: maksi-mvp-validation.test",
-      "path": "app\\panel\\src\\__tests__\\maksi-mvp-validation.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: maksi-rate-limiter.test",
-      "path": "app\\panel\\src\\__tests__\\maksi-rate-limiter.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: maksi-routes.test",
-      "path": "app\\panel\\src\\__tests__\\maksi-routes.test.ts"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: maksi-service.test",
-      "path": "app\\panel\\src\\__tests__\\maksi-service.test.ts"
     },
     {
       "type": "naming",
@@ -1100,12 +1040,6 @@
       "severity": "warning",
       "message": "Filename not in kebab-case: MAINTENANCE_SYSTEM_TEST_RESULTS",
       "path": "docs\\MAINTENANCE_SYSTEM_TEST_RESULTS.md"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Filename not in kebab-case: MAKSISOFT_MVP_VALIDATION_REPORT",
-      "path": "docs\\MAKSISOFT_MVP_VALIDATION_REPORT.md"
     },
     {
       "type": "naming",
@@ -1370,12 +1304,6 @@
       "severity": "warning",
       "message": "Unusual file extension: .ps1",
       "path": "scripts\\deployment\\auto-deploy.ps1"
-    },
-    {
-      "type": "naming",
-      "severity": "warning",
-      "message": "Unusual file extension: .ps1",
-      "path": "scripts\\deployment\\deploy-maksisoft-to-pi.ps1"
     },
     {
       "type": "naming",

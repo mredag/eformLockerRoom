@@ -1,12 +1,12 @@
-# 🔐 Eform Locker System
+# ðŸ” Eform Locker System
 
 **Production-Ready RFID Locker Management System**
 
 A comprehensive locker management solution designed for Raspberry Pi with Waveshare relay cards, featuring RFID/QR access, multi-language support, VIP user management, and enterprise-grade security.
 
-## 🚀 Quick Start
+## ðŸš€ Quick Start
 
-### 🥧 Raspberry Pi Management
+### ðŸ¥§ Raspberry Pi Management
 
 #### **First Time Setup**
 
@@ -94,16 +94,16 @@ chmod +x scripts/quick-setup.sh
 sudo ./scripts/install.sh
 ```
 
-### 🌐 Web Interfaces & Access Points
+### ðŸŒ Web Interfaces & Access Points
 
 Once your Pi is running, access these interfaces:
 
 #### **Production URLs (Default Pi IP: 192.168.1.8)**
 
-- **🔧 Admin Panel**: `http://192.168.1.8:3001` - Complete locker management
-- **👤 Kiosk Interface**: `http://192.168.1.8:3002` - User RFID interface
-- **🔌 Gateway API**: `http://192.168.1.8:3000` - REST API endpoints
-- **⚙️ Hardware Config**: `http://192.168.1.8:3001/hardware-config` - Relay control
+- **ðŸ”§ Admin Panel**: `http://192.168.1.8:3001` - Complete locker management
+- **ðŸ‘¤ Kiosk Interface**: `http://192.168.1.8:3002` - User RFID interface
+- **ðŸ”Œ Gateway API**: `http://192.168.1.8:3000` - REST API endpoints
+- **âš™ï¸ Hardware Config**: `http://192.168.1.8:3001/hardware-config` - Relay control
 
 #### **Quick Access Commands (After Installation)**
 
@@ -127,11 +127,11 @@ sudo bash scripts/maintenance/smart-ip-setup.sh
 bash scripts/maintenance/test-ip-setup.sh
 
 # The system will automatically:
-# • Detect current IP address
-# • Configure it as static IP
-# • Update all Windows scripts
-# • Create status dashboard
-# • Set up quick access commands
+# â€¢ Detect current IP address
+# â€¢ Configure it as static IP
+# â€¢ Update all Windows scripts
+# â€¢ Create status dashboard
+# â€¢ Set up quick access commands
 ```
 
 #### **If Pi IP Address Changes**
@@ -155,21 +155,21 @@ npm run migrate
 npm run dev:gateway & npm run dev:kiosk & npm run dev:panel &
 ```
 
-## 🌐 Automatic IP Management System
+## ðŸŒ Automatic IP Management System
 
 **Problem Solved**: No more manual IP configuration when your Pi's IP address changes!
 
 The system now includes intelligent IP management that automatically handles network changes without requiring manual updates to scripts, bookmarks, or configurations.
 
-### ✅ **What This System Does**
+### âœ… **What This System Does**
 
-- **🔍 Automatic Discovery**: Finds your Pi on any network automatically
-- **🔄 Smart Updates**: Updates all scripts and configurations with new IP
-- **📋 Access Info Generation**: Creates ready-to-use connection information
-- **📊 Change Tracking**: Maintains history of IP changes
-- **🖥️ Cross-Platform**: Works seamlessly between Windows and Pi
+- **ðŸ” Automatic Discovery**: Finds your Pi on any network automatically
+- **ðŸ”„ Smart Updates**: Updates all scripts and configurations with new IP
+- **ðŸ“‹ Access Info Generation**: Creates ready-to-use connection information
+- **ðŸ“Š Change Tracking**: Maintains history of IP changes
+- **ðŸ–¥ï¸ Cross-Platform**: Works seamlessly between Windows and Pi
 
-### 🚀 **Quick Usage**
+### ðŸš€ **Quick Usage**
 
 #### **Windows Development Machine**
 
@@ -197,7 +197,7 @@ node scripts/network/dynamic-ip-manager.js status
 node scripts/network/dynamic-ip-manager.js current-ip
 ```
 
-### 📋 **Generated Files**
+### ðŸ“‹ **Generated Files**
 
 After running IP discovery, you'll have:
 
@@ -205,7 +205,7 @@ After running IP discovery, you'll have:
 - **`config/pi-ip-config.json`** - Stored IP configuration for future reference
 - **Updated scripts** - All deployment scripts automatically updated with current IP
 
-### 🔄 **How It Works**
+### ðŸ”„ **How It Works**
 
 1. **Network Scanning**: Automatically scans common IP ranges (192.168.1.x, 192.168.0.x, etc.)
 2. **Pi Identification**: Tests SSH connection and verifies eForm project exists
@@ -213,21 +213,21 @@ After running IP discovery, you'll have:
 4. **Access Info Generation**: Creates current connection information
 5. **Change Tracking**: Logs IP changes with timestamps for troubleshooting
 
-### 🎯 **Real-World Benefits**
+### ðŸŽ¯ **Real-World Benefits**
 
 #### **Before (Manual Process)**:
-- IP changes → broken bookmarks and scripts
+- IP changes â†’ broken bookmarks and scripts
 - Manual network scanning to find Pi
 - Update multiple configuration files manually
 - Risk of missing script updates
 
 #### **After (Automatic Process)**:
-- IP changes → run one command, everything updates
+- IP changes â†’ run one command, everything updates
 - Automatic Pi discovery on any network
 - All configurations update automatically
 - Zero risk of missed updates
 
-### 📊 **Example Generated Access Info**
+### ðŸ“Š **Example Generated Access Info**
 
 ```markdown
 # eForm Pi Access Information
@@ -248,7 +248,7 @@ Invoke-WebRequest -Uri "http://192.168.1.11:3001/health" -UseBasicParsing
 Invoke-WebRequest -Uri "http://192.168.1.11:3002/health" -UseBasicParsing
 ```
 
-### 🔧 **Integration with Existing Systems**
+### ðŸ”§ **Integration with Existing Systems**
 
 The IP management system integrates seamlessly with existing workflows:
 
@@ -257,79 +257,79 @@ The IP management system integrates seamlessly with existing workflows:
 - **Health Checks**: IP discovery integrated with health monitoring
 - **Service Management**: Works with existing service control scripts
 
-### 📚 **Detailed Documentation**
+### ðŸ“š **Detailed Documentation**
 
 For complete documentation on the IP management system, see:
 - **[Automatic IP Management Guide](docs/automatic-ip-management-system.md)** - Comprehensive system documentation
 - **Configuration files**: `scripts/network/` directory
 - **Generated access info**: `CURRENT_PI_ACCESS.md` (auto-generated)
 
-### 🎉 **Result**
+### ðŸŽ‰ **Result**
 
 Your eForm Locker System is now **network-agnostic** and will work seamlessly regardless of IP address changes. No more manual configuration headaches!
 
-## 🤖 Automation Scripts
+## ðŸ¤– Automation Scripts
 
 The system includes comprehensive automation for production deployment:
 
-### 🔧 Installation & Setup
+### ðŸ”§ Installation & Setup
 
 - **`quick-setup.sh`** - Complete Raspberry Pi setup in one command
 - **`install.sh`** - Production installation with security hardening
 - **`setup-config.js`** - Automated configuration generation
 
-### 📦 Package Management
+### ðŸ“¦ Package Management
 
 - **`package.sh`** - Create deployment packages with checksums
 - **`sign-package.sh`** - Digital signing for secure distribution
 - **`deploy.sh`** - Zero-downtime deployment with rollback
 - **`canary-deploy.sh`** - Gradual rollout deployment
 
-### 🔍 Monitoring & Maintenance
+### ðŸ” Monitoring & Maintenance
 
 - **`health-check.sh`** - Comprehensive system health validation
 - **`backup.sh`** - Automated backup with retention policies
 - **`deployment-monitor.sh`** - Real-time deployment monitoring
 
-## 📁 Project Structure
+## ðŸ“ Project Structure
 
 This project follows standardized Node.js conventions with clear separation of concerns:
 
 ```
 eform-locker-system/
-├── app/                          # 🏗️ Application Services (Microservices)
-│   ├── gateway/                  # API Gateway service (Port 3000)
-│   ├── kiosk/                    # Kiosk hardware control (Port 3002)
-│   ├── panel/                    # Admin web interface (Port 3001)
-│   └── agent/                    # Background task processing
-├── shared/                       # 🔧 Shared Utilities & Libraries
-│   ├── controllers/              # Common controller logic
-│   ├── services/                 # Business logic services
-│   ├── types/                    # TypeScript definitions
-│   └── database/                 # Database utilities
-├── tests/                        # 🧪 Test Suites
-│   ├── integration/              # Cross-service integration tests
-│   └── README.md                 # Testing documentation
-├── scripts/                      # ⚙️ Operational Scripts (60 essential)
-│   ├── deployment/               # Deployment automation
-│   ├── testing/                  # Test execution utilities
-│   ├── maintenance/              # System maintenance tools
-│   ├── emergency/                # Emergency response procedures
-│   └── setup/                    # Initial setup scripts
-├── docs/                         # 📚 Documentation (7 essential files)
-│   ├── troubleshooting/          # Issue resolution guides
-│   ├── integrations/             # External system integrations
-│   └── maintenance/              # Maintenance procedures
-├── migrations/                   # 🗄️ Database Schema Migrations
-├── config/                       # ⚙️ Environment Configuration
-├── data/                         # 💾 Database Files (gitignored)
-├── logs/                         # 📋 Application Logs (gitignored)
-└── .kiro/                        # 🤖 Kiro IDE Configuration
-    ├── specs/                    # Feature specifications
-    └── steering/                 # Development guidelines
+â”œâ”€â”€ app/                          # ðŸ—ï¸ Application Services (Microservices)
+â”‚   â”œâ”€â”€ gateway/                  # API Gateway service (Port 3000)
+â”‚   â”œâ”€â”€ kiosk/                    # Kiosk hardware control (Port 3002)
+â”‚   â”œâ”€â”€ panel/                    # Admin web interface (Port 3001)
+â”‚   â””â”€â”€ agent/                    # Background task processing
+â”œâ”€â”€ shared/                       # ðŸ”§ Shared Utilities & Libraries
+â”‚   â”œâ”€â”€ controllers/              # Common controller logic
+â”‚   â”œâ”€â”€ services/                 # Business logic services
+â”‚   â”œâ”€â”€ types/                    # TypeScript definitions
+â”‚   â””â”€â”€ database/                 # Database utilities
+â”œâ”€â”€ tests/                        # ðŸ§ª Test Suites
+â”‚   â”œâ”€â”€ integration/              # Cross-service integration tests
+â”‚   â””â”€â”€ README.md                 # Testing documentation
+â”œâ”€â”€ scripts/                      # âš™ï¸ Operational Scripts (60 essential)
+â”‚   â”œâ”€â”€ deployment/               # Deployment automation
+â”‚   â”œâ”€â”€ testing/                  # Test execution utilities
+â”‚   â”œâ”€â”€ maintenance/              # System maintenance tools
+â”‚   â”œâ”€â”€ emergency/                # Emergency response procedures
+â”‚   â””â”€â”€ setup/                    # Initial setup scripts
+â”œâ”€â”€ docs/                         # ðŸ“š Documentation (7 essential files)
+â”‚   â”œâ”€â”€ troubleshooting/          # Issue resolution guides
+â”‚   â”œâ”€â”€ integrations/             # External system integrations
+â”‚   â””â”€â”€ maintenance/              # Maintenance procedures
+â”œâ”€â”€ migrations/                   # ðŸ—„ï¸ Database Schema Migrations
+â”œâ”€â”€ config/                       # âš™ï¸ Environment Configuration
+â”œâ”€â”€ data/                         # ðŸ’¾ Database Files (gitignored)
+â”œâ”€â”€ logs/                         # ðŸ“‹ Application Logs (gitignored)
+â””â”€â”€ .kiro/                        # ðŸ¤– Kiro IDE Configuration
+    â”œâ”€â”€ specs/                    # Feature specifications
+    â””â”€â”€ steering/                 # Development guidelines
 ```
 
-### 🎯 Directory Organization Principles
+### ðŸŽ¯ Directory Organization Principles
 
 **Service Architecture**: Each service in `app/` is self-contained with its own `src/`, `dist/`, and dependencies.
 
@@ -343,21 +343,21 @@ eform-locker-system/
 
 For detailed directory structure and organization principles, see [DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md).
 
-## 📚 Documentation & Organization
+## ðŸ“š Documentation & Organization
 
 **Complete documentation is available in the [`docs/`](docs/) folder:**
 
-### **📋 Essential Documentation (7 Core Files)**
+- **[🔗 Integrations](docs/integrations/)** - External system integrations
 
-- **[📋 Documentation Overview](docs/README.md)** - Start here for navigation
-- **[🚀 Deployment Guide](docs/DEPLOYMENT_README.md)** - Production deployment procedures
-- **[📡 API Reference](docs/API_REFERENCE.md)** - Comprehensive API documentation
-- **[📊 Performance Monitoring](docs/performance-monitoring-guide.md)** - System monitoring and optimization
-- **[🔧 Kiosk Troubleshooting](docs/kiosk-troubleshooting-guide.md)** - Hardware and software issues
-- **[🥧 Pi Configuration](docs/pi-configuration-guide.md)** - Raspberry Pi specific settings
-- **[🔄 Rollback Procedures](docs/rollback-procedures.md)** - Emergency recovery procedures
+- **[ðŸ“‹ Documentation Overview](docs/README.md)** - Start here for navigation
+- **[ðŸš€ Deployment Guide](docs/DEPLOYMENT_README.md)** - Production deployment procedures
+- **[ðŸ“¡ API Reference](docs/API_REFERENCE.md)** - Comprehensive API documentation
+- **[ðŸ“Š Performance Monitoring](docs/performance-monitoring-guide.md)** - System monitoring and optimization
+- **[ðŸ”§ Kiosk Troubleshooting](docs/kiosk-troubleshooting-guide.md)** - Hardware and software issues
+- **[ðŸ¥§ Pi Configuration](docs/pi-configuration-guide.md)** - Raspberry Pi specific settings
+- **[ðŸ”„ Rollback Procedures](docs/rollback-procedures.md)** - Emergency recovery procedures
 
-### **🔧 Health Monitoring & Diagnostics**
+### **ðŸ”§ Health Monitoring & Diagnostics**
 
 - **`scripts/deployment/health-check.sh`** - Comprehensive system health validation
   - Service status monitoring (Gateway, Panel, Kiosk)
@@ -369,13 +369,13 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
   - Real-time service status and resource usage
   - Automated troubleshooting recommendations
 
-### **🗂️ Specialized Documentation**
+### **ðŸ—‚ï¸ Specialized Documentation**
 
-- **[🔗 Integrations](docs/integrations/)** - External system integrations (Maksisoft)
-- **[🔧 Troubleshooting](docs/troubleshooting/)** - Issue resolution guides and incident reports
-- **[⚙️ Maintenance](docs/maintenance/)** - System maintenance procedures and fixes
+- **[ðŸ”— Integrations](docs/integrations/)** - External system integrations (Maksisoft)
+- **[ðŸ”§ Troubleshooting](docs/troubleshooting/)** - Issue resolution guides and incident reports
+- **[âš™ï¸ Maintenance](docs/maintenance/)** - System maintenance procedures and fixes
 
-### **🎯 File Organization Principles**
+### **ðŸŽ¯ File Organization Principles**
 
 **Documentation Strategy**:
 
@@ -396,7 +396,7 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
 - Shared utilities in `shared/` to prevent duplication
 - Tests co-located with code and in dedicated `tests/` directory
 
-## 🎯 System Overview
+## ðŸŽ¯ System Overview
 
 ### **Architecture**
 
@@ -413,14 +413,14 @@ For detailed directory structure and organization principles, see [DIRECTORY_STR
 
 ### **Key Features**
 
-- ✅ **Multi-User RFID Support**: Session-based card management
-- ✅ **Real-time Hardware Control**: Direct relay activation via Modbus
-- ✅ **Web Administration**: Complete locker management interface
-- ✅ **Production Ready**: Comprehensive monitoring and documentation
+- âœ… **Multi-User RFID Support**: Session-based card management
+- âœ… **Real-time Hardware Control**: Direct relay activation via Modbus
+- âœ… **Web Administration**: Complete locker management interface
+- âœ… **Production Ready**: Comprehensive monitoring and documentation
 
-## 🚀 Developer Onboarding Guide
+## ðŸš€ Developer Onboarding Guide
 
-### **🎯 New Developer Quick Start**
+### **ðŸŽ¯ New Developer Quick Start**
 
 **1. Repository Navigation**
 
@@ -480,7 +480,7 @@ curl http://localhost:3001/health   # Panel
 - **Troubleshooting**: `docs/troubleshooting/` for common issues
 - **Code Standards**: Follow patterns in existing services
 
-### **🗺️ Repository Navigation Map**
+### **ðŸ—ºï¸ Repository Navigation Map**
 
 **For Frontend Development**:
 
@@ -512,7 +512,7 @@ curl http://localhost:3001/health   # Panel
 - `docs/DEPLOYMENT_README.md` - Deployment procedures
 - `config/` - Environment configurations
 
-### 🛠️ Hardware Validation
+### ðŸ› ï¸ Hardware Validation
 
 - **`validate-waveshare-hardware.js`** - Waveshare relay card testing
 - **`hardware-diagnostics.js`** - Complete hardware diagnostics
@@ -525,16 +525,16 @@ sudo ./scripts/deploy.sh deploy package.tar.gz # Deploy with rollback
 ./scripts/health-check.sh                     # Validate deployment
 ```
 
-## 🚀 Features
+## ðŸš€ Features
 
 ### Core Functionality
 
-- **🔐 Secure Kiosk Provisioning**: Token-based registration with HMAC authentication
-- **⚙️ Configuration Management**: Centralized configuration distribution with version control and hash verification
-- **📡 Real-time Monitoring**: Heartbeat monitoring and comprehensive status tracking
-- **🔄 Atomic Operations**: Configuration changes with automatic rollback capabilities
-- **📊 Audit Logging**: Complete event logging and audit trails
-- **🌐 Web Interface**: Browser-based management panel for monitoring and control
+- **ðŸ” Secure Kiosk Provisioning**: Token-based registration with HMAC authentication
+- **âš™ï¸ Configuration Management**: Centralized configuration distribution with version control and hash verification
+- **ðŸ“¡ Real-time Monitoring**: Heartbeat monitoring and comprehensive status tracking
+- **ðŸ”„ Atomic Operations**: Configuration changes with automatic rollback capabilities
+- **ðŸ“Š Audit Logging**: Complete event logging and audit trails
+- **ðŸŒ Web Interface**: Browser-based management panel for monitoring and control
 
 ### Technical Highlights
 
@@ -544,7 +544,7 @@ sudo ./scripts/deploy.sh deploy package.tar.gz # Deploy with rollback
 - **Status Tracking**: Real-time kiosk status with configuration state monitoring
 - **Concurrent Access**: SQLite with WAL mode for high-performance concurrent operations
 
-## 🏗️ Architecture
+## ðŸ—ï¸ Architecture
 
 The system is built with modern technologies:
 
@@ -555,13 +555,13 @@ The system is built with modern technologies:
 - **Testing**: Comprehensive test suite with Vitest
 - **Build System**: ESBuild for fast compilation and bundling
 
-## 📋 Prerequisites
+## ðŸ“‹ Prerequisites
 
 - **Node.js**: Version 20.0.0 or higher
 - **npm**: Package manager (comes with Node.js)
 - **Git**: For version control
 
-## 🛠️ Installation
+## ðŸ› ï¸ Installation
 
 ```bash
 # Clone the repository
@@ -575,7 +575,7 @@ npm install
 npm run build
 ```
 
-## 🚦 Getting Started
+## ðŸš¦ Getting Started
 
 ### Development Mode
 
@@ -609,12 +609,12 @@ npm run test:watch
 npm run config-test
 ```
 
-## 🌐 Web Interfaces
+## ðŸŒ Web Interfaces
 
 - **Configuration Panel**: http://localhost:3000/config-panel
 - **Health Check**: http://localhost:3000/health
 
-## 📡 API Endpoints
+## ðŸ“¡ API Endpoints
 
 ### Provisioning System
 
@@ -640,7 +640,7 @@ POST /api/configuration/kiosks/:id/rollback        # Rollback configuration
 GET  /api/configuration/deployments                # Get deployment history
 ```
 
-## 🧪 Testing & Quality Assurance
+## ðŸ§ª Testing & Quality Assurance
 
 The project maintains high code quality with comprehensive testing:
 
@@ -658,14 +658,14 @@ npm test src/controllers/__tests__/provisioning.test.ts
 npm run test:coverage
 ```
 
-## 📚 Documentation
+## ðŸ“š Documentation
 
 - **[Configuration System](docs/configuration-system.md)** - Comprehensive configuration management guide
 - **[API Reference](docs/api-reference.md)** - Complete API documentation
 - **[Deployment Guide](docs/deployment.md)** - Production deployment instructions
 - **[Architecture Overview](docs/architecture.md)** - System architecture and design decisions
 
-## 🔧 Configuration
+## ðŸ”§ Configuration
 
 ### System Configuration Parameters
 
@@ -690,7 +690,7 @@ interface SystemConfig {
 }
 ```
 
-## 🚀 Deployment
+## ðŸš€ Deployment
 
 ### Environment Variables
 
@@ -714,9 +714,9 @@ pm2 start dist/index.js --name eform-locker-system
 npm start
 ```
 
-## 🤝 Contributing Guidelines
+## ðŸ¤ Contributing Guidelines
 
-### **📋 Development Workflow**
+### **ðŸ“‹ Development Workflow**
 
 1. **Fork and Branch**
 
@@ -754,25 +754,25 @@ npm start
    - Include troubleshooting info if applicable
    - Update this README if structure changes
 
-### **🗂️ File Organization Rules**
+### **ðŸ—‚ï¸ File Organization Rules**
 
 **DO:**
 
-- ✅ Place files in appropriate directories following `DIRECTORY_STRUCTURE.md`
-- ✅ Use descriptive, kebab-case file names
-- ✅ Include proper documentation for new features
-- ✅ Add tests for new functionality
-- ✅ Follow existing code patterns and conventions
+- âœ… Place files in appropriate directories following `DIRECTORY_STRUCTURE.md`
+- âœ… Use descriptive, kebab-case file names
+- âœ… Include proper documentation for new features
+- âœ… Add tests for new functionality
+- âœ… Follow existing code patterns and conventions
 
 **DON'T:**
 
-- ❌ Add temporary files to the repository (use `.gitignore`)
-- ❌ Create new root-level directories without discussion
-- ❌ Duplicate functionality that exists in `shared/`
-- ❌ Skip documentation for new features
-- ❌ Break existing service interfaces
+- âŒ Add temporary files to the repository (use `.gitignore`)
+- âŒ Create new root-level directories without discussion
+- âŒ Duplicate functionality that exists in `shared/`
+- âŒ Skip documentation for new features
+- âŒ Break existing service interfaces
 
-### **🧹 Repository Cleanliness**
+### **ðŸ§¹ Repository Cleanliness**
 
 **Automated Prevention**: The repository uses enhanced `.gitignore` patterns to prevent accumulation of:
 
@@ -788,7 +788,7 @@ npm start
 - Use existing scripts in `scripts/` before creating new ones
 - Archive or remove obsolete code rather than commenting it out
 
-### **🔄 Pull Request Process**
+### **ðŸ”„ Pull Request Process**
 
 1. **Pre-submission Checklist**
 
@@ -815,14 +815,14 @@ npm start
    - Documentation review for completeness
    - Integration testing on target hardware (if applicable)
 
-### **📞 Getting Help**
+### **ðŸ“ž Getting Help**
 
 - **Documentation**: Start with `docs/README.md` for navigation
 - **Issues**: Check existing issues before creating new ones
 - **Architecture Questions**: Review `docs/SYSTEM_DOCUMENTATION.md`
 - **Hardware Setup**: Follow `docs/pi-configuration-guide.md`
 
-### **🎯 Contribution Areas**
+### **ðŸŽ¯ Contribution Areas**
 
 **High Priority**:
 
@@ -847,36 +847,36 @@ npm start
 
 For detailed contributing guidelines, see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
-## 📊 Repository Status
+## ðŸ“Š Repository Status
 
-### **🧹 Recent Cleanup (August 2025)**
+### **ðŸ§¹ Recent Cleanup (August 2025)**
 
 The repository underwent comprehensive cleanup and organization:
 
-- **✅ 105 files removed**: Eliminated obsolete and redundant files
-- **✅ Documentation consolidated**: 7 essential docs with clear navigation
-- **✅ Scripts organized**: 60 essential scripts categorized by purpose
-- **✅ Structure standardized**: Node.js conventions with clear hierarchy
-- **✅ Automated prevention**: Enhanced .gitignore prevents future accumulation
+- **âœ… 105 files removed**: Eliminated obsolete and redundant files
+- **âœ… Documentation consolidated**: 7 essential docs with clear navigation
+- **âœ… Scripts organized**: 60 essential scripts categorized by purpose
+- **âœ… Structure standardized**: Node.js conventions with clear hierarchy
+- **âœ… Automated prevention**: Enhanced .gitignore prevents future accumulation
 
 **Detailed cleanup report**: [REPOSITORY_CLEANUP_REPORT.md](REPOSITORY_CLEANUP_REPORT.md)
 
-### **🎯 Current Status**
+### **ðŸŽ¯ Current Status**
 
 - **Repository**: Clean, organized, production-ready
 - **Documentation**: Comprehensive with clear navigation
 - **Code Quality**: Standardized structure and conventions
 - **Maintenance**: Automated prevention of file accumulation
 
-## 📊 Project Status
+## ðŸ“Š Project Status
 
-- ✅ **Kiosk Provisioning System**: Complete with secure token-based registration
-- ✅ **Configuration Distribution**: Complete with version control and rollback
-- ✅ **Web Interface**: Complete with real-time monitoring dashboard
-- ✅ **Testing Suite**: Comprehensive test coverage (58 tests passing)
-- ✅ **Documentation**: Complete API and system documentation
+- âœ… **Kiosk Provisioning System**: Complete with secure token-based registration
+- âœ… **Configuration Distribution**: Complete with version control and rollback
+- âœ… **Web Interface**: Complete with real-time monitoring dashboard
+- âœ… **Testing Suite**: Comprehensive test coverage (58 tests passing)
+- âœ… **Documentation**: Complete API and system documentation
 
-## 🔒 Security Features
+## ðŸ”’ Security Features
 
 - **HMAC Authentication**: Cryptographic validation of kiosk identities
 - **Token Expiration**: Time-limited provisioning tokens
@@ -884,25 +884,25 @@ The repository underwent comprehensive cleanup and organization:
 - **Audit Logging**: Complete audit trail of all system operations
 - **Rollback Protection**: Automatic rollback on configuration failures
 
-## 📈 Performance
+## ðŸ“ˆ Performance
 
 - **Concurrent Operations**: SQLite WAL mode for high-performance concurrent access
 - **Efficient Bundling**: ESBuild for fast compilation and small bundle sizes
 - **Memory Optimization**: Efficient database connection pooling
 - **Caching**: Intelligent caching of configuration packages
 
-## 📄 License
+## ðŸ“„ License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## ðŸ™ Acknowledgments
 
 - Built with [Fastify](https://www.fastify.io/) for high-performance HTTP server
 - Database operations powered by [SQLite](https://www.sqlite.org/)
 - Testing framework: [Vitest](https://vitest.dev/)
 - Build system: [ESBuild](https://esbuild.github.io/)
 
-## 🚨 Troubleshooting & Common Issues
+## ðŸš¨ Troubleshooting & Common Issues
 
 ### **Permission Denied Errors**
 
@@ -1008,21 +1008,21 @@ cat /home/pi/eform-locker/.system-alerts
 
 ### **Getting Help**
 
-- **📚 Documentation**: Check `docs/` folder for detailed guides
-- **🔍 Logs**: View logs with `./scripts/maintenance/health-check.sh`
-- **⚙️ Scripts**: Use `scripts/maintenance/` for common tasks
-- **🌐 Web Interface**: Admin panel at `http://PI_IP:3001`
+- **ðŸ“š Documentation**: Check `docs/` folder for detailed guides
+- **ðŸ” Logs**: View logs with `./scripts/maintenance/health-check.sh`
+- **âš™ï¸ Scripts**: Use `scripts/maintenance/` for common tasks
+- **ðŸŒ Web Interface**: Admin panel at `http://PI_IP:3001`
 
 ---
 
-**Made with ❤️ for enterprise locker management systems**
+**Made with â¤ï¸ for enterprise locker management systems**
 
 ## New: Second-Scan Decision Screen (Kiosk)
 
 To prevent accidental releases with solenoid locks, the kiosk now asks users what to do when the same card is scanned again and already owns a locker:
 
-- �Esyami almak i�in a� � opens the locker without releasing ownership
-- �Dolabi teslim etmek istiyorum� � opens and releases the locker
+- “Esyami almak için aç” — opens the locker without releasing ownership
+- “Dolabi teslim etmek istiyorum” — opens and releases the locker
 
 Implementation summary:
 - Frontend (kiosk UI): app/kiosk/src/ui/static/app-simple.js

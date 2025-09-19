@@ -273,15 +273,6 @@ async function startPanelService() {
       console.error("❌ Failed to register relay routes:", error);
     }
 
-    // Register Maksisoft integration routes
-    try {
-      const { registerMaksiRoutes } = await import("./routes/maksi-routes");
-      await registerMaksiRoutes(fastify);
-      console.log("✅ Maksisoft routes registered successfully");
-    } catch (error) {
-      console.error("❌ Failed to register Maksisoft routes:", error);
-    }
-
     // Register hardware configuration routes
     try {
       const { HardwareConfigRoutes } = await import("./routes/hardware-config-routes");

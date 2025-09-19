@@ -46,7 +46,7 @@ eform-locker-system/
 
 #### Test Files
 - Follow pattern: `{component}.test.{ext}` or `{feature}-integration.test.{ext}`
-- Use descriptive names: `maksi-integration.test.ts`, `session-management-lifecycle.test.ts`
+- Use descriptive names: `locker-integration.test.ts`, `session-management-lifecycle.test.ts`
 - Group related tests in subdirectories when needed
 
 #### Configuration Files

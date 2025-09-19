@@ -25,7 +25,6 @@ Welcome to the comprehensive documentation for the eForm Locker System. This dir
 ### **📡 API & Integration**
 - **[📋 API Reference](API_REFERENCE.md)** - Comprehensive API documentation
 - **[🔗 Integrations](integrations/)** - External system integrations
-  - **[Maksisoft Integration Guide](integrations/maksisoft-integration-guide.md)** - Complete Maksisoft setup, usage, and validation
 
 ### **🛠️ Troubleshooting & Maintenance**
 - **[🔧 Hardware Integration Guide](troubleshooting/hardware-integration-guide.md)** - Modbus, serial ports, and hardware issues
@@ -56,7 +55,6 @@ docs/
 │   ├── api-reference.md                # Complete API documentation
 │   └── implementation.md               # Technical implementation guide
 ├── integrations/                       # External system integrations
-│   └── maksisoft-integration-guide.md  # Maksisoft integration (Production Ready)
 ├── troubleshooting/                    # Issue resolution guides
 │   ├── hardware-integration-guide.md   # Hardware troubleshooting
 │   └── incident-reports/               # Historical incident reports
@@ -112,14 +110,13 @@ docs/
 ### **By System Component**
 - **Gateway Service**: API Reference, System Documentation
 - **Kiosk Service**: Kiosk Troubleshooting Guide, Hardware Integration Guide
-- **Panel Service**: System Documentation, Maksisoft Integration Guide (Production Ready)
+- **Panel Service**: System Documentation
 - **Hardware**: Hardware Integration Guide, Pi Configuration Guide
 
 ## 📊 Documentation Status
 
 ### **✅ Complete & Current**
 - Hardware integration and troubleshooting procedures
-- Maksisoft integration setup and usage
 - System maintenance and common fixes
 - API reference and system architecture
 - Deployment and operational procedures

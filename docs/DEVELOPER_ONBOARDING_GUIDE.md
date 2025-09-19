@@ -28,7 +28,6 @@ This guide will help you understand the project structure, setup your developmen
 ```
 📖 app/panel/README.md                    # Admin Panel frontend
 📖 app/kiosk/src/ui/README.md             # Kiosk UI documentation
-📖 docs/integrations/maksisoft-integration-guide.md  # External integrations
 📖 app/panel/src/__tests__/ui-improvements/README.md # UI testing guidelines
 ```
 
@@ -301,7 +300,6 @@ git push origin main
 GET  /api/lockers              // Get all lockers status
 POST /api/lockers/{id}/open    // Open specific locker
 GET  /api/users                // Get user list
-POST /api/maksi/search-by-rfid // Search Maksisoft users
 
 // Kiosk APIs  
 POST /api/locker/open          // Queue-based locker opening
@@ -383,7 +381,6 @@ npm run lint
 
 ### **Project-Specific Guides**
 - **Hardware Integration**: `docs/troubleshooting/hardware-integration-guide.md`
-- **Maksisoft Integration**: `docs/integrations/maksisoft-integration-guide.md`
 - **Performance Monitoring**: `docs/performance-monitoring-guide.md`
 - **Deployment Procedures**: `docs/DEPLOYMENT_README.md`
 
