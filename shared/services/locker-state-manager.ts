@@ -29,6 +29,8 @@ export class LockerStateManager {
   private db: DatabaseConnection;
   private dbManager: any;
   private cleanupTimer: NodeJS.Timeout | null = null;
+  private lastScheduledIntervalMs: number | null = null;
+  private cleanupInProgress = false;
   private configManager: ConfigManager;
   private configInitialized = false;
   private options: LockerStateManagerOptions;
@@ -102,8 +104,7 @@ export class LockerStateManager {
       const override = this.options.autoReleaseHoursOverride;
       if (typeof override === 'number' && override > 0) {
         console.log(`⏱️ Auto-release override enabled: ${override} hour(s)`);
-        this.startCleanupTimer();
-        await this.cleanupExpiredReservations();
+        await this.runCleanupCycle();
       } else {
         console.log('⏸️ Auto-release disabled via override configuration');
       }
@@ -117,8 +118,7 @@ export class LockerStateManager {
       console.warn('⚠️  Failed to initialize configuration for auto-release:', error);
     }
 
-    this.startCleanupTimer();
-    await this.cleanupExpiredReservations();
+    await this.runCleanupCycle();
   }
 
 
@@ -158,54 +158,139 @@ export class LockerStateManager {
     }
   }
 
-  /**
-   * Start automatic cleanup of expired reservations - DISABLED
-   * Automatic timeout feature has been removed per user request
-   */
-  private startCleanupTimer(): void {
-    const override = this.options.autoReleaseHoursOverride;
-    if (override !== undefined && (!override || override <= 0)) {
-      return;
+  private getCleanupBaseInterval(): number {
+    const override = this.options.autoReleaseCheckIntervalMs;
+    if (typeof override === 'number' && override > 0) {
+      return override;
     }
 
+    // Default to checking every 30 seconds to keep countdowns accurate
+    return 30 * 1000;
+  }
+
+  private scheduleNextCleanup(delayMs?: number): void {
     if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
+      clearTimeout(this.cleanupTimer);
       this.cleanupTimer = null;
     }
 
-    const intervalMs = this.options.autoReleaseCheckIntervalMs ?? 5 * 60 * 1000;
-    if (!intervalMs || intervalMs <= 0) {
-      console.warn('⚠️  Invalid auto-release interval; skipping cleanup timer setup');
+    const baseInterval = this.getCleanupBaseInterval();
+    const interval = delayMs && delayMs > 0 ? delayMs : baseInterval;
+    if (!interval || interval <= 0) {
+      console.warn('⚠️  Skipping auto-release scheduling due to invalid interval');
       return;
     }
 
-    this.cleanupTimer = setInterval(async () => {
-      try {
-        await this.cleanupExpiredReservations();
-      } catch (error) {
-        console.error('❌ Automatic locker cleanup failed:', error);
-      }
-    }, intervalMs);
+    this.cleanupTimer = setTimeout(() => {
+      void this.runCleanupCycle();
+    }, interval);
 
     if (typeof this.cleanupTimer.unref === 'function') {
       this.cleanupTimer.unref();
     }
 
-    console.log(
-      `⏱️ Automatic locker cleanup scheduled every ${Math.round(intervalMs / 60000) || 1} minute(s)`
-    );
+    if (this.lastScheduledIntervalMs !== interval) {
+      const seconds = Math.max(1, Math.round(interval / 1000));
+      console.log(`⏱️ Automatic locker cleanup scheduled in ${seconds} second(s)`);
+      this.lastScheduledIntervalMs = interval;
+    }
+  }
+
+  private async runCleanupCycle(): Promise<void> {
+    if (this.cleanupInProgress) {
+      this.scheduleNextCleanup();
+      return;
+    }
+
+    this.cleanupInProgress = true;
+
+    try {
+      const autoReleaseHours = await this.getAutoReleaseHours();
+      if (!autoReleaseHours || autoReleaseHours <= 0) {
+        this.scheduleNextCleanup();
+        return;
+      }
+
+      await this.cleanupExpiredReservations(autoReleaseHours);
+      const nextDelay = await this.computeNextCleanupDelayMs(autoReleaseHours);
+      this.scheduleNextCleanup(nextDelay);
+    } catch (error) {
+      console.error('❌ Automatic locker cleanup failed:', error);
+      this.scheduleNextCleanup();
+    } finally {
+      this.cleanupInProgress = false;
+    }
+  }
+
+  private async computeNextCleanupDelayMs(autoReleaseHours: number): Promise<number> {
+    const baseInterval = this.getCleanupBaseInterval();
+    const minimumInterval = 5 * 1000; // 5 seconds
+
+    try {
+      const candidateLockers = await this.db.all<Locker>(
+        `SELECT owned_at, reserved_at
+         FROM lockers
+         WHERE status IN ('Owned', 'Opening')
+           AND is_vip = 0
+           AND (owner_type IS NULL OR owner_type != 'vip')`
+      );
+
+      if (!candidateLockers || candidateLockers.length === 0) {
+        return baseInterval;
+      }
+
+      const thresholdMs = autoReleaseHours * 3600 * 1000;
+      const now = Date.now();
+      let nextDueAt: number | null = null;
+
+      for (const locker of candidateLockers) {
+        const referenceIso = locker.owned_at || locker.reserved_at;
+        if (!referenceIso) {
+          continue;
+        }
+
+        const referenceTime = new Date(referenceIso).getTime();
+        if (Number.isNaN(referenceTime)) {
+          continue;
+        }
+
+        const dueAt = referenceTime + thresholdMs;
+        if (dueAt <= now) {
+          // Already overdue; run another sweep soon
+          return minimumInterval;
+        }
+
+        if (nextDueAt === null || dueAt < nextDueAt) {
+          nextDueAt = dueAt;
+        }
+      }
+
+      if (nextDueAt === null) {
+        return baseInterval;
+      }
+
+      const delay = nextDueAt - now;
+      if (delay <= 0) {
+        return minimumInterval;
+      }
+
+      return Math.max(minimumInterval, Math.min(delay, baseInterval));
+    } catch (error) {
+      console.warn('⚠️  Unable to compute next auto-release sweep schedule:', error);
+      return baseInterval;
+    }
   }
 
   /**
-   * Stop automatic cleanup timer - DISABLED
-   * No cleanup timer to stop since automatic timeout is disabled
+   * Stop automatic cleanup timer.
    */
   public stopCleanupTimer(): void {
     if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
+      clearTimeout(this.cleanupTimer);
       this.cleanupTimer = null;
       console.log('⏹️ Automatic locker cleanup timer stopped');
     }
+    this.lastScheduledIntervalMs = null;
   }
 
   /**
@@ -769,11 +854,13 @@ export class LockerStateManager {
     return null;
   }
 
-  async cleanupExpiredReservations(): Promise<number> {
+  async cleanupExpiredReservations(explicitAutoReleaseHours?: number): Promise<number> {
     try {
-      const autoReleaseHours = await this.getAutoReleaseHours();
+      const autoReleaseHours = explicitAutoReleaseHours ?? (await this.getAutoReleaseHours());
       if (!autoReleaseHours || autoReleaseHours <= 0) {
-        console.log('⏸️ Automatic locker cleanup skipped - auto_release_hours disabled or not configured');
+        if (explicitAutoReleaseHours === undefined) {
+          console.log('⏸️ Automatic locker cleanup skipped - auto_release_hours disabled or not configured');
+        }
         return 0;
       }
 
