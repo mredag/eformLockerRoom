@@ -981,12 +981,16 @@ export class UiController {
       console.log(`🔍 Checking existing locker for card: ${cardId}`);
 
       const existingLocker = await this.lockerStateManager.checkExistingOwnership(cardId, 'rfid');
-      
+
       if (existingLocker) {
+        const ownedAt = existingLocker.owned_at ? new Date(existingLocker.owned_at).toISOString() : null;
+        const reservedAt = existingLocker.reserved_at ? new Date(existingLocker.reserved_at).toISOString() : null;
         return {
           hasLocker: true,
           lockerId: existingLocker.id,
           displayName: existingLocker.display_name ?? null,
+          ownedAt,
+          reservedAt,
           message: `Dolap ${(existingLocker.display_name || existingLocker.id)} zaten atanmış`
         };
       } else {
