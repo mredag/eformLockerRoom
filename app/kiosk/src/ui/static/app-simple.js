@@ -588,7 +588,10 @@ class SimpleKioskApp {
             if (existingLocker) {
                 // Decision screen: open only vs. finish & release (Idea 5)
                 this.state.selectedCard = cardId;
-                await this.showOwnedDecision(cardId, existingLocker.lockerId, existingLocker.displayName);
+                await this.showOwnedDecision(cardId, existingLocker.lockerId, existingLocker.displayName, {
+                    ownedAt: existingLocker.ownedAt,
+                    reservedAt: existingLocker.reservedAt
+                });
             } else {
                 // Start new session for locker selection
                 await this.startLockerSelection(cardId);
@@ -659,10 +662,17 @@ class SimpleKioskApp {
             
             const result = await response.json();
             if (result.hasLocker) {
+                const parseTimestamp = (value) => {
+                    if (!value) return null;
+                    const parsed = Date.parse(value);
+                    return Number.isNaN(parsed) ? null : parsed;
+                };
                 return {
                     hasLocker: true,
                     lockerId: result.lockerId,
                     displayName: result.displayName || null,
+                    ownedAt: parseTimestamp(result.ownedAt),
+                    reservedAt: parseTimestamp(result.reservedAt),
                     message: result.message
                 };
             }
@@ -740,7 +750,7 @@ class SimpleKioskApp {
     /**
      * Show decision screen for owned locker: Open vs Finish & Release (Idea 5)
      */
-    async showOwnedDecision(cardId, lockerId, displayName) {
+    async showOwnedDecision(cardId, lockerId, displayName, ownershipTimestamps = {}) {
         // Build lightweight overlay if not exists
         let overlay = document.getElementById('owned-decision-overlay');
         if (!overlay) {
@@ -763,7 +773,18 @@ class SimpleKioskApp {
                     <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
                 </div>
                 <div class="owned-decision-buttons">
-                    <!-- Temporarily removed: "Eşyamı almak için aç" (btn-open-only) secondary action -->
+                    <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
+                        <div class="owned-decision-icon" aria-hidden="true">
+                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M13 12h5"></path></svg>
+                        </div>
+                        <div class="owned-decision-copy">
+                            <span class="owned-decision-button-title">Sadece aç, teslim etme</span>
+                            <span class="owned-decision-button-subtitle">Eşyalarınızı almak için açabilirsiniz</span>
+                        </div>
+                        <div class="owned-decision-chevron" aria-hidden="true">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                        </div>
+                    </button>
                     <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
                         <div class="owned-decision-icon" aria-hidden="true">
                             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
@@ -795,6 +816,7 @@ class SimpleKioskApp {
         // Wire buttons
         const btnFinish = document.getElementById('btn-finish-release');
         const btnClose = document.getElementById('owned-decision-close');
+        const btnOpenOnly = document.getElementById('btn-open-only');
 
         const closeOverlay = () => { overlay.style.display = 'none'; };
 
@@ -803,9 +825,34 @@ class SimpleKioskApp {
         if (btnClose) {
             btnClose.replaceWith(btnClose.cloneNode(true));
         }
+        if (btnOpenOnly) {
+            btnOpenOnly.replaceWith(btnOpenOnly.cloneNode(true));
+        }
 
         const btnFinish2 = document.getElementById('btn-finish-release');
         const btnClose2 = document.getElementById('owned-decision-close');
+        const btnOpenOnly2 = document.getElementById('btn-open-only');
+
+        const shouldShowOpenOnly = this.shouldShowOpenOnlyButton(ownershipTimestamps.ownedAt, ownershipTimestamps.reservedAt);
+        const bottomInfo = document.getElementById('bottom-info');
+
+        if (btnOpenOnly2) {
+            if (shouldShowOpenOnly) {
+                btnOpenOnly2.style.display = 'flex';
+                btnOpenOnly2.addEventListener('click', async () => {
+                    closeOverlay();
+                    await this.openOwnedLockerOnly(cardId);
+                });
+            } else {
+                btnOpenOnly2.style.display = 'none';
+            }
+        }
+
+        if (bottomInfo) {
+            bottomInfo.textContent = shouldShowOpenOnly
+                ? 'Eşyalarınızı almak için dolabı açabilirsiniz. İlk 1 saat içinde bu seçenek aktiftir. Teslim etmeyi seçerseniz dolap yeniden kilitlenir ve başkalarının kullanımına açılır.'
+                : '1 saatlik süre doldu. Dolabı yalnızca teslim ederek açabilirsiniz. Teslim ettiğinizde dolap yeniden kilitlenir ve başkalarının kullanımına açılır.';
+        }
 
         btnFinish2.addEventListener('click', async () => {
             closeOverlay();
@@ -817,6 +864,41 @@ class SimpleKioskApp {
                 this.handleReturnToMain();
             });
         }
+    }
+
+    /**
+     * Determine if the open-only button should be visible based on ownership age
+     */
+    shouldShowOpenOnlyButton(ownedAtTimestamp, reservedAtTimestamp) {
+        const ONE_HOUR_MS = 60 * 60 * 1000;
+
+        const normalize = (value) => {
+            if (value === null || value === undefined) {
+                return null;
+            }
+            if (typeof value === 'number') {
+                return Number.isNaN(value) ? null : value;
+            }
+            if (value instanceof Date) {
+                return value.getTime();
+            }
+            const parsed = Date.parse(value);
+            return Number.isNaN(parsed) ? null : parsed;
+        };
+
+        const referenceTimestamp = normalize(ownedAtTimestamp) ?? normalize(reservedAtTimestamp);
+
+        if (referenceTimestamp === null) {
+            return true;
+        }
+
+        const elapsed = Date.now() - referenceTimestamp;
+
+        if (elapsed < 0) {
+            return true;
+        }
+
+        return elapsed <= ONE_HOUR_MS;
     }
 
     /**
