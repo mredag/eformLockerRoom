@@ -1055,6 +1055,7 @@
         let autoReleaseHours = null;
         let autoReleaseTickerHandle = null;
         let hasSelectedInitialKiosk = false;
+        const lockerNameCollator = new Intl.Collator('tr', { numeric: true, sensitivity: 'base' });
         
         // Status Translation Service - Task 2
         const StatusTranslationService = {
@@ -2279,36 +2280,41 @@
 
             // Sort lockers
             filteredLockers.sort((a, b) => {
-                let aValue, bValue;
+                let comparison = 0;
 
                 switch (sortBy) {
-                    case 'name':
-                        aValue = (a.display_name || `Dolap ${a.id}`).toLowerCase();
-                        bValue = (b.display_name || `Dolap ${b.id}`).toLowerCase();
+                    case 'name': {
+                        const aName = a.display_name || `Dolap ${a.id}`;
+                        const bName = b.display_name || `Dolap ${b.id}`;
+                        comparison = lockerNameCollator.compare(aName, bName);
                         break;
+                    }
                     case 'relay':
-                        aValue = a.id;
-                        bValue = b.id;
+                        comparison = (a.id || 0) - (b.id || 0);
                         break;
-                    case 'state':
+                    case 'state': {
                         // Use StatusTranslationService for consistent translations
-                        aValue = StatusTranslationService.translateStatus(a.status);
-                        bValue = StatusTranslationService.translateStatus(b.status);
+                        const aState = StatusTranslationService.translateStatus(a.status);
+                        const bState = StatusTranslationService.translateStatus(b.status);
+                        comparison = aState.localeCompare(bState, 'tr', { sensitivity: 'base' });
                         break;
-                    case 'lastChanged':
-                        aValue = new Date(a.updated_at || 0);
-                        bValue = new Date(b.updated_at || 0);
+                    }
+                    case 'lastChanged': {
+                        const aTime = new Date(a.updated_at || 0).getTime();
+                        const bTime = new Date(b.updated_at || 0).getTime();
+                        comparison = aTime - bTime;
                         break;
+                    }
                     default:
-                        aValue = a.id;
-                        bValue = b.id;
+                        comparison = (a.id || 0) - (b.id || 0);
                 }
 
-                if (sortOrder === 'desc') {
-                    return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-                } else {
-                    return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+                if (comparison === 0) {
+                    // Stable fallback to locker id to avoid inconsistent ordering
+                    comparison = (a.id || 0) - (b.id || 0);
                 }
+
+                return sortOrder === 'desc' ? -comparison : comparison;
             });
 
             renderLockers();
