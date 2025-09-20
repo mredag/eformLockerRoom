@@ -389,6 +389,8 @@ class SimpleKioskApp {
             this.elements.lockerGrid.addEventListener('click', (event) => {
                 this.handleLockerClick(event);
             });
+
+            this.enableTouchScrolling(this.elements.lockerGrid);
         }
         
         // Window focus/blur for memory management
@@ -438,6 +440,70 @@ class SimpleKioskApp {
         this.startConnectionMonitoring();
         
         console.log('🎯 Event listeners setup complete');
+    }
+
+    /**
+     * Ensure the locker grid supports direct touch scrolling on kiosks.
+     */
+    enableTouchScrolling(scrollContainer) {
+        if (!scrollContainer || scrollContainer.dataset.touchScroll === 'enabled') {
+            return;
+        }
+
+        scrollContainer.dataset.touchScroll = 'enabled';
+
+        // Hint browsers that vertical panning is expected for this region.
+        scrollContainer.style.touchAction = scrollContainer.style.touchAction || 'pan-y';
+        scrollContainer.style.webkitOverflowScrolling = scrollContainer.style.webkitOverflowScrolling || 'touch';
+
+        if (!this.screenInfo.isTouch) {
+            return; // Mouse/keyboard scrolling already works.
+        }
+
+        let startY = 0;
+        let startX = 0;
+        let startScrollTop = 0;
+        let startScrollLeft = 0;
+        let isTouching = false;
+
+        const onTouchStart = (event) => {
+            if (event.touches.length !== 1) {
+                return;
+            }
+
+            isTouching = true;
+            startY = event.touches[0].clientY;
+            startX = event.touches[0].clientX;
+            startScrollTop = scrollContainer.scrollTop;
+            startScrollLeft = scrollContainer.scrollLeft;
+        };
+
+        const onTouchMove = (event) => {
+            if (!isTouching || event.touches.length !== 1) {
+                return;
+            }
+
+            const currentTouch = event.touches[0];
+            const deltaY = startY - currentTouch.clientY;
+            const deltaX = startX - currentTouch.clientX;
+
+            if (Math.abs(deltaY) >= Math.abs(deltaX)) {
+                scrollContainer.scrollTop = startScrollTop + deltaY;
+                event.preventDefault();
+            } else if (scrollContainer.scrollWidth > scrollContainer.clientWidth) {
+                scrollContainer.scrollLeft = startScrollLeft + deltaX;
+                event.preventDefault();
+            }
+        };
+
+        const onTouchEnd = () => {
+            isTouching = false;
+        };
+
+        scrollContainer.addEventListener('touchstart', onTouchStart, { passive: true });
+        scrollContainer.addEventListener('touchmove', onTouchMove, { passive: false });
+        scrollContainer.addEventListener('touchend', onTouchEnd, { passive: true });
+        scrollContainer.addEventListener('touchcancel', onTouchEnd, { passive: true });
     }
 
     /**
