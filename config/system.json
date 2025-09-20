@@ -1,4 +1,4 @@
-{
+s{
   "system": {
     "name": "Eform Locker Room System",
     "version": "1.0.0",
@@ -30,11 +30,12 @@
       "ranges": [
         [
           33,
-          48
+          64
         ]
       ],
       "relay_cards": [
-        3
+        3,
+        4
       ],
       "enabled": true
     }
@@ -56,7 +57,7 @@
       "keep_alive_timeout_ms": 5000
     },
     "kiosk": {
-      "port": 3002,
+      "port": 3001,
       "host": "0.0.0.0",
       "heartbeat_interval_seconds": 5,
       "command_poll_interval_seconds": 1,
@@ -64,7 +65,7 @@
       "ui_timeout_seconds": 60
     },
     "panel": {
-      "port": 3001,
+      "port": 3003,
       "host": "0.0.0.0",
       "session_timeout_minutes": 120,
       "max_login_attempts": 3,
@@ -112,11 +113,10 @@
         "enabled": true
       },
       {
-        "slave_address": 3,
+        "slave_address": 5,
         "channels": 16,
         "type": "waveshare_16ch",
-        "dip_switches": "00000011",
-        "description": "Dolap Bankası 33-48",
+        "description": "Locker Bank 65-80 (Card 5) - AUTO ADDED",
         "enabled": true
       }
     ],
@@ -159,19 +159,18 @@
     }
   },
   "lockers": {
-    "total_count": 48,
+    "total_count": 64,
     "offline_threshold_seconds": 60,
     "bulk_operation_interval_ms": 500,
     "master_lockout_fails": 3,
     "master_lockout_minutes": 30,
-    "auto_release_hours": 2,
+    "auto_release_hours": 24,
     "maintenance_mode": false,
     "layout": {
-      "rows": 7,
-      "columns": 7,
+      "rows": 8,
+      "columns": 4,
       "numbering_scheme": "sequential"
-    },
-    "reserve_ttl_seconds": null
+    }
   },
   "qr": {
     "token_ttl_seconds": 10,

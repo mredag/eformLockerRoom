@@ -60,8 +60,6 @@ async function broadcastLockerUpdate(lockerStateManager: LockerStateManager, kio
         ownerType: updatedLocker.owner_type,
         displayName: updatedLocker.display_name,
         isVip: updatedLocker.is_vip,
-        ownedAt: updatedLocker.owned_at,
-        reservedAt: updatedLocker.reserved_at,
         updatedAt: updatedLocker.updated_at,
         timestamp: new Date()
       });

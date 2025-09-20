@@ -337,7 +337,7 @@ async function startPanelService() {
 
           // Only redirect to dashboard if session is valid
           if (session) {
-            return reply.redirect("/lockers");
+            return reply.redirect("/dashboard");
           }
         }
 

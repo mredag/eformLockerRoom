@@ -114,7 +114,6 @@ export enum EventType {
   RFID_RELEASE = 'rfid_release',
   QR_ASSIGN = 'qr_assign',
   QR_RELEASE = 'qr_release',
-  AUTO_RELEASE = 'auto_release',
   
   // Staff events
   STAFF_OPEN = 'staff_open',
@@ -583,9 +582,6 @@ export interface LockerStateUpdate {
   lastChanged: Date;
   ownerKey?: string;
   ownerType?: OwnerType;
-  ownedAt?: string | null;
-  reservedAt?: string | null;
-  isVip?: boolean;
 }
 
 export interface ConnectionStatus {

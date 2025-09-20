@@ -1134,10 +1134,6 @@ html, body {
     padding: 0.25rem;
     margin: 0;
     overflow-y: auto;
-    touch-action: pan-y;
-    -ms-touch-action: pan-y;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: rgba(59, 130, 246, 0.35) transparent;
 }

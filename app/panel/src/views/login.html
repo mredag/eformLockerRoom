@@ -291,7 +291,7 @@
                     if (data.success) {
                         // Successful login
                         csrfToken = data.csrfToken;
-                        window.location.href = '/lockers.html';
+                        window.location.href = '/dashboard.html';
                     }
                 } else if (response.status === 403 && data.requiresPasswordChange) {
                     // Password expired
@@ -368,7 +368,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.user && !data.user.passwordExpired) {
-                    window.location.href = '/lockers.html';
+                    window.location.href = '/dashboard.html';
                 }
             })
             .catch(() => {

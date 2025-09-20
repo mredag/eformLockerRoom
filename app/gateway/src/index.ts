@@ -17,7 +17,6 @@ if (!process.env.EFORM_DB_PATH) {
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import { DatabaseManager } from "@eform/shared/database/database-manager";
-import { LockerStateManager } from "@eform/shared/services/locker-state-manager";
 import { configManager } from "@eform/shared/services/config-manager";
 import { provisioningRoutes } from "./routes/provisioning.js";
 import { configurationRoutes } from "./routes/configuration.js";
@@ -51,10 +50,7 @@ async function initializeDatabase() {
     migrationsPath: path.join(projectRoot, 'migrations')
   });
   await dbManager.initialize();
-  return dbManager;
 }
-
-let lockerStateManager: LockerStateManager | null = null;
 
 // Register routes
 fastify.register(provisioningRoutes, { prefix: "/api/provisioning" });
@@ -113,9 +109,7 @@ const start = async () => {
   try {
     const configPath = path.join(projectRoot, 'config', 'system.json');
     configManager.setConfigPath(configPath);
-    const dbManager = await initializeDatabase();
-    lockerStateManager = new LockerStateManager(dbManager);
-    console.log('🧹 Gateway auto-release service initialized');
+    await initializeDatabase();
     await configManager.initialize();
     const port = parseInt(process.env.PORT || "3000", 10);
     const host = process.env.HOST || "0.0.0.0";
@@ -153,10 +147,6 @@ const start = async () => {
 process.on("SIGTERM", async () => {
   console.log("Received SIGTERM, shutting down gracefully...");
   try {
-    if (lockerStateManager) {
-      await lockerStateManager.shutdown();
-      lockerStateManager = null;
-    }
     await fastify.close();
     process.exit(0);
   } catch (err) {
@@ -168,10 +158,6 @@ process.on("SIGTERM", async () => {
 process.on("SIGINT", async () => {
   console.log("Received SIGINT, shutting down gracefully...");
   try {
-    if (lockerStateManager) {
-      await lockerStateManager.shutdown();
-      lockerStateManager = null;
-    }
     await fastify.close();
     process.exit(0);
   } catch (err) {
