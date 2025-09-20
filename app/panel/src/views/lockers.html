@@ -592,6 +592,12 @@
             transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
         }
 
+        .kiosk-card.selected {
+            border-left-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.25);
+            background: #eef0ff;
+        }
+
         .kiosk-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -1047,6 +1053,8 @@
         let zones = [];
         let selectedLockers = new Set();
         let autoReleaseHours = null;
+        let autoReleaseTickerHandle = null;
+        let hasSelectedInitialKiosk = false;
         
         // Status Translation Service - Task 2
         const StatusTranslationService = {
@@ -1556,13 +1564,20 @@
                         lockerCard.removeAttribute('data-auto-release-cutoff');
                     }
                     lockerCard.setAttribute('data-auto-release-remaining-ms', String(autoReleaseInfo.remainingMs));
+                    lockerCard.setAttribute('data-auto-release-last-checked', String(Date.now()));
                 } else if (existingAutoRelease) {
                     existingAutoRelease.remove();
                     lockerCard.removeAttribute('data-auto-release-cutoff');
                     lockerCard.removeAttribute('data-auto-release-remaining-ms');
+                    lockerCard.removeAttribute('data-auto-release-last-checked');
                 } else {
                     lockerCard.removeAttribute('data-auto-release-cutoff');
                     lockerCard.removeAttribute('data-auto-release-remaining-ms');
+                    lockerCard.removeAttribute('data-auto-release-last-checked');
+                }
+
+                if (autoReleaseInfo) {
+                    startAutoReleaseTicker();
                 }
 
                 // Update card border color and classes based on status
@@ -1675,6 +1690,7 @@
             if (websocket) {
                 websocket.close();
             }
+            stopAutoReleaseTicker();
         });
 
         // Setup filter event listeners
@@ -1846,6 +1862,112 @@
             return html.trim();
         }
 
+        function startAutoReleaseTicker() {
+            if (autoReleaseTickerHandle !== null) {
+                return;
+            }
+
+            updateAutoReleaseCountdowns();
+            autoReleaseTickerHandle = window.setInterval(updateAutoReleaseCountdowns, 1000);
+        }
+
+        function stopAutoReleaseTicker() {
+            if (autoReleaseTickerHandle !== null) {
+                clearInterval(autoReleaseTickerHandle);
+                autoReleaseTickerHandle = null;
+            }
+        }
+
+        function updateAutoReleaseCountdowns() {
+            if (!autoReleaseHours || autoReleaseHours <= 0) {
+                stopAutoReleaseTicker();
+                return;
+            }
+
+            const now = Date.now();
+            const cards = document.querySelectorAll('.locker-card[data-status]');
+            let updatedAny = false;
+
+            cards.forEach(card => {
+                const status = (card.getAttribute('data-status') || '').toLowerCase();
+                if (!['owned', 'opening'].includes(status)) {
+                    return;
+                }
+
+                const infoElement = card.querySelector('.auto-release-info');
+                if (!infoElement) {
+                    return;
+                }
+
+                const cutoffIso = card.getAttribute('data-auto-release-cutoff');
+                let remainingMs;
+
+                if (cutoffIso) {
+                    const cutoffTime = Date.parse(cutoffIso);
+                    if (!Number.isNaN(cutoffTime)) {
+                        remainingMs = cutoffTime - now;
+                    }
+                }
+
+                if (remainingMs === undefined) {
+                    const baselineAttr = card.getAttribute('data-auto-release-remaining-ms');
+                    if (!baselineAttr) {
+                        return;
+                    }
+
+                    const baseline = parseInt(baselineAttr, 10);
+                    if (Number.isNaN(baseline)) {
+                        return;
+                    }
+
+                    const lastCheckedAttr = card.getAttribute('data-auto-release-last-checked');
+                    const lastChecked = lastCheckedAttr ? parseInt(lastCheckedAttr, 10) : NaN;
+                    const elapsed = !Number.isNaN(lastChecked) ? now - lastChecked : 1000;
+                    remainingMs = baseline - elapsed;
+                }
+
+                updatedAny = true;
+
+                const overdue = remainingMs <= 0;
+                const displayText = overdue
+                    ? `Süre doldu (${formatDurationShort(Math.abs(remainingMs))} gecikti)`
+                    : `${formatDurationShort(remainingMs)} kaldı`;
+
+                let cutoffDisplay = null;
+                if (cutoffIso) {
+                    const cutoffDate = new Date(cutoffIso);
+                    if (!Number.isNaN(cutoffDate.getTime())) {
+                        cutoffDisplay = cutoffDate.toLocaleString('tr-TR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                }
+
+                infoElement.outerHTML = renderAutoReleaseInfo({
+                    remainingMs,
+                    cutoffIso: cutoffIso || null,
+                    displayText,
+                    cutoffDisplay,
+                    overdue
+                });
+
+                card.setAttribute('data-auto-release-remaining-ms', String(remainingMs));
+                card.setAttribute('data-auto-release-last-checked', String(now));
+                if (cutoffIso) {
+                    card.setAttribute('data-auto-release-cutoff', cutoffIso);
+                } else {
+                    card.removeAttribute('data-auto-release-cutoff');
+                }
+            });
+
+            if (!updatedAny) {
+                stopAutoReleaseTicker();
+            }
+        }
+
         async function loadData() {
             try {
                 showLoading(true);
@@ -1872,8 +1994,9 @@
                 if (response.ok) {
                     kiosks = data.data.kiosks;
                     zones = data.data.zones;
-                    renderKiosks();
                     updateFilters();
+                    applyDefaultKioskSelection();
+                    renderKiosks();
                 } else {
                     console.error('Failed to load kiosks:', data.error);
                 }
@@ -2051,10 +2174,11 @@
                         .map(k => k.kiosk_id);
                     lockers = lockers.filter(l => kioskIdsInZone.includes(l.kiosk_id));
                 }
-                
+
                 applyFilters();
                 updateStats();
-                
+                startAutoReleaseTicker();
+
             } catch (error) {
                 const errorMessage = error.message;
                 const shouldShowRetry = !errorMessage.includes('Select a kiosk') && 
@@ -2274,6 +2398,7 @@
                         dataAttributes.push(`data-auto-release-cutoff="${escapeHtml(autoReleaseInfo.cutoffIso)}"`);
                     }
                     dataAttributes.push(`data-auto-release-remaining-ms="${autoReleaseInfo.remainingMs}"`);
+                    dataAttributes.push(`data-auto-release-last-checked="${Date.now()}"`);
                 }
 
                 const dataAttributeString = dataAttributes.join(' ');
@@ -2418,17 +2543,57 @@
             document.getElementById('stat-blocked').textContent = stats.blocked;
         }
 
+        function applyDefaultKioskSelection() {
+            if (hasSelectedInitialKiosk) {
+                return;
+            }
+
+            const kioskFilter = document.getElementById('kiosk-filter');
+            if (!kioskFilter) {
+                return;
+            }
+
+            if (kioskFilter.value) {
+                hasSelectedInitialKiosk = true;
+                return;
+            }
+
+            if (!Array.isArray(kiosks) || kiosks.length === 0) {
+                return;
+            }
+
+            const zoneFilter = document.getElementById('zone-filter');
+            const zoneValue = zoneFilter ? zoneFilter.value : '';
+            let availableKiosks = Array.isArray(kiosks) ? [...kiosks] : [];
+
+            if (zoneValue) {
+                availableKiosks = availableKiosks.filter(k => k.zone === zoneValue);
+            }
+
+            if (availableKiosks.length === 0) {
+                return;
+            }
+
+            const preferredKiosk = availableKiosks.find(k => k.kiosk_id === 'kiosk-1') || availableKiosks[0];
+            if (preferredKiosk) {
+                kioskFilter.value = preferredKiosk.kiosk_id;
+                hasSelectedInitialKiosk = true;
+            }
+        }
+
         function renderKiosks() {
             const kioskStatusDiv = document.getElementById('kiosk-status');
             const kioskGrid = document.getElementById('kiosk-grid');
-            
+            const kioskFilter = document.getElementById('kiosk-filter');
+            const selectedKioskId = kioskFilter ? kioskFilter.value : '';
+
             if (kiosks.length === 0) {
                 kioskStatusDiv.style.display = 'none';
                 return;
             }
 
             kioskGrid.innerHTML = kiosks.map(kiosk => `
-                <div class="kiosk-card ${kiosk.status}" onclick="selectKiosk('${kiosk.kiosk_id}')">
+                <div class="kiosk-card ${kiosk.status} ${kiosk.kiosk_id === selectedKioskId ? 'selected' : ''}" onclick="selectKiosk('${kiosk.kiosk_id}')">
                     <div class="kiosk-header">
                         <div class="kiosk-name">${kiosk.kiosk_id}</div>
                         <div class="kiosk-status-badge ${kiosk.status}">${kiosk.status.toUpperCase()}</div>
@@ -2447,19 +2612,22 @@
 
         function selectKiosk(kioskId) {
             console.log('🏢 Kiosk card clicked:', kioskId);
-            
+
             // Update the kiosk filter dropdown
             const kioskFilter = document.getElementById('kiosk-filter');
             kioskFilter.value = kioskId;
-            
+            hasSelectedInitialKiosk = true;
+
             // Clear any selected lockers since we're changing kiosk
             selectedLockers.clear();
             updateSelectedCount();
-            
+
             // Clear filters when changing kiosk
             document.getElementById('name-search').value = '';
             document.getElementById('status-filter').value = '';
-            
+
+            renderKiosks();
+
             // Load lockers for the selected kiosk
             loadLockers();
         }
