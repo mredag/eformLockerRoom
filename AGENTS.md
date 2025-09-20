@@ -1,6 +1,6 @@
 # AGENTS.md — Working In This Repository
 
-This guide briefs agents on how to navigate and extend the eForm Locker System with a focus on the kiosk (port 3002), locker fetching/rendering, RFID flows, and DB-backed assignments. Keep changes minimal and aligned with the existing architecture.
+This playbook captures everything we have learned while modernising the eForm Locker System. Follow it to extend the platform without regressing locker assignment, auto-release, kiosk audio, or panel tooling. Keep changes focused, prefer shared services, and preserve the established configuration structure that operators already rely on.
 
 ## Quick Orientation
 
@@ -8,117 +8,74 @@ This guide briefs agents on how to navigate and extend the eForm Locker System w
   - `app/kiosk` — Kiosk service (UI + APIs + hardware; Modbus + RFID)
   - `app/panel` — Admin interface (Turkish UI)
   - `app/gateway` — API coordinator/auth
-  - `shared` — Cross‑service TypeScript libraries (DB, services, i18n, zones)
-- Config: `config/*.json` and `config/system.json` (zones)
-- DB: SQLite via `shared/database/*` + `migrations/*.sql`
-- Docs: See also `docs/kiosk-panel-system-research.md` for deep kiosk details.
+  - `shared` — Cross-service TypeScript libraries (DB, services, i18n, zones)
+- Config: `config/system.json` (full environment hierarchy) and `config/*.json`.
+- DB: SQLite via `shared/database/*` + `migrations/*.sql`.
+- Docs: `docs/kiosk-panel-system-research.md`, `SYSTEM_DOCUMENTATION.md` for architecture notes.
 
 ## Coding Conventions
 
-- Language: TypeScript (Node 20+). 2‑space indentation.
+- Language: TypeScript (Node 20+). 2-space indentation.
 - File names: kebab-case (e.g., `locker-state-manager.ts`); classes PascalCase; vars/functions camelCase; constants UPPER_SNAKE.
 - Prefer named exports in `shared/*`; avoid side-effects; use `src/index.ts` as entry points.
 - Keep Fastify routes/controllers thin; push logic into `shared/services/*` and repository layer under `shared/database/*`.
 - DB status values: use English canonical values (`Free`, `Owned`, `Opening`, `Error`, `Blocked`). UI mapping to Turkish happens in services/UI.
 
-## Kiosk: Fetching Lockers
+## Configuration & `system.json`
 
-- Zone-aware endpoints are defined in `app/kiosk/src/index.ts`:
-  - `GET /api/lockers/available?kiosk_id={id}&zone={zone?}` → array of Free lockers.
-  - `GET /api/lockers/all?kiosk_id={id}&zone={zone?}` → array of all lockers with status and hardware mapping.
-- Endpoints derive a zone-aware layout from `shared/services/locker-layout-service.ts` and combine with live DB state via `shared/services/locker-state-manager.ts`.
-- Dynamic UI layout/tiles (for kiosk rendering) live in `app/kiosk/src/controllers/ui-controller.ts`:
-  - `GET /api/ui/layout?kioskId={id}&zone={zone?}` → `{ success, layout, stats, gridCSS }`
-  - `GET /api/ui/tiles?kioskId={id}&zone={zone?}` → HTML tiles
+- `config/system.json` must retain the **full legacy hierarchy** (system, features, zones, services, hardware, security, lockers, qr, logging, i18n, monitoring, backup, network, maintenance). Do not trim sections—even if unused—because downstream tools expect the structure exactly as shipped.
+- Never write to this file directly. Route every change through `ConfigManager.updateConfiguration()` so normalization, auditing, and seeded defaults stay intact.
+- Auto-release is configured via `lockers.auto_release_hours`; nullable fields (e.g., `lockers.reserve_ttl_seconds`) must remain explicit `null` values, not `undefined` or deleted keys.
+- When adding new settings:
+  1. Extend typings in `shared/types/system-config.ts`.
+  2. Seed defaults in `ConfigManager.getDefaultConfiguration()`.
+  3. Update normalization helpers so admin saves and kiosk fetches remain compatible.
+  4. Document the behaviour here so future agents know the canonical path.
 
-## Kiosk: Rendering the Locker Grid (UI)
+## Locker State & Auto-release
 
-- UI entry: `app/kiosk/src/ui/index.html` loads `static/app-simple.js`.
-- Frontend logic: `app/kiosk/src/ui/static/app-simple.js`
-  - Calls `GET /api/ui/layout` to get grid dimensions + `gridCSS`.
-  - Builds tiles from `layout.lockers[]` (includes `displayName`, `cardId`, `relayId`).
-  - During a selection session, hides tiles not in `state.availableLockers`.
-  - Accessibility and Turkish labels are baked in.
+- `shared/services/locker-state-manager.ts` is the **single source of truth** for locker lifecycle:
+  - `assignLocker`, `confirmOwnership`, `releaseLocker`, `cleanupExpiredReservations`, `broadcastStateUpdate`.
+  - Auto-release scheduler (`runCleanupCycle`, `computeNextCleanupDelayMs`) reads `lockers.auto_release_hours`, uses `computeNextCleanupDelayMs` to avoid long gaps, and logs `AUTO_RELEASE` events with metadata for audits.
+  - Graceful shutdown is required; `app/gateway/src/index.ts` wires `LockerStateManager.shutdown()` to SIGINT/SIGTERM. Reuse that hook if you add new background work.
+- WebSocket payloads expose ISO `ownedAt`/`reservedAt` strings and VIP flags. Any UI timers should rely on these fields rather than running fresh SQL queries.
+- Tests live in `shared/services/__tests__/locker-auto-release.test.ts`; extend them whenever cleanup logic, thresholds, or event payloads change.
 
-## RFID Collection Paths
+## Admin Panel (Lockers)
 
-Two supported flows — pick one consistently per deployment:
+- Login redirects to `/lockers`; never regress this behaviour when adjusting auth or routing.
+- Locker grid (`app/panel/src/views/lockers.html`):
+  - Fetches `/api/hardware-config` to derive `auto_release_hours` and display countdown chips.
+  - Keeps countdowns in sync through `updateAutoReleaseCountdowns()` and data attributes (`data-auto-release-*`). Preserve those attributes when touching markup.
+  - Defaults kiosk selection to `kiosk-1` (or the first available). Helpers like `applyDefaultKioskSelection()` and `highlightActiveKiosk()` must remain wired after DOM updates.
+- Sorting uses a Turkish `Intl.Collator` with numeric comparison for natural ordering. Reuse the shared collator for any new sort features.
+- The sound settings page (`/panel/sound-config`) interacts with the same config pipeline as the kiosk. Any new audio controls must flow through the existing fetch/save helpers and ConfigManager normalization.
 
-1) Frontend HID keyboard emulation (UI)
-   - File: `app/kiosk/src/ui/static/app-simple.js`
-   - Buffers keystrokes until Enter; then calls kiosk APIs.
-   - Uses raw card text as `cardId`.
+## Kiosk UI Essentials
 
-2) Backend `node-hid` reader
-   - File: `app/kiosk/src/hardware/rfid-handler.ts`
-   - Standardizes card data and hashes with SHA‑256 (first 16 hex chars) before emitting `card_scanned`.
-   - Bound in `app/kiosk/src/index.ts` to `RfidUserFlow` (`app/kiosk/src/services/rfid-user-flow.ts`).
-
-Important: Ensure consistent card ID policy (raw vs. hashed) across the chosen path. The DB will store what you pass into `LockerStateManager.assignLocker(...)`.
-
-## Assignment & Release Rules
-
-- Primary UI endpoints (controller: `app/kiosk/src/controllers/ui-controller.ts`):
-  - `GET /api/card/:cardId/locker` — check existing assignment.
-  - `POST /api/locker/assign` — `{ cardId, lockerId, kioskId }`.
-  - `POST /api/locker/release` — `{ cardId, kioskId }`.
-  - `POST /api/lockers/select` — session-aware selection (`session_id` required).
-- Always route DB changes via `shared/services/locker-state-manager.ts`:
-  - `assignLocker(kioskId, lockerId, 'rfid', cardId)` — validates transition, VIP flag, one-card-one-locker; optimistic locking with `version`; logs `RFID_ASSIGN`.
-  - `confirmOwnership(kioskId, lockerId)` — sets `owned_at`, broadcasts state.
-  - `releaseLocker(kioskId, lockerId, cardId?)` — clears ownership to `Free`, logs release.
-- Hardware opening via `ModbusController.openLocker(lockerId, optionalSlave?)` with retries and health metrics. On hardware failure, release the assignment and return structured error codes.
-
-## Zones & Layout
-
-- Config keys (`config/system.json`):
-  - `features.zones_enabled: boolean`
-  - `zones[]`: `{ id, name?, enabled, ranges: [start, end][], relay_cards: number[] }`
-- Helpers in `shared/services/zone-helpers.ts`:
-  - `getLockersInZone`, `getLockerPositionInZone`, `computeHardwareMappingFromPosition`, `getZoneAwareHardwareMapping`.
-- Layout service `shared/services/locker-layout-service.ts`:
-  - `generateLockerLayout(kioskId, zoneId?)` — yields lockers with display names and hardware mapping.
-  - Auto-syncs DB to hardware channel count via `LockerStateManager.syncLockersWithHardware()`.
+- Frontend entry: `app/kiosk/src/ui/static/app-simple.js`.
+  - Fetches layout via `/api/ui/layout`, builds the locker grid, and attaches `enableTouchScrolling()` so swipe gestures work on touchscreens.
+  - The decision overlay (`showOwnedDecision`) exposes `btn-open-only` for the first ownership hour using `shouldShowOpenOnlyButton()` and ISO timestamps from the server. Keep helper logic consistent with backend payloads.
+  - Audio feedback goes through `playSound()`, which respects `soundConfig.enabled`, master volume, and per-action volume clamps. Reuse this helper for any new feedback so the admin-configured sounds remain authoritative.
+- API endpoints in `app/kiosk/src/controllers/ui-controller.ts` must delegate to `LockerStateManager`; avoid raw SQL or duplicate business logic.
 
 ## Database Layer
 
 - Use `DatabaseConnection` (`shared/database/connection.ts`) for SQLite access (WAL mode, optimistic locking patterns).
-- Repositories under `shared/database/*` (e.g., `locker-repository.ts`) implement query helpers if needed.
-- Schema is created via `migrations/*.sql`; core tables in `001_initial_schema.sql` (e.g., `lockers`, `events`).
+- Repositories under `shared/database/*` (e.g., `locker-repository.ts`) encapsulate SQL helpers; prefer adding there rather than embedding queries in services.
+- Schema is defined via `migrations/*.sql`; run migrations before relying on new columns or tables.
 
 ## Testing Guidance
 
-- Frameworks: Vitest (kiosk/gateway/panel/shared). Tests co-located as `*.test.ts` or under `__tests__`.
-- For DB logic, prefer the in-memory DB (`DatabaseConnection.getInstance(':memory:')`) as used in repo tests.
-- Mock hardware/IO. Do not drive real RS-485 or modify production DB in unit tests.
+- Framework: Vitest. Tests co-located as `*.test.ts` or under `__tests__`.
+- For DB logic, prefer the in-memory DB (`DatabaseConnection.getInstance(':memory:')`).
+- Mock hardware/IO; do not drive physical RS-485 or modify production DB in unit tests.
 
-## Do / Don’t
+## Guardrails
 
-- Do keep controllers thin; prefer adding logic to `shared/services/*`.
-- Do respect status values and transitions enforced by `LockerStateManager`.
-- Do honor zone-aware behavior when fetching/operating lockers if zones are enabled.
-- Don’t bypass services with ad-hoc SQL for state changes.
-- Don’t mix raw and hashed card IDs within the same flow.
-
-## Useful Entry Points (Paths)
-
-- Kiosk APIs: `app/kiosk/src/index.ts`, `app/kiosk/src/controllers/ui-controller.ts`
-- UI runtime: `app/kiosk/src/ui/static/app-simple.js`
-- State & DB: `shared/services/locker-state-manager.ts`
-- Layout & zones: `shared/services/locker-layout-service.ts`, `shared/services/zone-helpers.ts`
-- Hardware: `app/kiosk/src/hardware/modbus-controller.ts`
-
-## Recent Changes You Should Know
-
-- Second‑Scan Decision Screen (Idea 5)
-  - Frontend: `app/kiosk/src/ui/static/app-simple.js`
-    - On existing‑card scan, shows decision overlay via `showOwnedDecision(cardId, lockerId)`.
-    - “Eşyamı almak için aç” → `openOwnedLockerOnly(cardId)` → no DB change.
-    - “Dolabı teslim etmek istiyorum” → existing `openAndReleaseLocker`.
-  - Backend: `POST /api/locker/open-again` in `app/kiosk/src/controllers/ui-controller.ts` to open without releasing.
-  - Docs: `docs/developer-guides/second-scan-decision-screen.md`.
-
-- Cleanup
-  - Removed portable demo folder `portable-kosks/` (kept out of repo to avoid confusion; use kiosk UI directly).
-  - Removed zero‑length scripts: `scripts/start-dual-kiosks.sh`, `scripts/maintenance/install-production.sh`, and stray `fix-config-to-32-lockers.js`.
-  - If you add new scripts, wire them in `package.json` or document in `scripts/README.md`.
+- Keep controllers thin; push logic into shared services where possible.
+- Honor zone-aware behaviour when fetching/operating lockers if zones are enabled.
+- Preserve countdown data attributes on locker cards so the auto-update ticker keeps working.
+- Avoid mixing raw and hashed card IDs within the same flow.
+- Validate configuration updates via `ConfigManager.updateConfiguration()`; never write to `system.json` directly.
+- If you must touch `config/system.json` by hand for testing, restore the exact canonical structure before committing. A malformed schema breaks migrations, kiosk boot, and the admin panel.
