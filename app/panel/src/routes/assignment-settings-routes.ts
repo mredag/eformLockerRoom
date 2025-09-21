@@ -2,16 +2,12 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { readFile } from 'fs/promises';
 import { join, sep } from 'path';
 import { ConfigManager } from '@eform/shared/services/config-manager';
-import { LockerStateManager } from '@eform/shared/services/locker-state-manager';
 import { LockerAssignmentMode } from '@eform/shared/types/system-config';
 import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
 import { Permission } from '../services/permission-service';
 
-type AssignmentOverrideMode = LockerAssignmentMode | 'inherit' | null | undefined;
-
 interface UpdateAssignmentBody {
   default_mode: LockerAssignmentMode;
-  kiosks?: Array<{ id: string; mode?: AssignmentOverrideMode }>;
 }
 
 interface UpdateAssignmentRequest extends FastifyRequest {
@@ -20,11 +16,9 @@ interface UpdateAssignmentRequest extends FastifyRequest {
 
 export class AssignmentSettingsRoutes {
   private configManager: ConfigManager;
-  private lockerStateManager: LockerStateManager;
 
-  constructor(options?: { configManager?: ConfigManager; lockerStateManager?: LockerStateManager }) {
+  constructor(options?: { configManager?: ConfigManager }) {
     this.configManager = options?.configManager ?? ConfigManager.getInstance();
-    this.lockerStateManager = options?.lockerStateManager ?? new LockerStateManager();
   }
 
   async registerRoutes(fastify: FastifyInstance): Promise<void> {
@@ -71,18 +65,10 @@ export class AssignmentSettingsRoutes {
       await this.configManager.initialize();
       const config = this.configManager.getConfiguration();
       const assignment = config.services.kiosk.assignment ?? { default_mode: 'manual', per_kiosk: {} };
-      const kioskIds = await this.lockerStateManager.getKioskIds();
-
-      const kiosks = kioskIds.map(id => ({
-        id,
-        mode: assignment.per_kiosk?.[id] ?? null,
-        effective_mode: assignment.per_kiosk?.[id] ?? assignment.default_mode ?? 'manual'
-      }));
 
       return {
         success: true,
-        default_mode: assignment.default_mode ?? 'manual',
-        kiosks
+        default_mode: assignment.default_mode ?? 'manual'
       };
     } catch (error) {
       reply.code(500);
@@ -97,34 +83,16 @@ export class AssignmentSettingsRoutes {
     try {
       const body = request.body || {} as UpdateAssignmentBody;
       const defaultMode = body.default_mode;
-      const kiosks = Array.isArray(body.kiosks) ? body.kiosks : [];
 
       if (defaultMode !== 'manual' && defaultMode !== 'automatic') {
         reply.code(400);
         return { success: false, error: 'Invalid default mode. Use "manual" or "automatic".' };
       }
 
-      for (const kiosk of kiosks) {
-        const requestedMode = kiosk.mode === 'inherit' || kiosk.mode == null ? null : kiosk.mode;
-        if (requestedMode !== null && requestedMode !== 'manual' && requestedMode !== 'automatic') {
-          reply.code(400);
-          return { success: false, error: `Invalid mode for kiosk ${kiosk.id}` };
-        }
-      }
-
       await this.configManager.initialize();
       const currentConfig = this.configManager.getConfiguration();
-      const currentAssignment = currentConfig.services.kiosk.assignment ?? { default_mode: 'manual', per_kiosk: {} };
-      const perKiosk: Record<string, LockerAssignmentMode> = { ...(currentAssignment.per_kiosk ?? {}) };
-
-      for (const kiosk of kiosks) {
-        const requestedMode = kiosk.mode === 'inherit' || kiosk.mode == null ? null : kiosk.mode;
-        if (requestedMode === null || requestedMode === defaultMode) {
-          delete perKiosk[kiosk.id];
-        } else {
-          perKiosk[kiosk.id] = requestedMode;
-        }
-      }
+      const perKiosk = currentConfig.services.kiosk.assignment?.per_kiosk ?? {};
+      const hasOverrides = Object.keys(perKiosk).length > 0;
 
       const staffUser = (request as any).user?.username || 'panel-user';
 
@@ -132,7 +100,7 @@ export class AssignmentSettingsRoutes {
         kiosk: {
           assignment: {
             default_mode: defaultMode,
-            per_kiosk: perKiosk
+            per_kiosk: hasOverrides ? {} : perKiosk
           }
         }
       }, staffUser, 'Updated kiosk assignment settings via panel');

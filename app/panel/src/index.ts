@@ -31,7 +31,6 @@ import { configManager } from "@eform/shared/services/config-manager";
 import { CookieCleanupService } from "@eform/shared/services/cookie-cleanup-service";
 import { webSocketService } from "@eform/shared/services/websocket-service";
 import { AssignmentSettingsRoutes } from "./routes/assignment-settings-routes";
-import { LockerStateManager } from "@eform/shared/services/locker-state-manager";
 
 // Main application startup function
 async function startPanelService() {
@@ -248,8 +247,7 @@ async function startPanelService() {
     });
 
     const assignmentRoutes = new AssignmentSettingsRoutes({
-      configManager,
-      lockerStateManager: new LockerStateManager(dbManager)
+      configManager
     });
     await assignmentRoutes.registerRoutes(fastify);
 

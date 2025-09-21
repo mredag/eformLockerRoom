@@ -76,54 +76,6 @@
             cursor: pointer;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #eef1f7;
-            text-align: left;
-        }
-
-        th {
-            background: #f0f3ff;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #516082;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        select {
-            padding: 6px 10px;
-            border: 1px solid #d6deff;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .mode-select.override {
-            border-color: #3454f5;
-            background: #eef2ff;
-            color: #1f2a44;
-            font-weight: 600;
-        }
-
-        .mode-hint {
-            font-size: 12px;
-            color: #6c7a99;
-            margin-top: 6px;
-        }
-
-        .mode-hint.override {
-            color: #3454f5;
-            font-weight: 600;
-        }
-
         .actions {
             display: flex;
             justify-content: flex-end;
@@ -196,26 +148,6 @@
                 Otomatik dolap ata ve aç
             </label>
         </div>
-    </div>
-
-    <div class="card">
-        <h2><span>🏢</span>Kiosk Bazlı Ayarlar</h2>
-        <p>Varsayılan moddan farklı davranması gereken kiosklar için manuel/otomatik ayar yapın.</p>
-        <div id="kioskContainer">
-            <table>
-                <thead>
-                <tr>
-                    <th>Kiosk</th>
-                    <th>Atama Modu</th>
-                </tr>
-                </thead>
-                <tbody id="kioskTableBody">
-                <tr>
-                    <td colspan="2">Kiosk listesi yükleniyor...</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
         <div class="actions">
             <button type="button" class="btn-secondary" onclick="loadSettings()">Yenile</button>
             <button type="button" class="btn-primary" onclick="saveSettings()">Kaydet</button>
@@ -225,9 +157,7 @@
 </main>
 
 <script>
-    let kioskRows = [];
     let csrfToken = null;
-    let currentUser = null;
     let currentDefaultMode = 'manual';
     let isSaving = false;
 
@@ -253,8 +183,7 @@
             }
 
             const data = await response.json();
-            if (data && data.user) {
-                currentUser = data.user;
+            if (data && data.csrfToken) {
                 csrfToken = data.csrfToken;
             }
         } catch (error) {
@@ -278,117 +207,21 @@
             }
 
             const defaultMode = result.default_mode || 'manual';
-            currentDefaultMode = defaultMode;
-
-            const defaultModeInput = document.querySelector(`input[name="default-mode"][value="${defaultMode}"]`);
-            if (defaultModeInput) {
-                defaultModeInput.checked = true;
-            }
-
-            kioskRows = Array.isArray(result.kiosks)
-                ? result.kiosks.map(kiosk => ({
-                    id: kiosk.id,
-                    mode: kiosk.mode ?? null
-                }))
-                : [];
-
-            renderKioskRows();
+            applyDefaultMode(defaultMode);
         } catch (error) {
             statusEl.className = 'status error';
             statusEl.textContent = `Ayarlar yüklenemedi: ${error instanceof Error ? error.message : error}`;
         }
     }
 
-    function formatModeLabel(mode) {
-        return mode === 'automatic' ? 'Otomatik' : 'Manuel';
-    }
-
-    function renderKioskRows() {
-        const tbody = document.getElementById('kioskTableBody');
-        tbody.innerHTML = '';
-
-        if (kioskRows.length === 0) {
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.colSpan = 2;
-            cell.textContent = 'Kayıtlı kiosk bulunamadı.';
-            row.appendChild(cell);
-            tbody.appendChild(row);
-            return;
-        }
-
-        for (const kiosk of kioskRows) {
-            const row = document.createElement('tr');
-
-            const idCell = document.createElement('td');
-            idCell.textContent = kiosk.id;
-            row.appendChild(idCell);
-
-            const modeCell = document.createElement('td');
-            const select = document.createElement('select');
-            select.className = 'mode-select';
-            select.dataset.kioskId = kiosk.id;
-
-            const inheritOption = document.createElement('option');
-            inheritOption.value = 'inherit';
-            select.appendChild(inheritOption);
-
-            const manualOption = document.createElement('option');
-            manualOption.value = 'manual';
-            manualOption.textContent = 'Manuel';
-            select.appendChild(manualOption);
-
-            const autoOption = document.createElement('option');
-            autoOption.value = 'automatic';
-            autoOption.textContent = 'Otomatik';
-            select.appendChild(autoOption);
-
-            const hint = document.createElement('div');
-            hint.className = 'mode-hint';
-
-            const applyState = () => {
-                inheritOption.textContent = `Varsayılanı Kullan (${formatModeLabel(currentDefaultMode)})`;
-                const isOverride = kiosk.mode === 'manual' || kiosk.mode === 'automatic';
-                select.value = isOverride ? kiosk.mode : 'inherit';
-                if (isOverride) {
-                    select.classList.add('override');
-                    hint.classList.add('override');
-                    hint.textContent = `Özel Ayar: ${formatModeLabel(kiosk.mode)}`;
-                } else {
-                    select.classList.remove('override');
-                    hint.classList.remove('override');
-                    hint.textContent = `Varsayılan: ${formatModeLabel(currentDefaultMode)}`;
-                }
-            };
-
-            select.addEventListener('change', event => {
-                const target = event.target;
-                if (!(target instanceof HTMLSelectElement)) {
-                    return;
-                }
-                const value = target.value;
-                kiosk.mode = value === 'inherit' ? null : value;
-                applyState();
-            });
-
-            applyState();
-
-            modeCell.appendChild(select);
-            modeCell.appendChild(hint);
-            row.appendChild(modeCell);
-
-            tbody.appendChild(row);
-        }
-    }
-
-    function syncKioskRowsFromDom() {
-        for (const kiosk of kioskRows) {
-            const select = document.querySelector(`select[data-kiosk-id="${kiosk.id}"]`);
-            if (!(select instanceof HTMLSelectElement)) {
-                continue;
+    function applyDefaultMode(mode) {
+        currentDefaultMode = mode === 'automatic' ? 'automatic' : 'manual';
+        const inputs = document.querySelectorAll('input[name="default-mode"]');
+        inputs.forEach(input => {
+            if (input instanceof HTMLInputElement) {
+                input.checked = input.value === currentDefaultMode;
             }
-            kiosk.mode = select.value === 'inherit' ? null : select.value;
-        }
+        });
     }
 
     async function saveSettings() {
@@ -406,13 +239,6 @@
             statusEl.textContent = 'Lütfen varsayılan modu seçin.';
             return;
         }
-
-        syncKioskRowsFromDom();
-
-        const kiosks = kioskRows.map(row => ({
-            id: row.id,
-            mode: row.mode
-        }));
 
         if (!csrfToken) {
             await loadSessionInfo();
@@ -436,8 +262,7 @@
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify({
-                    default_mode: selectedDefault.value,
-                    kiosks
+                    default_mode: selectedDefault.value
                 })
             });
 
@@ -486,9 +311,7 @@
                 if (!(target instanceof HTMLInputElement) || target.name !== 'default-mode') {
                     return;
                 }
-                currentDefaultMode = target.value;
-                syncKioskRowsFromDom();
-                renderKioskRows();
+                applyDefaultMode(target.value);
             });
         }
     });
