@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, sep } from 'path';
 import { ConfigManager } from '@eform/shared/services/config-manager';
 import { LockerStateManager } from '@eform/shared/services/locker-state-manager';
 import { LockerAssignmentMode } from '@eform/shared/types/system-config';
@@ -47,14 +47,21 @@ export class AssignmentSettingsRoutes {
 
   private async serveAssignmentSettingsPage(reply: FastifyReply) {
     try {
-      const htmlPath = join(__dirname, '../views/assignment-settings.html');
+      const htmlPath = this.resolveViewPath('assignment-settings.html');
       const html = await readFile(htmlPath, 'utf-8');
       reply.type('text/html');
       return html;
     } catch (error) {
+      reply.log.error({ err: error }, 'Failed to load assignment settings page');
       reply.code(500);
       return { success: false, error: 'Failed to load assignment settings page' };
     }
+  }
+
+  private resolveViewPath(fileName: string): string {
+    const isBundledOutput = __dirname.split(sep).includes('dist');
+    const baseDir = isBundledOutput ? join(__dirname, 'views') : join(__dirname, '../views');
+    return join(baseDir, fileName);
   }
 
   private async getAssignmentSettings(reply: FastifyReply) {
