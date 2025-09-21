@@ -888,18 +888,6 @@ class SimpleKioskApp {
                     <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
                 </div>
                 <div class="owned-decision-buttons">
-                    <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
-                        <div class="owned-decision-icon" aria-hidden="true">
-                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M13 12h5"></path></svg>
-                        </div>
-                        <div class="owned-decision-copy">
-                            <span class="owned-decision-button-title">Sadece aç, teslim etme</span>
-                            <span class="owned-decision-button-subtitle">Eşyalarınızı almak için açabilirsiniz</span>
-                        </div>
-                        <div class="owned-decision-chevron" aria-hidden="true">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-                        </div>
-                    </button>
                     <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
                         <div class="owned-decision-icon" aria-hidden="true">
                             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
@@ -910,6 +898,18 @@ class SimpleKioskApp {
                         </div>
                         <div class="owned-decision-chevron" aria-hidden="true">
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                        </div>
+                    </button>
+                    <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
+                        <div class="owned-decision-icon" aria-hidden="true">
+                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M13 12h5"></path></svg>
+                        </div>
+                        <div class="owned-decision-copy">
+                            <span class="owned-decision-button-title owned-decision-button-title--glow">Eşya almak için aç,</span>
+                            <span class="owned-decision-button-subtitle">Teslim etmeden dolabı açıp eşyalarınızı alabilirsiniz</span>
+                        </div>
+                        <div class="owned-decision-chevron" aria-hidden="true">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
                         </div>
                     </button>
                 </div>
