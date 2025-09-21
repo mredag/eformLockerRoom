@@ -1,4 +1,4 @@
-import { BaseRepository } from './base-repository';
+import { BaseRepository, OptimisticLockError } from './base-repository';
 import { DatabaseConnection } from './connection';
 import { Locker, LockerStatus, OwnerType } from '../types/core-entities';
 
@@ -196,13 +196,16 @@ export class LockerRepository extends BaseRepository<Locker> {
 
     params.push(kioskId, lockerId, expectedVersion);
 
-    await this.executeOptimisticUpdate(
-      sql, 
-      params, 
-      'Locker', 
-      `${kioskId}:${lockerId}`, 
-      expectedVersion
-    );
+    const result = await this.db.run(sql, params);
+
+    if (result.changes === 0) {
+      const current = await this.findByKioskAndId(kioskId, lockerId);
+      if (!current) {
+        throw new Error(`Locker with id ${kioskId}:${lockerId} not found`);
+      }
+
+      throw new OptimisticLockError('Locker', `${kioskId}:${lockerId}`, current.version, expectedVersion);
+    }
 
     const updated = await this.findByKioskAndId(kioskId, lockerId);
     if (!updated) {
@@ -287,14 +290,15 @@ export class LockerRepository extends BaseRepository<Locker> {
   async cleanupExpiredReservations(timeoutSeconds: number = 90): Promise<number> {
     const sql = `
       UPDATE ${this.tableName} 
-      SET status = 'Free', 
-          owner_type = NULL, 
-          owner_key = NULL, 
+      SET status = 'Free',
+          owner_type = NULL,
+          owner_key = NULL,
           reserved_at = NULL,
           version = version + 1,
           updated_at = CURRENT_TIMESTAMP
-      WHERE status = 'Owned' 
-      AND reserved_at < datetime('now', '-${timeoutSeconds} seconds')
+      WHERE status = 'Owned'
+      AND reserved_at IS NOT NULL
+      AND datetime(reserved_at) < datetime('now', '-${timeoutSeconds} seconds')
     `;
     
     const result = await this.db.run(sql);

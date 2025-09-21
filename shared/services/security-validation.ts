@@ -325,7 +325,7 @@ export class SecurityValidator {
    * @param {SecurityViolation} violation - The details of the security violation.
    */
   logSecurityViolation(violation: SecurityViolation): void {
-    this.eventLogger.logEvent('system', EventType.SYSTEM_RESTARTED, {
+    this.eventLogger.logEvent('system', EventType.SECURITY_VIOLATION, {
       violation_type: violation.type,
       ip_address: violation.ip,
       details: violation.details,
@@ -338,7 +338,7 @@ export class SecurityValidator {
    * @param {AuthenticationFailure} failure - The details of the authentication failure.
    */
   logAuthenticationFailure(failure: AuthenticationFailure): void {
-    this.eventLogger.logEvent('system', EventType.SYSTEM_RESTARTED, {
+    this.eventLogger.logEvent('system', EventType.AUTH_FAILURE, {
       username: failure.username,
       ip_address: failure.ip,
       reason: failure.reason,

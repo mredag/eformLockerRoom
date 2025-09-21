@@ -11,6 +11,7 @@ describe('LockerRepository', () => {
   beforeEach(async () => {
     // Use in-memory database for testing
     DatabaseConnection.resetInstance();
+    DatabaseConnection.resetInstance(':memory:');
     db = DatabaseConnection.getInstance(':memory:');
     await db.waitForInitialization();
     
@@ -37,6 +38,7 @@ describe('LockerRepository', () => {
 
   afterEach(() => {
     DatabaseConnection.resetInstance();
+    DatabaseConnection.resetInstance(':memory:');
   });
 
   describe('create', () => {

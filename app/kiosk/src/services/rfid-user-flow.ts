@@ -9,6 +9,8 @@ import { LockerStateManager } from '../../../../shared/services/locker-state-man
 import { LockerNamingService } from '../../../../shared/services/locker-naming-service';
 import { ModbusController } from '../hardware/modbus-controller';
 import { Locker, RfidScanEvent } from '../../../../src/types/core-entities';
+import { ConfigManager } from '../../../../shared/services/config-manager';
+import { LockerAssignmentMode } from '../../../../shared/types/system-config';
 
 export interface RfidUserFlowConfig {
   kiosk_id: string;
@@ -24,6 +26,9 @@ export interface UserFlowResult {
   available_lockers?: Locker[];
   opened_locker?: number;
   error_code?: string;
+  assignment_mode?: LockerAssignmentMode;
+  auto_assigned?: boolean;
+  fallback_reason?: string;
 }
 
 export class RfidUserFlow extends EventEmitter {
@@ -31,18 +36,22 @@ export class RfidUserFlow extends EventEmitter {
   private lockerStateManager: LockerStateManager;
   private modbusController: ModbusController;
   private lockerNamingService: LockerNamingService;
+  private configManager: ConfigManager;
+  private configInitPromise: Promise<void> | null = null;
 
   constructor(
     config: RfidUserFlowConfig,
     lockerStateManager: LockerStateManager,
     modbusController: ModbusController,
-    lockerNamingService: LockerNamingService
+    lockerNamingService: LockerNamingService,
+    configManager?: ConfigManager
   ) {
     super();
     this.config = config;
     this.lockerStateManager = lockerStateManager;
     this.modbusController = modbusController;
     this.lockerNamingService = lockerNamingService;
+    this.configManager = configManager || ConfigManager.getInstance();
   }
 
   /**
@@ -54,6 +63,31 @@ export class RfidUserFlow extends EventEmitter {
     } catch (error) {
       console.warn(`Failed to get display name for locker ${lockerId}, using default:`, error);
       return `Dolap ${lockerId}`;
+    }
+  }
+
+  private async ensureConfigInitialized(): Promise<void> {
+    if (!this.configInitPromise) {
+      this.configInitPromise = this.configManager.initialize().catch(error => {
+        console.warn('RFID flow failed to initialize configuration manager:', error);
+      });
+    }
+
+    try {
+      await this.configInitPromise;
+    } catch (error) {
+      console.warn('Configuration manager initialization previously failed:', error);
+    }
+  }
+
+  private async getAssignmentMode(): Promise<LockerAssignmentMode> {
+    await this.ensureConfigInitialized();
+
+    try {
+      return this.configManager.getKioskAssignmentMode(this.config.kiosk_id);
+    } catch (error) {
+      console.warn('Failed to determine kiosk assignment mode, defaulting to manual:', error);
+      return 'manual';
     }
   }
 
@@ -106,7 +140,7 @@ export class RfidUserFlow extends EventEmitter {
   async handleCardWithNoLocker(cardId: string): Promise<UserFlowResult> {
     try {
       let availableLockers: Locker[];
-      
+
       if (this.config.zone_id) {
         // Zone-aware: Get available lockers filtered by zone
         console.log(`🎯 Getting available lockers for zone: ${this.config.zone_id}`);
@@ -116,20 +150,93 @@ export class RfidUserFlow extends EventEmitter {
         console.log(`📋 Getting all available lockers (no zone configured)`);
         availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
       }
-      
+
+      const assignmentMode = await this.getAssignmentMode();
+
       if (availableLockers.length === 0) {
         const zoneMessage = this.config.zone_id ? ` (${this.config.zone_id} bölgesi)` : '';
         return {
           success: false,
           action: 'error',
           message: `Boş dolap yok${zoneMessage}. Lütfen bekleyin.`,
-          error_code: 'NO_AVAILABLE_LOCKERS'
+          error_code: 'NO_AVAILABLE_LOCKERS',
+          assignment_mode: assignmentMode,
+          auto_assigned: false
         };
+      }
+
+      let fallbackReason: string | undefined;
+
+      if (assignmentMode === 'automatic') {
+        let candidate: Locker | null = null;
+
+        try {
+          const allowedLockerIds = availableLockers.map(locker => locker.id);
+          candidate = await this.lockerStateManager.getOldestAvailableLocker(
+            this.config.kiosk_id,
+            {
+              allowedLockerIds,
+              zoneId: this.config.zone_id
+            }
+          );
+        } catch (error) {
+          console.warn('⚠️ Otomatik atama için uygun dolap aranırken hata oluştu:', error);
+          fallbackReason = 'CANDIDATE_QUERY_FAILED';
+        }
+
+        if (candidate) {
+          console.log(`🤖 Otomatik atama denemesi: dolap ${candidate.id}`);
+          const autoResult = await this.handleLockerSelection(cardId, candidate.id);
+
+          if (autoResult.success && autoResult.action === 'open_locker') {
+            const lockerName = await this.getLockerDisplayName(candidate.id);
+            this.emit('locker_auto_assign_success', {
+              card_id: cardId,
+              locker_id: candidate.id,
+              message: `${lockerName} otomatik atandı`
+            });
+
+            return {
+              ...autoResult,
+              message: `${lockerName} otomatik atandı ve açıldı`,
+              opened_locker: candidate.id,
+              auto_assigned: true,
+              assignment_mode: assignmentMode
+            };
+          }
+
+          fallbackReason = autoResult.error_code || 'AUTO_ASSIGNMENT_FAILED';
+          console.warn(`⚠️ Otomatik atama başarısız (${fallbackReason}); manuel seçime düşülüyor.`);
+          this.emit('locker_auto_assign_fallback', {
+            card_id: cardId,
+            locker_id: candidate.id,
+            reason: fallbackReason
+          });
+        } else if (!fallbackReason) {
+          fallbackReason = 'NO_CANDIDATES';
+          console.warn('⚠️ Otomatik atama için uygun dolap bulunamadı; manuel seçime düşülüyor.');
+          this.emit('locker_auto_assign_fallback', {
+            card_id: cardId,
+            reason: fallbackReason
+          });
+        }
+      }
+
+      if (fallbackReason) {
+        try {
+          if (this.config.zone_id) {
+            availableLockers = await this.getZoneAwareAvailableLockers(this.config.zone_id);
+          } else {
+            availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
+          }
+        } catch (refreshError) {
+          console.warn('⚠️ Otomatik atama başarısızlığından sonra dolap listesi yenilenemedi:', refreshError);
+        }
       }
 
       // Limit display to configured maximum
       const displayLockers = availableLockers.slice(0, this.config.max_available_lockers_display);
-      
+
       // Log zone context
       console.log(`✅ Found ${availableLockers.length} available lockers (zone: ${this.config.zone_id || 'all'}), showing ${displayLockers.length}`);
       
@@ -145,7 +252,10 @@ export class RfidUserFlow extends EventEmitter {
         success: true,
         action: 'show_lockers',
         message: `Dolap seçiniz${zoneMessage}`,
-        available_lockers: displayLockers
+        available_lockers: displayLockers,
+        assignment_mode: assignmentMode,
+        auto_assigned: false,
+        fallback_reason: fallbackReason
       };
     } catch (error) {
       console.error('Error getting available lockers:', error);
@@ -153,7 +263,8 @@ export class RfidUserFlow extends EventEmitter {
         success: false,
         action: 'error',
         message: 'Dolap listesi alınamadı.',
-        error_code: 'LOCKER_LIST_ERROR'
+        error_code: 'LOCKER_LIST_ERROR',
+        assignment_mode: await this.getAssignmentMode()
       };
     }
   }

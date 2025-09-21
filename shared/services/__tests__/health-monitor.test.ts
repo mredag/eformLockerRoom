@@ -3,6 +3,7 @@ import { HealthMonitor } from '../health-monitor';
 import { DatabaseConnection } from '../../database/connection';
 import { EventLogger } from '../event-logger';
 import { CommandQueueManager } from '../command-queue-manager';
+import { EventType } from '../../types/core-entities';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -297,7 +298,7 @@ describe('HealthMonitor', () => {
       expect(fs.unlink).toHaveBeenCalledWith(path.join(testLogDir, 'old.log'));
       expect(mockEventLogger.logEvent).toHaveBeenCalledWith(
         'system',
-        'log_rotation',
+        EventType.SYSTEM_RESTARTED,
         {
           retention_days: 30,
           deleted_count: 1,

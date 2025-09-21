@@ -4,11 +4,20 @@ import { readFile, writeFile, access } from 'fs/promises';
 import { CompleteSystemConfig } from '../../types/system-config';
 
 // Mock fs/promises
-vi.mock('fs/promises', () => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-  access: vi.fn()
-}));
+vi.mock('fs/promises', async () => {
+  const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
+  return {
+    ...actual,
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    access: vi.fn(),
+    mkdir: vi.fn(),
+    open: vi.fn(() => ({
+      close: vi.fn().mockResolvedValue(undefined)
+    } as unknown as import('fs/promises').FileHandle)),
+    unlink: vi.fn().mockResolvedValue(undefined)
+  };
+});
 
 // Mock DatabaseManager
 vi.mock('../../database/database-manager.js', () => ({
@@ -131,8 +140,8 @@ describe('ConfigManager', () => {
 
       const config = await configManager.loadConfiguration();
       
-      expect(mockAccess).toHaveBeenCalledWith('./config/system.json');
-      expect(mockReadFile).toHaveBeenCalledWith('./config/system.json', 'utf-8');
+      expect(mockAccess).toHaveBeenCalledWith('./test-config.json');
+      expect(mockReadFile).toHaveBeenCalledWith('./test-config.json', 'utf-8');
       expect(config).toEqual(mockConfig);
     });
 
@@ -144,7 +153,7 @@ describe('ConfigManager', () => {
       const config = await configManager.loadConfiguration();
       
       expect(config).toBeDefined();
-      expect(config.system.name).toBe('Eform Locker System');
+      expect(config.system.name).toBe('Eform Locker Room System');
       expect(mockWriteFile).toHaveBeenCalled();
     });
 
@@ -476,6 +485,40 @@ describe('ConfigManager', () => {
       ).rejects.toThrow('Configuration validation failed');
 
       configManager.validateConfiguration = originalValidate;
+    });
+
+    it('should replace kiosk assignment configuration and clear overrides', async () => {
+      const config = configManager.getConfiguration();
+      config.services.kiosk.assignment = {
+        default_mode: 'automatic',
+        per_kiosk: {
+          'kiosk-1': 'automatic',
+          'kiosk-2': 'manual'
+        }
+      };
+
+      mockWriteFile.mockClear();
+
+      await configManager.setKioskAssignmentConfig(
+        {
+          default_mode: 'manual',
+          per_kiosk: {}
+        },
+        'test-user',
+        'Reset kiosk assignment defaults'
+      );
+
+      expect(mockWriteFile).toHaveBeenCalled();
+      const lastWrite = mockWriteFile.mock.calls.at(-1);
+      expect(lastWrite).toBeDefined();
+
+      const savedConfig = JSON.parse(lastWrite![1] as string) as CompleteSystemConfig;
+      expect(savedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
+      expect(savedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
+
+      const updatedConfig = configManager.getConfiguration();
+      expect(updatedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
+      expect(updatedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
     });
   });
 

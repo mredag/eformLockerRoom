@@ -3,6 +3,7 @@ import { Locker, LockerStatus, OwnerType, EventType, LockerStateTransition, Lock
 import { webSocketService } from './websocket-service';
 import { LockerNamingService } from './locker-naming-service';
 import { ConfigManager } from './config-manager';
+import { getLockersInZone } from './zone-helpers';
 
 interface LockerStateManagerOptions {
   /**
@@ -25,10 +26,24 @@ interface ReleaseOptions {
   metadata?: Record<string, any>;
 }
 
+interface LockerFilterOptions {
+  zoneId?: string;
+  allowedLockerIds?: number[];
+}
+
+type LockerRow = Omit<Locker, 'reserved_at' | 'owned_at' | 'created_at' | 'updated_at' | 'name_updated_at' | 'is_vip'> & {
+  reserved_at?: Date | string | null;
+  owned_at?: Date | string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+  name_updated_at?: Date | string | null;
+  is_vip: number | boolean;
+};
+
 export class LockerStateManager {
   private db: DatabaseConnection;
   private dbManager: any;
-  private cleanupTimer: NodeJS.Timeout | null = null;
+  private cleanupInterval: NodeJS.Timeout | null = null;
   private lastScheduledIntervalMs: number | null = null;
   private cleanupInProgress = false;
   private configManager: ConfigManager;
@@ -105,9 +120,10 @@ export class LockerStateManager {
       if (typeof override === 'number' && override > 0) {
         console.log(`⏱️ Auto-release override enabled: ${override} hour(s)`);
         await this.runCleanupCycle();
-      } else {
-        console.log('⏸️ Auto-release disabled via override configuration');
+        return;
       }
+
+      console.log('⏸️ Auto-release disabled via override configuration');
       return;
     }
 
@@ -169,9 +185,9 @@ export class LockerStateManager {
   }
 
   private scheduleNextCleanup(delayMs?: number): void {
-    if (this.cleanupTimer) {
-      clearTimeout(this.cleanupTimer);
-      this.cleanupTimer = null;
+    if (this.cleanupInterval) {
+      clearTimeout(this.cleanupInterval);
+      this.cleanupInterval = null;
     }
 
     const baseInterval = this.getCleanupBaseInterval();
@@ -181,12 +197,12 @@ export class LockerStateManager {
       return;
     }
 
-    this.cleanupTimer = setTimeout(() => {
+    this.cleanupInterval = setTimeout(() => {
       void this.runCleanupCycle();
     }, interval);
 
-    if (typeof this.cleanupTimer.unref === 'function') {
-      this.cleanupTimer.unref();
+    if (typeof this.cleanupInterval.unref === 'function') {
+      this.cleanupInterval.unref();
     }
 
     if (this.lastScheduledIntervalMs !== interval) {
@@ -285,12 +301,52 @@ export class LockerStateManager {
    * Stop automatic cleanup timer.
    */
   public stopCleanupTimer(): void {
-    if (this.cleanupTimer) {
-      clearTimeout(this.cleanupTimer);
-      this.cleanupTimer = null;
+    if (this.cleanupInterval) {
+      clearTimeout(this.cleanupInterval);
+      this.cleanupInterval = null;
       console.log('⏹️ Automatic locker cleanup timer stopped');
     }
     this.lastScheduledIntervalMs = null;
+  }
+
+  private normalizeLockerRow(row: LockerRow | null | undefined): Locker | null {
+    if (!row) {
+      return null;
+    }
+
+    const toOptionalDate = (value?: Date | string | null): Date | null => {
+      if (!value) {
+        return null;
+      }
+
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const toDate = (value: Date | string): Date => {
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? new Date(value as string) : date;
+    };
+
+    const normalized: Locker = {
+      ...(row as Locker),
+      reserved_at: toOptionalDate(row.reserved_at) ?? null,
+      owned_at: toOptionalDate(row.owned_at) ?? null,
+      created_at: toDate(row.created_at),
+      updated_at: toDate(row.updated_at),
+      name_updated_at: toOptionalDate(row.name_updated_at) ?? null,
+      is_vip: row.is_vip === true || row.is_vip === 1
+    };
+
+    if (normalized.owner_type === undefined) {
+      normalized.owner_type = null as any;
+    }
+
+    if (normalized.owner_key === undefined) {
+      normalized.owner_key = null as any;
+    }
+
+    return normalized;
   }
 
   /**
@@ -426,14 +482,14 @@ export class LockerStateManager {
       const result = await connection.get(
         'SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?',
         [kioskId, lockerId]
-      ) as Locker;
-      return result || null;
+      ) as LockerRow;
+      return this.normalizeLockerRow(result);
     } else {
-      const result = await this.db.get<Locker>(
+      const result = await this.db.get<LockerRow>(
         'SELECT * FROM lockers WHERE kiosk_id = ? AND id = ?',
         [kioskId, lockerId]
       );
-      return result || null;
+      return this.normalizeLockerRow(result);
     }
   }
 
@@ -441,10 +497,11 @@ export class LockerStateManager {
    * Get all lockers for a kiosk
    */
   async getKioskLockers(kioskId: string): Promise<Locker[]> {
-    return await this.db.all<Locker>(
+    const rows = await this.db.all<LockerRow>(
       'SELECT * FROM lockers WHERE kiosk_id = ? ORDER BY id',
       [kioskId]
     );
+    return rows.map(row => this.normalizeLockerRow(row)!) as Locker[];
   }
 
   /**
@@ -472,9 +529,11 @@ export class LockerStateManager {
 
     if (this.dbManager) {
       const connection = this.dbManager.getConnection();
-      return await connection.all(query, params) as Locker[];
+      const rows = await connection.all(query, params) as LockerRow[];
+      return rows.map(row => this.normalizeLockerRow(row)!) as Locker[];
     } else {
-      return await this.db.all<Locker>(query, params);
+      const rows = await this.db.all<LockerRow>(query, params);
+      return rows.map(row => this.normalizeLockerRow(row)!) as Locker[];
     }
   }
 
@@ -482,24 +541,77 @@ export class LockerStateManager {
    * Get available (Free) lockers, excluding Blocked, Owned, and VIP lockers
    * As per requirements 1.3, 1.4, 1.5 - filters out Blocked and Owned lockers
    */
-  async getAvailableLockers(kioskId: string): Promise<Locker[]> {
-    return await this.db.all<Locker>(
-      `SELECT * FROM lockers 
-       WHERE kiosk_id = ? AND status = 'Free' AND is_vip = 0 
-       ORDER BY id`,
-      [kioskId]
+  async getAvailableLockers(kioskId: string, options?: LockerFilterOptions): Promise<Locker[]> {
+    const params: Array<string | number> = [kioskId];
+    let query = `
+      SELECT * FROM lockers
+      WHERE kiosk_id = ? AND status = 'Free' AND is_vip = 0
+    `;
+
+    const allowedLockerIds = await this.resolveAllowedLockerIds(options);
+
+    if (allowedLockerIds !== undefined) {
+      if (allowedLockerIds.length === 0) {
+        return [];
+      }
+
+      const placeholders = allowedLockerIds.map(() => '?').join(', ');
+      query += ` AND id IN (${placeholders})`;
+      params.push(...allowedLockerIds);
+    }
+
+    query += ' ORDER BY id';
+
+    const rows = await this.db.all<LockerRow>(query, params);
+    return rows.map(row => this.normalizeLockerRow(row)!) as Locker[];
+  }
+
+  async getOldestAvailableLocker(kioskId: string, options?: LockerFilterOptions): Promise<Locker | null> {
+    const params: Array<string | number> = [kioskId];
+    let query = `
+      SELECT * FROM lockers
+      WHERE kiosk_id = ? AND status = 'Free' AND is_vip = 0
+    `;
+
+    const allowedLockerIds = await this.resolveAllowedLockerIds(options);
+
+    if (allowedLockerIds !== undefined) {
+      if (allowedLockerIds.length === 0) {
+        return null;
+      }
+
+      const placeholders = allowedLockerIds.map(() => '?').join(', ');
+      query += ` AND id IN (${placeholders})`;
+      params.push(...allowedLockerIds);
+    }
+
+    query += `
+      ORDER BY
+        COALESCE(updated_at, created_at) ASC,
+        id ASC
+      LIMIT 1
+    `;
+
+    const row = await this.db.get<LockerRow>(query, params);
+    return this.normalizeLockerRow(row);
+  }
+
+  async getKioskIds(): Promise<string[]> {
+    const rows = await this.db.all<{ kiosk_id: string }>(
+      'SELECT DISTINCT kiosk_id FROM lockers ORDER BY kiosk_id'
     );
+    return rows.map(row => row.kiosk_id);
   }
 
   /**
    * Find locker by owner key (RFID card or device ID)
    */
   async findLockerByOwner(ownerKey: string, ownerType: OwnerType): Promise<Locker | null> {
-    const result = await this.db.get<Locker>(
+    const result = await this.db.get<LockerRow>(
       'SELECT * FROM lockers WHERE owner_key = ? AND owner_type = ? AND status IN (?, ?)',
       [ownerKey, ownerType, 'Owned', 'Opening']
     );
-    return result || null;
+    return this.normalizeLockerRow(result);
   }
 
   /**
@@ -866,7 +978,7 @@ export class LockerStateManager {
 
       const cutoffIso = new Date(Date.now() - autoReleaseHours * 3600 * 1000).toISOString();
 
-      const expiredLockers = await this.db.all<Locker>(
+      const expiredLockers = await this.db.all<LockerRow>(
         `SELECT * FROM lockers
          WHERE status IN ('Owned', 'Opening')
            AND is_vip = 0
@@ -884,7 +996,12 @@ export class LockerStateManager {
 
       let releasedCount = 0;
 
-      for (const locker of expiredLockers) {
+      for (const rawLocker of expiredLockers) {
+        const locker = this.normalizeLockerRow(rawLocker);
+        if (!locker) {
+          continue;
+        }
+
         const releaseSuccess = await this.releaseLocker(
           locker.kiosk_id,
           locker.id,
@@ -1088,9 +1205,9 @@ export class LockerStateManager {
    */
   async getLockerHistory(kioskId: string, lockerId: number, limit: number = 50): Promise<any[]> {
     return await this.db.all(
-      `SELECT * FROM events 
-       WHERE kiosk_id = ? AND locker_id = ? 
-       ORDER BY timestamp DESC 
+      `SELECT * FROM events
+       WHERE kiosk_id = ? AND locker_id = ?
+       ORDER BY timestamp DESC, id DESC
        LIMIT ?`,
       [kioskId, lockerId, limit]
     );
@@ -1210,9 +1327,12 @@ export class LockerStateManager {
   /**
    * Get available lockers with display names
    */
-  async getEnhancedAvailableLockers(kioskId: string): Promise<Array<Locker & { displayName: string }>> {
-    const lockers = await this.getAvailableLockers(kioskId);
-    
+  async getEnhancedAvailableLockers(
+    kioskId: string,
+    options?: LockerFilterOptions
+  ): Promise<Array<Locker & { displayName: string }>> {
+    const lockers = await this.getAvailableLockers(kioskId, options);
+
     const enhancedLockers = await Promise.all(
       lockers.map(async (locker) => {
         const displayName = await this.namingService.getDisplayName(kioskId, locker.id);
@@ -1224,6 +1344,39 @@ export class LockerStateManager {
     );
 
     return enhancedLockers;
+  }
+
+  private async resolveAllowedLockerIds(options?: LockerFilterOptions): Promise<number[] | undefined> {
+    if (!options) {
+      return undefined;
+    }
+
+    let allowedLockerIds = options.allowedLockerIds;
+
+    if (!options.zoneId) {
+      return allowedLockerIds;
+    }
+
+    await this.configManager.initialize();
+    const config = this.configManager.getConfiguration();
+
+    if (!config.features?.zones_enabled || !config.zones) {
+      return allowedLockerIds;
+    }
+
+    const zoneLockerIds = getLockersInZone(options.zoneId, config);
+
+    if (zoneLockerIds.length === 0) {
+      return [];
+    }
+
+    if (!allowedLockerIds || allowedLockerIds.length === 0) {
+      return zoneLockerIds;
+    }
+
+    const zoneSet = new Set(zoneLockerIds);
+    const filtered = allowedLockerIds.filter(id => zoneSet.has(id));
+    return filtered;
   }
 
   /**

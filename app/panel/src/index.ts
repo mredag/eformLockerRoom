@@ -30,6 +30,7 @@ import { ConfigController } from "./controllers/config-controller";
 import { configManager } from "@eform/shared/services/config-manager";
 import { CookieCleanupService } from "@eform/shared/services/cookie-cleanup-service";
 import { webSocketService } from "@eform/shared/services/websocket-service";
+import { AssignmentSettingsRoutes } from "./routes/assignment-settings-routes";
 
 // Main application startup function
 async function startPanelService() {
@@ -244,6 +245,11 @@ async function startPanelService() {
       dbManager,
       auditLogger,
     });
+
+    const assignmentRoutes = new AssignmentSettingsRoutes({
+      configManager
+    });
+    await assignmentRoutes.registerRoutes(fastify);
 
     // Register locker naming routes
     try {

@@ -39,6 +39,7 @@ describe('LockerStateManager auto-release', () => {
   let stateManager: LockerStateManager;
 
   beforeEach(async () => {
+    DatabaseConnection.resetInstance();
     DatabaseConnection.resetInstance(':memory:');
     db = DatabaseConnection.getInstance(':memory:');
     await db.waitForInitialization();
@@ -50,6 +51,7 @@ describe('LockerStateManager auto-release', () => {
     if (stateManager) {
       await stateManager.shutdown();
     }
+    DatabaseConnection.resetInstance();
     DatabaseConnection.resetInstance(':memory:');
   });
 

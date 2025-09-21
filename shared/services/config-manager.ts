@@ -1,11 +1,17 @@
-import { readFile, writeFile, access } from 'fs/promises';
-import { 
-  SystemConfig, 
-  CompleteSystemConfig, 
+import { readFile, writeFile, access, open, unlink, mkdir } from 'fs/promises';
+import { watch, FSWatcher } from 'fs';
+import { setTimeout as delay } from 'timers/promises';
+import { dirname } from 'path';
+import { EventEmitter } from 'events';
+import {
+  SystemConfig,
+  CompleteSystemConfig,
   ConfigValidationResult,
   ConfigChangeEvent,
   RelayCard,
-  ZoneConfig
+  ZoneConfig,
+  LockerAssignmentMode,
+  KioskAssignmentConfig
 } from '../types/system-config';
 import { EventType } from '../types/core-entities';
 import { EventRepository } from '../database/event-repository';
@@ -21,6 +27,10 @@ export class ConfigManager {
   private config: CompleteSystemConfig | null = null;
   private configPath: string;
   private eventRepository: EventRepository | null = null;
+  private eventEmitter = new EventEmitter();
+  private fileWatcher: FSWatcher | null = null;
+  private watchDebounceTimer: NodeJS.Timeout | null = null;
+  private isSaving = false;
 
   /**
    * Private constructor to enforce the singleton pattern.
@@ -50,6 +60,10 @@ export class ConfigManager {
    */
   static resetInstance(configPath?: string): void {
     const key = configPath || './config/system.json';
+    const instance = ConfigManager.instances.get(key);
+    if (instance) {
+      instance.dispose();
+    }
     ConfigManager.instances.delete(key);
   }
 
@@ -57,6 +71,9 @@ export class ConfigManager {
    * Resets all singleton instances. Used for global test teardown.
    */
   static resetAllInstances(): void {
+    for (const instance of ConfigManager.instances.values()) {
+      instance.dispose();
+    }
     ConfigManager.instances.clear();
   }
 
@@ -68,19 +85,165 @@ export class ConfigManager {
     this.configPath = path;
   }
 
+  private dispose(): void {
+    this.eventEmitter.removeAllListeners();
+
+    if (this.watchDebounceTimer) {
+      clearTimeout(this.watchDebounceTimer);
+      this.watchDebounceTimer = null;
+    }
+
+    if (this.fileWatcher) {
+      try {
+        this.fileWatcher.close();
+      } catch (error) {
+        console.warn('Failed to close configuration watcher:', error);
+      }
+      this.fileWatcher = null;
+    }
+
+    this.isSaving = false;
+  }
+
   /**
    * Initializes the configuration manager by loading the configuration from its file
    * and setting up the event repository for logging changes.
    */
   async initialize(): Promise<void> {
     await this.loadConfiguration();
-    
+
     try {
       const dbManager = DatabaseManager.getInstance();
       this.eventRepository = new EventRepository(dbManager.getConnection());
     } catch (error) {
       console.warn('Could not initialize event repository for config logging:', error);
     }
+
+    if (this.shouldWatchConfigFile()) {
+      this.setupFileWatcher();
+    }
+  }
+
+  private shouldWatchConfigFile(): boolean {
+    if (process.env.CONFIG_MANAGER_DISABLE_WATCH === '1') {
+      return false;
+    }
+
+    if (process.env.NODE_ENV === 'test') {
+      return false;
+    }
+
+    return true;
+  }
+
+  private setupFileWatcher(): void {
+    if (this.fileWatcher) {
+      return;
+    }
+
+    try {
+      this.fileWatcher = watch(this.configPath, { persistent: false }, (eventType) => {
+        if (eventType !== 'change' && eventType !== 'rename') {
+          return;
+        }
+
+        if (this.isSaving) {
+          return;
+        }
+
+        if (this.watchDebounceTimer) {
+          clearTimeout(this.watchDebounceTimer);
+        }
+
+        const shouldRestartWatcher = eventType === 'rename';
+
+        this.watchDebounceTimer = setTimeout(() => {
+          if (shouldRestartWatcher) {
+            this.restartFileWatcher();
+          }
+          void this.reloadConfigurationFromDisk();
+        }, 200);
+      });
+    } catch (error) {
+      console.warn('⚠️  Failed to watch configuration file for changes:', error);
+    }
+  }
+
+  private restartFileWatcher(): void {
+    if (this.fileWatcher) {
+      try {
+        this.fileWatcher.close();
+      } catch (error) {
+        console.warn('Failed to close configuration watcher during restart:', error);
+      }
+      this.fileWatcher = null;
+    }
+
+    this.setupFileWatcher();
+  }
+
+  private async reloadConfigurationFromDisk(): Promise<void> {
+    try {
+      await access(this.configPath);
+    } catch (error) {
+      console.warn('⚠️  Configuration file not accessible for reload:', error);
+      return;
+    }
+
+    try {
+      const previousSnapshot = this.config ? JSON.stringify(this.config) : null;
+      const configData = await readFile(this.configPath, 'utf-8');
+      const parsedConfig = JSON.parse(configData);
+
+      const validation = this.validateConfiguration(parsedConfig);
+      if (!validation.valid) {
+        console.warn('⚠️  Ignoring external configuration update due to validation errors:', validation.errors.join(', '));
+        return;
+      }
+
+      this.config = parsedConfig as CompleteSystemConfig;
+
+      const updatedSnapshot = JSON.stringify(this.config);
+      if (!previousSnapshot || previousSnapshot !== updatedSnapshot) {
+        this.notifyConfigUpdated();
+      }
+    } catch (error) {
+      console.warn('⚠️  Failed to reload configuration after external change:', error);
+    }
+  }
+
+  private notifyConfigUpdated(): void {
+    if (!this.config) {
+      return;
+    }
+
+    const snapshot = this.cloneConfiguration(this.config);
+    this.eventEmitter.emit('updated', snapshot);
+  }
+
+  private cloneConfiguration(source?: CompleteSystemConfig | null): CompleteSystemConfig {
+    const payload = source ?? this.config;
+    if (!payload) {
+      throw new Error('Configuration not loaded');
+    }
+
+    return JSON.parse(JSON.stringify(payload)) as CompleteSystemConfig;
+  }
+
+  onConfigChange(listener: (config: CompleteSystemConfig) => void): () => void {
+    const wrappedListener = (config: CompleteSystemConfig) => {
+      listener(this.cloneConfiguration(config));
+    };
+
+    this.eventEmitter.on('updated', wrappedListener);
+
+    if (this.config) {
+      listener(this.cloneConfiguration(this.config));
+    }
+
+    return () => {
+      this.eventEmitter.off('updated', wrappedListener);
+    };
   }
 
   /**
@@ -101,12 +264,17 @@ export class ConfigManager {
       }
 
       this.config = parsedConfig as CompleteSystemConfig || this.getDefaultConfiguration();
+      this.notifyConfigUpdated();
       return this.config;
     } catch (error) {
       if (error instanceof Error && error.message.includes('ENOENT')) {
         console.log('Configuration file not found, creating default configuration');
         this.config = this.getDefaultConfiguration();
-        await this.saveConfiguration();
+        await this.saveConfiguration({
+          operation: 'initial-write',
+          reason: 'Generated default configuration',
+          skipBackup: true
+        });
         return this.config;
       }
       throw error;
@@ -163,6 +331,28 @@ export class ConfigManager {
     };
   }
 
+  getKioskAssignmentMode(kioskId: string): LockerAssignmentMode {
+    try {
+      const config = this.getConfiguration();
+      const assignment: KioskAssignmentConfig | undefined = config.services?.kiosk?.assignment;
+
+      if (assignment) {
+        const override = assignment.per_kiosk?.[kioskId];
+        if (override === 'automatic' || override === 'manual') {
+          return override;
+        }
+
+        if (assignment.default_mode === 'automatic' || assignment.default_mode === 'manual') {
+          return assignment.default_mode;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to determine kiosk assignment mode, defaulting to manual:', error);
+    }
+
+    return 'manual';
+  }
+
   /**
    * Updates a top-level section of the configuration, validates the changes,
    * saves the new configuration, and logs the event.
@@ -181,9 +371,8 @@ export class ConfigManager {
       throw new Error('Configuration not loaded');
     }
 
-    const oldValue: any = Array.isArray(this.config[section])
-      ? [...(this.config[section] as any)]
-      : { ...(this.config[section] as any) };
+    const currentSection = this.config[section];
+    const oldValue = this.cloneValue(currentSection);
 
     let newValue: any;
 
@@ -204,8 +393,14 @@ export class ConfigManager {
       });
 
       newValue = cleanedZones;
+    } else if (this.isPlainObject(currentSection) && this.isPlainObject(updates)) {
+      newValue = this.deepMergeObjects(currentSection as any, updates as any);
+    } else if (Array.isArray(currentSection) && Array.isArray(updates)) {
+      newValue = updates.map(item => this.cloneValue(item));
+    } else if (updates !== undefined) {
+      newValue = updates;
     } else {
-      newValue = { ...(this.config[section] as any), ...(updates as any) };
+      newValue = currentSection;
     }
 
     if (section === 'zones' || (section === 'features' && (updates as any)?.zones_enabled !== undefined)) {
@@ -232,9 +427,15 @@ export class ConfigManager {
       throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
     }
 
+    const previousSnapshot = this.cloneConfiguration(this.config);
+
     (this.config[section] as any) = newValue;
 
-    await this.saveConfiguration();
+    await this.saveConfiguration({
+      operation: `update-${String(section)}`,
+      reason: reason || `Configuration section '${String(section)}' updated`,
+      backupSnapshot: previousSnapshot
+    });
 
     await this.logConfigChange({
       timestamp: new Date(),
@@ -257,6 +458,49 @@ export class ConfigManager {
         await this.syncZonesWithHardware(totalChannels, reason || 'Zone configuration updated');
       }
     }
+  }
+
+  async setKioskAssignmentConfig(
+    assignment: KioskAssignmentConfig,
+    changedBy: string,
+    reason?: string
+  ): Promise<void> {
+    if (!this.config) {
+      throw new Error('Configuration not loaded');
+    }
+
+    const normalizedAssignment = this.normalizeKioskAssignmentConfig(assignment);
+    const previousSnapshot = this.cloneConfiguration(this.config);
+    const previousAssignment = previousSnapshot.services.kiosk?.assignment;
+
+    this.config.services.kiosk = {
+      ...this.config.services.kiosk,
+      assignment: normalizedAssignment
+    };
+
+    const validation = this.validateConfiguration(this.config);
+
+    if (!validation.valid) {
+      this.config = previousSnapshot;
+      throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    const description = reason || 'Kiosk assignment configuration updated';
+
+    await this.saveConfiguration({
+      operation: 'update-services',
+      reason: description,
+      backupSnapshot: previousSnapshot
+    });
+
+    await this.logConfigChange({
+      timestamp: new Date(),
+      changed_by: changedBy,
+      section: 'services',
+      old_value: previousAssignment,
+      new_value: normalizedAssignment,
+      reason: description
+    });
   }
 
   /**
@@ -284,10 +528,15 @@ export class ConfigManager {
    * @param {string} [reason] - An optional reason for the reset.
    */
   async resetToDefaults(changedBy: string, reason?: string): Promise<void> {
-    const oldConfig = this.config;
+    const oldConfig = this.config ? this.cloneConfiguration(this.config) : null;
     this.config = this.getDefaultConfiguration();
-    
-    await this.saveConfiguration();
+
+    await this.saveConfiguration({
+      operation: 'reset-to-defaults',
+      reason: reason || 'Reset to defaults',
+      backupSnapshot: oldConfig,
+      skipBackup: !oldConfig
+    });
 
     await this.logConfigChange({
       timestamp: new Date(),
@@ -486,7 +735,11 @@ export class ConfigManager {
           heartbeat_interval_seconds: 5,
           command_poll_interval_seconds: 1,
           hardware_check_interval_seconds: 30,
-          ui_timeout_seconds: 60
+          ui_timeout_seconds: 60,
+          assignment: {
+            default_mode: 'manual',
+            per_kiosk: {},
+          }
         },
         panel: {
           port: 3001,
@@ -652,17 +905,159 @@ export class ConfigManager {
     };
   }
 
+  private async ensureConfigDirectory(): Promise<void> {
+    try {
+      await mkdir(dirname(this.configPath), { recursive: true });
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== 'EEXIST') {
+        throw error;
+      }
+    }
+  }
+
+  private async acquireFileLock(): Promise<() => Promise<void>> {
+    const lockPath = `${this.configPath}.lock`;
+
+    while (true) {
+      try {
+        const handle = await open(lockPath, 'wx');
+
+        return async () => {
+          try {
+            await handle.close();
+          } catch (closeError) {
+            console.warn('Failed to close configuration lock handle:', closeError);
+          }
+
+          try {
+            await unlink(lockPath);
+          } catch (unlinkError) {
+            if ((unlinkError as NodeJS.ErrnoException).code !== 'ENOENT') {
+              console.warn('Failed to remove configuration lock file:', unlinkError);
+            }
+          }
+        };
+      } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === 'EEXIST') {
+          await delay(50);
+          continue;
+        }
+
+        throw error;
+      }
+    }
+  }
+
+  private cloneValue<T>(value: T): T {
+    if (value === null || value === undefined) {
+      return value;
+    }
+
+    if (typeof value === 'object') {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    return value;
+  }
+
+  private isPlainObject(value: unknown): value is Record<string, any> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private deepMergeObjects<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    const result: Record<string, any> = { ...target };
+
+    for (const [key, value] of Object.entries(source)) {
+      if (value === undefined) {
+        continue;
+      }
+
+      const existing = result[key];
+
+      if (this.isPlainObject(existing) && this.isPlainObject(value)) {
+        result[key] = this.deepMergeObjects(existing, value as Record<string, any>);
+      } else if (Array.isArray(existing) && Array.isArray(value)) {
+        result[key] = value.slice();
+      } else {
+        result[key] = value;
+      }
+    }
+
+    return result as T;
+  }
+
+  private normalizeKioskAssignmentConfig(assignment: KioskAssignmentConfig): KioskAssignmentConfig {
+    const defaultMode: LockerAssignmentMode = assignment.default_mode === 'automatic' ? 'automatic' : 'manual';
+
+    const sanitizedPerKiosk: Record<string, LockerAssignmentMode> = {};
+
+    if (assignment.per_kiosk && typeof assignment.per_kiosk === 'object') {
+      for (const [kioskId, mode] of Object.entries(assignment.per_kiosk)) {
+        if (!kioskId) {
+          continue;
+        }
+
+        if (mode === 'manual' || mode === 'automatic') {
+          sanitizedPerKiosk[kioskId] = mode;
+        }
+      }
+    }
+
+    return {
+      default_mode: defaultMode,
+      per_kiosk: sanitizedPerKiosk
+    };
+  }
+
   /**
    * Saves the current configuration object to its file path.
    * @private
    */
-  private async saveConfiguration(): Promise<void> {
+  private async saveConfiguration(options: {
+    operation?: string;
+    reason?: string;
+    backupSnapshot?: CompleteSystemConfig | null;
+    skipBackup?: boolean;
+  } = {}): Promise<void> {
     if (!this.config) {
       throw new Error('No configuration to save');
     }
 
-    const configJson = JSON.stringify(this.config, null, 2);
-    await writeFile(this.configPath, configJson, 'utf-8');
+    await this.ensureConfigDirectory();
+    const releaseLock = await this.acquireFileLock();
+    this.isSaving = true;
+    let writeSucceeded = false;
+
+    try {
+      if (!options.skipBackup) {
+        const snapshot = options.backupSnapshot
+          ? this.cloneConfiguration(options.backupSnapshot)
+          : this.cloneConfiguration(this.config);
+
+        const backupResult = await this.createConfigurationBackup(
+          options.operation || 'config-update',
+          options.reason || 'Configuration updated',
+          snapshot
+        );
+
+        if (!backupResult.success) {
+          console.warn('⚠️  Failed to create configuration backup:', backupResult.error);
+        }
+      }
+
+      const configJson = JSON.stringify(this.config, null, 2);
+      await writeFile(this.configPath, configJson, 'utf-8');
+      writeSucceeded = true;
+    } finally {
+      this.isSaving = false;
+      await releaseLock();
+    }
+
+    if (writeSucceeded) {
+      this.notifyConfigUpdated();
+    }
   }
 
   /**
@@ -774,7 +1169,11 @@ export class ConfigManager {
           console.log(`🔧 Relay cards updated: ${JSON.stringify(syncResult.updatedRelayCards)}`);
         }
         
-        await this.saveConfiguration();
+        await this.saveConfiguration({
+          operation: 'zone-sync-update',
+          reason,
+          skipBackup: true
+        });
         
         await this.logConfigChange({
           timestamp: new Date(),
@@ -837,13 +1236,18 @@ export class ConfigManager {
         
         const kioskId = 'kiosk-1';
         await stateManager.syncLockersWithHardware(kioskId, totalChannels);
-        
+
         if (this.config!.lockers.total_count !== totalChannels) {
           console.log(`🔧 Auto-updating locker count: ${this.config!.lockers.total_count} → ${totalChannels}`);
+          const snapshot = this.cloneConfiguration(this.config);
           this.config!.lockers.total_count = totalChannels;
-          await this.saveConfiguration();
+          await this.saveConfiguration({
+            operation: 'auto-locker-sync',
+            reason: reason || 'Hardware locker sync update',
+            backupSnapshot: snapshot
+          });
         }
-        
+
         console.log(`✅ Auto-sync completed: ${totalChannels} lockers available`);
       }
     } catch (error) {
@@ -1031,11 +1435,13 @@ export class ConfigManager {
    * @returns {Promise<{ success: boolean; backupPath?: string; error?: string }>} The result of the backup operation.
    */
   async createConfigurationBackup(
-    operation: string, 
-    reason: string
+    operation: string,
+    reason: string,
+    configSnapshot?: CompleteSystemConfig
   ): Promise<{ success: boolean; backupPath?: string; error?: string }> {
     try {
-      if (!this.config) {
+      const snapshot = configSnapshot ?? (this.config ? this.cloneConfiguration(this.config) : null);
+      if (!snapshot) {
         return { success: false, error: 'No configuration loaded to backup' };
       }
 
@@ -1043,9 +1449,6 @@ export class ConfigManager {
       const backupFilename = `system-config-backup-${operation}-${timestamp}.json`;
       const backupPath = `./config/backups/${backupFilename}`;
 
-      const { mkdir } = await import('fs/promises');
-      const { dirname } = await import('path');
-      
       try {
         await mkdir(dirname(backupPath), { recursive: true });
       } catch (mkdirError) {
@@ -1059,7 +1462,7 @@ export class ConfigManager {
           reason,
           system_version: process.env.npm_package_version || 'unknown'
         },
-        configuration: this.config
+        configuration: snapshot
       };
 
       await writeFile(backupPath, JSON.stringify(backupData, null, 2), 'utf8');
@@ -1109,7 +1512,7 @@ export class ConfigManager {
       }
 
       const currentBackupResult = await this.createConfigurationBackup(
-        'pre-restore', 
+        'pre-restore',
         `Backup before restoring from ${backupPath}`
       );
 
@@ -1119,17 +1522,22 @@ export class ConfigManager {
 
       const validationResult = await this.validateConfiguration(backupData.configuration);
       if (!validationResult.valid) {
-        return { 
-          success: false, 
-          error: `Backup configuration is invalid: ${validationResult.errors.join(', ')}` 
+        return {
+          success: false,
+          error: `Backup configuration is invalid: ${validationResult.errors.join(', ')}`
         };
       }
 
-      const oldConfig = this.config;
+      const oldConfig = this.config ? this.cloneConfiguration(this.config) : null;
 
-      this.config = backupData.configuration;
+      this.config = backupData.configuration as CompleteSystemConfig;
 
-      await this.saveConfiguration();
+      await this.saveConfiguration({
+        operation: 'restore-from-backup',
+        reason: `Configuration restored from backup: ${backupPath}`,
+        backupSnapshot: oldConfig,
+        skipBackup: currentBackupResult.success
+      });
 
       await this.logConfigChange({
         timestamp: new Date(),

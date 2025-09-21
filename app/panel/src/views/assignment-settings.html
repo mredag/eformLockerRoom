@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atama Ayarları - Eform Locker Paneli</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        header {
+            background: #1f2a44;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        nav a {
+            color: #b0c4ff;
+            margin-right: 18px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        nav a.active,
+        nav a:hover {
+            color: white;
+        }
+
+        main {
+            max-width: 960px;
+            margin: 30px auto;
+            padding: 0 20px 60px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(31, 42, 68, 0.08);
+            padding: 24px 28px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            margin: 0 0 16px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+
+        .card h2 span {
+            font-size: 26px;
+            margin-right: 10px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #3454f5;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #e8ecff;
+            color: #3454f5;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status.success {
+            display: block;
+            background: #ecfdf3;
+            color: #116329;
+            border: 1px solid #abefc6;
+        }
+
+        .status.error {
+            display: block;
+            background: #ffefef;
+            color: #b42318;
+            border: 1px solid #f5a6a0;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Dolap Atama Ayarları</h1>
+    <nav>
+        <a href="/dashboard">Ana Sayfa</a>
+        <a href="/lockers">Dolaplar</a>
+        <a href="/panel/assignment-settings" class="active">Atama Ayarları</a>
+        <a href="/config">Genel Ayarlar</a>
+        <a href="#" onclick="logout(); return false;">Çıkış</a>
+    </nav>
+</header>
+<main>
+    <div class="card">
+        <h2><span>⚙️</span>Varsayılan Atama Modu</h2>
+        <p>RFID kart okutulduğunda sistemin varsayılan davranışını seçin.</p>
+        <div class="radio-group" id="defaultModeGroup">
+            <label>
+                <input type="radio" name="default-mode" value="manual">
+                Manuel seçim ekranı göster
+            </label>
+            <label>
+                <input type="radio" name="default-mode" value="automatic">
+                Otomatik dolap ata ve aç
+            </label>
+        </div>
+        <div class="actions">
+            <button type="button" class="btn-secondary" onclick="loadSettings()">Yenile</button>
+            <button type="button" class="btn-primary" onclick="saveSettings()">Kaydet</button>
+        </div>
+        <div id="statusMessage" class="status"></div>
+    </div>
+</main>
+
+<script>
+    let csrfToken = null;
+    let currentDefaultMode = 'manual';
+    let isSaving = false;
+
+    function getSaveButton() {
+        return document.querySelector('button.btn-primary');
+    }
+
+    function setSaveButtonDisabled(disabled) {
+        const button = getSaveButton();
+        if (button) {
+            button.disabled = disabled;
+            button.style.opacity = disabled ? '0.6' : '';
+            button.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        }
+    }
+
+    async function loadSessionInfo() {
+        try {
+            const response = await fetch('/auth/me', { credentials: 'same-origin' });
+            if (!response.ok) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const data = await response.json();
+            if (data && data.csrfToken) {
+                csrfToken = data.csrfToken;
+            }
+        } catch (error) {
+            console.warn('Kullanıcı bilgileri yüklenemedi:', error);
+        }
+    }
+
+    async function loadSettings() {
+        const statusEl = document.getElementById('statusMessage');
+        statusEl.className = 'status';
+        statusEl.textContent = '';
+
+        try {
+            const response = await fetch('/api/assignment-settings', { credentials: 'same-origin' });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Ayarlar yüklenemedi');
+            }
+
+            const defaultMode = result.default_mode || 'manual';
+            applyDefaultMode(defaultMode);
+        } catch (error) {
+            statusEl.className = 'status error';
+            statusEl.textContent = `Ayarlar yüklenemedi: ${error instanceof Error ? error.message : error}`;
+        }
+    }
+
+    function applyDefaultMode(mode) {
+        currentDefaultMode = mode === 'automatic' ? 'automatic' : 'manual';
+        const inputs = document.querySelectorAll('input[name="default-mode"]');
+        inputs.forEach(input => {
+            if (input instanceof HTMLInputElement) {
+                input.checked = input.value === currentDefaultMode;
+            }
+        });
+    }
+
+    async function saveSettings() {
+        const statusEl = document.getElementById('statusMessage');
+        statusEl.className = 'status';
+        statusEl.textContent = '';
+
+        if (isSaving) {
+            return;
+        }
+
+        const selectedDefault = document.querySelector('input[name="default-mode"]:checked');
+        if (!selectedDefault) {
+            statusEl.className = 'status error';
+            statusEl.textContent = 'Lütfen varsayılan modu seçin.';
+            return;
+        }
+
+        if (!csrfToken) {
+            await loadSessionInfo();
+        }
+
+        if (!csrfToken) {
+            statusEl.className = 'status error';
+            statusEl.textContent = 'Oturum bilgisi alınamadı. Sayfayı yenileyin.';
+            return;
+        }
+
+        isSaving = true;
+        setSaveButtonDisabled(true);
+
+        try {
+            const response = await fetch('/api/assignment-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken || ''
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    default_mode: selectedDefault.value
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || `HTTP ${response.status}`);
+            }
+
+            await loadSettings();
+
+            statusEl.className = 'status success';
+            statusEl.textContent = 'Ayarlar başarıyla kaydedildi.';
+        } catch (error) {
+            statusEl.className = 'status error';
+            statusEl.textContent = `Ayarlar kaydedilemedi: ${error instanceof Error ? error.message : error}`;
+        } finally {
+            isSaving = false;
+            setSaveButtonDisabled(false);
+        }
+    }
+
+    async function logout() {
+        try {
+            await fetch('/auth/logout', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken || '' },
+                credentials: 'same-origin'
+            });
+        } catch (error) {
+            console.warn('Çıkış başarısız:', error);
+        } finally {
+            window.location.href = '/login.html';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        setSaveButtonDisabled(true);
+        await loadSessionInfo();
+        await loadSettings();
+        setSaveButtonDisabled(false);
+
+        const defaultModeGroup = document.getElementById('defaultModeGroup');
+        if (defaultModeGroup) {
+            defaultModeGroup.addEventListener('change', event => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement) || target.name !== 'default-mode') {
+                    return;
+                }
+                applyDefaultMode(target.value);
+            });
+        }
+    });
+</script>
+</body>
+</html>

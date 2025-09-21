@@ -22,6 +22,7 @@ export interface RfidSession {
   availableLockers?: number[];
   selectedLockerId?: number;
   timeToSelection?: number; // Time in seconds from session start to locker selection
+  zoneId?: string;
 }
 
 export interface SessionManagerConfig {
@@ -61,7 +62,12 @@ export class SessionManager extends EventEmitter {
    * Create a new RFID session for a kiosk
    * Implements one-session-per-kiosk rule by cancelling existing sessions
    */
-  createSession(kioskId: string, cardId: string, availableLockers?: number[]): RfidSession {
+  createSession(
+    kioskId: string,
+    cardId: string,
+    availableLockers?: number[],
+    zoneId?: string
+  ): RfidSession {
     // Cancel any existing session for this kiosk (one-session-per-kiosk rule)
     const existingSessionId = this.kioskSessions.get(kioskId);
     if (existingSessionId) {
@@ -77,7 +83,8 @@ export class SessionManager extends EventEmitter {
       startTime: new Date(),
       timeoutSeconds: this.config.defaultTimeoutSeconds,
       status: 'active',
-      availableLockers
+      availableLockers,
+      zoneId
     };
 
     // Store session

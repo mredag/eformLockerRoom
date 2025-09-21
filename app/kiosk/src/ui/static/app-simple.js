@@ -659,13 +659,37 @@ class SimpleKioskApp {
                     reservedAt: existingLocker.reservedAt
                 });
             } else {
-                // Start new session for locker selection
+                try {
+                    const flowResult = await this.requestLockerFlow(cardId);
+
+                    if (flowResult && flowResult.action === 'open_locker') {
+                        this.showFeedbackScreen(flowResult.message || 'Dolap açıldı', 'success');
+                        return;
+                    }
+
+                    if (flowResult && flowResult.action === 'show_lockers') {
+                        await this.startLockerSelection(cardId, flowResult);
+                        return;
+                    }
+
+                    if (flowResult && flowResult.error) {
+                        if (flowResult.error === 'no_lockers') {
+                            this.showErrorState('NO_LOCKERS_AVAILABLE');
+                            return;
+                        }
+
+                        console.warn('Flow response reported error, falling back to manual fetch:', flowResult.error);
+                    }
+                } catch (flowError) {
+                    console.warn('Failed to request locker flow, falling back to manual fetch:', flowError);
+                }
+
                 await this.startLockerSelection(cardId);
             }
-            
+
         } catch (error) {
             console.error('🚨 Card scan error:', error);
-            
+
             // Determine specific error type based on error details
             if (error.message.includes('network') || error.message.includes('fetch')) {
                 this.showErrorState('NETWORK_ERROR');
@@ -756,6 +780,31 @@ class SimpleKioskApp {
         }
     }
 
+    async requestLockerFlow(cardId) {
+        const payload = {
+            card_id: cardId,
+            kiosk_id: this.kioskId
+        };
+
+        if (this.kioskZone) {
+            payload.zone = this.kioskZone;
+        }
+
+        const response = await fetch('/api/rfid/handle-card', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`FLOW_REQUEST_FAILED:${response.status}`);
+        }
+
+        return await response.json();
+    }
+
     /**
      * Open existing locker and release assignment with enhanced error handling
      */
@@ -839,18 +888,6 @@ class SimpleKioskApp {
                     <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
                 </div>
                 <div class="owned-decision-buttons">
-                    <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
-                        <div class="owned-decision-icon" aria-hidden="true">
-                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M13 12h5"></path></svg>
-                        </div>
-                        <div class="owned-decision-copy">
-                            <span class="owned-decision-button-title">Sadece aç, teslim etme</span>
-                            <span class="owned-decision-button-subtitle">Eşyalarınızı almak için açabilirsiniz</span>
-                        </div>
-                        <div class="owned-decision-chevron" aria-hidden="true">
-                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-                        </div>
-                    </button>
                     <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
                         <div class="owned-decision-icon" aria-hidden="true">
                             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
@@ -861,6 +898,18 @@ class SimpleKioskApp {
                         </div>
                         <div class="owned-decision-chevron" aria-hidden="true">
                             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F4E8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                        </div>
+                    </button>
+                    <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
+                        <div class="owned-decision-icon" aria-hidden="true">
+                            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M13 12h5"></path></svg>
+                        </div>
+                        <div class="owned-decision-copy">
+                            <span class="owned-decision-button-title owned-decision-button-title--glow">Eşya almak için aç,</span>
+                            <span class="owned-decision-button-subtitle">Teslim etmeden dolabı açıp eşyalarınızı alabilirsiniz</span>
+                        </div>
+                        <div class="owned-decision-chevron" aria-hidden="true">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#5B4B8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
                         </div>
                     </button>
                 </div>
@@ -1017,40 +1066,57 @@ class SimpleKioskApp {
     /**
      * Start locker selection session with enhanced error handling
      */
-    async startLockerSelection(cardId) {
+    async startLockerSelection(cardId, flowPayload = null) {
         try {
             this.showLoadingState('Müsait dolaplar yükleniyor...');
-            
-            // Build zone-aware API URL (support backend expecting kiosk_id)
-            const zoneParam = this.kioskZone ? `&zone=${encodeURIComponent(this.kioskZone)}` : '';
-            const apiUrl = `/api/lockers/available?kiosk_id=${this.kioskId}${zoneParam}`;
-            
-            console.log(`🎯 Fetching available lockers: ${apiUrl}`);
-            
-            const response = await fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                if (response.status >= 500) {
-                    throw new Error('SERVER_ERROR');
-                } else if (response.status === 404) {
-                    throw new Error('NO_LOCKERS_AVAILABLE');
-                } else {
-                    throw new Error('NETWORK_ERROR');
-                }
-            }
-            
-            const result = await response.json();
 
-            // Support both response shapes:
-            // - New API: Array of lockers [{ id, status, is_vip }]
-            // - Legacy API: { lockers: [...], sessionId }
-            const rawLockers = Array.isArray(result) ? result : (result && result.lockers) ? result.lockers : [];
-            const sessionId = Array.isArray(result) ? `temp-${Date.now()}` : (result && result.sessionId) ? result.sessionId : `temp-${Date.now()}`;
+            let payload = flowPayload;
+
+            if (!payload) {
+                const zoneParam = this.kioskZone ? `&zone=${encodeURIComponent(this.kioskZone)}` : '';
+                const apiUrl = `/api/lockers/available?kiosk_id=${this.kioskId}${zoneParam}`;
+
+                console.log(`🎯 Fetching available lockers: ${apiUrl}`);
+
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status >= 500) {
+                        throw new Error('SERVER_ERROR');
+                    } else if (response.status === 404) {
+                        throw new Error('NO_LOCKERS_AVAILABLE');
+                    } else {
+                        throw new Error('NETWORK_ERROR');
+                    }
+                }
+
+                payload = await response.json();
+            }
+
+            const rawLockers = Array.isArray(payload)
+                ? payload
+                : (payload && payload.lockers)
+                    ? payload.lockers
+                    : [];
+
+            const sessionId = Array.isArray(payload)
+                ? `temp-${Date.now()}`
+                : (payload && (payload.session_id || payload.sessionId))
+                    ? payload.session_id || payload.sessionId
+                    : `temp-${Date.now()}`;
+
+            const timeoutSeconds = (payload && (payload.timeout_seconds || payload.timeoutSeconds))
+                ? payload.timeout_seconds || payload.timeoutSeconds
+                : this.sessionTimeoutSeconds;
+
+            const fallbackReason = payload && (payload.fallback_reason || payload.fallbackReason)
+                ? payload.fallback_reason || payload.fallbackReason
+                : null;
 
             // Normalize to UI shape and keep ONLY available lockers
             const lockers = rawLockers
@@ -1058,7 +1124,7 @@ class SimpleKioskApp {
                 .map(l => ({
                     id: l.id,
                     status: 'available',
-                    displayName: l.displayName || `Dolap ${l.id}`,
+                    displayName: l.display_name || l.displayName || `Dolap ${l.id}`,
                     is_vip: !!l.is_vip
                 }));
 
@@ -1066,11 +1132,14 @@ class SimpleKioskApp {
                 this.state.selectedCard = cardId;
                 this.state.sessionId = sessionId;
                 this.state.availableLockers = lockers;
-                this.startSession();
+                if (fallbackReason) {
+                    this.showToast('Manuel seçim', 'Otomatik atama tamamlanamadı, lütfen dolap seçin.');
+                }
+                this.startSession(timeoutSeconds);
             } else {
                 this.showErrorState('NO_LOCKERS_AVAILABLE');
             }
-            
+
         } catch (error) {
             console.error('🚨 Start locker selection error:', error);
             
@@ -1087,10 +1156,10 @@ class SimpleKioskApp {
     /**
      * Start session mode with countdown
      */
-    startSession() {
+    startSession(timeoutSeconds = this.sessionTimeoutSeconds) {
         this.state.mode = 'session';
-        this.state.countdown = this.sessionTimeoutSeconds;
-        
+        this.state.countdown = timeoutSeconds;
+
         const cardIdElement = document.querySelector('.card-id');
         if (cardIdElement) {
             cardIdElement.textContent = `Kart: - ${this.state.selectedCard}`;

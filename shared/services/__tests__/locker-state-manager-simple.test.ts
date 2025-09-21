@@ -8,6 +8,7 @@ describe('LockerStateManager - Simple Tests', () => {
 
   beforeEach(async () => {
     DatabaseConnection.resetInstance();
+    DatabaseConnection.resetInstance(':memory:');
     db = DatabaseConnection.getInstance(':memory:');
     await db.waitForInitialization();
     
@@ -41,7 +42,7 @@ describe('LockerStateManager - Simple Tests', () => {
       )
     `);
 
-    stateManager = new LockerStateManager();
+    stateManager = new LockerStateManager(db, { autoReleaseHoursOverride: null });
   }, 20000);
 
   afterEach(async () => {
@@ -49,6 +50,7 @@ describe('LockerStateManager - Simple Tests', () => {
       await stateManager.shutdown();
     }
     DatabaseConnection.resetInstance();
+    DatabaseConnection.resetInstance(':memory:');
   });
 
   it('should create state manager instance', () => {
