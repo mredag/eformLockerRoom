@@ -14,7 +14,6 @@ describe('RateLimiter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockEventRepository.logEvent.mockClear();
 
     config = {
       ip: { maxTokens: 30, refillRate: 0.5, blockThreshold: 10, blockDuration: 300 },

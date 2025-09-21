@@ -324,11 +324,11 @@ export class LockerStateManager {
 
     const normalized: Locker = {
       ...(row as Locker),
-      reserved_at: toOptionalDate(row.reserved_at) ?? null,
-      owned_at: toOptionalDate(row.owned_at) ?? null,
+      reserved_at: toOptionalDate(row.reserved_at) ?? undefined,
+      owned_at: toOptionalDate(row.owned_at) ?? undefined,
       created_at: toDate(row.created_at),
       updated_at: toDate(row.updated_at),
-      name_updated_at: toOptionalDate(row.name_updated_at) ?? null,
+      name_updated_at: toOptionalDate(row.name_updated_at) ?? undefined,
       is_vip: row.is_vip === true || row.is_vip === 1
     };
 
