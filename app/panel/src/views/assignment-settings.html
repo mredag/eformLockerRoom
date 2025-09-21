@@ -229,10 +229,24 @@
     let csrfToken = null;
     let currentUser = null;
     let currentDefaultMode = 'manual';
+    let isSaving = false;
+
+    function getSaveButton() {
+        return document.querySelector('button.btn-primary');
+    }
+
+    function setSaveButtonDisabled(disabled) {
+        const button = getSaveButton();
+        if (button) {
+            button.disabled = disabled;
+            button.style.opacity = disabled ? '0.6' : '';
+            button.style.cursor = disabled ? 'not-allowed' : 'pointer';
+        }
+    }
 
     async function loadSessionInfo() {
         try {
-            const response = await fetch('/auth/me');
+            const response = await fetch('/auth/me', { credentials: 'same-origin' });
             if (!response.ok) {
                 window.location.href = '/login.html';
                 return;
@@ -254,7 +268,7 @@
         statusEl.textContent = '';
 
         try {
-            const response = await fetch('/api/assignment-settings');
+            const response = await fetch('/api/assignment-settings', { credentials: 'same-origin' });
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -382,6 +396,10 @@
         statusEl.className = 'status';
         statusEl.textContent = '';
 
+        if (isSaving) {
+            return;
+        }
+
         const selectedDefault = document.querySelector('input[name="default-mode"]:checked');
         if (!selectedDefault) {
             statusEl.className = 'status error';
@@ -397,18 +415,26 @@
         }));
 
         if (!csrfToken) {
+            await loadSessionInfo();
+        }
+
+        if (!csrfToken) {
             statusEl.className = 'status error';
             statusEl.textContent = 'Oturum bilgisi alınamadı. Sayfayı yenileyin.';
             return;
         }
+
+        isSaving = true;
+        setSaveButtonDisabled(true);
 
         try {
             const response = await fetch('/api/assignment-settings', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || ''
+                    'X-CSRF-Token': csrfToken || ''
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({
                     default_mode: selectedDefault.value,
                     kiosks
@@ -420,17 +446,26 @@
                 throw new Error(result.error || `HTTP ${response.status}`);
             }
 
+            await loadSettings();
+
             statusEl.className = 'status success';
             statusEl.textContent = 'Ayarlar başarıyla kaydedildi.';
         } catch (error) {
             statusEl.className = 'status error';
             statusEl.textContent = `Ayarlar kaydedilemedi: ${error instanceof Error ? error.message : error}`;
+        } finally {
+            isSaving = false;
+            setSaveButtonDisabled(false);
         }
     }
 
     async function logout() {
         try {
-            await fetch('/auth/logout', { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken || '' } });
+            await fetch('/auth/logout', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken || '' },
+                credentials: 'same-origin'
+            });
         } catch (error) {
             console.warn('Çıkış başarısız:', error);
         } finally {
@@ -439,8 +474,10 @@
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
+        setSaveButtonDisabled(true);
         await loadSessionInfo();
         await loadSettings();
+        setSaveButtonDisabled(false);
 
         const defaultModeGroup = document.getElementById('defaultModeGroup');
         if (defaultModeGroup) {
