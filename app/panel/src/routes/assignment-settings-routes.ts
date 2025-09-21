@@ -90,20 +90,17 @@ export class AssignmentSettingsRoutes {
       }
 
       await this.configManager.initialize();
-      const currentConfig = this.configManager.getConfiguration();
-      const perKiosk = currentConfig.services.kiosk.assignment?.per_kiosk ?? {};
-      const hasOverrides = Object.keys(perKiosk).length > 0;
 
       const staffUser = (request as any).user?.username || 'panel-user';
 
-      await this.configManager.updateConfiguration('services', {
-        kiosk: {
-          assignment: {
-            default_mode: defaultMode,
-            per_kiosk: hasOverrides ? {} : perKiosk
-          }
-        }
-      }, staffUser, 'Updated kiosk assignment settings via panel');
+      await this.configManager.setKioskAssignmentConfig(
+        {
+          default_mode: defaultMode,
+          per_kiosk: {}
+        },
+        staffUser,
+        'Updated kiosk assignment settings via panel'
+      );
 
       return { success: true };
     } catch (error) {

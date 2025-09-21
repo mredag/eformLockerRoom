@@ -486,6 +486,40 @@ describe('ConfigManager', () => {
 
       configManager.validateConfiguration = originalValidate;
     });
+
+    it('should replace kiosk assignment configuration and clear overrides', async () => {
+      const config = configManager.getConfiguration();
+      config.services.kiosk.assignment = {
+        default_mode: 'automatic',
+        per_kiosk: {
+          'kiosk-1': 'automatic',
+          'kiosk-2': 'manual'
+        }
+      };
+
+      mockWriteFile.mockClear();
+
+      await configManager.setKioskAssignmentConfig(
+        {
+          default_mode: 'manual',
+          per_kiosk: {}
+        },
+        'test-user',
+        'Reset kiosk assignment defaults'
+      );
+
+      expect(mockWriteFile).toHaveBeenCalled();
+      const lastWrite = mockWriteFile.mock.calls.at(-1);
+      expect(lastWrite).toBeDefined();
+
+      const savedConfig = JSON.parse(lastWrite![1] as string) as CompleteSystemConfig;
+      expect(savedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
+      expect(savedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
+
+      const updatedConfig = configManager.getConfiguration();
+      expect(updatedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
+      expect(updatedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
+    });
   });
 
   describe('Error Handling', () => {

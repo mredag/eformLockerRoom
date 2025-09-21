@@ -460,6 +460,49 @@ export class ConfigManager {
     }
   }
 
+  async setKioskAssignmentConfig(
+    assignment: KioskAssignmentConfig,
+    changedBy: string,
+    reason?: string
+  ): Promise<void> {
+    if (!this.config) {
+      throw new Error('Configuration not loaded');
+    }
+
+    const normalizedAssignment = this.normalizeKioskAssignmentConfig(assignment);
+    const previousSnapshot = this.cloneConfiguration(this.config);
+    const previousAssignment = previousSnapshot.services.kiosk?.assignment;
+
+    this.config.services.kiosk = {
+      ...this.config.services.kiosk,
+      assignment: normalizedAssignment
+    };
+
+    const validation = this.validateConfiguration(this.config);
+
+    if (!validation.valid) {
+      this.config = previousSnapshot;
+      throw new Error(`Configuration validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    const description = reason || 'Kiosk assignment configuration updated';
+
+    await this.saveConfiguration({
+      operation: 'update-services',
+      reason: description,
+      backupSnapshot: previousSnapshot
+    });
+
+    await this.logConfigChange({
+      timestamp: new Date(),
+      changed_by: changedBy,
+      section: 'services',
+      old_value: previousAssignment,
+      new_value: normalizedAssignment,
+      reason: description
+    });
+  }
+
   /**
    * A convenience method to update a single parameter within a configuration section.
    * @param {keyof CompleteSystemConfig} section - The section containing the parameter.
@@ -943,6 +986,29 @@ export class ConfigManager {
     }
 
     return result as T;
+  }
+
+  private normalizeKioskAssignmentConfig(assignment: KioskAssignmentConfig): KioskAssignmentConfig {
+    const defaultMode: LockerAssignmentMode = assignment.default_mode === 'automatic' ? 'automatic' : 'manual';
+
+    const sanitizedPerKiosk: Record<string, LockerAssignmentMode> = {};
+
+    if (assignment.per_kiosk && typeof assignment.per_kiosk === 'object') {
+      for (const [kioskId, mode] of Object.entries(assignment.per_kiosk)) {
+        if (!kioskId) {
+          continue;
+        }
+
+        if (mode === 'manual' || mode === 'automatic') {
+          sanitizedPerKiosk[kioskId] = mode;
+        }
+      }
+    }
+
+    return {
+      default_mode: defaultMode,
+      per_kiosk: sanitizedPerKiosk
+    };
   }
 
   /**
