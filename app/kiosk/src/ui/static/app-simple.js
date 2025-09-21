@@ -781,15 +781,21 @@ class SimpleKioskApp {
     }
 
     async requestLockerFlow(cardId) {
+        const payload = {
+            card_id: cardId,
+            kiosk_id: this.kioskId
+        };
+
+        if (this.kioskZone) {
+            payload.zone = this.kioskZone;
+        }
+
         const response = await fetch('/api/rfid/handle-card', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                card_id: cardId,
-                kiosk_id: this.kioskId
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {

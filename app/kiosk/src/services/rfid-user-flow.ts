@@ -174,7 +174,10 @@ export class RfidUserFlow extends EventEmitter {
           const allowedLockerIds = availableLockers.map(locker => locker.id);
           candidate = await this.lockerStateManager.getOldestAvailableLocker(
             this.config.kiosk_id,
-            allowedLockerIds
+            {
+              allowedLockerIds,
+              zoneId: this.config.zone_id
+            }
           );
         } catch (error) {
           console.warn('⚠️ Otomatik atama için uygun dolap aranırken hata oluştu:', error);

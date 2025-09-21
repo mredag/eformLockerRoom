@@ -112,11 +112,11 @@ describe('LockerStateManager', () => {
     });
 
     it('respects allowed locker id filter', async () => {
-      const locker = await stateManager.getOldestAvailableLocker('kiosk-1', [2]);
+      const locker = await stateManager.getOldestAvailableLocker('kiosk-1', { allowedLockerIds: [2] });
       expect(locker).not.toBeNull();
       expect(locker?.id).toBe(2);
 
-      const none = await stateManager.getOldestAvailableLocker('kiosk-1', [3]);
+      const none = await stateManager.getOldestAvailableLocker('kiosk-1', { allowedLockerIds: [3] });
       expect(none).toBeNull();
     });
   });
@@ -304,14 +304,27 @@ describe('LockerStateManager', () => {
 
     it('should return only Free, non-VIP lockers', async () => {
       const available = await stateManager.getAvailableLockers('kiosk-1');
-      
+
       expect(available).toHaveLength(2);
       expect(available.map(l => l.id)).toEqual([1, 6]);
-      
+
       for (const locker of available) {
         expect(locker.status).toBe('Free');
         expect(locker.is_vip).toBe(false);
       }
+    });
+
+    it('filters available lockers by zone when provided', async () => {
+      await db.run(`
+        INSERT INTO lockers (kiosk_id, id, status, version, is_vip)
+        VALUES (?, ?, ?, ?, ?)
+      `, ['kiosk-1', 40, 'Free', 1, 0]);
+
+      const mensLockers = await stateManager.getAvailableLockers('kiosk-1', { zoneId: 'mens' });
+      expect(mensLockers.map(l => l.id)).toEqual([1, 6]);
+
+      const womensLockers = await stateManager.getAvailableLockers('kiosk-1', { zoneId: 'womens' });
+      expect(womensLockers.map(l => l.id)).toEqual([40]);
     });
   });
 

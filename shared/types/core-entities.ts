@@ -16,12 +16,12 @@ export interface Locker {
   status: LockerStatus;
   owner_type?: OwnerType;
   owner_key?: string;
-  reserved_at?: Date;
-  owned_at?: Date;
+  reserved_at?: Date | null;
+  owned_at?: Date | null;
   version: number; // For optimistic locking
   is_vip: boolean;
   display_name?: string; // Custom display name (max 20 chars, Turkish support)
-  name_updated_at?: Date; // When display name was last updated
+  name_updated_at?: Date | null; // When display name was last updated
   name_updated_by?: string; // Who updated the display name
   created_at: Date;
   updated_at: Date;

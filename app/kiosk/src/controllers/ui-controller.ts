@@ -76,6 +76,29 @@ export class UiController {
     return this.configManager.getKioskAssignmentMode(kioskId);
   }
 
+  private async resolveZoneFilter(zone?: string): Promise<string | undefined> {
+    if (!zone) {
+      return undefined;
+    }
+
+    await this.ensureConfigInitialized();
+    const config = this.configManager.getConfiguration();
+
+    if (!config.features?.zones_enabled || !config.zones) {
+      console.warn(`Zone filter "${zone}" requested but zones are disabled in configuration.`);
+      return undefined;
+    }
+
+    const normalizedZone = config.zones.find(z => z.id === zone && z.enabled);
+
+    if (!normalizedZone) {
+      console.warn(`Zone filter "${zone}" requested but not found or disabled.`);
+      return undefined;
+    }
+
+    return normalizedZone.id;
+  }
+
   async registerRoutes(fastify: FastifyInstance) {
     // Serve static files
     await fastify.register(require('@fastify/static'), {
@@ -204,7 +227,14 @@ export class UiController {
 
 
   private async handleCardScanned(request: FastifyRequest, reply: FastifyReply) {
-    const { card_id, kiosk_id } = request.body as { card_id: string; kiosk_id: string };
+    const { card_id, kiosk_id, zone, zone_id } = request.body as {
+      card_id: string;
+      kiosk_id: string;
+      zone?: string;
+      zone_id?: string;
+    };
+
+    const requestedZone = zone ?? zone_id;
 
     if (!card_id || !kiosk_id) {
       reply.code(400);
@@ -212,7 +242,7 @@ export class UiController {
     }
 
     try {
-      return await this.processCardScan(card_id, kiosk_id);
+      return await this.processCardScan(card_id, kiosk_id, requestedZone);
     } catch (error) {
       console.error('Error handling card scan:', error);
       reply.code(500);
@@ -223,8 +253,10 @@ export class UiController {
     }
   }
 
-  private async processCardScan(cardId: string, kioskId: string) {
-    console.log(`🎯 Card scanned: ${cardId} on kiosk ${kioskId}`);
+  private async processCardScan(cardId: string, kioskId: string, requestedZone?: string) {
+    console.log(`🎯 Card scanned: ${cardId} on kiosk ${kioskId}${requestedZone ? ` (zone: ${requestedZone})` : ''}`);
+
+    const zoneFilter = await this.resolveZoneFilter(requestedZone);
 
     const existingLocker = await this.lockerStateManager.checkExistingOwnership(cardId, 'rfid');
 
@@ -278,13 +310,17 @@ export class UiController {
       };
     }
 
-    let availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId);
+    let availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId, {
+      zoneId: zoneFilter
+    });
 
     if (availableLockers.length === 0) {
       console.log(`⚠️ No available lockers for kiosk ${kioskId}`);
       return {
         error: 'no_lockers',
-        message: 'Müsait dolap yok - Daha sonra deneyin'
+        message: zoneFilter
+          ? `Müsait dolap yok (${zoneFilter})`
+          : 'Müsait dolap yok - Daha sonra deneyin'
       };
     }
 
@@ -293,10 +329,10 @@ export class UiController {
 
     if (assignmentMode === 'automatic') {
       try {
-        const candidate = await this.lockerStateManager.getOldestAvailableLocker(
-          kioskId,
-          availableLockers.map(locker => locker.id)
-        );
+        const candidate = await this.lockerStateManager.getOldestAvailableLocker(kioskId, {
+          allowedLockerIds: availableLockers.map(locker => locker.id),
+          zoneId: zoneFilter
+        });
 
         if (candidate) {
           console.log(`🤖 Automatic locker assignment attempt: locker ${candidate.id}`);
@@ -348,7 +384,9 @@ export class UiController {
 
       if (fallbackReason) {
         try {
-          availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId);
+          availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId, {
+            zoneId: zoneFilter
+          });
         } catch (refreshError) {
           console.warn('Failed to refresh available lockers after automatic assignment issue:', refreshError);
         }
@@ -374,7 +412,8 @@ export class UiController {
     const session = this.sessionManager.createSession(
       kioskId,
       cardId,
-      availableLockers.map(l => l.id)
+      availableLockers.map(l => l.id),
+      zoneFilter
     );
 
     console.log(`🔑 Created session ${session.id} for card ${cardId} with ${availableLockers.length} available lockers`);
@@ -397,21 +436,24 @@ export class UiController {
   }
   private async getAvailableLockers(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { kioskId } = request.query as { kioskId: string };
-      
+      const { kioskId, zone } = request.query as { kioskId: string; zone?: string };
+
       if (!kioskId) {
         reply.code(400);
         return { error: 'kioskId is required' };
       }
 
-      const lockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId);
-      
+      const zoneFilter = await this.resolveZoneFilter(zone);
+      const lockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId, {
+        zoneId: zoneFilter
+      });
+
       if (lockers.length === 0) {
         return {
           lockers: [],
           sessionId: null,
           timeoutSeconds: 0,
-          message: 'Müsait dolap yok'
+          message: zoneFilter ? `Müsait dolap yok (${zoneFilter})` : 'Müsait dolap yok'
         };
       }
 
@@ -432,7 +474,8 @@ export class UiController {
         startTime: new Date(),
         timeoutSeconds: 30,
         status: 'active' as const,
-        availableLockers: availableLockersList.map(l => l.id)
+        availableLockers: availableLockersList.map(l => l.id),
+        zoneId: zoneFilter
       };
       
       // Store the session manually in session manager
@@ -1035,8 +1078,11 @@ export class UiController {
         };
       }
 
-      // Refresh available lockers for retry
-      const availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id);
+      // Refresh available lockers for retry (respect session zone if available)
+      const zoneFilter = await this.resolveZoneFilter(session.zoneId);
+      const availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id, {
+        zoneId: zoneFilter
+      });
       
       if (availableLockers.length === 0) {
         return { 
