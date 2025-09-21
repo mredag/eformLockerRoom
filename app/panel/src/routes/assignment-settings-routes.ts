@@ -7,9 +7,11 @@ import { LockerAssignmentMode } from '@eform/shared/types/system-config';
 import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
 import { Permission } from '../services/permission-service';
 
+type AssignmentOverrideMode = LockerAssignmentMode | 'inherit' | null | undefined;
+
 interface UpdateAssignmentBody {
   default_mode: LockerAssignmentMode;
-  kiosks?: Array<{ id: string; mode: LockerAssignmentMode }>;
+  kiosks?: Array<{ id: string; mode?: AssignmentOverrideMode }>;
 }
 
 interface UpdateAssignmentRequest extends FastifyRequest {
@@ -73,7 +75,8 @@ export class AssignmentSettingsRoutes {
 
       const kiosks = kioskIds.map(id => ({
         id,
-        mode: assignment.per_kiosk?.[id] ?? assignment.default_mode ?? 'manual'
+        mode: assignment.per_kiosk?.[id] ?? null,
+        effective_mode: assignment.per_kiosk?.[id] ?? assignment.default_mode ?? 'manual'
       }));
 
       return {
@@ -101,10 +104,12 @@ export class AssignmentSettingsRoutes {
         return { success: false, error: 'Invalid default mode. Use "manual" or "automatic".' };
       }
 
-      const invalidKiosk = kiosks.find(k => k.mode !== 'manual' && k.mode !== 'automatic');
-      if (invalidKiosk) {
-        reply.code(400);
-        return { success: false, error: `Invalid mode for kiosk ${invalidKiosk.id}` };
+      for (const kiosk of kiosks) {
+        const requestedMode = kiosk.mode === 'inherit' || kiosk.mode == null ? null : kiosk.mode;
+        if (requestedMode !== null && requestedMode !== 'manual' && requestedMode !== 'automatic') {
+          reply.code(400);
+          return { success: false, error: `Invalid mode for kiosk ${kiosk.id}` };
+        }
       }
 
       await this.configManager.initialize();
@@ -113,10 +118,11 @@ export class AssignmentSettingsRoutes {
       const perKiosk: Record<string, LockerAssignmentMode> = { ...(currentAssignment.per_kiosk ?? {}) };
 
       for (const kiosk of kiosks) {
-        if (kiosk.mode === defaultMode) {
+        const requestedMode = kiosk.mode === 'inherit' || kiosk.mode == null ? null : kiosk.mode;
+        if (requestedMode === null || requestedMode === defaultMode) {
           delete perKiosk[kiosk.id];
         } else {
-          perKiosk[kiosk.id] = kiosk.mode;
+          perKiosk[kiosk.id] = requestedMode;
         }
       }
 
