@@ -33,23 +33,23 @@ describe('LockerStateManager - Enhanced Features', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Mock LockerNamingService
     mockNamingService = {
       getDisplayName: vi.fn().mockResolvedValue('Dolap 1')
     };
     vi.mocked(LockerNamingService).mockImplementation(() => mockNamingService);
 
+    mockDb.get.mockReset().mockResolvedValue(undefined);
+    mockDb.all.mockReset().mockResolvedValue([]);
+    mockDb.run.mockReset().mockResolvedValue({ changes: 0 });
+
     // Create state manager with mock database
-    stateManager = new LockerStateManager({
-      getConnection: () => ({
-        getDatabase: () => mockDb
-      })
-    });
+    stateManager = new LockerStateManager(mockDb, { autoReleaseHoursOverride: null });
   });
 
-  afterEach(() => {
-    stateManager.shutdown();
+  afterEach(async () => {
+    await stateManager.shutdown();
   });
 
   describe('Turkish state names', () => {
@@ -94,57 +94,124 @@ describe('LockerStateManager - Enhanced Features', () => {
     });
 
     it('should broadcast state update on locker assignment', async () => {
-      // Mock database responses
-      mockDb.get.mockResolvedValue({
-        id: 1,
-        kiosk_id: 'kiosk-1',
-        status: 'Free',
-        version: 1,
-        is_vip: false
-      });
-      
+      const createdAt = new Date('2025-01-01T00:00:00Z');
+      const reservedAt = new Date('2025-01-01T01:00:00Z');
+      const updatedAt = new Date('2025-01-01T02:00:00Z');
+
+      mockDb.get
+        .mockResolvedValueOnce({
+          id: 1,
+          kiosk_id: 'kiosk-1',
+          status: 'Free',
+          version: 1,
+          is_vip: false,
+          created_at: createdAt,
+          updated_at: createdAt
+        })
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce({
+          id: 1,
+          kiosk_id: 'kiosk-1',
+          status: 'Owned',
+          version: 2,
+          is_vip: false,
+          owner_type: 'rfid',
+          owner_key: 'card123',
+          reserved_at: reservedAt,
+          created_at: createdAt,
+          updated_at: updatedAt
+        });
+
       mockDb.run.mockResolvedValue({ changes: 1 });
 
       await stateManager.assignLocker('kiosk-1', 1, 'rfid', 'card123');
 
-      expect(webSocketService.broadcastStateUpdate).toHaveBeenCalledWith({
-        kioskId: 'kiosk-1',
-        lockerId: 1,
-        displayName: 'Dolap 1',
-        state: 'Owned',
-        lastChanged: expect.any(Date),
-        ownerKey: 'card123',
-        ownerType: 'rfid'
-      });
+      expect(webSocketService.broadcastStateUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kioskId: 'kiosk-1',
+          lockerId: 1,
+          displayName: 'Dolap 1',
+          state: 'Owned',
+          ownerKey: 'card123',
+          ownerType: 'rfid',
+          reservedAt: reservedAt.toISOString(),
+          ownedAt: null,
+          isVip: false,
+          lastChanged: expect.anything()
+        })
+      );
     });
   });
 
   describe('Enhanced locker data', () => {
     it('should get enhanced locker with display name', async () => {
+      const createdAt = new Date('2025-01-01T00:00:00Z');
+      const updatedAt = new Date('2025-01-01T00:30:00Z');
+
       mockDb.get.mockResolvedValue({
         id: 1,
         kiosk_id: 'kiosk-1',
         status: 'Free',
-        version: 1
+        version: 1,
+        is_vip: false,
+        reserved_at: null,
+        owned_at: null,
+        owner_type: null,
+        owner_key: null,
+        created_at: createdAt,
+        updated_at: updatedAt
       });
 
       const enhancedLocker = await stateManager.getEnhancedLocker('kiosk-1', 1);
-      
-      expect(enhancedLocker).toEqual({
-        id: 1,
-        kiosk_id: 'kiosk-1',
-        status: 'Free',
-        version: 1,
-        displayName: 'Dolap 1'
-      });
-      
+
+      expect(enhancedLocker).toEqual(
+        expect.objectContaining({
+          id: 1,
+          kiosk_id: 'kiosk-1',
+          status: 'Free',
+          version: 1,
+          displayName: 'Dolap 1',
+          is_vip: false,
+          reserved_at: null,
+          owned_at: null,
+          owner_type: null,
+          owner_key: null
+        })
+      );
+      expect(enhancedLocker?.created_at).toBeInstanceOf(Date);
+      expect(enhancedLocker?.updated_at).toBeInstanceOf(Date);
+
       expect(mockNamingService.getDisplayName).toHaveBeenCalledWith('kiosk-1', 1);
     });
 
     it('should get enhanced kiosk lockers with display names', async () => {
       mockDb.all.mockResolvedValue([
-        { id: 1, kiosk_id: 'kiosk-1', status: 'Free', version: 1 },
-        { id: 2, kiosk_id: 'kiosk-1', status: 'Owned', version: 1 }
+        {
+          id: 1,
+          kiosk_id: 'kiosk-1',
+          status: 'Free',
+          version: 1,
+          is_vip: false,
+          reserved_at: null,
+          owned_at: null,
+          owner_type: null,
+          owner_key: null,
+          created_at: new Date('2025-01-01T00:00:00Z'),
+          updated_at: new Date('2025-01-01T00:10:00Z')
+        },
+        {
+          id: 2,
+          kiosk_id: 'kiosk-1',
+          status: 'Owned',
+          version: 1,
+          is_vip: false,
+          reserved_at: new Date('2025-01-01T00:05:00Z'),
+          owned_at: null,
+          owner_type: 'rfid',
+          owner_key: 'card-1',
+          created_at: new Date('2025-01-01T00:00:00Z'),
+          updated_at: new Date('2025-01-01T00:12:00Z')
+        }
       ]);
 
       mockNamingService.getDisplayName
@@ -165,7 +232,14 @@ describe('LockerStateManager - Enhanced Features', () => {
         id: 1,
         kiosk_id: 'kiosk-1',
         status: 'Free',
-        version: 1
+        version: 1,
+        is_vip: false,
+        reserved_at: null,
+        owned_at: null,
+        owner_type: null,
+        owner_key: null,
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:05:00Z')
       });
       
       mockDb.run.mockResolvedValue({ changes: 1 });
@@ -173,13 +247,20 @@ describe('LockerStateManager - Enhanced Features', () => {
       const result = await stateManager.setLockerError('kiosk-1', 1, 'Hardware failure');
       
       expect(result).toBe(true);
-      expect(webSocketService.broadcastStateUpdate).toHaveBeenCalledWith({
-        kioskId: 'kiosk-1',
-        lockerId: 1,
-        displayName: 'Dolap 1',
-        state: 'Error',
-        lastChanged: expect.any(Date)
-      });
+      expect(webSocketService.broadcastStateUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kioskId: 'kiosk-1',
+          lockerId: 1,
+          displayName: 'Dolap 1',
+          state: 'Error',
+          isVip: false,
+          reservedAt: null,
+          ownedAt: null,
+          ownerKey: undefined,
+          ownerType: undefined,
+          lastChanged: expect.anything()
+        })
+      );
     });
 
     it('should resolve locker error', async () => {
@@ -187,7 +268,14 @@ describe('LockerStateManager - Enhanced Features', () => {
         id: 1,
         kiosk_id: 'kiosk-1',
         status: 'Error',
-        version: 1
+        version: 1,
+        is_vip: false,
+        reserved_at: null,
+        owned_at: null,
+        owner_type: null,
+        owner_key: null,
+        created_at: new Date('2025-01-01T00:00:00Z'),
+        updated_at: new Date('2025-01-01T00:05:00Z')
       });
       
       mockDb.run.mockResolvedValue({ changes: 1 });
@@ -195,13 +283,20 @@ describe('LockerStateManager - Enhanced Features', () => {
       const result = await stateManager.resolveLockerError('kiosk-1', 1, 'staff-user');
       
       expect(result).toBe(true);
-      expect(webSocketService.broadcastStateUpdate).toHaveBeenCalledWith({
-        kioskId: 'kiosk-1',
-        lockerId: 1,
-        displayName: 'Dolap 1',
-        state: 'Free',
-        lastChanged: expect.any(Date)
-      });
+      expect(webSocketService.broadcastStateUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kioskId: 'kiosk-1',
+          lockerId: 1,
+          displayName: 'Dolap 1',
+          state: 'Free',
+          isVip: false,
+          reservedAt: null,
+          ownedAt: null,
+          ownerKey: undefined,
+          ownerType: undefined,
+          lastChanged: expect.anything()
+        })
+      );
     });
   });
 

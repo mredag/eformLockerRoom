@@ -10,6 +10,7 @@ import { RfidUserFlow, RfidUserFlowConfig } from '../services/rfid-user-flow';
 import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
 import { ModbusController } from '../hardware/modbus-controller';
 import { Locker, RfidScanEvent } from '../../../../src/types/core-entities';
+import { LockerAssignmentMode } from '../../../../shared/types/system-config';
 
 // Mock dependencies
 vi.mock('../../../../shared/services/locker-state-manager');
@@ -33,6 +34,7 @@ describe('RFID Integration Tests', () => {
   let rfidUserFlow: RfidUserFlow;
   let mockLockerStateManager: vi.Mocked<LockerStateManager>;
   let mockModbusController: vi.Mocked<ModbusController>;
+  let mockConfigManager: { initialize: ReturnType<typeof vi.fn>; getKioskAssignmentMode: ReturnType<typeof vi.fn> };
 
   const mockKioskId = 'integration-test-kiosk';
 
@@ -40,6 +42,7 @@ describe('RFID Integration Tests', () => {
     // Setup mocks
     mockLockerStateManager = {
       getAvailableLockers: vi.fn(),
+      getOldestAvailableLocker: vi.fn(),
       checkExistingOwnership: vi.fn(),
       validateOwnership: vi.fn(),
       assignLocker: vi.fn(),
@@ -70,12 +73,23 @@ describe('RFID Integration Tests', () => {
     };
 
     const mockLockerNamingService = {
-      getDisplayName: vi.fn().mockImplementation((kioskId: string, lockerId: number) => 
+      getDisplayName: vi.fn().mockImplementation((kioskId: string, lockerId: number) =>
         Promise.resolve(`Dolap ${lockerId}`)
       )
     } as any;
 
-    rfidUserFlow = new RfidUserFlow(userFlowConfig, mockLockerStateManager, mockModbusController, mockLockerNamingService);
+    mockConfigManager = {
+      initialize: vi.fn().mockResolvedValue(undefined),
+      getKioskAssignmentMode: vi.fn().mockReturnValue('manual' as LockerAssignmentMode)
+    };
+
+    rfidUserFlow = new RfidUserFlow(
+      userFlowConfig,
+      mockLockerStateManager,
+      mockModbusController,
+      mockLockerNamingService,
+      mockConfigManager as any
+    );
 
     // Initialize RFID handler
     await rfidHandler.initialize();
@@ -289,7 +303,8 @@ describe('RFID Integration Tests', () => {
         rfidHandler.on('connected', resolve);
       });
 
-      // Simulate successful reconnection after some time
+      // Simulate successful reconnection
+      await rfidHandler.initialize();
       await reconnectPromise;
       expect(rfidHandler.isReaderConnected()).toBe(true);
     });

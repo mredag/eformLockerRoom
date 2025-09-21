@@ -6,12 +6,16 @@ import { LockerNamingService } from '../../../../shared/services/locker-naming-s
 import { ModbusController } from '../hardware/modbus-controller';
 import { SessionManager } from './session-manager';
 import { lockerLayoutService } from '../../../../shared/services/locker-layout-service';
+import { ConfigManager } from '../../../../shared/services/config-manager';
+import { LockerAssignmentMode } from '../../../../shared/types/system-config';
 
 export class UiController {
   private lockerStateManager: LockerStateManager;
   private modbusController: ModbusController;
   private lockerNamingService: LockerNamingService;
   private sessionManager: SessionManager;
+  private configManager: ConfigManager;
+  private configInitPromise: Promise<void> | null = null;
   private masterPin: string = '1234'; // TODO: Load from config
   private pinAttempts: Map<string, { count: number; lockoutEnd?: number }> = new Map();
   private readonly maxAttempts = 5;
@@ -25,7 +29,11 @@ export class UiController {
     this.lockerStateManager = lockerStateManager;
     this.modbusController = modbusController;
     this.lockerNamingService = lockerNamingService;
-    
+    this.configManager = ConfigManager.getInstance();
+    this.configInitPromise = this.configManager.initialize().catch(error => {
+      console.warn('Failed to initialize configuration manager for UI controller:', error);
+    });
+
     // Initialize session manager with 30-second timeout (Requirement 3.1)
     this.sessionManager = new SessionManager({
       defaultTimeoutSeconds: 30, // Increased from 20 to 30 seconds per requirements
@@ -47,6 +55,25 @@ export class UiController {
       console.warn(`Failed to get display name for locker ${lockerId}, using default:`, error);
       return `Dolap ${lockerId}`;
     }
+  }
+
+  private async ensureConfigInitialized(): Promise<void> {
+    if (!this.configInitPromise) {
+      this.configInitPromise = this.configManager.initialize().catch(error => {
+        console.warn('Failed to initialize configuration manager for UI controller:', error);
+      });
+    }
+
+    try {
+      await this.configInitPromise;
+    } catch (error) {
+      console.warn('Configuration manager initialization previously failed:', error);
+    }
+  }
+
+  private async getAssignmentMode(kioskId: string): Promise<LockerAssignmentMode> {
+    await this.ensureConfigInitialized();
+    return this.configManager.getKioskAssignmentMode(kioskId);
   }
 
   async registerRoutes(fastify: FastifyInstance) {
@@ -241,14 +268,89 @@ export class UiController {
         }
       } else {
         // Requirement 2.3: Show available lockers for selection
-        const availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id);
-        
+        let availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id);
+
         if (availableLockers.length === 0) {
           console.log(`⚠️ No available lockers for kiosk ${kiosk_id}`);
-          return { 
+          return {
             error: 'no_lockers',
             message: 'Müsait dolap yok - Daha sonra deneyin'
           };
+        }
+
+        const assignmentMode = await this.getAssignmentMode(kiosk_id);
+        let fallbackReason: string | undefined;
+
+        if (assignmentMode === 'automatic') {
+          try {
+            const candidate = await this.lockerStateManager.getOldestAvailableLocker(
+              kiosk_id,
+              availableLockers.map(locker => locker.id)
+            );
+
+            if (candidate) {
+              console.log(`🤖 Automatic locker assignment attempt: locker ${candidate.id}`);
+              const assigned = await this.lockerStateManager.assignLocker(kiosk_id, candidate.id, 'rfid', card_id);
+
+              if (assigned) {
+                let opened = false;
+                let hardwareError: string | null = null;
+
+                try {
+                  opened = await this.modbusController.openLocker(candidate.id);
+                } catch (error) {
+                  hardwareError = error instanceof Error ? error.message : String(error);
+                  opened = false;
+                }
+
+                if (opened) {
+                  await this.lockerStateManager.confirmOwnership(kiosk_id, candidate.id);
+                  const lockerName = await this.getLockerDisplayName(kiosk_id, candidate.id);
+                  console.log(`✅ Automatic assignment succeeded: locker ${candidate.id} for card ${card_id}`);
+
+                  return {
+                    success: true,
+                    action: 'open_locker',
+                    locker_id: candidate.id,
+                    message: `${lockerName} otomatik atandı ve açıldı`,
+                    assignment_mode: assignmentMode,
+                    auto_assigned: true
+                  };
+                }
+
+                console.warn(`⚠️ Automatic assignment failed to open locker ${candidate.id}: ${hardwareError || 'unknown error'}`);
+                await this.lockerStateManager.releaseLocker(kiosk_id, candidate.id, card_id);
+                fallbackReason = hardwareError ? 'hardware_error' : 'open_failed';
+              } else {
+                console.warn(`⚠️ Automatic assignment failed during database assignment for locker ${candidate.id}`);
+                fallbackReason = 'assignment_failed';
+              }
+            } else {
+              console.warn('⚠️ No eligible lockers found for automatic assignment; falling back to manual selection.');
+              fallbackReason = 'no_candidates';
+            }
+          } catch (error) {
+            console.warn('⚠️ Automatic assignment candidate lookup failed:', error);
+            fallbackReason = 'candidate_lookup_failed';
+          }
+
+          if (fallbackReason) {
+            try {
+              availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kiosk_id);
+            } catch (refreshError) {
+              console.warn('Failed to refresh available lockers after automatic assignment issue:', refreshError);
+            }
+
+            if (availableLockers.length === 0) {
+              return {
+                error: 'no_lockers',
+                message: 'Müsait dolap yok - Daha sonra deneyin',
+                assignment_mode: assignmentMode,
+                auto_assigned: false,
+                fallback_reason: fallbackReason
+              };
+            }
+          }
         }
 
         // Cancel any existing session for this kiosk (Requirement 3.5)
@@ -260,14 +362,15 @@ export class UiController {
 
         // Create a 30-second session (Requirement 3.1)
         const session = this.sessionManager.createSession(
-          kiosk_id, 
-          card_id, 
+          kiosk_id,
+          card_id,
           availableLockers.map(l => l.id)
         );
 
         console.log(`🔑 Created session ${session.id} for card ${card_id} with ${availableLockers.length} available lockers`);
 
         return {
+          success: true,
           action: 'show_lockers',
           session_id: session.id,
           timeout_seconds: session.timeoutSeconds,
@@ -276,17 +379,20 @@ export class UiController {
             id: locker.id,
             status: locker.status,
             display_name: locker.displayName
-          }))
+          })),
+          assignment_mode: assignmentMode,
+          auto_assigned: false,
+          fallback_reason: fallbackReason
         };
       }
-    } catch (error) {
-      console.error('Error handling card scan:', error);
-      reply.code(500);
-      return { 
-        error: 'error_server',
-        message: 'Sistem hatası - Tekrar deneyin'
-      };
     }
+  } catch (error) {
+    console.error('Error handling card scan:', error);
+    reply.code(500);
+    return {
+      error: 'error_server',
+      message: 'Sistem hatası - Tekrar deneyin'
+    };
   }
 
   private async getAvailableLockers(request: FastifyRequest, reply: FastifyReply) {

@@ -593,7 +593,8 @@ describe('CommandQueueRepository', () => {
         last_error: 'Some error',
         created_at: new Date('2024-01-01T10:00:00.000Z'),
         executed_at: new Date('2024-01-01T10:05:00.000Z'),
-        completed_at: undefined
+        completed_at: undefined,
+        version: 1
       });
     });
 

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atama Ayarları - Eform Locker Paneli</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fb;
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        header {
+            background: #1f2a44;
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        nav a {
+            color: #b0c4ff;
+            margin-right: 18px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        nav a.active,
+        nav a:hover {
+            color: white;
+        }
+
+        main {
+            max-width: 960px;
+            margin: 30px auto;
+            padding: 0 20px 60px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(31, 42, 68, 0.08);
+            padding: 24px 28px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            margin: 0 0 16px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+        }
+
+        .card h2 span {
+            font-size: 26px;
+            margin-right: 10px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+        }
+
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #eef1f7;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f3ff;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #516082;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        select {
+            padding: 6px 10px;
+            border: 1px solid #d6deff;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #3454f5;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #e8ecff;
+            color: #3454f5;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status.success {
+            display: block;
+            background: #ecfdf3;
+            color: #116329;
+            border: 1px solid #abefc6;
+        }
+
+        .status.error {
+            display: block;
+            background: #ffefef;
+            color: #b42318;
+            border: 1px solid #f5a6a0;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Dolap Atama Ayarları</h1>
+    <nav>
+        <a href="/dashboard">Ana Sayfa</a>
+        <a href="/lockers">Dolaplar</a>
+        <a href="/panel/assignment-settings" class="active">Atama Ayarları</a>
+        <a href="/config">Genel Ayarlar</a>
+        <a href="#" onclick="logout(); return false;">Çıkış</a>
+    </nav>
+</header>
+<main>
+    <div class="card">
+        <h2><span>⚙️</span>Varsayılan Atama Modu</h2>
+        <p>RFID kart okutulduğunda sistemin varsayılan davranışını seçin.</p>
+        <div class="radio-group" id="defaultModeGroup">
+            <label>
+                <input type="radio" name="default-mode" value="manual">
+                Manuel seçim ekranı göster
+            </label>
+            <label>
+                <input type="radio" name="default-mode" value="automatic">
+                Otomatik dolap ata ve aç
+            </label>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2><span>🏢</span>Kiosk Bazlı Ayarlar</h2>
+        <p>Varsayılan moddan farklı davranması gereken kiosklar için manuel/otomatik ayar yapın.</p>
+        <div id="kioskContainer">
+            <table>
+                <thead>
+                <tr>
+                    <th>Kiosk</th>
+                    <th>Atama Modu</th>
+                </tr>
+                </thead>
+                <tbody id="kioskTableBody">
+                <tr>
+                    <td colspan="2">Kiosk listesi yükleniyor...</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <button type="button" class="btn-secondary" onclick="loadSettings()">Yenile</button>
+            <button type="button" class="btn-primary" onclick="saveSettings()">Kaydet</button>
+        </div>
+        <div id="statusMessage" class="status"></div>
+    </div>
+</main>
+
+<script>
+    let kioskRows = [];
+    let csrfToken = null;
+    let currentUser = null;
+
+    async function loadSessionInfo() {
+        try {
+            const response = await fetch('/auth/me');
+            if (!response.ok) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const data = await response.json();
+            if (data && data.user) {
+                currentUser = data.user;
+                csrfToken = data.csrfToken;
+            }
+        } catch (error) {
+            console.warn('Kullanıcı bilgileri yüklenemedi:', error);
+        }
+    }
+
+    async function loadSettings() {
+        const statusEl = document.getElementById('statusMessage');
+        statusEl.className = 'status';
+        statusEl.textContent = '';
+
+        try {
+            const response = await fetch('/api/assignment-settings');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Ayarlar yüklenemedi');
+            }
+
+            const defaultModeInput = document.querySelector(`input[name="default-mode"][value="${result.default_mode}"]`);
+            if (defaultModeInput) {
+                defaultModeInput.checked = true;
+            }
+
+            kioskRows = Array.isArray(result.kiosks) ? result.kiosks : [];
+            renderKioskRows(result.default_mode);
+        } catch (error) {
+            statusEl.className = 'status error';
+            statusEl.textContent = `Ayarlar yüklenemedi: ${error instanceof Error ? error.message : error}`;
+        }
+    }
+
+    function renderKioskRows(defaultMode) {
+        const tbody = document.getElementById('kioskTableBody');
+        tbody.innerHTML = '';
+
+        if (kioskRows.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 2;
+            cell.textContent = 'Kayıtlı kiosk bulunamadı.';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+        }
+
+        for (const kiosk of kioskRows) {
+            const row = document.createElement('tr');
+
+            const idCell = document.createElement('td');
+            idCell.textContent = kiosk.id;
+            row.appendChild(idCell);
+
+            const modeCell = document.createElement('td');
+            const select = document.createElement('select');
+            select.dataset.kioskId = kiosk.id;
+
+            const manualOption = document.createElement('option');
+            manualOption.value = 'manual';
+            manualOption.textContent = 'Manuel';
+            select.appendChild(manualOption);
+
+            const autoOption = document.createElement('option');
+            autoOption.value = 'automatic';
+            autoOption.textContent = 'Otomatik';
+            select.appendChild(autoOption);
+
+            select.value = kiosk.mode || defaultMode || 'manual';
+            modeCell.appendChild(select);
+            row.appendChild(modeCell);
+
+            tbody.appendChild(row);
+        }
+    }
+
+    async function saveSettings() {
+        const statusEl = document.getElementById('statusMessage');
+        statusEl.className = 'status';
+        statusEl.textContent = '';
+
+        const selectedDefault = document.querySelector('input[name="default-mode"]:checked');
+        if (!selectedDefault) {
+            statusEl.className = 'status error';
+            statusEl.textContent = 'Lütfen varsayılan modu seçin.';
+            return;
+        }
+
+        const kiosks = kioskRows.map(row => {
+            const select = document.querySelector(`select[data-kiosk-id="${row.id}"]`);
+            return {
+                id: row.id,
+                mode: select ? select.value : selectedDefault.value
+            };
+        });
+
+        if (!csrfToken) {
+            statusEl.className = 'status error';
+            statusEl.textContent = 'Oturum bilgisi alınamadı. Sayfayı yenileyin.';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/assignment-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || ''
+                },
+                body: JSON.stringify({
+                    default_mode: selectedDefault.value,
+                    kiosks
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || `HTTP ${response.status}`);
+            }
+
+            statusEl.className = 'status success';
+            statusEl.textContent = 'Ayarlar başarıyla kaydedildi.';
+        } catch (error) {
+            statusEl.className = 'status error';
+            statusEl.textContent = `Ayarlar kaydedilemedi: ${error instanceof Error ? error.message : error}`;
+        }
+    }
+
+    async function logout() {
+        try {
+            await fetch('/auth/logout', { method: 'POST', headers: { 'X-CSRF-TOKEN': csrfToken || '' } });
+        } catch (error) {
+            console.warn('Çıkış başarısız:', error);
+        } finally {
+            window.location.href = '/login.html';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadSessionInfo();
+        await loadSettings();
+    });
+</script>
+</body>
+</html>

@@ -5,7 +5,7 @@ import { EventType } from '../../types/core-entities';
 
 // Mock EventRepository
 const mockEventRepository = {
-  createEvent: vi.fn().mockResolvedValue({ id: 1 })
+  logEvent: vi.fn().mockResolvedValue({ id: 1 })
 } as unknown as EventRepository;
 
 describe('RateLimiter', () => {
@@ -14,7 +14,8 @@ describe('RateLimiter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+    mockEventRepository.logEvent.mockClear();
+
     config = {
       ip: { maxTokens: 30, refillRate: 0.5, blockThreshold: 10, blockDuration: 300 },
       card: { maxTokens: 60, refillRate: 1, blockThreshold: 20, blockDuration: 600 },
@@ -263,16 +264,13 @@ describe('RateLimiter', () => {
       }
       
       // Should have logged the violation
-      expect(mockEventRepository.create).toHaveBeenCalledWith(
+      expect(mockEventRepository.logEvent).toHaveBeenCalledWith(
+        'kiosk1',
+        EventType.RATE_LIMIT_VIOLATION,
         expect.objectContaining({
-          kiosk_id: 'kiosk1',
-          details: expect.objectContaining({
-            rate_limit_violation: expect.objectContaining({
-              key: `ip:${ip}`,
-              limit_type: 'ip',
-              violation_count: 3
-            })
-          })
+          key: `ip:${ip}`,
+          violation_type: 'ip',
+          violation_count: 3
         })
       );
     });

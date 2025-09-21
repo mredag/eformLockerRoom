@@ -64,6 +64,13 @@ export interface DatabaseConfig {
   checkpoint_interval_seconds?: number;
 }
 
+export type LockerAssignmentMode = 'manual' | 'automatic';
+
+export interface KioskAssignmentConfig {
+  default_mode: LockerAssignmentMode;
+  per_kiosk?: Record<string, LockerAssignmentMode>;
+}
+
 export interface ServiceConfig {
   gateway: {
     port: number;
@@ -79,6 +86,7 @@ export interface ServiceConfig {
     command_poll_interval_seconds: number;
     hardware_check_interval_seconds?: number;
     ui_timeout_seconds?: number;
+    assignment?: KioskAssignmentConfig;
   };
   panel: {
     port: number;

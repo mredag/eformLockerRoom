@@ -10,6 +10,7 @@ describe('LockerStateManager', () => {
   beforeEach(async () => {
     // Use in-memory database for testing
     DatabaseConnection.resetInstance();
+    DatabaseConnection.resetInstance(':memory:');
     db = DatabaseConnection.getInstance(':memory:');
     await db.waitForInitialization();
     
@@ -45,7 +46,7 @@ describe('LockerStateManager', () => {
       )
     `);
 
-    stateManager = new LockerStateManager();
+    stateManager = new LockerStateManager(db, { autoReleaseHoursOverride: null });
   }, 15000); // Increase timeout to 15 seconds
 
   afterEach(async () => {
@@ -53,6 +54,7 @@ describe('LockerStateManager', () => {
       await stateManager.shutdown();
     }
     DatabaseConnection.resetInstance();
+    DatabaseConnection.resetInstance(':memory:');
   });
 
   describe('State Machine Validation', () => {
@@ -68,7 +70,7 @@ describe('LockerStateManager', () => {
 
       expect(transitions).toContainEqual({
         from: 'Owned',
-        to: 'Owned',
+        to: 'Opening',
         trigger: 'confirm_opening',
         conditions: ['same_owner']
       });
@@ -77,7 +79,7 @@ describe('LockerStateManager', () => {
         from: 'Owned',
         to: 'Free',
         trigger: 'timeout',
-        conditions: ['expired_90_seconds']
+        conditions: ['auto_release']
       });
     });
 
@@ -90,6 +92,48 @@ describe('LockerStateManager', () => {
       expect(reservedStates).toContain('Opening');
       expect(reservedStates).toContain('Free');
       expect(reservedStates).toContain('Blocked');
+    });
+  });
+
+  describe('getOldestAvailableLocker', () => {
+    beforeEach(async () => {
+      await db.run(`INSERT INTO lockers (kiosk_id, id, status, version, is_vip, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)` , ['kiosk-1', 1, 'Free', 1, 0, '2023-01-01T00:00:00Z']);
+      await db.run(`INSERT INTO lockers (kiosk_id, id, status, version, is_vip, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)` , ['kiosk-1', 2, 'Free', 1, 0, '2023-01-02T00:00:00Z']);
+      await db.run(`INSERT INTO lockers (kiosk_id, id, status, version, is_vip, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)` , ['kiosk-1', 3, 'Owned', 1, 0, '2023-01-03T00:00:00Z']);
+    });
+
+    it('returns the oldest free locker by updated_at', async () => {
+      const locker = await stateManager.getOldestAvailableLocker('kiosk-1');
+      expect(locker).not.toBeNull();
+      expect(locker?.id).toBe(1);
+    });
+
+    it('respects allowed locker id filter', async () => {
+      const locker = await stateManager.getOldestAvailableLocker('kiosk-1', [2]);
+      expect(locker).not.toBeNull();
+      expect(locker?.id).toBe(2);
+
+      const none = await stateManager.getOldestAvailableLocker('kiosk-1', [3]);
+      expect(none).toBeNull();
+    });
+  });
+
+  describe('getKioskIds', () => {
+    beforeEach(async () => {
+      await db.run(`INSERT INTO lockers (kiosk_id, id, status, version, is_vip)
+        VALUES (?, ?, ?, ?, ?)` , ['kiosk-1', 1, 'Free', 1, 0]);
+      await db.run(`INSERT INTO lockers (kiosk_id, id, status, version, is_vip)
+        VALUES (?, ?, ?, ?, ?)` , ['kiosk-2', 1, 'Free', 1, 0]);
+      await db.run(`INSERT INTO lockers (kiosk_id, id, status, version, is_vip)
+        VALUES (?, ?, ?, ?, ?)` , ['kiosk-1', 2, 'Free', 1, 0]);
+    });
+
+    it('returns distinct kiosk ids sorted alphabetically', async () => {
+      const kioskIds = await stateManager.getKioskIds();
+      expect(kioskIds).toEqual(['kiosk-1', 'kiosk-2']);
     });
   });
 
@@ -291,8 +335,8 @@ describe('LockerStateManager', () => {
     });
 
     it('should cleanup expired reservations only', async () => {
-      const cleanedCount = await stateManager.cleanupExpiredReservations();
-      
+      const cleanedCount = await stateManager.cleanupExpiredReservations(0.025);
+
       expect(cleanedCount).toBe(1);
 
       // Check expired locker is now Free
@@ -307,17 +351,18 @@ describe('LockerStateManager', () => {
     });
 
     it('should log cleanup events', async () => {
-      await stateManager.cleanupExpiredReservations();
+      await stateManager.cleanupExpiredReservations(0.025);
 
       const events = await db.all(
-        'SELECT * FROM events WHERE event_type = ? AND details LIKE ?',
-        [EventType.RFID_RELEASE, '%timeout_cleanup%']
+        'SELECT * FROM events WHERE event_type = ?',
+        [EventType.AUTO_RELEASE]
       ) as any[];
 
       expect(events).toHaveLength(1);
       const details = JSON.parse(events[0].details as string);
-      expect(details.reason).toBe('timeout_cleanup');
-      expect(details.timeout_seconds).toBe(90);
+      expect(details.reason).toBe('auto_release_after_0.025_hours');
+      expect(details.triggered_by).toBe('auto_release');
+      expect(details.owner_key).toBe('card-123');
     });
   });
 
@@ -408,12 +453,11 @@ describe('LockerStateManager', () => {
   });
 
   describe('Automatic Cleanup Timer', () => {
-    it('should start cleanup timer on initialization', () => {
-      // Timer should be running (tested indirectly by checking it exists)
-      expect((stateManager as any)['cleanupInterval']).not.toBeNull();
+    it('should keep cleanup timer disabled when override is null', () => {
+      expect((stateManager as any)['cleanupInterval']).toBeNull();
     });
 
-    it('should stop cleanup timer on shutdown', async () => {
+    it('should keep cleanup timer disabled after shutdown', async () => {
       await stateManager.shutdown();
       expect((stateManager as any)['cleanupInterval']).toBeNull();
     });

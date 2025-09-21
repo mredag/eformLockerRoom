@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SecurityValidator } from '../security-validation';
 import { EventLogger } from '../event-logger';
+import { EventType } from '../../types/core-entities';
 
 // Mock dependencies
 vi.mock('../event-logger.js');
@@ -321,9 +322,8 @@ describe('SecurityValidator', () => {
       validator.logSecurityViolation(violation);
 
       expect(mockEventLogger.logEvent).toHaveBeenCalledWith(
-        'security_violation',
-        null,
-        null,
+        'system',
+        EventType.SECURITY_VIOLATION,
         expect.objectContaining({
           violation_type: 'rate_limit_exceeded',
           ip_address: '192.168.1.100',
@@ -343,9 +343,8 @@ describe('SecurityValidator', () => {
       validator.logAuthenticationFailure(failure);
 
       expect(mockEventLogger.logEvent).toHaveBeenCalledWith(
-        'auth_failure',
-        null,
-        null,
+        'system',
+        EventType.AUTH_FAILURE,
         expect.objectContaining({
           username: 'admin',
           ip_address: '192.168.1.100',

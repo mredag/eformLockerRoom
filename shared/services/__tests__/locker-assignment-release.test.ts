@@ -13,8 +13,8 @@ class MockDatabase {
       return this.lockers.get(key) as T;
     }
     if (sql.includes('SELECT * FROM lockers WHERE owner_key = ?')) {
-      for (const [key, locker] of this.lockers.entries()) {
-        if (locker.owner_key === params[0] && ['Owned', 'Owned'].includes(locker.status)) {
+      for (const locker of this.lockers.values()) {
+        if (locker.owner_key === params[0] && ['Owned', 'Opening'].includes(locker.status)) {
           return locker as T;
         }
       }
@@ -37,10 +37,10 @@ class MockDatabase {
 
   async run(sql: string, params: any[]): Promise<{ changes: number }> {
     if (sql.includes('UPDATE lockers')) {
-      if (sql.includes('SET status = \'Reserved\'')) {
-        const key = `${params[5]}:${params[6]}`;
+      if (sql.includes("SET status = 'Owned'")) {
+        const key = `${params[4]}:${params[5]}`;
         const locker = this.lockers.get(key);
-        if (locker && locker.status === 'Free' && locker.version === params[7]) {
+        if (locker && locker.status === 'Free' && locker.version === params[6]) {
           locker.status = 'Owned';
           locker.owner_type = params[0];
           locker.owner_key = params[1];
@@ -52,7 +52,7 @@ class MockDatabase {
       if (sql.includes('SET status = \'Free\'')) {
         const key = `${params[1]}:${params[2]}`;
         const locker = this.lockers.get(key);
-        if (locker && ['Owned', 'Owned'].includes(locker.status) && locker.version === params[3]) {
+        if (locker && ['Owned', 'Opening'].includes(locker.status) && locker.version === params[3]) {
           locker.status = 'Free';
           locker.owner_type = null;
           locker.owner_key = null;
@@ -107,9 +107,7 @@ describe('Locker Assignment and Release Logic', () => {
 
   beforeAll(() => {
     mockDb = new MockDatabase();
-    // Replace the database instance in state manager
-    stateManager = new LockerStateManager();
-    (stateManager as any).db = mockDb;
+    stateManager = new LockerStateManager(mockDb, { autoReleaseHoursOverride: null });
   });
 
   afterAll(async () => {

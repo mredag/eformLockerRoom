@@ -4,11 +4,20 @@ import { readFile, writeFile, access } from 'fs/promises';
 import { CompleteSystemConfig } from '../../types/system-config';
 
 // Mock fs/promises
-vi.mock('fs/promises', () => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-  access: vi.fn()
-}));
+vi.mock('fs/promises', async () => {
+  const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
+  return {
+    ...actual,
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    access: vi.fn(),
+    mkdir: vi.fn(),
+    open: vi.fn(() => ({
+      close: vi.fn().mockResolvedValue(undefined)
+    } as unknown as import('fs/promises').FileHandle)),
+    unlink: vi.fn().mockResolvedValue(undefined)
+  };
+});
 
 // Mock DatabaseManager
 vi.mock('../../database/database-manager.js', () => ({
@@ -131,8 +140,8 @@ describe('ConfigManager', () => {
 
       const config = await configManager.loadConfiguration();
       
-      expect(mockAccess).toHaveBeenCalledWith('./config/system.json');
-      expect(mockReadFile).toHaveBeenCalledWith('./config/system.json', 'utf-8');
+      expect(mockAccess).toHaveBeenCalledWith('./test-config.json');
+      expect(mockReadFile).toHaveBeenCalledWith('./test-config.json', 'utf-8');
       expect(config).toEqual(mockConfig);
     });
 
@@ -144,7 +153,7 @@ describe('ConfigManager', () => {
       const config = await configManager.loadConfiguration();
       
       expect(config).toBeDefined();
-      expect(config.system.name).toBe('Eform Locker System');
+      expect(config.system.name).toBe('Eform Locker Room System');
       expect(mockWriteFile).toHaveBeenCalled();
     });
 

@@ -139,7 +139,12 @@ export enum EventType {
   // Hardware events
   HARDWARE_ERROR = 'hardware_error',
   ERROR_RESOLVED = 'error_resolved',
-  
+
+  // Security events
+  SECURITY_VIOLATION = 'security_violation',
+  AUTH_FAILURE = 'auth_failure',
+  RATE_LIMIT_VIOLATION = 'rate_limit_violation',
+
   // Configuration events
   CONFIG_PACKAGE_CREATED = 'config_package_created',
   CONFIG_DEPLOYMENT_INITIATED = 'config_deployment_initiated',

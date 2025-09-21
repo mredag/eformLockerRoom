@@ -8,6 +8,7 @@ import { RfidUserFlow } from '../rfid-user-flow';
 import { LockerStateManager } from '../../../../../shared/services/locker-state-manager';
 import { ModbusController } from '../../hardware/modbus-controller';
 import { Locker } from '../../../../../src/types/core-entities';
+import { LockerAssignmentMode } from '../../../../../shared/types/system-config';
 
 // Mock dependencies
 vi.mock('../../../../../shared/services/locker-state-manager.js');
@@ -17,6 +18,7 @@ describe('RfidUserFlow VIP Locker Handling', () => {
   let rfidUserFlow: RfidUserFlow;
   let mockLockerStateManager: vi.Mocked<LockerStateManager>;
   let mockModbusController: vi.Mocked<ModbusController>;
+  let mockConfigManager: { initialize: ReturnType<typeof vi.fn>; getKioskAssignmentMode: ReturnType<typeof vi.fn> };
 
   const config = {
     kiosk_id: 'test-kiosk',
@@ -27,19 +29,26 @@ describe('RfidUserFlow VIP Locker Handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLockerStateManager = vi.mocked(new LockerStateManager());
+    (mockLockerStateManager as any).getOldestAvailableLocker = vi.fn();
     mockModbusController = vi.mocked(new ModbusController());
-    
+
     const mockLockerNamingService = {
-      getDisplayName: vi.fn().mockImplementation((kioskId: string, lockerId: number) => 
+      getDisplayName: vi.fn().mockImplementation((kioskId: string, lockerId: number) =>
         Promise.resolve(`Dolap ${lockerId}`)
       )
     } as any;
+
+    mockConfigManager = {
+      initialize: vi.fn().mockResolvedValue(undefined),
+      getKioskAssignmentMode: vi.fn().mockReturnValue('manual' as LockerAssignmentMode)
+    };
 
     rfidUserFlow = new RfidUserFlow(
       config,
       mockLockerStateManager,
       mockModbusController,
-      mockLockerNamingService
+      mockLockerNamingService,
+      mockConfigManager as any
     );
   });
 

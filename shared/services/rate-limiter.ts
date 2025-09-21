@@ -305,17 +305,15 @@ export class RateLimiter {
     try {
       await this.eventRepository.logEvent(
         kioskId || 'system',
-        EventType.SYSTEM_RESTARTED,
+        EventType.RATE_LIMIT_VIOLATION,
         {
-          rate_limit_violation: {
-            key: violation.key,
-            limit_type: violation.limit_type,
-            violation_count: violation.violation_count,
-            is_blocked: violation.is_blocked,
-            block_expires_at: violation.block_expires_at?.toISOString(),
-            first_violation: violation.first_violation.toISOString(),
-            last_violation: violation.last_violation.toISOString()
-          }
+          key: violation.key,
+          violation_type: violation.limit_type,
+          violation_count: violation.violation_count,
+          is_blocked: violation.is_blocked,
+          block_expires_at: violation.block_expires_at?.toISOString(),
+          first_violation: violation.first_violation.toISOString(),
+          last_violation: violation.last_violation.toISOString()
         }
       );
     } catch (error) {

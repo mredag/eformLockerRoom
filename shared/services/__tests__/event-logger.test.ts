@@ -126,12 +126,46 @@ describe('EventLogger', () => {
       });
     });
 
-    it('should validate RFID assignment details', async () => {
+    it('should accept RFID assignment without optional duration metadata', async () => {
+      vi.mocked(mockEventRepository.create).mockResolvedValue({
+        id: 3,
+        timestamp: new Date(),
+        kiosk_id: 'kiosk-1',
+        locker_id: 5,
+        event_type: EventType.RFID_ASSIGN,
+        rfid_card: 'card123',
+        details: {
+          previous_status: 'Free',
+          burst_required: false
+        }
+      } as any);
+
       await expect(
         eventLogger.logRfidAssign('kiosk-1', 5, 'card123', {
           previous_status: 'Free',
           burst_required: false
         })
+      ).resolves.toBeDefined();
+
+      expect(mockEventRepository.create).toHaveBeenCalledWith({
+        kiosk_id: 'kiosk-1',
+        locker_id: 5,
+        event_type: EventType.RFID_ASSIGN,
+        rfid_card: 'card123',
+        device_id: undefined,
+        staff_user: undefined,
+        details: {
+          previous_status: 'Free',
+          burst_required: false
+        }
+      });
+    });
+
+    it('should reject RFID assignment when required details are missing', async () => {
+      await expect(
+        eventLogger.logRfidAssign('kiosk-1', 5, 'card123', {
+          burst_required: false
+        } as any)
       ).rejects.toThrow('Event validation failed');
     });
 
