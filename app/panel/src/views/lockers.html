@@ -970,9 +970,9 @@
 
         <!-- Actions -->
         <div class="actions">
-            <button class="btn btn-primary" onclick="openSelectedLockers()" id="open-btn" disabled>
-                Select lockers first
-            </button>
+            <div class="alert" role="alert" style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 12px 16px; border-radius: 6px;">
+                🔒 Locker opening has been temporarily disabled while we investigate a command loop issue.
+            </div>
             <button class="btn btn-success" onclick="releaseSelectedLockers()" id="release-btn" disabled>
                 Select lockers first
             </button>
@@ -2695,33 +2695,28 @@
 
         function updateSelectedCount() {
             const count = selectedLockers.size;
-            
-            const openBtn = document.getElementById('open-btn');
+
             const releaseBtn = document.getElementById('release-btn');
             const refreshBtn = document.getElementById('refresh-btn');
             const blockBtn = document.getElementById('block-btn');
             const unblockBtn = document.getElementById('unblock-btn');
-            
+
             if (count === 0) {
-                openBtn.innerHTML = 'Select lockers first';
                 releaseBtn.innerHTML = 'Select lockers first';
                 refreshBtn.innerHTML = 'Select lockers first';
                 blockBtn.innerHTML = 'Select lockers first';
                 unblockBtn.innerHTML = 'Select lockers first';
-                
-                openBtn.disabled = true;
+
                 releaseBtn.disabled = true;
                 refreshBtn.disabled = true;
                 blockBtn.disabled = true;
                 unblockBtn.disabled = true;
             } else {
-                openBtn.innerHTML = `Aç ${count} dolap${count > 1 ? '' : ''}`;
                 releaseBtn.innerHTML = `Serbest Bırak ${count} dolap${count > 1 ? '' : ''}`;
                 refreshBtn.innerHTML = `Yenile ${count} dolap${count > 1 ? '' : ''}`;
                 blockBtn.innerHTML = `Blokla ${count} dolap${count > 1 ? '' : ''}`;
                 unblockBtn.innerHTML = `Blok Kaldır ${count} dolap${count > 1 ? '' : ''}`;
-                
-                openBtn.disabled = false;
+
                 releaseBtn.disabled = false;
                 refreshBtn.disabled = false;
                 blockBtn.disabled = false;
@@ -3319,29 +3314,6 @@
     console.log('🔧 Enhanced button logging initialized');
     
     // Override button functions with logging
-    const originalOpenSelectedLockers = window.openSelectedLockers;
-    window.openSelectedLockers = function() {
-        console.log('🔓 openSelectedLockers called');
-        console.log('📊 Selected lockers count:', selectedLockers.size);
-        console.log('📊 Selected lockers:', Array.from(selectedLockers));
-        console.log('📊 CSRF token:', csrfToken ? 'present' : 'missing');
-        console.log('📊 Current user:', currentUser);
-        
-        if (selectedLockers.size === 0) {
-            console.log('⚠️ No lockers selected - function will return early');
-            return;
-        }
-        
-        try {
-            const result = originalOpenSelectedLockers.call(this);
-            console.log('✅ openSelectedLockers completed');
-            return result;
-        } catch (error) {
-            console.error('❌ openSelectedLockers failed:', error);
-            throw error;
-        }
-    };
-    
     const originalBlockSelectedLockers = window.blockSelectedLockers;
     window.blockSelectedLockers = function() {
         console.log('🚫 blockSelectedLockers called');
