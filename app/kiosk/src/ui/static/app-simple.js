@@ -662,6 +662,15 @@ class SimpleKioskApp {
                 try {
                     const flowResult = await this.requestLockerFlow(cardId);
 
+                    if (flowResult && Array.isArray(flowResult.debug_logs) && flowResult.debug_logs.length > 0) {
+                        const groupLabel = `[AUTO-ASSIGN][UI] Decision trace for card ${cardId}`;
+                        console.groupCollapsed(groupLabel);
+                        flowResult.debug_logs.forEach((entry, index) => {
+                            console.log(`↳ [${index + 1}]`, entry);
+                        });
+                        console.groupEnd();
+                    }
+
                     if (flowResult && flowResult.action === 'open_locker') {
                         this.showFeedbackScreen(flowResult.message || 'Dolap açıldı', 'success');
                         return;

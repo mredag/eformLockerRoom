@@ -252,6 +252,11 @@ describe('RfidUserFlow', () => {
       expect(result.opened_locker).toBe(3);
       expect(result.auto_assigned).toBe(true);
       expect(result.assignment_mode).toBe('automatic');
+      expect(result.debug_logs).toEqual(
+        expect.arrayContaining([
+          'Card is not recognized as the recent owner. Assigning a new random locker.'
+        ])
+      );
       expect(mockLockerStateManager.assignLocker).toHaveBeenCalledWith(mockKioskId, 3, 'rfid', mockCardId);
     });
 
@@ -299,6 +304,11 @@ describe('RfidUserFlow', () => {
       expect(result.opened_locker).toBe(2);
       expect(result.auto_assigned).toBe(true);
       expect(result.assignment_mode).toBe('automatic');
+      expect(result.debug_logs).toEqual(
+        expect.arrayContaining([
+          'Card is recognized as the recent owner. Assigning the locker that was used within the last 2 hours.'
+        ])
+      );
       expect(mockLockerStateManager.getRecentLockerReleaseForCard).toHaveBeenCalledWith(
         mockKioskId,
         mockCardId,
@@ -351,6 +361,11 @@ describe('RfidUserFlow', () => {
       expect(result.success).toBe(true);
       expect(result.opened_locker).toBe(5);
       expect(result.auto_assigned).toBe(true);
+      expect(result.debug_logs).toEqual(
+        expect.arrayContaining([
+          'Card is not recognized as the recent owner. Assigning a new random locker.'
+        ])
+      );
       expect(mockLockerStateManager.getOldestAvailableLocker).toHaveBeenCalled();
     });
 

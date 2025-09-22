@@ -29,6 +29,7 @@ export interface UserFlowResult {
   assignment_mode?: LockerAssignmentMode;
   auto_assigned?: boolean;
   fallback_reason?: string;
+  debug_logs?: string[];
 }
 
 export class RfidUserFlow extends EventEmitter {
@@ -154,20 +155,54 @@ export class RfidUserFlow extends EventEmitter {
    */
   async handleCardWithNoLocker(cardId: string): Promise<UserFlowResult> {
     try {
+      const debugLogs: string[] = [];
+
+      const formatErrorForLog = (error: unknown): string => {
+        if (error instanceof Error) {
+          return `${error.name}: ${error.message}`;
+        }
+
+        if (typeof error === 'object') {
+          try {
+            return JSON.stringify(error);
+          } catch (stringifyError) {
+            console.warn('Failed to stringify warning detail for debug logs:', stringifyError);
+            return String(error);
+          }
+        }
+
+        return String(error);
+      };
+
+      const addInfoLog = (message: string): void => {
+        debugLogs.push(message);
+        console.log(message);
+      };
+
+      const addWarnLog = (message: string, error?: unknown): void => {
+        if (error !== undefined) {
+          console.warn(message, error);
+          debugLogs.push(`${message} ${formatErrorForLog(error)}`.trim());
+        } else {
+          console.warn(message);
+          debugLogs.push(message);
+        }
+      };
+
       let availableLockers: Locker[];
 
       if (this.config.zone_id) {
         // Zone-aware: Get available lockers filtered by zone
-        console.log(`[AUTO-ASSIGN] Fetching available lockers for zone ${this.config.zone_id} (card: ${cardId}).`);
+        addInfoLog(`[AUTO-ASSIGN] Fetching available lockers for zone ${this.config.zone_id} (card: ${cardId}).`);
         availableLockers = await this.getZoneAwareAvailableLockers(this.config.zone_id);
       } else {
         // Legacy: Get all available lockers
-        console.log(`[AUTO-ASSIGN] Fetching available lockers for kiosk ${this.config.kiosk_id} (card: ${cardId}).`);
+        addInfoLog(`[AUTO-ASSIGN] Fetching available lockers for kiosk ${this.config.kiosk_id} (card: ${cardId}).`);
         availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
       }
 
       const assignmentMode = await this.getAssignmentMode();
-      console.log(`[AUTO-ASSIGN] Card ${cardId} resolved assignment mode: ${assignmentMode}.`);
+      addInfoLog(`[AUTO-ASSIGN] Card ${cardId} resolved assignment mode: ${assignmentMode}.`);
 
       if (availableLockers.length === 0) {
         const zoneMessage = this.config.zone_id ? ` (${this.config.zone_id} bölgesi)` : '';
@@ -177,7 +212,8 @@ export class RfidUserFlow extends EventEmitter {
           message: `Boş dolap yok${zoneMessage}. Lütfen bekleyin.`,
           error_code: 'NO_AVAILABLE_LOCKERS',
           assignment_mode: assignmentMode,
-          auto_assigned: false
+          auto_assigned: false,
+          debug_logs: debugLogs
         };
       }
 
@@ -189,13 +225,9 @@ export class RfidUserFlow extends EventEmitter {
 
       if (assignmentMode === 'automatic') {
         if (recentHolderThreshold > 0) {
-          console.log(
-            `[AUTO-ASSIGN] Recent holder rule active for card ${cardId}: threshold ${recentHolderThreshold}h.`
-          );
+          addInfoLog(`[AUTO-ASSIGN] Recent holder rule active for card ${cardId}: threshold ${recentHolderThreshold}h.`);
         } else {
-          console.log(
-            `[AUTO-ASSIGN] Recent holder rule disabled (threshold ${recentHolderThreshold}h) for card ${cardId}.`
-          );
+          addInfoLog(`[AUTO-ASSIGN] Recent holder rule disabled (threshold ${recentHolderThreshold}h) for card ${cardId}.`);
         }
       }
 
@@ -205,9 +237,7 @@ export class RfidUserFlow extends EventEmitter {
         && typeof this.lockerStateManager.getRecentLockerReleaseForCard === 'function'
       ) {
         try {
-          console.log(
-            `[AUTO-ASSIGN] Checking recent release for card ${cardId} within ${RfidUserFlow.RECENT_RELEASE_LOOKBACK_HOURS}h lookback.`
-          );
+          addInfoLog(`[AUTO-ASSIGN] Checking recent release for card ${cardId} within ${RfidUserFlow.RECENT_RELEASE_LOOKBACK_HOURS}h lookback.`);
           const recentRelease = await this.lockerStateManager.getRecentLockerReleaseForCard(
             this.config.kiosk_id,
             cardId,
@@ -225,7 +255,7 @@ export class RfidUserFlow extends EventEmitter {
               ? Math.round((releaseAgeMs / (60 * 60 * 1000)) * 1000) / 1000
               : undefined;
 
-            console.log(
+            addInfoLog(
               `[AUTO-ASSIGN] Recent release detected for card ${cardId}: locker ${recentRelease.lockerId}, `
               + `held ≈ ${heldHours !== undefined ? heldHours.toFixed(2) : 'unknown'}h, `
               + `released ≈ ${releaseAgeHours !== undefined ? releaseAgeHours.toFixed(2) : 'unknown'}h ago.`
@@ -239,13 +269,10 @@ export class RfidUserFlow extends EventEmitter {
                   minimumFractionDigits: recentHolderThreshold % 1 === 0 ? 0 : 1,
                   maximumFractionDigits: 1
                 });
-                console.log(
-                  `Card is recognized as the recent owner. Assigning the locker that was used within the last ${thresholdDisplay} hours.`
-                );
+                const recognizedMessage = `Card is recognized as the recent owner. Assigning the locker that was used within the last ${thresholdDisplay} hours.`;
+                addInfoLog(recognizedMessage);
                 loggedRecentOwnerMessage = true;
-                console.log(
-                  `[AUTO-ASSIGN] Reassigning previous locker ${previousLocker.id} to card ${cardId} (held ≈ ${heldHours}h).`
-                );
+                addInfoLog(`[AUTO-ASSIGN] Reassigning previous locker ${previousLocker.id} to card ${cardId} (held ≈ ${heldHours}h).`);
                 const autoResult = await this.handleLockerSelection(cardId, previousLocker.id);
 
                 if (autoResult.success && autoResult.action === 'open_locker') {
@@ -261,13 +288,14 @@ export class RfidUserFlow extends EventEmitter {
                     message: `${lockerName} önceki kullanımınıza göre atandı ve açıldı`,
                     opened_locker: previousLocker.id,
                     auto_assigned: true,
-                    assignment_mode: assignmentMode
+                    assignment_mode: assignmentMode,
+                    debug_logs: debugLogs
                   };
                 }
 
                 fallbackReason = autoResult.error_code || 'RECENT_LOCKER_ASSIGNMENT_FAILED';
                 loggedRecentOwnerMessage = false;
-                console.warn(
+                addWarnLog(
                   `[AUTO-ASSIGN] Failed to reassign previous locker ${previousLocker.id} for card ${cardId} (${fallbackReason}); falling back to normal automatic selection.`
                 );
                 this.emit('locker_auto_assign_fallback', {
@@ -276,25 +304,26 @@ export class RfidUserFlow extends EventEmitter {
                   reason: fallbackReason
                 });
               } else {
-                console.log('Card is not recognized as the recent owner. Assigning a new random locker.');
+                const noLongerFreeMessage = 'Card is not recognized as the recent owner. Assigning a new random locker.';
+                addInfoLog(noLongerFreeMessage);
                 loggedRecentOwnerMessage = true;
-                console.log(
+                addInfoLog(
                   `[AUTO-ASSIGN] Previous locker ${recentRelease.lockerId} for card ${cardId} is not currently free; falling back to normal automatic selection.`
                 );
               }
             } else {
-              console.log(
+              addInfoLog(
                 `[AUTO-ASSIGN] Recent release for card ${cardId} held for ${heldHours !== undefined ? heldHours.toFixed(2) : 'unknown'}h `
                 + `which is below the ${recentHolderThreshold}h threshold.`
               );
             }
           } else {
-            console.log(
+            addInfoLog(
               `[AUTO-ASSIGN] No qualifying release found for card ${cardId} within the last ${RfidUserFlow.RECENT_RELEASE_LOOKBACK_HOURS}h.`
             );
           }
         } catch (error) {
-          console.warn(
+          addWarnLog(
             `[AUTO-ASSIGN] Recent locker reassignment lookup failed for card ${cardId}:`,
             error
           );
@@ -302,7 +331,8 @@ export class RfidUserFlow extends EventEmitter {
       }
 
       if (assignmentMode === 'automatic' && !loggedRecentOwnerMessage) {
-        console.log('Card is not recognized as the recent owner. Assigning a new random locker.');
+        const unrecognizedMessage = 'Card is not recognized as the recent owner. Assigning a new random locker.';
+        addInfoLog(unrecognizedMessage);
         loggedRecentOwnerMessage = true;
       }
 
@@ -319,12 +349,12 @@ export class RfidUserFlow extends EventEmitter {
             }
           );
         } catch (error) {
-          console.warn('[AUTO-ASSIGN] Failed to query automatic assignment candidate list:', error);
+          addWarnLog('[AUTO-ASSIGN] Failed to query automatic assignment candidate list:', error);
           fallbackReason = 'CANDIDATE_QUERY_FAILED';
         }
 
         if (candidate) {
-          console.log(`[AUTO-ASSIGN] Default automatic assignment selecting locker ${candidate.id} for card ${cardId}.`);
+          addInfoLog(`[AUTO-ASSIGN] Default automatic assignment selecting locker ${candidate.id} for card ${cardId}.`);
           const autoResult = await this.handleLockerSelection(cardId, candidate.id);
 
           if (autoResult.success && autoResult.action === 'open_locker') {
@@ -340,12 +370,13 @@ export class RfidUserFlow extends EventEmitter {
               message: `${lockerName} otomatik atandı ve açıldı`,
               opened_locker: candidate.id,
               auto_assigned: true,
-              assignment_mode: assignmentMode
+              assignment_mode: assignmentMode,
+              debug_logs: debugLogs
             };
           }
 
           fallbackReason = autoResult.error_code || 'AUTO_ASSIGNMENT_FAILED';
-          console.warn(
+          addWarnLog(
             `[AUTO-ASSIGN] Automatic assignment failed for locker ${candidate.id} (${fallbackReason}); falling back to manual selection.`
           );
           this.emit('locker_auto_assign_fallback', {
@@ -355,7 +386,7 @@ export class RfidUserFlow extends EventEmitter {
           });
         } else if (!fallbackReason) {
           fallbackReason = 'NO_CANDIDATES';
-          console.warn('[AUTO-ASSIGN] No automatic assignment candidate available; falling back to manual selection.');
+          addWarnLog('[AUTO-ASSIGN] No automatic assignment candidate available; falling back to manual selection.');
           this.emit('locker_auto_assign_fallback', {
             card_id: cardId,
             reason: fallbackReason
@@ -371,7 +402,7 @@ export class RfidUserFlow extends EventEmitter {
             availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
           }
         } catch (refreshError) {
-          console.warn('[AUTO-ASSIGN] Could not refresh locker list after automatic assignment failure:', refreshError);
+          addWarnLog('[AUTO-ASSIGN] Could not refresh locker list after automatic assignment failure:', refreshError);
         }
       }
 
@@ -379,7 +410,7 @@ export class RfidUserFlow extends EventEmitter {
       const displayLockers = availableLockers.slice(0, this.config.max_available_lockers_display);
 
       // Log zone context
-      console.log(
+      addInfoLog(
         `[AUTO-ASSIGN] Presenting ${displayLockers.length}/${availableLockers.length} available lockers to card ${cardId} (zone: ${this.config.zone_id || 'all'}).`
       );
       
@@ -398,16 +429,22 @@ export class RfidUserFlow extends EventEmitter {
         available_lockers: displayLockers,
         assignment_mode: assignmentMode,
         auto_assigned: false,
-        fallback_reason: fallbackReason
+        fallback_reason: fallbackReason,
+        debug_logs: debugLogs
       };
     } catch (error) {
       console.error('Error getting available lockers:', error);
+      const errorSummary = error instanceof Error
+        ? `${error.name}: ${error.message}`
+        : String(error);
+
       return {
         success: false,
         action: 'error',
         message: 'Dolap listesi alınamadı.',
         error_code: 'LOCKER_LIST_ERROR',
-        assignment_mode: await this.getAssignmentMode()
+        assignment_mode: await this.getAssignmentMode(),
+        debug_logs: ['Error getting available lockers', errorSummary]
       };
     }
   }
