@@ -12,3 +12,5 @@ A regression in the admin panel introduced a debugging shim around `openSelected
 - Removed the shim so `openSelectedLockers()` is no longer recursively wrapped.
 - Removed the "Open" action button from the panel and replaced it with a warning banner while the backend loop is investigated.
 - Updated `updateSelectedCount()` so it no longer references the removed button.
+- Eliminated the remaining debug wrappers so panel reloads can no longer stack duplicate handlers on other locker actions.
+- Manually verified that the remaining block/unblock/release helpers still open the action modal for both single and multiple selections.
