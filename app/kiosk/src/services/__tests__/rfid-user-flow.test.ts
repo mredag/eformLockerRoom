@@ -23,6 +23,7 @@ describe('RfidUserFlow', () => {
     initialize: ReturnType<typeof vi.fn>;
     getKioskAssignmentMode: ReturnType<typeof vi.fn>;
     getRecentHolderMinHours: ReturnType<typeof vi.fn>;
+    getMaxAvailableLockersDisplay: ReturnType<typeof vi.fn>;
   };
 
   const mockKioskId = 'test-kiosk-001';
@@ -32,7 +33,8 @@ describe('RfidUserFlow', () => {
     return {
       initialize: vi.fn().mockResolvedValue(undefined),
       getKioskAssignmentMode: vi.fn().mockReturnValue(mode),
-      getRecentHolderMinHours: vi.fn().mockReturnValue(0)
+      getRecentHolderMinHours: vi.fn().mockReturnValue(0),
+      getMaxAvailableLockersDisplay: vi.fn().mockReturnValue(10)
     };
   }
 
@@ -159,6 +161,7 @@ describe('RfidUserFlow', () => {
 
       mockLockerStateManager.checkExistingOwnership.mockResolvedValue(null);
       mockLockerStateManager.getAvailableLockers.mockResolvedValue(manyLockers);
+      mockConfigManager.getMaxAvailableLockersDisplay.mockReturnValue(8);
 
       const scanEvent: RfidScanEvent = {
         card_id: mockCardId,
@@ -169,11 +172,13 @@ describe('RfidUserFlow', () => {
       const result = await rfidUserFlow.handleCardScanned(scanEvent);
 
       expect(result.success).toBe(true);
-      expect(result.available_lockers).toHaveLength(config.max_available_lockers_display);
+      expect(mockConfigManager.getMaxAvailableLockersDisplay).toHaveBeenCalled();
+      expect(result.available_lockers).toHaveLength(8);
       expect(result.assignment_mode).toBe('manual');
       expect(result.auto_assigned).toBe(false);
       expect(result.available_lockers![0].id).toBe(1);
-      expect(result.available_lockers![9].id).toBe(10);
+      expect(result.available_lockers![7].id).toBe(8);
+      expect(rfidUserFlow.getConfig().max_available_lockers_display).toBe(8);
     });
 
     it('should emit show_available_lockers event', async () => {

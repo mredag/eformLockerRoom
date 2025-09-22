@@ -95,6 +95,29 @@
             line-height: 1.5;
         }
 
+        .manual-only {
+            margin-top: 24px;
+        }
+
+        .manual-only.hidden {
+            display: none;
+        }
+
+        .count-control {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .count-control input[type="number"] {
+            width: 100px;
+            padding: 6px 10px;
+            border: 1px solid #d0d7ec;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
         .min-hours-control {
             display: flex;
             gap: 12px;
@@ -218,6 +241,20 @@
                 <span id="openOnlyWindowDisplay" class="min-hours-value">1 saat</span>
             </div>
         </div>
+        <div id="manualOnlyFields" class="manual-only hidden">
+            <div class="field-group">
+                <label for="manualLockerLimitInput">
+                    📋 Manuel seçim listesi sınırı
+                </label>
+                <small>
+                    Manuel atama ekranında listelenecek maksimum boş dolap sayısı. Değer, sadece manuel mod aktifken uygulanır.
+                </small>
+                <div class="count-control">
+                    <input id="manualLockerLimitInput" type="number" min="1" max="60" step="1" value="10">
+                    <span id="manualLockerLimitDisplay" class="min-hours-value">10 dolap</span>
+                </div>
+            </div>
+        </div>
         <div class="actions">
             <button type="button" class="btn-secondary" onclick="loadSettings()">Yenile</button>
             <button type="button" class="btn-primary" onclick="saveSettings()">Kaydet</button>
@@ -231,7 +268,10 @@
     let currentDefaultMode = 'manual';
     let currentMinHeldHours = 2;
     let currentOpenOnlyWindowHours = 1;
+    let currentManualDisplayLimit = 10;
     let isSaving = false;
+    const MANUAL_LIMIT_MIN = 1;
+    const MANUAL_LIMIT_MAX = 60;
 
     function getSaveButton() {
         return document.querySelector('button.btn-primary');
@@ -281,9 +321,13 @@
             const defaultMode = result.default_mode || 'manual';
             const minHours = typeof result.recent_holder_min_hours === 'number' ? result.recent_holder_min_hours : 0;
             const openOnlyWindow = typeof result.open_only_window_hours === 'number' ? result.open_only_window_hours : 1;
+            const manualLimit = typeof result.max_available_lockers_display === 'number'
+                ? result.max_available_lockers_display
+                : MANUAL_LIMIT_MIN;
             applyDefaultMode(defaultMode);
             applyMinHeldHours(minHours);
             applyOpenOnlyWindowHours(openOnlyWindow);
+            applyManualDisplayLimit(manualLimit);
         } catch (error) {
             statusEl.className = 'status error';
             statusEl.textContent = `Ayarlar yüklenemedi: ${error instanceof Error ? error.message : error}`;
@@ -298,6 +342,7 @@
                 input.checked = input.value === currentDefaultMode;
             }
         });
+        updateManualOptionsVisibility();
     }
 
     function formatHourValue(value) {
@@ -310,6 +355,43 @@
             maximumFractionDigits: 1
         });
         return `${display} saat`;
+    }
+
+    function updateManualOptionsVisibility() {
+        const manualSection = document.getElementById('manualOnlyFields');
+        if (!manualSection) {
+            return;
+        }
+
+        if (currentDefaultMode === 'manual') {
+            manualSection.classList.remove('hidden');
+        } else {
+            manualSection.classList.add('hidden');
+        }
+    }
+
+    function formatLockerCount(value) {
+        const normalized = Number.isFinite(value)
+            ? Math.max(MANUAL_LIMIT_MIN, Math.min(MANUAL_LIMIT_MAX, Math.round(value)))
+            : MANUAL_LIMIT_MIN;
+        return normalized === 1 ? '1 dolap' : `${normalized} dolap`;
+    }
+
+    function applyManualDisplayLimit(value) {
+        const sanitized = typeof value === 'number' && !Number.isNaN(value)
+            ? Math.max(MANUAL_LIMIT_MIN, Math.min(MANUAL_LIMIT_MAX, Math.round(value)))
+            : MANUAL_LIMIT_MIN;
+        currentManualDisplayLimit = sanitized;
+
+        const numberInput = document.getElementById('manualLockerLimitInput');
+        const display = document.getElementById('manualLockerLimitDisplay');
+
+        if (numberInput instanceof HTMLInputElement) {
+            numberInput.value = currentManualDisplayLimit.toString();
+        }
+        if (display) {
+            display.textContent = formatLockerCount(currentManualDisplayLimit);
+        }
     }
 
     function applyMinHeldHours(value) {
@@ -396,7 +478,8 @@
                 body: JSON.stringify({
                     default_mode: selectedDefault.value,
                     recent_holder_min_hours: currentMinHeldHours,
-                    open_only_window_hours: currentOpenOnlyWindowHours
+                    open_only_window_hours: currentOpenOnlyWindowHours,
+                    max_available_lockers_display: currentManualDisplayLimit
                 })
             });
 
@@ -453,6 +536,7 @@
         const numberInput = document.getElementById('recentHolderNumber');
         const openOnlySlider = document.getElementById('openOnlyWindowSlider');
         const openOnlyNumber = document.getElementById('openOnlyWindowNumber');
+        const manualLimitInput = document.getElementById('manualLockerLimitInput');
 
         if (slider instanceof HTMLInputElement) {
             slider.addEventListener('input', event => {
@@ -495,6 +579,17 @@
                 }
                 const value = parseFloat(target.value);
                 applyOpenOnlyWindowHours(value);
+            });
+        }
+
+        if (manualLimitInput instanceof HTMLInputElement) {
+            manualLimitInput.addEventListener('input', event => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) {
+                    return;
+                }
+                const value = parseFloat(target.value);
+                applyManualDisplayLimit(value);
             });
         }
     });
