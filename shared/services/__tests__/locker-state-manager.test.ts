@@ -246,7 +246,7 @@ describe('LockerStateManager', () => {
 
     it('should release Owned locker', async () => {
       const result = await stateManager.releaseLocker('kiosk-1', 2, 'card-456');
-      
+
       expect(result).toBe(true);
 
       const locker = await stateManager.getLocker('kiosk-1', 2);
@@ -254,6 +254,36 @@ describe('LockerStateManager', () => {
       expect(locker?.owner_type).toBeNull();
       expect(locker?.owner_key).toBeNull();
       expect(locker?.owned_at).toBeNull();
+    });
+
+    it('should log held duration metadata on release', async () => {
+      vi.useFakeTimers();
+      try {
+        const now = new Date('2024-01-01T12:00:00.000Z');
+        vi.setSystemTime(now);
+
+        const heldStart = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+        await db.run(
+          `UPDATE lockers SET owned_at = ?, reserved_at = ? WHERE kiosk_id = ? AND id = ?`,
+          [heldStart.toISOString(), heldStart.toISOString(), 'kiosk-1', 2]
+        );
+
+        const result = await stateManager.releaseLocker('kiosk-1', 2, 'card-456');
+        expect(result).toBe(true);
+
+        const event = await db.get(
+          `SELECT * FROM events WHERE kiosk_id = ? AND locker_id = ? AND event_type = ? ORDER BY id DESC LIMIT 1`,
+          ['kiosk-1', 2, EventType.RFID_RELEASE]
+        ) as any;
+
+        const details = JSON.parse(event.details as string);
+        expect(details.released_at).toBe(now.toISOString());
+        expect(details.held_started_at).toBe(heldStart.toISOString());
+        expect(details.held_duration_minutes).toBe(180);
+        expect(details.held_duration_hours).toBeCloseTo(3, 5);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should reject release with wrong owner key', async () => {
@@ -279,6 +309,60 @@ describe('LockerStateManager', () => {
       expect(details.owner_type).toBe('rfid');
       expect(details.owner_key).toBe('card-123');
       expect(details.previous_status).toBe('Owned');
+      expect(events[0].rfid_card).toBe('card-123');
+    });
+  });
+
+  describe('getRecentLockerReleaseForCard', () => {
+    it('returns recent release details within the lookback window', async () => {
+      vi.useFakeTimers();
+      try {
+        const now = new Date('2024-03-10T10:00:00.000Z');
+        vi.setSystemTime(now);
+
+        const heldStart = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+        await db.run(`
+          INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, reserved_at, owned_at, version, is_vip)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, ['kiosk-2', 7, 'Owned', 'rfid', 'card-recent', heldStart.toISOString(), heldStart.toISOString(), 1, 0]);
+
+        const released = await stateManager.releaseLocker('kiosk-2', 7, 'card-recent');
+        expect(released).toBe(true);
+
+        const info = await stateManager.getRecentLockerReleaseForCard('kiosk-2', 'card-recent', 24);
+        expect(info).not.toBeNull();
+        expect(info?.lockerId).toBe(7);
+        expect(info?.heldDurationMinutes).toBe(240);
+        expect(info?.heldDurationHours).toBeCloseTo(4, 5);
+        expect(info?.releasedAt.toISOString()).toBe(now.toISOString());
+        expect(info?.heldStartedAt?.toISOString()).toBe(heldStart.toISOString());
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('returns null when no release falls within the requested window', async () => {
+      vi.useFakeTimers();
+      try {
+        const earlier = new Date('2024-03-05T08:00:00.000Z');
+        vi.setSystemTime(earlier);
+
+        const heldStart = new Date(earlier.getTime() - 60 * 60 * 1000);
+        await db.run(`
+          INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, reserved_at, owned_at, version, is_vip)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, ['kiosk-3', 9, 'Owned', 'rfid', 'card-old', heldStart.toISOString(), heldStart.toISOString(), 1, 0]);
+
+        await stateManager.releaseLocker('kiosk-3', 9, 'card-old');
+
+        const now = new Date('2024-03-10T08:00:00.000Z');
+        vi.setSystemTime(now);
+
+        const info = await stateManager.getRecentLockerReleaseForCard('kiosk-3', 'card-old', 24);
+        expect(info).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

@@ -32,6 +32,7 @@ export interface UserFlowResult {
 }
 
 export class RfidUserFlow extends EventEmitter {
+  private static readonly RECENT_RELEASE_LOOKBACK_HOURS = 24;
   private config: RfidUserFlowConfig;
   private lockerStateManager: LockerStateManager;
   private modbusController: ModbusController;
@@ -89,6 +90,20 @@ export class RfidUserFlow extends EventEmitter {
       console.warn('Failed to determine kiosk assignment mode, defaulting to manual:', error);
       return 'manual';
     }
+  }
+
+  private async getRecentHolderThresholdHours(): Promise<number> {
+    await this.ensureConfigInitialized();
+
+    try {
+      if (typeof this.configManager.getRecentHolderMinHours === 'function') {
+        return this.configManager.getRecentHolderMinHours();
+      }
+    } catch (error) {
+      console.warn('Failed to load recent holder rule threshold:', error);
+    }
+
+    return 0;
   }
 
   /**
@@ -166,6 +181,68 @@ export class RfidUserFlow extends EventEmitter {
       }
 
       let fallbackReason: string | undefined;
+      const recentHolderThreshold = assignmentMode === 'automatic'
+        ? await this.getRecentHolderThresholdHours()
+        : 0;
+
+      if (
+        assignmentMode === 'automatic'
+        && recentHolderThreshold > 0
+        && typeof this.lockerStateManager.getRecentLockerReleaseForCard === 'function'
+      ) {
+        try {
+          const recentRelease = await this.lockerStateManager.getRecentLockerReleaseForCard(
+            this.config.kiosk_id,
+            cardId,
+            RfidUserFlow.RECENT_RELEASE_LOOKBACK_HOURS
+          );
+
+          if (recentRelease) {
+            const heldHours = recentRelease.heldDurationHours
+              ?? (recentRelease.heldDurationMinutes !== undefined
+                ? Math.round((recentRelease.heldDurationMinutes / 60) * 1000) / 1000
+                : undefined);
+
+            if (heldHours !== undefined && heldHours >= recentHolderThreshold) {
+              const previousLocker = availableLockers.find(locker => locker.id === recentRelease.lockerId);
+
+              if (previousLocker) {
+                console.log(`🔁 Kart ${cardId} için son kullanılan dolap ${previousLocker.id} yeniden atanıyor (≈ ${heldHours} saat tutuldu).`);
+                const autoResult = await this.handleLockerSelection(cardId, previousLocker.id);
+
+                if (autoResult.success && autoResult.action === 'open_locker') {
+                  const lockerName = await this.getLockerDisplayName(previousLocker.id);
+                  this.emit('locker_auto_assign_success', {
+                    card_id: cardId,
+                    locker_id: previousLocker.id,
+                    message: `${lockerName} yeniden atandı`
+                  });
+
+                  return {
+                    ...autoResult,
+                    message: `${lockerName} önceki kullanımınıza göre atandı ve açıldı`,
+                    opened_locker: previousLocker.id,
+                    auto_assigned: true,
+                    assignment_mode: assignmentMode
+                  };
+                }
+
+                fallbackReason = autoResult.error_code || 'RECENT_LOCKER_ASSIGNMENT_FAILED';
+                console.warn(`⚠️ Son kullanılan dolap atanamadı (${fallbackReason}); standart otomatik seçim uygulanacak.`);
+                this.emit('locker_auto_assign_fallback', {
+                  card_id: cardId,
+                  locker_id: previousLocker.id,
+                  reason: fallbackReason
+                });
+              } else {
+                console.log(`ℹ️ Kart ${cardId} için son kullanılan dolap (${recentRelease.lockerId}) uygun değil; standart otomatik seçim kullanılacak.`);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Son kullanılan dolap yeniden atama kontrolü başarısız:', error);
+        }
+      }
 
       if (assignmentMode === 'automatic') {
         let candidate: Locker | null = null;

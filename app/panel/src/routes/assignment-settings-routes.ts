@@ -8,6 +8,7 @@ import { Permission } from '../services/permission-service';
 
 interface UpdateAssignmentBody {
   default_mode: LockerAssignmentMode;
+  recent_holder_min_hours?: number;
 }
 
 interface UpdateAssignmentRequest extends FastifyRequest {
@@ -68,7 +69,10 @@ export class AssignmentSettingsRoutes {
 
       return {
         success: true,
-        default_mode: assignment.default_mode ?? 'manual'
+        default_mode: assignment.default_mode ?? 'manual',
+        recent_holder_min_hours: typeof assignment.recent_holder_min_hours === 'number'
+          ? assignment.recent_holder_min_hours
+          : this.configManager.getRecentHolderMinHours()
       };
     } catch (error) {
       reply.code(500);
@@ -83,20 +87,29 @@ export class AssignmentSettingsRoutes {
     try {
       const body = request.body || {} as UpdateAssignmentBody;
       const defaultMode = body.default_mode;
+      const minHoursRaw = body.recent_holder_min_hours;
 
       if (defaultMode !== 'manual' && defaultMode !== 'automatic') {
         reply.code(400);
         return { success: false, error: 'Invalid default mode. Use "manual" or "automatic".' };
       }
 
+      const minHours = typeof minHoursRaw === 'number' ? minHoursRaw : 0;
+      if (Number.isNaN(minHours) || minHours < 0 || minHours > 24) {
+        reply.code(400);
+        return { success: false, error: 'Minimum held hours must be between 0 and 24.' };
+      }
+
       await this.configManager.initialize();
 
       const staffUser = (request as any).user?.username || 'panel-user';
+      const currentAssignment = this.configManager.getConfiguration().services.kiosk.assignment;
 
       await this.configManager.setKioskAssignmentConfig(
         {
           default_mode: defaultMode,
-          per_kiosk: {}
+          per_kiosk: currentAssignment?.per_kiosk ?? {},
+          recent_holder_min_hours: minHours
         },
         staffUser,
         'Updated kiosk assignment settings via panel'

@@ -19,7 +19,11 @@ describe('RfidUserFlow', () => {
   let mockLockerStateManager: vi.Mocked<LockerStateManager>;
   let mockModbusController: vi.Mocked<ModbusController>;
   let config: RfidUserFlowConfig;
-  let mockConfigManager: { initialize: ReturnType<typeof vi.fn>; getKioskAssignmentMode: ReturnType<typeof vi.fn> };
+  let mockConfigManager: {
+    initialize: ReturnType<typeof vi.fn>;
+    getKioskAssignmentMode: ReturnType<typeof vi.fn>;
+    getRecentHolderMinHours: ReturnType<typeof vi.fn>;
+  };
 
   const mockKioskId = 'test-kiosk-001';
   const mockCardId = '1234567890abcdef';
@@ -27,7 +31,8 @@ describe('RfidUserFlow', () => {
   function createMockConfig(mode: LockerAssignmentMode = 'manual') {
     return {
       initialize: vi.fn().mockResolvedValue(undefined),
-      getKioskAssignmentMode: vi.fn().mockReturnValue(mode)
+      getKioskAssignmentMode: vi.fn().mockReturnValue(mode),
+      getRecentHolderMinHours: vi.fn().mockReturnValue(0)
     };
   }
 
@@ -46,8 +51,11 @@ describe('RfidUserFlow', () => {
       assignLocker: vi.fn(),
       confirmOwnership: vi.fn(),
       releaseLocker: vi.fn(),
-      getKioskStats: vi.fn()
+      getKioskStats: vi.fn(),
+      getRecentLockerReleaseForCard: vi.fn()
     } as any;
+
+    mockLockerStateManager.getRecentLockerReleaseForCard.mockResolvedValue(null);
 
     mockModbusController = {
       openLocker: vi.fn()
@@ -245,6 +253,105 @@ describe('RfidUserFlow', () => {
       expect(result.auto_assigned).toBe(true);
       expect(result.assignment_mode).toBe('automatic');
       expect(mockLockerStateManager.assignLocker).toHaveBeenCalledWith(mockKioskId, 3, 'rfid', mockCardId);
+    });
+
+    it('should reassign previously held locker when threshold is met', async () => {
+      mockConfigManager = createMockConfig('automatic');
+      mockConfigManager.getRecentHolderMinHours.mockReturnValue(2);
+
+      const mockLockerNamingService = {
+        getDisplayName: vi.fn().mockImplementation((_k: string, lockerId: number) => Promise.resolve(`Dolap ${lockerId}`))
+      } as any;
+
+      rfidUserFlow = new RfidUserFlow(
+        config,
+        mockLockerStateManager,
+        mockModbusController,
+        mockLockerNamingService,
+        mockConfigManager as any
+      );
+
+      const available: Locker[] = [
+        { id: 2, kiosk_id: mockKioskId, status: 'Free', version: 1, is_vip: false, created_at: new Date(), updated_at: new Date() },
+        { id: 3, kiosk_id: mockKioskId, status: 'Free', version: 1, is_vip: false, created_at: new Date(), updated_at: new Date() }
+      ] as any;
+
+      mockLockerStateManager.checkExistingOwnership.mockResolvedValue(null);
+      mockLockerStateManager.getAvailableLockers.mockResolvedValue(available);
+      mockLockerStateManager.getRecentLockerReleaseForCard.mockResolvedValue({
+        lockerId: 2,
+        releasedAt: new Date(),
+        heldDurationHours: 2.5
+      });
+      mockLockerStateManager.assignLocker.mockResolvedValue(true);
+      mockLockerStateManager.confirmOwnership.mockResolvedValue(true);
+      mockModbusController.openLocker.mockResolvedValue(true);
+
+      const scanEvent: RfidScanEvent = {
+        card_id: mockCardId,
+        scan_time: new Date(),
+        reader_id: 'test-reader'
+      };
+
+      const result = await rfidUserFlow.handleCardScanned(scanEvent);
+
+      expect(result.success).toBe(true);
+      expect(result.opened_locker).toBe(2);
+      expect(result.auto_assigned).toBe(true);
+      expect(result.assignment_mode).toBe('automatic');
+      expect(mockLockerStateManager.getRecentLockerReleaseForCard).toHaveBeenCalledWith(
+        mockKioskId,
+        mockCardId,
+        24
+      );
+      expect(mockLockerStateManager.getOldestAvailableLocker).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to oldest locker when previous locker is unavailable', async () => {
+      mockConfigManager = createMockConfig('automatic');
+      mockConfigManager.getRecentHolderMinHours.mockReturnValue(2);
+
+      const mockLockerNamingService = {
+        getDisplayName: vi.fn().mockImplementation((_k: string, lockerId: number) => Promise.resolve(`Dolap ${lockerId}`))
+      } as any;
+
+      rfidUserFlow = new RfidUserFlow(
+        config,
+        mockLockerStateManager,
+        mockModbusController,
+        mockLockerNamingService,
+        mockConfigManager as any
+      );
+
+      const available: Locker[] = [
+        { id: 4, kiosk_id: mockKioskId, status: 'Free', version: 1, is_vip: false, created_at: new Date(), updated_at: new Date() },
+        { id: 5, kiosk_id: mockKioskId, status: 'Free', version: 1, is_vip: false, created_at: new Date(), updated_at: new Date() }
+      ] as any;
+
+      mockLockerStateManager.checkExistingOwnership.mockResolvedValue(null);
+      mockLockerStateManager.getAvailableLockers.mockResolvedValue(available);
+      mockLockerStateManager.getRecentLockerReleaseForCard.mockResolvedValue({
+        lockerId: 9,
+        releasedAt: new Date(),
+        heldDurationHours: 3
+      });
+      mockLockerStateManager.getOldestAvailableLocker.mockResolvedValue({ ...available[1] });
+      mockLockerStateManager.assignLocker.mockResolvedValue(true);
+      mockLockerStateManager.confirmOwnership.mockResolvedValue(true);
+      mockModbusController.openLocker.mockResolvedValue(true);
+
+      const scanEvent: RfidScanEvent = {
+        card_id: mockCardId,
+        scan_time: new Date(),
+        reader_id: 'test-reader'
+      };
+
+      const result = await rfidUserFlow.handleCardScanned(scanEvent);
+
+      expect(result.success).toBe(true);
+      expect(result.opened_locker).toBe(5);
+      expect(result.auto_assigned).toBe(true);
+      expect(mockLockerStateManager.getOldestAvailableLocker).toHaveBeenCalled();
     });
 
     it('should fall back to manual selection when automatic assignment fails', async () => {

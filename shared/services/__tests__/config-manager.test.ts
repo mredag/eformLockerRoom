@@ -502,7 +502,8 @@ describe('ConfigManager', () => {
       await configManager.setKioskAssignmentConfig(
         {
           default_mode: 'manual',
-          per_kiosk: {}
+          per_kiosk: {},
+          recent_holder_min_hours: 1.5
         },
         'test-user',
         'Reset kiosk assignment defaults'
@@ -515,10 +516,12 @@ describe('ConfigManager', () => {
       const savedConfig = JSON.parse(lastWrite![1] as string) as CompleteSystemConfig;
       expect(savedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
       expect(savedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
+      expect(savedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(1.5);
 
       const updatedConfig = configManager.getConfiguration();
       expect(updatedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
       expect(updatedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
+      expect(updatedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(1.5);
     });
   });
 
