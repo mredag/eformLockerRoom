@@ -9,6 +9,7 @@ import { Permission } from '../services/permission-service';
 interface UpdateAssignmentBody {
   default_mode: LockerAssignmentMode;
   recent_holder_min_hours?: number;
+  open_only_window_hours?: number;
 }
 
 interface UpdateAssignmentRequest extends FastifyRequest {
@@ -72,7 +73,10 @@ export class AssignmentSettingsRoutes {
         default_mode: assignment.default_mode ?? 'manual',
         recent_holder_min_hours: typeof assignment.recent_holder_min_hours === 'number'
           ? assignment.recent_holder_min_hours
-          : this.configManager.getRecentHolderMinHours()
+          : this.configManager.getRecentHolderMinHours(),
+        open_only_window_hours: typeof assignment.open_only_window_hours === 'number'
+          ? assignment.open_only_window_hours
+          : this.configManager.getOpenOnlyWindowHours()
       };
     } catch (error) {
       reply.code(500);
@@ -88,6 +92,7 @@ export class AssignmentSettingsRoutes {
       const body = request.body || {} as UpdateAssignmentBody;
       const defaultMode = body.default_mode;
       const minHoursRaw = body.recent_holder_min_hours;
+      const openOnlyRaw = body.open_only_window_hours;
 
       if (defaultMode !== 'manual' && defaultMode !== 'automatic') {
         reply.code(400);
@@ -100,6 +105,12 @@ export class AssignmentSettingsRoutes {
         return { success: false, error: 'Minimum held hours must be between 0 and 24.' };
       }
 
+      const openOnlyWindow = typeof openOnlyRaw === 'number' ? openOnlyRaw : 0;
+      if (Number.isNaN(openOnlyWindow) || openOnlyWindow < 0 || openOnlyWindow > 24) {
+        reply.code(400);
+        return { success: false, error: 'Open-only window must be between 0 and 24 hours.' };
+      }
+
       await this.configManager.initialize();
 
       const staffUser = (request as any).user?.username || 'panel-user';
@@ -109,7 +120,8 @@ export class AssignmentSettingsRoutes {
         {
           default_mode: defaultMode,
           per_kiosk: currentAssignment?.per_kiosk ?? {},
-          recent_holder_min_hours: minHours
+          recent_holder_min_hours: minHours,
+          open_only_window_hours: openOnlyWindow
         },
         staffUser,
         'Updated kiosk assignment settings via panel'

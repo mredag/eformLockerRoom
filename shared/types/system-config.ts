@@ -70,6 +70,7 @@ export interface KioskAssignmentConfig {
   default_mode: LockerAssignmentMode;
   per_kiosk?: Record<string, LockerAssignmentMode>;
   recent_holder_min_hours?: number;
+  open_only_window_hours?: number;
 }
 
 export interface ServiceConfig {

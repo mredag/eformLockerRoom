@@ -1084,11 +1084,16 @@ export class UiController {
   private async checkCardLocker(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { cardId } = request.params as { cardId: string };
-      
+
       if (!cardId) {
         reply.code(400);
         return { error: 'cardId is required' };
       }
+
+      await this.ensureConfigInitialized();
+      const openOnlyWindowHours = typeof this.configManager.getOpenOnlyWindowHours === 'function'
+        ? this.configManager.getOpenOnlyWindowHours()
+        : 1;
 
       console.log(`🔍 Checking existing locker for card: ${cardId}`);
 
@@ -1103,11 +1108,13 @@ export class UiController {
           displayName: existingLocker.display_name ?? null,
           ownedAt,
           reservedAt,
+          openOnlyWindowHours,
           message: `Dolap ${(existingLocker.display_name || existingLocker.id)} zaten atanmış`
         };
       } else {
         return {
           hasLocker: false,
+          openOnlyWindowHours,
           message: 'Atanmış dolap yok'
         };
       }

@@ -205,6 +205,19 @@
                 <span id="recentHolderDisplay" class="min-hours-value">2 saat</span>
             </div>
         </div>
+        <div class="field-group">
+            <label for="openOnlyWindowSlider">
+                🔓 "Eşya almak için aç" buton süresi
+            </label>
+            <small>
+                Kart sahipleri dolabı bırakmadan sadece açabilecekleri süreyi belirler. Süre dolunca buton gizlenir. 0 saat seçildiğinde seçenek tamamen kapatılır.
+            </small>
+            <div class="min-hours-control">
+                <input id="openOnlyWindowSlider" type="range" min="0" max="24" step="0.1" value="1">
+                <input id="openOnlyWindowNumber" type="number" min="0" max="24" step="0.1" value="1">
+                <span id="openOnlyWindowDisplay" class="min-hours-value">1 saat</span>
+            </div>
+        </div>
         <div class="actions">
             <button type="button" class="btn-secondary" onclick="loadSettings()">Yenile</button>
             <button type="button" class="btn-primary" onclick="saveSettings()">Kaydet</button>
@@ -217,6 +230,7 @@
     let csrfToken = null;
     let currentDefaultMode = 'manual';
     let currentMinHeldHours = 2;
+    let currentOpenOnlyWindowHours = 1;
     let isSaving = false;
 
     function getSaveButton() {
@@ -266,8 +280,10 @@
 
             const defaultMode = result.default_mode || 'manual';
             const minHours = typeof result.recent_holder_min_hours === 'number' ? result.recent_holder_min_hours : 0;
+            const openOnlyWindow = typeof result.open_only_window_hours === 'number' ? result.open_only_window_hours : 1;
             applyDefaultMode(defaultMode);
             applyMinHeldHours(minHours);
+            applyOpenOnlyWindowHours(openOnlyWindow);
         } catch (error) {
             statusEl.className = 'status error';
             statusEl.textContent = `Ayarlar yüklenemedi: ${error instanceof Error ? error.message : error}`;
@@ -282,6 +298,18 @@
                 input.checked = input.value === currentDefaultMode;
             }
         });
+    }
+
+    function formatHourValue(value) {
+        const normalized = Number.isFinite(value) ? Math.max(0, Math.min(24, value)) : 0;
+        if (normalized === 0) {
+            return 'Devre dışı';
+        }
+        const display = normalized.toLocaleString('tr-TR', {
+            minimumFractionDigits: normalized % 1 === 0 ? 0 : 1,
+            maximumFractionDigits: 1
+        });
+        return `${display} saat`;
     }
 
     function applyMinHeldHours(value) {
@@ -302,9 +330,29 @@
             numberInput.value = currentMinHeldHours.toString();
         }
         if (display) {
-            display.textContent = currentMinHeldHours === 0
-                ? 'Devre dışı'
-                : `${currentMinHeldHours.toLocaleString('tr-TR')} saat`;
+            display.textContent = formatHourValue(currentMinHeldHours);
+        }
+    }
+
+    function applyOpenOnlyWindowHours(value) {
+        const sanitized = typeof value === 'number' && !Number.isNaN(value)
+            ? Math.min(24, Math.max(0, value))
+            : 0;
+        const normalized = Math.round(sanitized * 10) / 10;
+        currentOpenOnlyWindowHours = Number(normalized.toFixed(1));
+
+        const slider = document.getElementById('openOnlyWindowSlider');
+        const numberInput = document.getElementById('openOnlyWindowNumber');
+        const display = document.getElementById('openOnlyWindowDisplay');
+
+        if (slider instanceof HTMLInputElement) {
+            slider.value = currentOpenOnlyWindowHours.toString();
+        }
+        if (numberInput instanceof HTMLInputElement) {
+            numberInput.value = currentOpenOnlyWindowHours.toString();
+        }
+        if (display) {
+            display.textContent = formatHourValue(currentOpenOnlyWindowHours);
         }
     }
 
@@ -347,7 +395,8 @@
                 credentials: 'same-origin',
                 body: JSON.stringify({
                     default_mode: selectedDefault.value,
-                    recent_holder_min_hours: currentMinHeldHours
+                    recent_holder_min_hours: currentMinHeldHours,
+                    open_only_window_hours: currentOpenOnlyWindowHours
                 })
             });
 
@@ -402,6 +451,8 @@
 
         const slider = document.getElementById('recentHolderSlider');
         const numberInput = document.getElementById('recentHolderNumber');
+        const openOnlySlider = document.getElementById('openOnlyWindowSlider');
+        const openOnlyNumber = document.getElementById('openOnlyWindowNumber');
 
         if (slider instanceof HTMLInputElement) {
             slider.addEventListener('input', event => {
@@ -422,6 +473,28 @@
                 }
                 const value = parseFloat(target.value);
                 applyMinHeldHours(value);
+            });
+        }
+
+        if (openOnlySlider instanceof HTMLInputElement) {
+            openOnlySlider.addEventListener('input', event => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) {
+                    return;
+                }
+                const value = parseFloat(target.value);
+                applyOpenOnlyWindowHours(value);
+            });
+        }
+
+        if (openOnlyNumber instanceof HTMLInputElement) {
+            openOnlyNumber.addEventListener('input', event => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) {
+                    return;
+                }
+                const value = parseFloat(target.value);
+                applyOpenOnlyWindowHours(value);
             });
         }
     });

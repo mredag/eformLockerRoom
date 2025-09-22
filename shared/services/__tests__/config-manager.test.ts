@@ -503,7 +503,8 @@ describe('ConfigManager', () => {
         {
           default_mode: 'manual',
           per_kiosk: {},
-          recent_holder_min_hours: 1.5
+          recent_holder_min_hours: 1.5,
+          open_only_window_hours: 0.75
         },
         'test-user',
         'Reset kiosk assignment defaults'
@@ -517,11 +518,13 @@ describe('ConfigManager', () => {
       expect(savedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
       expect(savedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
       expect(savedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(1.5);
+      expect(savedConfig.services.kiosk.assignment?.open_only_window_hours).toBe(0.8);
 
       const updatedConfig = configManager.getConfiguration();
       expect(updatedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
       expect(updatedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
       expect(updatedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(1.5);
+      expect(updatedConfig.services.kiosk.assignment?.open_only_window_hours).toBe(0.8);
     });
 
     it('should round recent holder minimum hours to the nearest tenth', async () => {
@@ -537,6 +540,22 @@ describe('ConfigManager', () => {
 
       const updatedConfig = configManager.getConfiguration();
       expect(updatedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(0.1);
+    });
+
+    it('should round open-only window hours to the nearest tenth', async () => {
+      await configManager.setKioskAssignmentConfig(
+        {
+          default_mode: 'automatic',
+          per_kiosk: {},
+          recent_holder_min_hours: 2,
+          open_only_window_hours: 0.04
+        },
+        'test-user',
+        'Round open-only window threshold'
+      );
+
+      const updatedConfig = configManager.getConfiguration();
+      expect(updatedConfig.services.kiosk.assignment?.open_only_window_hours).toBe(0);
     });
   });
 

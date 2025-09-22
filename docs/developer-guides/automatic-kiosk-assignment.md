@@ -5,16 +5,16 @@ This guide documents how the single-kiosk automatic assignment flow works, how i
 ## Configuration Model
 
 - Automatic/manual behaviour is controlled through `services.kiosk.assignment` inside `config/system.json`. The shape is defined by `KioskAssignmentConfig`, which exposes a `default_mode` plus optional per-kiosk overrides. 【F:shared/types/system-config.ts†L69-L90】
-- `ConfigManager.getDefaultConfiguration()` seeds the assignment block so fresh environments default to manual mode without diverging from the legacy schema. 【F:shared/services/config-manager.ts†L720-L782】
-- Use `ConfigManager.setKioskAssignmentConfig()` to persist changes. It normalises modes, validates the result, saves with a lock, and records an audit log entry so panel writes do not corrupt `system.json`. 【F:shared/services/config-manager.ts†L463-L504】
+- `ConfigManager.getDefaultConfiguration()` seeds the assignment block so fresh environments default to manual mode without diverging from the legacy schema. Defaults now include `recent_holder_min_hours` for the reassignment rule and `open_only_window_hours` for the quick-open UI. 【F:shared/services/config-manager.ts†L742-L783】
+- Use `ConfigManager.setKioskAssignmentConfig()` to persist changes. It normalises modes, validates the result, saves with a lock, and records an audit log entry so panel writes do not corrupt `system.json`. Numeric thresholds are clamped between 0-24 hours and rounded to a single decimal before writing. 【F:shared/services/config-manager.ts†L463-L520】【F:shared/services/config-manager.ts†L1016-L1059】
 - Configuration writes are guarded by an exclusive lock (`config/system.json.lock`) and every update produces a timestamped backup before the new snapshot is flushed. This protects the fragile config file from concurrent writes or power loss. 【F:shared/services/config-manager.ts†L908-L1030】
 
 ## Panel Settings Surface
 
 The admin panel exposes `/panel/assignment-settings` so operators can toggle between manual and automatic mode.
 
-- Routes live in `AssignmentSettingsRoutes`. They serve the HTML view, expose the read API, and POST the selected mode through `setKioskAssignmentConfig()`. All endpoints require the `SYSTEM_CONFIG` permission and POSTs enforce CSRF protection. 【F:app/panel/src/routes/assignment-settings-routes.ts†L23-L85】
-- The view itself (`app/panel/src/views/assignment-settings.html`) relies on that API to load/save the default mode. If you extend kiosk-specific options in future, reuse the same route module so config changes continue to flow through the shared manager.
+- Routes live in `AssignmentSettingsRoutes`. They serve the HTML view, expose the read API, and POST the selected mode through `setKioskAssignmentConfig()`. All endpoints require the `SYSTEM_CONFIG` permission and POSTs enforce CSRF protection. The handler now returns and validates both time-based knobs. 【F:app/panel/src/routes/assignment-settings-routes.ts†L9-L118】
+- The view itself (`app/panel/src/views/assignment-settings.html`) renders paired slider + numeric inputs for each knob so operators can tune the reassignment rule and the open-only window without restarting services. Reuse this module for future kiosk assignment settings. 【F:app/panel/src/views/assignment-settings.html†L37-L208】
 
 ## Runtime Flow (RFID ➜ Assignment)
 
@@ -31,7 +31,7 @@ The admin panel exposes `/panel/assignment-settings` so operators can toggle bet
 ## UI Behaviour
 
 - The kiosk UI receives the auto-assignment result. When `action` is `open_locker`, it proceeds directly to the success screen; otherwise it renders the familiar manual grid using the lockers returned by `handleCardWithNoLocker()`. 【F:app/kiosk/src/services/rfid-user-flow.ts†L220-L260】
-- Owned-locker decisions (`showOwnedDecision`) continue to honour the one-hour “open without release” window. The button copy now clarifies the action (“Eşya almak için aç,”) and visually emphasises it with a glow so patrons recognise the quick-open option. 【F:app/kiosk/src/ui/static/app-simple.js†L876-L915】【F:app/kiosk/src/ui/static/styles-simple.css†L1568-L1587】【F:app/kiosk/src/ui/static/styles-simple.css†L1596-L1604】
+- Owned-locker decisions (`showOwnedDecision`) honour the configurable “Eşya almak için aç” window returned by the server. The kiosk logs the threshold, toggles the button when the time elapses, and updates the helper copy with the active duration. 【F:app/kiosk/src/ui/static/app-simple.js†L657-L716】【F:app/kiosk/src/ui/static/app-simple.js†L948-L1059】
 
 ## Observability & Error Handling
 
