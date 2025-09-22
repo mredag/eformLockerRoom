@@ -404,14 +404,22 @@
 
         if (slider instanceof HTMLInputElement) {
             slider.addEventListener('input', event => {
-                const value = parseFloat((event.target as HTMLInputElement).value);
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) {
+                    return;
+                }
+                const value = parseFloat(target.value);
                 applyMinHeldHours(value);
             });
         }
 
         if (numberInput instanceof HTMLInputElement) {
             numberInput.addEventListener('input', event => {
-                const value = parseFloat((event.target as HTMLInputElement).value);
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) {
+                    return;
+                }
+                const value = parseFloat(target.value);
                 applyMinHeldHours(value);
             });
         }
