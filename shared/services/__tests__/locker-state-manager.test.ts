@@ -311,6 +311,25 @@ describe('LockerStateManager', () => {
       expect(details.previous_status).toBe('Owned');
       expect(events[0].rfid_card).toBe('card-123');
     });
+
+    it('should persist RFID card even when owner type casing differs', async () => {
+      await db.run(
+        `INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, reserved_at, version, is_vip)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ['kiosk-1', 3, 'Owned', 'RFID', 'card-upper', new Date().toISOString(), 1, 0]
+      );
+
+      const released = await stateManager.releaseLocker('kiosk-1', 3, 'card-upper');
+      expect(released).toBe(true);
+
+      const event = await db.get(
+        `SELECT * FROM events WHERE kiosk_id = ? AND locker_id = ? AND event_type = ? ORDER BY id DESC LIMIT 1`,
+        ['kiosk-1', 3, EventType.RFID_RELEASE]
+      ) as any;
+
+      expect(event).toBeTruthy();
+      expect(event.rfid_card).toBe('card-upper');
+    });
   });
 
   describe('getRecentLockerReleaseForCard', () => {
@@ -360,6 +379,39 @@ describe('LockerStateManager', () => {
 
         const info = await stateManager.getRecentLockerReleaseForCard('kiosk-3', 'card-old', 24);
         expect(info).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('matches legacy events without populated rfid_card column', async () => {
+      vi.useFakeTimers();
+      try {
+        const now = new Date('2024-04-01T15:00:00.000Z');
+        vi.setSystemTime(now);
+
+        await db.run(
+          `INSERT INTO events (kiosk_id, locker_id, event_type, timestamp, rfid_card, details)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            'kiosk-legacy',
+            12,
+            EventType.RFID_RELEASE,
+            now.toISOString(),
+            null,
+            JSON.stringify({
+              owner_type: 'rfid',
+              owner_key: 'card-legacy',
+              released_at: now.toISOString(),
+              held_duration_minutes: 120
+            })
+          ]
+        );
+
+        const info = await stateManager.getRecentLockerReleaseForCard('kiosk-legacy', 'card-legacy', 24);
+        expect(info).not.toBeNull();
+        expect(info?.lockerId).toBe(12);
+        expect(info?.heldDurationHours).toBeCloseTo(2, 5);
       } finally {
         vi.useRealTimers();
       }

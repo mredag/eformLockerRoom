@@ -185,6 +185,10 @@ export class RfidUserFlow extends EventEmitter {
         ? await this.getRecentHolderThresholdHours()
         : 0;
 
+      if (assignmentMode === 'automatic' && recentHolderThreshold > 0) {
+        console.log(`🕒 Son kullanıcı kuralı aktif: eşik ${recentHolderThreshold} saat (kart: ${cardId}).`);
+      }
+
       if (
         assignmentMode === 'automatic'
         && recentHolderThreshold > 0
@@ -202,6 +206,17 @@ export class RfidUserFlow extends EventEmitter {
               ?? (recentRelease.heldDurationMinutes !== undefined
                 ? Math.round((recentRelease.heldDurationMinutes / 60) * 1000) / 1000
                 : undefined);
+
+            const releaseAgeMs = Date.now() - recentRelease.releasedAt.getTime();
+            const releaseAgeHours = releaseAgeMs >= 0 && Number.isFinite(releaseAgeMs)
+              ? Math.round((releaseAgeMs / (60 * 60 * 1000)) * 1000) / 1000
+              : undefined;
+
+            console.log(
+              `📼 Son bırakma kaydı: dolap ${recentRelease.lockerId}, `
+              + `tutma süresi ≈ ${heldHours !== undefined ? heldHours.toFixed(2) : 'bilinmiyor'} saat, `
+              + `bırakılalı ≈ ${releaseAgeHours !== undefined ? releaseAgeHours.toFixed(2) : 'bilinmiyor'} saat.`
+            );
 
             if (heldHours !== undefined && heldHours >= recentHolderThreshold) {
               const previousLocker = availableLockers.find(locker => locker.id === recentRelease.lockerId);
@@ -237,7 +252,14 @@ export class RfidUserFlow extends EventEmitter {
               } else {
                 console.log(`ℹ️ Kart ${cardId} için son kullanılan dolap (${recentRelease.lockerId}) uygun değil; standart otomatik seçim kullanılacak.`);
               }
+            } else {
+              console.log(
+                `ℹ️ Son bırakma kaydı eşik altında: tutma süresi ≈ ${heldHours !== undefined ? heldHours.toFixed(2) : 'bilinmiyor'} `
+                + `saat, gereken ≥ ${recentHolderThreshold} saat.`
+              );
             }
+          } else {
+            console.log(`ℹ️ Kart ${cardId} için son 24 saatte uygun bırakma kaydı bulunamadı.`);
           }
         } catch (error) {
           console.warn('⚠️ Son kullanılan dolap yeniden atama kontrolü başarısız:', error);
