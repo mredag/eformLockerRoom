@@ -8,6 +8,8 @@ import { SessionManager } from './session-manager';
 import { lockerLayoutService } from '../../../../shared/services/locker-layout-service';
 import { ConfigManager } from '../../../../shared/services/config-manager';
 import { LockerAssignmentMode } from '../../../../shared/types/system-config';
+import { RfidUserFlow, UserFlowResult } from '../services/rfid-user-flow';
+import { Locker, RfidScanEvent } from '@eform/shared/types/core-entities';
 
 export class UiController {
   private lockerStateManager: LockerStateManager;
@@ -16,6 +18,7 @@ export class UiController {
   private sessionManager: SessionManager;
   private configManager: ConfigManager;
   private configInitPromise: Promise<void> | null = null;
+  private rfidUserFlow: RfidUserFlow | null = null;
   private masterPin: string = '1234'; // TODO: Load from config
   private pinAttempts: Map<string, { count: number; lockoutEnd?: number }> = new Map();
   private readonly maxAttempts = 5;
@@ -24,11 +27,13 @@ export class UiController {
   constructor(
     lockerStateManager: LockerStateManager,
     modbusController: ModbusController,
-    lockerNamingService: LockerNamingService
+    lockerNamingService: LockerNamingService,
+    rfidUserFlow?: RfidUserFlow
   ) {
     this.lockerStateManager = lockerStateManager;
     this.modbusController = modbusController;
     this.lockerNamingService = lockerNamingService;
+    this.rfidUserFlow = rfidUserFlow ?? null;
     this.configManager = ConfigManager.getInstance();
     this.configInitPromise = this.configManager.initialize().catch(error => {
       console.warn('Failed to initialize configuration manager for UI controller:', error);
@@ -45,6 +50,10 @@ export class UiController {
     this.setupHardwareErrorHandling();
   }
 
+  setRfidUserFlow(flow: RfidUserFlow): void {
+    this.rfidUserFlow = flow;
+  }
+
   /**
    * Get the display name for a locker
    */
@@ -55,6 +64,28 @@ export class UiController {
       console.warn(`Failed to get display name for locker ${lockerId}, using default:`, error);
       return `Dolap ${lockerId}`;
     }
+  }
+
+  private async formatLockersForResponse(kioskId: string, lockers: Locker[]): Promise<Array<{
+    id: number;
+    status: string;
+    display_name: string;
+    is_vip: boolean;
+  }>> {
+    return await Promise.all(
+      lockers.map(async locker => {
+        const displayName = locker.display_name
+          || (locker as any).displayName
+          || await this.getLockerDisplayName(kioskId, locker.id);
+
+        return {
+          id: locker.id,
+          status: locker.status,
+          display_name: displayName,
+          is_vip: locker.is_vip
+        };
+      })
+    );
   }
 
   private async ensureConfigInitialized(): Promise<void> {
@@ -258,182 +289,111 @@ export class UiController {
 
     const zoneFilter = await this.resolveZoneFilter(requestedZone);
 
-    const existingLocker = await this.lockerStateManager.checkExistingOwnership(cardId, 'rfid');
+    if (!this.rfidUserFlow) {
+      throw new Error('RFID user flow not initialized');
+    }
 
-    if (existingLocker) {
-      console.log(`🔓 Opening existing locker ${existingLocker.id} for card ${cardId}`);
+    const scanEvent: RfidScanEvent = {
+      card_id: cardId,
+      scan_time: new Date(),
+      reader_id: 'kiosk-ui'
+    };
 
-      let success = false;
-      let hardwareError: string | null = null;
+    let flowResult: UserFlowResult;
+    try {
+      flowResult = await this.rfidUserFlow.handleCardScanned(scanEvent, { zoneId: zoneFilter });
+    } catch (error) {
+      console.error('Error executing RFID user flow for card scan:', error);
+      throw error;
+    }
 
-      try {
-        success = await this.modbusController.openLocker(existingLocker.id);
-      } catch (error) {
-        hardwareError = error instanceof Error ? error.message : String(error);
-        console.error(`❌ Hardware error opening existing locker ${existingLocker.id}: ${hardwareError}`);
-        success = false;
-      }
+    if (!flowResult.success) {
+      return {
+        success: false,
+        action: flowResult.action ?? 'error',
+        error: flowResult.error_code || flowResult.fallback_reason || 'flow_failed',
+        message: flowResult.message,
+        assignment_mode: flowResult.assignment_mode,
+        auto_assigned: flowResult.auto_assigned ?? false,
+        fallback_reason: flowResult.fallback_reason,
+        debug_logs: flowResult.debug_logs
+      };
+    }
 
-      if (success) {
-        await this.lockerStateManager.releaseLocker(existingLocker.kiosk_id, existingLocker.id, cardId);
-        console.log(`✅ Locker ${existingLocker.id} opened and released for card ${cardId}`);
+    if (flowResult.action === 'open_locker') {
+      const lockerId = flowResult.opened_locker ?? (flowResult as any).openedLocker ?? null;
+      return {
+        success: true,
+        action: 'open_locker',
+        locker_id: lockerId ?? undefined,
+        message: flowResult.message,
+        assignment_mode: flowResult.assignment_mode,
+        auto_assigned: flowResult.auto_assigned ?? false,
+        debug_logs: flowResult.debug_logs
+      };
+    }
 
-        const lockerName = await this.getLockerDisplayName(existingLocker.kiosk_id, existingLocker.id);
+    if (flowResult.action === 'show_lockers') {
+      const availableLockers = flowResult.available_lockers ?? [];
+
+      if (availableLockers.length === 0) {
+        console.log(`⚠️ No available lockers for kiosk ${kioskId}`);
         return {
-          action: 'open_locker',
-          locker_id: existingLocker.id,
-          message: `${lockerName} açıldı ve bırakıldı`
+          success: false,
+          action: 'error',
+          error: 'no_lockers',
+          message: zoneFilter
+            ? `Müsait dolap yok (${zoneFilter})`
+            : 'Müsait dolap yok - Daha sonra deneyin',
+          assignment_mode: flowResult.assignment_mode,
+          auto_assigned: flowResult.auto_assigned ?? false,
+          fallback_reason: flowResult.fallback_reason,
+          debug_logs: flowResult.debug_logs
         };
       }
 
-      console.error(`❌ Failed to open existing locker ${existingLocker.id} for card ${cardId}`);
-
-      const hardwareStatus = this.modbusController.getHardwareStatus();
-      let errorMessage = 'Dolap açılamadı - Tekrar deneyin';
-      let errorCode = 'failed_open';
-
-      if (!hardwareStatus.available) {
-        errorMessage = 'Sistem bakımda - Görevliye başvurun';
-        errorCode = 'hardware_unavailable';
-      } else if (hardwareError) {
-        errorMessage = 'Bağlantı hatası - Tekrar deneyin';
-        errorCode = 'connection_error';
+      const existingSession = this.sessionManager.getKioskSession(kioskId);
+      if (existingSession) {
+        this.sessionManager.cancelSession(existingSession.id, 'Yeni kart okundu');
+        console.log(`🔄 Cancelled existing session for new card scan`);
       }
+
+      const session = this.sessionManager.createSession(
+        kioskId,
+        cardId,
+        availableLockers.map(l => l.id),
+        zoneFilter
+      );
+
+      console.log(`🔑 Created session ${session.id} for card ${cardId} with ${availableLockers.length} available lockers`);
+
+      const lockerPayload = await this.formatLockersForResponse(kioskId, availableLockers);
 
       return {
-        error: errorCode,
-        message: errorMessage,
-        hardware_status: {
-          available: hardwareStatus.available,
-          error_rate: hardwareStatus.diagnostics.errorRate
-        }
+        success: true,
+        action: 'show_lockers',
+        session_id: session.id,
+        timeout_seconds: session.timeoutSeconds,
+        message: flowResult.message ?? 'Kart okundu. Dolap seçin',
+        lockers: lockerPayload,
+        total_available: availableLockers.length,
+        assignment_mode: flowResult.assignment_mode,
+        auto_assigned: flowResult.auto_assigned ?? false,
+        fallback_reason: flowResult.fallback_reason,
+        debug_logs: flowResult.debug_logs
       };
     }
-
-    let availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId, {
-      zoneId: zoneFilter
-    });
-
-    if (availableLockers.length === 0) {
-      console.log(`⚠️ No available lockers for kiosk ${kioskId}`);
-      return {
-        error: 'no_lockers',
-        message: zoneFilter
-          ? `Müsait dolap yok (${zoneFilter})`
-          : 'Müsait dolap yok - Daha sonra deneyin'
-      };
-    }
-
-    const assignmentMode = await this.getAssignmentMode(kioskId);
-    let fallbackReason: string | undefined;
-
-    if (assignmentMode === 'automatic') {
-      try {
-        const candidate = await this.lockerStateManager.getOldestAvailableLocker(kioskId, {
-          allowedLockerIds: availableLockers.map(locker => locker.id),
-          zoneId: zoneFilter
-        });
-
-        if (candidate) {
-          console.log(`🤖 Automatic locker assignment attempt: locker ${candidate.id}`);
-          const assigned = await this.lockerStateManager.assignLocker(kioskId, candidate.id, 'rfid', cardId);
-
-          if (assigned) {
-            let opened = false;
-            let hardwareError: string | null = null;
-
-            try {
-              opened = await this.modbusController.openLocker(candidate.id);
-            } catch (error) {
-              hardwareError = error instanceof Error ? error.message : String(error);
-              opened = false;
-            }
-
-            if (opened) {
-              await this.lockerStateManager.confirmOwnership(kioskId, candidate.id);
-              const lockerName = await this.getLockerDisplayName(kioskId, candidate.id);
-              console.log(`✅ Automatic assignment succeeded: locker ${candidate.id} for card ${cardId}`);
-
-              return {
-                success: true,
-                action: 'open_locker',
-                locker_id: candidate.id,
-                message: `${lockerName} otomatik atandı ve açıldı`,
-                assignment_mode: assignmentMode,
-                auto_assigned: true
-              };
-            }
-
-            console.warn(
-              `⚠️ Automatic assignment failed to open locker ${candidate.id}: ${hardwareError || 'unknown error'}`
-            );
-            await this.lockerStateManager.releaseLocker(kioskId, candidate.id, cardId);
-            fallbackReason = hardwareError ? 'hardware_error' : 'open_failed';
-          } else {
-            console.warn(`⚠️ Automatic assignment failed during database assignment for locker ${candidate.id}`);
-            fallbackReason = 'assignment_failed';
-          }
-        } else {
-          console.warn('⚠️ No eligible lockers found for automatic assignment; falling back to manual selection.');
-          fallbackReason = 'no_candidates';
-        }
-      } catch (error) {
-        console.warn('⚠️ Automatic assignment candidate lookup failed:', error);
-        fallbackReason = 'candidate_lookup_failed';
-      }
-
-      if (fallbackReason) {
-        try {
-          availableLockers = await this.lockerStateManager.getEnhancedAvailableLockers(kioskId, {
-            zoneId: zoneFilter
-          });
-        } catch (refreshError) {
-          console.warn('Failed to refresh available lockers after automatic assignment issue:', refreshError);
-        }
-
-        if (availableLockers.length === 0) {
-          return {
-            error: 'no_lockers',
-            message: 'Müsait dolap yok - Daha sonra deneyin',
-            assignment_mode: assignmentMode,
-            auto_assigned: false,
-            fallback_reason: fallbackReason
-          };
-        }
-      }
-    }
-
-    const existingSession = this.sessionManager.getKioskSession(kioskId);
-    if (existingSession) {
-      this.sessionManager.cancelSession(existingSession.id, 'Yeni kart okundu');
-      console.log(`🔄 Cancelled existing session for new card scan`);
-    }
-
-    const session = this.sessionManager.createSession(
-      kioskId,
-      cardId,
-      availableLockers.map(l => l.id),
-      zoneFilter
-    );
-
-    console.log(`🔑 Created session ${session.id} for card ${cardId} with ${availableLockers.length} available lockers`);
 
     return {
-      success: true,
-      action: 'show_lockers',
-      session_id: session.id,
-      timeout_seconds: session.timeoutSeconds,
-      message: 'Kart okundu. Dolap seçin',
-      lockers: availableLockers.map(locker => ({
-        id: locker.id,
-        status: locker.status,
-        display_name: locker.displayName
-      })),
-      assignment_mode: assignmentMode,
-      auto_assigned: false,
-      fallback_reason: fallbackReason
+      success: flowResult.success,
+      action: flowResult.action,
+      message: flowResult.message,
+      assignment_mode: flowResult.assignment_mode,
+      auto_assigned: flowResult.auto_assigned ?? false,
+      debug_logs: flowResult.debug_logs
     };
   }
+
   private async getAvailableLockers(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { kioskId, zone } = request.query as { kioskId: string; zone?: string };
@@ -1124,11 +1084,16 @@ export class UiController {
   private async checkCardLocker(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { cardId } = request.params as { cardId: string };
-      
+
       if (!cardId) {
         reply.code(400);
         return { error: 'cardId is required' };
       }
+
+      await this.ensureConfigInitialized();
+      const openOnlyWindowHours = typeof this.configManager.getOpenOnlyWindowHours === 'function'
+        ? this.configManager.getOpenOnlyWindowHours()
+        : 1;
 
       console.log(`🔍 Checking existing locker for card: ${cardId}`);
 
@@ -1143,11 +1108,13 @@ export class UiController {
           displayName: existingLocker.display_name ?? null,
           ownedAt,
           reservedAt,
+          openOnlyWindowHours,
           message: `Dolap ${(existingLocker.display_name || existingLocker.id)} zaten atanmış`
         };
       } else {
         return {
           hasLocker: false,
+          openOnlyWindowHours,
           message: 'Atanmış dolap yok'
         };
       }

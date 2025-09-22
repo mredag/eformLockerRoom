@@ -31,6 +31,13 @@ interface LockerFilterOptions {
   allowedLockerIds?: number[];
 }
 
+interface RecentReleaseRow {
+  locker_id: number;
+  timestamp: string;
+  details?: string | null;
+  rfid_card?: string | null;
+}
+
 type LockerRow = Omit<Locker, 'reserved_at' | 'owned_at' | 'created_at' | 'updated_at' | 'name_updated_at' | 'is_vip'> & {
   reserved_at?: Date | string | null;
   owned_at?: Date | string | null;
@@ -596,6 +603,177 @@ export class LockerStateManager {
     return this.normalizeLockerRow(row);
   }
 
+  async getRecentLockerReleaseForCard(
+    kioskId: string,
+    ownerKey: string,
+    withinHours: number
+  ): Promise<{
+    lockerId: number;
+    releasedAt: Date;
+    heldDurationMinutes?: number;
+    heldDurationHours?: number;
+    heldStartedAt?: Date;
+  } | null> {
+    if (!ownerKey || !withinHours || withinHours <= 0) {
+      return null;
+    }
+
+    const cutoffDate = new Date(Date.now() - withinHours * 60 * 60 * 1000);
+    const cutoffIso = cutoffDate.toISOString();
+    const cutoffSql = cutoffIso.replace('T', ' ').replace('Z', '').slice(0, 19);
+
+    const selectColumns = `
+      SELECT locker_id, timestamp, details, rfid_card
+      FROM events
+      WHERE kiosk_id = ?
+        AND event_type = ?
+        AND timestamp >= ?
+    `;
+
+    const fetchSingleRow = async (): Promise<RecentReleaseRow | undefined> => {
+      const params: (string | number)[] = [kioskId, EventType.RFID_RELEASE, cutoffSql, ownerKey];
+      const query = `${selectColumns} AND rfid_card = ? ORDER BY timestamp DESC LIMIT 1`;
+
+      if (this.dbManager) {
+        const connection = this.dbManager.getConnection();
+        return connection.get(query, params) as Promise<RecentReleaseRow | undefined>;
+      }
+
+      return this.db.get<RecentReleaseRow>(query, params);
+    };
+
+    const fetchFallbackRows = async (): Promise<RecentReleaseRow[]> => {
+      const params: (string | number)[] = [kioskId, EventType.RFID_RELEASE, cutoffSql];
+      const query = `${selectColumns} ORDER BY timestamp DESC LIMIT 20`;
+
+      if (this.dbManager) {
+        const connection = this.dbManager.getConnection();
+        return connection.all(query, params) as Promise<RecentReleaseRow[]>;
+      }
+
+      return this.db.all<RecentReleaseRow>(query, params);
+    };
+
+    const parseRowDetails = (row: RecentReleaseRow): {
+      details: Record<string, any>;
+      releasedAt: Date;
+      heldDurationMinutes?: number;
+      heldDurationHours?: number;
+      heldStartedAt?: Date;
+    } => {
+      let details: Record<string, any> = {};
+      if (row.details) {
+        try {
+          details = JSON.parse(row.details) as Record<string, any>;
+        } catch (error) {
+          console.warn('Failed to parse release event details for recent locker lookup:', error);
+        }
+      }
+
+      const releaseSource = typeof details.released_at === 'string' ? details.released_at : row.timestamp;
+      let releasedAt = new Date(releaseSource);
+      if (Number.isNaN(releasedAt.getTime())) {
+        releasedAt = new Date(row.timestamp);
+      }
+
+      const heldMinutesRaw = details.held_duration_minutes;
+      const heldHoursRaw = details.held_duration_hours;
+      const heldStartedAtRaw = details.held_started_at;
+
+      let heldDurationMinutes = typeof heldMinutesRaw === 'number' && Number.isFinite(heldMinutesRaw)
+        ? heldMinutesRaw
+        : undefined;
+
+      let heldDurationHours: number | undefined;
+      if (typeof heldHoursRaw === 'number' && Number.isFinite(heldHoursRaw)) {
+        heldDurationHours = heldHoursRaw;
+      } else if (heldDurationMinutes !== undefined) {
+        heldDurationHours = Math.round((heldDurationMinutes / 60) * 1000) / 1000;
+      }
+
+      let heldStartedAt: Date | undefined;
+      if (typeof heldStartedAtRaw === 'string') {
+        const parsed = new Date(heldStartedAtRaw);
+        if (!Number.isNaN(parsed.getTime())) {
+          heldStartedAt = parsed;
+        }
+      }
+
+      if (heldDurationHours === undefined && heldStartedAt instanceof Date && !Number.isNaN(heldStartedAt.getTime())) {
+        const diffMs = releasedAt.getTime() - heldStartedAt.getTime();
+        if (diffMs >= 0 && Number.isFinite(diffMs)) {
+          const hours = diffMs / (60 * 60 * 1000);
+          heldDurationHours = Math.round(hours * 1000) / 1000;
+          if (heldDurationMinutes === undefined) {
+            heldDurationMinutes = Math.round(hours * 60);
+          }
+        }
+      }
+
+      return { details, releasedAt, heldDurationMinutes, heldDurationHours, heldStartedAt };
+    };
+
+    const matchesOwner = (row: RecentReleaseRow, details: Record<string, any>): boolean => {
+      if (typeof row.rfid_card === 'string' && row.rfid_card === ownerKey) {
+        return true;
+      }
+
+      const detailsRfid = typeof details.rfid_card === 'string' ? details.rfid_card : null;
+      if (detailsRfid && detailsRfid === ownerKey) {
+        return true;
+      }
+
+      const ownerTypeRaw = typeof details.owner_type === 'string' ? details.owner_type.toLowerCase() : '';
+      const detailsOwnerKey = typeof details.owner_key === 'string' ? details.owner_key : null;
+
+      return ownerTypeRaw === 'rfid' && detailsOwnerKey === ownerKey;
+    };
+
+    const buildResult = (
+      row: RecentReleaseRow,
+      parsed: ReturnType<typeof parseRowDetails>
+    ): {
+      lockerId: number;
+      releasedAt: Date;
+      heldDurationMinutes?: number;
+      heldDurationHours?: number;
+      heldStartedAt?: Date;
+    } | null => {
+      if (!Number.isNaN(cutoffDate.getTime()) && parsed.releasedAt < cutoffDate) {
+        return null;
+      }
+
+      return {
+        lockerId: row.locker_id,
+        releasedAt: parsed.releasedAt,
+        heldDurationMinutes: parsed.heldDurationMinutes,
+        heldDurationHours: parsed.heldDurationHours,
+        heldStartedAt: parsed.heldStartedAt
+      };
+    };
+
+    try {
+      const directRow = await fetchSingleRow();
+      if (directRow) {
+        const parsed = parseRowDetails(directRow);
+        return buildResult(directRow, parsed);
+      }
+
+      const fallbackRows = await fetchFallbackRows();
+      for (const row of fallbackRows) {
+        const parsed = parseRowDetails(row);
+        if (matchesOwner(row, parsed.details)) {
+          return buildResult(row, parsed);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('Failed to load recent locker release information:', error);
+      return null;
+    }
+  }
+
   async getKioskIds(): Promise<string[]> {
     const rows = await this.db.all<{ kiosk_id: string }>(
       'SELECT DISTINCT kiosk_id FROM lockers ORDER BY kiosk_id'
@@ -756,7 +934,10 @@ export class LockerStateManager {
 
     try {
       const now = new Date().toISOString();
-      const resolvedOwnerType = (ownerType || locker.owner_type) as OwnerType | undefined;
+      const resolvedOwnerTypeRaw = ownerType ?? locker.owner_type ?? null;
+      const normalizedOwnerType = typeof resolvedOwnerTypeRaw === 'string'
+        ? (resolvedOwnerTypeRaw.toLowerCase() as OwnerType)
+        : resolvedOwnerTypeRaw ?? undefined;
 
       const runRelease = async (connection: DatabaseConnection) => {
         const result = await connection.run(
@@ -771,13 +952,25 @@ export class LockerStateManager {
           await this.broadcastStateUpdate(kioskId, lockerId, 'Free');
 
           const eventType = options.eventType
-            || (resolvedOwnerType === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE);
+            || (normalizedOwnerType === 'rfid' ? EventType.RFID_RELEASE : EventType.QR_RELEASE);
 
           const logDetails: Record<string, any> = {
-            owner_type: resolvedOwnerType || locker.owner_type,
+            owner_type: normalizedOwnerType ?? resolvedOwnerTypeRaw ?? locker.owner_type,
             owner_key: locker.owner_key,
-            previous_status: locker.status
+            previous_status: locker.status,
+            released_at: now
           };
+
+          const holdStart = locker.owned_at ?? locker.reserved_at ?? null;
+          if (holdStart instanceof Date && !Number.isNaN(holdStart.getTime())) {
+            const heldMs = new Date(now).getTime() - holdStart.getTime();
+            if (heldMs >= 0 && Number.isFinite(heldMs)) {
+              const heldMinutes = Math.round(heldMs / 60000);
+              logDetails.held_duration_minutes = heldMinutes;
+              logDetails.held_duration_hours = Math.round((heldMinutes / 60) * 1000) / 1000;
+              logDetails.held_started_at = holdStart.toISOString();
+            }
+          }
 
           if (options.triggeredBy) {
             logDetails.triggered_by = options.triggeredBy;
@@ -1417,24 +1610,66 @@ export class LockerStateManager {
    * Log an event
    */
   private async logEvent(
-    kioskId: string, 
-    lockerId: number, 
-    eventType: EventType, 
-    details: any, 
+    kioskId: string,
+    lockerId: number,
+    eventType: EventType,
+    details: any,
     staffUser?: string
   ): Promise<void> {
+    let rfidCard: string | null = null;
+    let deviceId: string | null = null;
+
+    if (details && typeof details === 'object') {
+      if (typeof details.rfid_card === 'string') {
+        rfidCard = details.rfid_card;
+      }
+
+      const ownerTypeRaw = typeof details.owner_type === 'string' ? details.owner_type.toLowerCase() : '';
+      if (!rfidCard && ownerTypeRaw === 'rfid' && typeof details.owner_key === 'string') {
+        rfidCard = details.owner_key;
+      }
+
+      if (typeof details.device_id === 'string') {
+        deviceId = details.device_id;
+      }
+    }
+
+    if (!rfidCard && (eventType === EventType.RFID_ASSIGN || eventType === EventType.RFID_RELEASE)) {
+      if (details && typeof details === 'object' && typeof details.owner_key === 'string') {
+        rfidCard = details.owner_key;
+      }
+    }
+
+    const payload: [
+      string,
+      number,
+      EventType,
+      string | null,
+      string | null,
+      string | null,
+      string
+    ] = [
+      kioskId,
+      lockerId,
+      eventType,
+      rfidCard,
+      deviceId,
+      staffUser || null,
+      JSON.stringify(details)
+    ];
+
     if (this.dbManager) {
       const connection = this.dbManager.getConnection();
       await connection.run(
-        `INSERT INTO events (kiosk_id, locker_id, event_type, details, staff_user) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [kioskId, lockerId, eventType, JSON.stringify(details), staffUser || null]
+        `INSERT INTO events (kiosk_id, locker_id, event_type, rfid_card, device_id, staff_user, details)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        payload
       );
     } else {
       await this.db.run(
-        `INSERT INTO events (kiosk_id, locker_id, event_type, details, staff_user) 
-         VALUES (?, ?, ?, ?, ?)`,
-        [kioskId, lockerId, eventType, JSON.stringify(details), staffUser || null]
+        `INSERT INTO events (kiosk_id, locker_id, event_type, rfid_card, device_id, staff_user, details)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        payload
       );
     }
   }

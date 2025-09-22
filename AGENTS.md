@@ -70,6 +70,11 @@ This playbook captures everything we have learned while modernising the eForm Lo
 - Framework: Vitest. Tests co-located as `*.test.ts` or under `__tests__`.
 - For DB logic, prefer the in-memory DB (`DatabaseConnection.getInstance(':memory:')`).
 - Mock hardware/IO; do not drive physical RS-485 or modify production DB in unit tests.
+- Build each workspace before shipping. There is no umbrella script; run the four builds in sequence:
+  - `npm run build:shared`
+  - `npm run build:kiosk`
+  - `npm run build:panel`
+  - `npm run build:gateway`
 
 ## Guardrails
 

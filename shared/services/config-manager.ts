@@ -17,6 +17,9 @@ import { EventType } from '../types/core-entities';
 import { EventRepository } from '../database/event-repository';
 import { DatabaseManager } from '../database/database-manager';
 
+const DEFAULT_RECENT_HOLDER_MIN_HOURS = 2;
+const DEFAULT_OPEN_ONLY_WINDOW_HOURS = 1;
+
 /**
  * Manages the system's configuration, providing a centralized point for loading,
  * validating, accessing, and updating configuration settings. It supports loading from a JSON file,
@@ -351,6 +354,50 @@ export class ConfigManager {
     }
 
     return 'manual';
+  }
+
+  getRecentHolderMinHours(): number {
+    try {
+      const config = this.getConfiguration();
+      const assignment = config.services?.kiosk?.assignment;
+
+      if (assignment) {
+        if (typeof assignment.recent_holder_min_hours === 'number') {
+          return this.sanitizeRecentHolderMinHours(assignment.recent_holder_min_hours);
+        }
+
+        return DEFAULT_RECENT_HOLDER_MIN_HOURS;
+      }
+    } catch (error) {
+      console.warn(
+        `Failed to read recent holder threshold, defaulting to ${DEFAULT_RECENT_HOLDER_MIN_HOURS}:`,
+        error
+      );
+    }
+
+    return DEFAULT_RECENT_HOLDER_MIN_HOURS;
+  }
+
+  getOpenOnlyWindowHours(): number {
+    try {
+      const config = this.getConfiguration();
+      const assignment = config.services?.kiosk?.assignment;
+
+      if (assignment) {
+        if (typeof assignment.open_only_window_hours === 'number') {
+          return this.sanitizeOpenOnlyWindowHours(assignment.open_only_window_hours);
+        }
+
+        return DEFAULT_OPEN_ONLY_WINDOW_HOURS;
+      }
+    } catch (error) {
+      console.warn(
+        `Failed to read open-only window threshold, defaulting to ${DEFAULT_OPEN_ONLY_WINDOW_HOURS}:`,
+        error
+      );
+    }
+
+    return DEFAULT_OPEN_ONLY_WINDOW_HOURS;
   }
 
   /**
@@ -739,6 +786,8 @@ export class ConfigManager {
           assignment: {
             default_mode: 'manual',
             per_kiosk: {},
+            recent_holder_min_hours: DEFAULT_RECENT_HOLDER_MIN_HOURS,
+            open_only_window_hours: DEFAULT_OPEN_ONLY_WINDOW_HOURS
           }
         },
         panel: {
@@ -1007,8 +1056,32 @@ export class ConfigManager {
 
     return {
       default_mode: defaultMode,
-      per_kiosk: sanitizedPerKiosk
+      per_kiosk: sanitizedPerKiosk,
+      recent_holder_min_hours: this.sanitizeRecentHolderMinHours(
+        assignment.recent_holder_min_hours ?? DEFAULT_RECENT_HOLDER_MIN_HOURS
+      ),
+      open_only_window_hours: this.sanitizeOpenOnlyWindowHours(
+        assignment.open_only_window_hours ?? DEFAULT_OPEN_ONLY_WINDOW_HOURS
+      )
     };
+  }
+
+  private sanitizeRecentHolderMinHours(value: unknown): number {
+    if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+      return 0;
+    }
+
+    const clamped = Math.min(24, Math.max(0, value));
+    return Math.round(clamped * 10) / 10;
+  }
+
+  private sanitizeOpenOnlyWindowHours(value: unknown): number {
+    if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+      return 0;
+    }
+
+    const clamped = Math.min(24, Math.max(0, value));
+    return Math.round(clamped * 10) / 10;
   }
 
   /**

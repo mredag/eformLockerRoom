@@ -948,6 +948,8 @@ const start = async () => {
       lockerNamingService
     );
 
+    uiController.setRfidUserFlow(rfidUserFlow);
+
     // Register UI routes
     await uiController.registerRoutes(fastify);
 

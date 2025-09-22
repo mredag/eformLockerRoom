@@ -146,7 +146,8 @@ class SimpleKioskApp {
         this.kioskId = 'kiosk-1';
         this.kioskZone = this.getKioskZoneFromUrl(); // Get zone from URL parameter or config
         this.sessionTimeoutSeconds = 30; // 30-second session timeout per requirements
-        
+        this.openOnlyWindowHours = 1; // Default open-only window before config loads
+
         // Timers and intervals
         this.sessionTimer = null;
         this.countdownTimer = null;
@@ -662,6 +663,15 @@ class SimpleKioskApp {
                 try {
                     const flowResult = await this.requestLockerFlow(cardId);
 
+                    if (flowResult && Array.isArray(flowResult.debug_logs) && flowResult.debug_logs.length > 0) {
+                        const groupLabel = `[AUTO-ASSIGN][UI] Decision trace for card ${cardId}`;
+                        console.groupCollapsed(groupLabel);
+                        flowResult.debug_logs.forEach((entry, index) => {
+                            console.log(`↳ [${index + 1}]`, entry);
+                        });
+                        console.groupEnd();
+                    }
+
                     if (flowResult && flowResult.action === 'open_locker') {
                         this.showFeedbackScreen(flowResult.message || 'Dolap açıldı', 'success');
                         return;
@@ -751,6 +761,9 @@ class SimpleKioskApp {
             }
             
             const result = await response.json();
+            if (typeof result.openOnlyWindowHours === 'number') {
+                this.setOpenOnlyWindowHours(result.openOnlyWindowHours);
+            }
             if (result.hasLocker) {
                 const parseTimestamp = (value) => {
                     if (!value) return null;
@@ -949,6 +962,7 @@ class SimpleKioskApp {
         const btnOpenOnly2 = document.getElementById('btn-open-only');
 
         const shouldShowOpenOnly = this.shouldShowOpenOnlyButton(ownershipTimestamps.ownedAt, ownershipTimestamps.reservedAt);
+        const openOnlyWindowHours = this.getOpenOnlyWindowHours();
         const bottomInfo = document.getElementById('bottom-info');
 
         if (btnOpenOnly2) {
@@ -964,9 +978,15 @@ class SimpleKioskApp {
         }
 
         if (bottomInfo) {
-            bottomInfo.textContent = shouldShowOpenOnly
-                ? 'Eşyalarınızı almak için dolabı açabilirsiniz. İlk 1 saat içinde bu seçenek aktiftir. Teslim etmeyi seçerseniz dolap yeniden kilitlenir ve başkalarının kullanımına açılır.'
-                : '1 saatlik süre doldu. Dolabı yalnızca teslim ederek açabilirsiniz. Teslim ettiğinizde dolap yeniden kilitlenir ve başkalarının kullanımına açılır.';
+            if (openOnlyWindowHours <= 0) {
+                bottomInfo.textContent = 'Bu seçenek şu anda devre dışı. Dolabı yalnızca teslim ederek açabilirsiniz. Teslim ettiğinizde dolap yeniden kilitlenir ve başkalarının kullanımına açılır.';
+            } else {
+                const windowLabel = this.formatHoursForDisplay(openOnlyWindowHours);
+                const windowDuration = this.formatHoursForDuration(openOnlyWindowHours);
+                bottomInfo.textContent = shouldShowOpenOnly
+                    ? `Eşyalarınızı almak için dolabı açabilirsiniz. İlk ${windowLabel} içinde bu seçenek aktiftir. Teslim etmeyi seçerseniz dolap yeniden kilitlenir ve başkalarının kullanımına açılır.`
+                    : `${windowDuration} doldu. Dolabı yalnızca teslim ederek açabilirsiniz. Teslim ettiğinizde dolap yeniden kilitlenir ve başkalarının kullanımına açılır.`;
+            }
         }
 
         btnFinish2.addEventListener('click', async () => {
@@ -984,8 +1004,59 @@ class SimpleKioskApp {
     /**
      * Determine if the open-only button should be visible based on ownership age
      */
+    setOpenOnlyWindowHours(value) {
+        if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+            return;
+        }
+
+        const clamped = Math.max(0, Math.min(24, value));
+        this.openOnlyWindowHours = Math.round(clamped * 10) / 10;
+    }
+
+    getOpenOnlyWindowHours() {
+        const value = typeof this.openOnlyWindowHours === 'number' && Number.isFinite(this.openOnlyWindowHours)
+            ? this.openOnlyWindowHours
+            : 0;
+        return Math.max(0, Math.min(24, value));
+    }
+
+    formatHoursForDisplay(hours) {
+        const normalized = this.getOpenOnlyWindowHoursFromValue(hours);
+        if (normalized === 0) {
+            return '0 saat';
+        }
+        return normalized.toLocaleString('tr-TR', {
+            minimumFractionDigits: normalized % 1 === 0 ? 0 : 1,
+            maximumFractionDigits: 1
+        }) + ' saat';
+    }
+
+    formatHoursForDuration(hours) {
+        const normalized = this.getOpenOnlyWindowHoursFromValue(hours);
+        if (normalized === 0) {
+            return 'Belirlenen süre';
+        }
+        const baseLabel = this.formatHoursForDisplay(normalized);
+        return baseLabel.endsWith('saat')
+            ? `${baseLabel}lik süre`
+            : `${baseLabel} süresi`;
+    }
+
+    getOpenOnlyWindowHoursFromValue(value) {
+        if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+            return 0;
+        }
+        const clamped = Math.max(0, Math.min(24, value));
+        return Math.round(clamped * 10) / 10;
+    }
+
     shouldShowOpenOnlyButton(ownedAtTimestamp, reservedAtTimestamp) {
-        const ONE_HOUR_MS = 60 * 60 * 1000;
+        const windowHours = this.getOpenOnlyWindowHours();
+        if (windowHours <= 0) {
+            return false;
+        }
+
+        const windowMs = windowHours * 60 * 60 * 1000;
 
         const normalize = (value) => {
             if (value === null || value === undefined) {
@@ -1013,7 +1084,7 @@ class SimpleKioskApp {
             return true;
         }
 
-        return elapsed <= ONE_HOUR_MS;
+        return elapsed <= windowMs;
     }
 
     /**
