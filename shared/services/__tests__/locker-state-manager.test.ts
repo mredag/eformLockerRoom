@@ -360,6 +360,30 @@ describe('LockerStateManager', () => {
       }
     });
 
+    it('returns releases when the cutoff falls on the same UTC day', async () => {
+      vi.useFakeTimers();
+      try {
+        const now = new Date('2024-03-10T10:00:00.000Z');
+        const heldStart = new Date(now.getTime() - 2.5 * 60 * 60 * 1000);
+        vi.setSystemTime(now);
+
+        await db.run(`
+          INSERT INTO lockers (kiosk_id, id, status, owner_type, owner_key, reserved_at, owned_at, version, is_vip)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, ['kiosk-same-day', 4, 'Owned', 'rfid', 'card-same-day', heldStart.toISOString(), heldStart.toISOString(), 1, 0]);
+
+        const released = await stateManager.releaseLocker('kiosk-same-day', 4, 'card-same-day');
+        expect(released).toBe(true);
+
+        const info = await stateManager.getRecentLockerReleaseForCard('kiosk-same-day', 'card-same-day', 6);
+        expect(info).not.toBeNull();
+        expect(info?.lockerId).toBe(4);
+        expect(info?.heldDurationHours).toBeGreaterThan(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('returns null when no release falls within the requested window', async () => {
       vi.useFakeTimers();
       try {

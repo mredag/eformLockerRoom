@@ -158,15 +158,16 @@ export class RfidUserFlow extends EventEmitter {
 
       if (this.config.zone_id) {
         // Zone-aware: Get available lockers filtered by zone
-        console.log(`🎯 Getting available lockers for zone: ${this.config.zone_id}`);
+        console.log(`[AUTO-ASSIGN] Fetching available lockers for zone ${this.config.zone_id} (card: ${cardId}).`);
         availableLockers = await this.getZoneAwareAvailableLockers(this.config.zone_id);
       } else {
         // Legacy: Get all available lockers
-        console.log(`📋 Getting all available lockers (no zone configured)`);
+        console.log(`[AUTO-ASSIGN] Fetching available lockers for kiosk ${this.config.kiosk_id} (card: ${cardId}).`);
         availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
       }
 
       const assignmentMode = await this.getAssignmentMode();
+      console.log(`[AUTO-ASSIGN] Card ${cardId} resolved assignment mode: ${assignmentMode}.`);
 
       if (availableLockers.length === 0) {
         const zoneMessage = this.config.zone_id ? ` (${this.config.zone_id} bölgesi)` : '';
@@ -185,8 +186,16 @@ export class RfidUserFlow extends EventEmitter {
         ? await this.getRecentHolderThresholdHours()
         : 0;
 
-      if (assignmentMode === 'automatic' && recentHolderThreshold > 0) {
-        console.log(`🕒 Son kullanıcı kuralı aktif: eşik ${recentHolderThreshold} saat (kart: ${cardId}).`);
+      if (assignmentMode === 'automatic') {
+        if (recentHolderThreshold > 0) {
+          console.log(
+            `[AUTO-ASSIGN] Recent holder rule active for card ${cardId}: threshold ${recentHolderThreshold}h.`
+          );
+        } else {
+          console.log(
+            `[AUTO-ASSIGN] Recent holder rule disabled (threshold ${recentHolderThreshold}h) for card ${cardId}.`
+          );
+        }
       }
 
       if (
@@ -195,6 +204,9 @@ export class RfidUserFlow extends EventEmitter {
         && typeof this.lockerStateManager.getRecentLockerReleaseForCard === 'function'
       ) {
         try {
+          console.log(
+            `[AUTO-ASSIGN] Checking recent release for card ${cardId} within ${RfidUserFlow.RECENT_RELEASE_LOOKBACK_HOURS}h lookback.`
+          );
           const recentRelease = await this.lockerStateManager.getRecentLockerReleaseForCard(
             this.config.kiosk_id,
             cardId,
@@ -213,16 +225,18 @@ export class RfidUserFlow extends EventEmitter {
               : undefined;
 
             console.log(
-              `📼 Son bırakma kaydı: dolap ${recentRelease.lockerId}, `
-              + `tutma süresi ≈ ${heldHours !== undefined ? heldHours.toFixed(2) : 'bilinmiyor'} saat, `
-              + `bırakılalı ≈ ${releaseAgeHours !== undefined ? releaseAgeHours.toFixed(2) : 'bilinmiyor'} saat.`
+              `[AUTO-ASSIGN] Recent release detected for card ${cardId}: locker ${recentRelease.lockerId}, `
+              + `held ≈ ${heldHours !== undefined ? heldHours.toFixed(2) : 'unknown'}h, `
+              + `released ≈ ${releaseAgeHours !== undefined ? releaseAgeHours.toFixed(2) : 'unknown'}h ago.`
             );
 
             if (heldHours !== undefined && heldHours >= recentHolderThreshold) {
               const previousLocker = availableLockers.find(locker => locker.id === recentRelease.lockerId);
 
               if (previousLocker) {
-                console.log(`🔁 Kart ${cardId} için son kullanılan dolap ${previousLocker.id} yeniden atanıyor (≈ ${heldHours} saat tutuldu).`);
+                console.log(
+                  `[AUTO-ASSIGN] Reassigning previous locker ${previousLocker.id} to card ${cardId} (held ≈ ${heldHours}h).`
+                );
                 const autoResult = await this.handleLockerSelection(cardId, previousLocker.id);
 
                 if (autoResult.success && autoResult.action === 'open_locker') {
@@ -243,26 +257,35 @@ export class RfidUserFlow extends EventEmitter {
                 }
 
                 fallbackReason = autoResult.error_code || 'RECENT_LOCKER_ASSIGNMENT_FAILED';
-                console.warn(`⚠️ Son kullanılan dolap atanamadı (${fallbackReason}); standart otomatik seçim uygulanacak.`);
+                console.warn(
+                  `[AUTO-ASSIGN] Failed to reassign previous locker ${previousLocker.id} for card ${cardId} (${fallbackReason}); falling back to normal automatic selection.`
+                );
                 this.emit('locker_auto_assign_fallback', {
                   card_id: cardId,
                   locker_id: previousLocker.id,
                   reason: fallbackReason
                 });
               } else {
-                console.log(`ℹ️ Kart ${cardId} için son kullanılan dolap (${recentRelease.lockerId}) uygun değil; standart otomatik seçim kullanılacak.`);
+                console.log(
+                  `[AUTO-ASSIGN] Previous locker ${recentRelease.lockerId} for card ${cardId} is not currently free; falling back to normal automatic selection.`
+                );
               }
             } else {
               console.log(
-                `ℹ️ Son bırakma kaydı eşik altında: tutma süresi ≈ ${heldHours !== undefined ? heldHours.toFixed(2) : 'bilinmiyor'} `
-                + `saat, gereken ≥ ${recentHolderThreshold} saat.`
+                `[AUTO-ASSIGN] Recent release for card ${cardId} held for ${heldHours !== undefined ? heldHours.toFixed(2) : 'unknown'}h `
+                + `which is below the ${recentHolderThreshold}h threshold.`
               );
             }
           } else {
-            console.log(`ℹ️ Kart ${cardId} için son 24 saatte uygun bırakma kaydı bulunamadı.`);
+            console.log(
+              `[AUTO-ASSIGN] No qualifying release found for card ${cardId} within the last ${RfidUserFlow.RECENT_RELEASE_LOOKBACK_HOURS}h.`
+            );
           }
         } catch (error) {
-          console.warn('⚠️ Son kullanılan dolap yeniden atama kontrolü başarısız:', error);
+          console.warn(
+            `[AUTO-ASSIGN] Recent locker reassignment lookup failed for card ${cardId}:`,
+            error
+          );
         }
       }
 
@@ -279,12 +302,12 @@ export class RfidUserFlow extends EventEmitter {
             }
           );
         } catch (error) {
-          console.warn('⚠️ Otomatik atama için uygun dolap aranırken hata oluştu:', error);
+          console.warn('[AUTO-ASSIGN] Failed to query automatic assignment candidate list:', error);
           fallbackReason = 'CANDIDATE_QUERY_FAILED';
         }
 
         if (candidate) {
-          console.log(`🤖 Otomatik atama denemesi: dolap ${candidate.id}`);
+          console.log(`[AUTO-ASSIGN] Default automatic assignment selecting locker ${candidate.id} for card ${cardId}.`);
           const autoResult = await this.handleLockerSelection(cardId, candidate.id);
 
           if (autoResult.success && autoResult.action === 'open_locker') {
@@ -305,7 +328,9 @@ export class RfidUserFlow extends EventEmitter {
           }
 
           fallbackReason = autoResult.error_code || 'AUTO_ASSIGNMENT_FAILED';
-          console.warn(`⚠️ Otomatik atama başarısız (${fallbackReason}); manuel seçime düşülüyor.`);
+          console.warn(
+            `[AUTO-ASSIGN] Automatic assignment failed for locker ${candidate.id} (${fallbackReason}); falling back to manual selection.`
+          );
           this.emit('locker_auto_assign_fallback', {
             card_id: cardId,
             locker_id: candidate.id,
@@ -313,7 +338,7 @@ export class RfidUserFlow extends EventEmitter {
           });
         } else if (!fallbackReason) {
           fallbackReason = 'NO_CANDIDATES';
-          console.warn('⚠️ Otomatik atama için uygun dolap bulunamadı; manuel seçime düşülüyor.');
+          console.warn('[AUTO-ASSIGN] No automatic assignment candidate available; falling back to manual selection.');
           this.emit('locker_auto_assign_fallback', {
             card_id: cardId,
             reason: fallbackReason
@@ -329,7 +354,7 @@ export class RfidUserFlow extends EventEmitter {
             availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
           }
         } catch (refreshError) {
-          console.warn('⚠️ Otomatik atama başarısızlığından sonra dolap listesi yenilenemedi:', refreshError);
+          console.warn('[AUTO-ASSIGN] Could not refresh locker list after automatic assignment failure:', refreshError);
         }
       }
 
@@ -337,7 +362,9 @@ export class RfidUserFlow extends EventEmitter {
       const displayLockers = availableLockers.slice(0, this.config.max_available_lockers_display);
 
       // Log zone context
-      console.log(`✅ Found ${availableLockers.length} available lockers (zone: ${this.config.zone_id || 'all'}), showing ${displayLockers.length}`);
+      console.log(
+        `[AUTO-ASSIGN] Presenting ${displayLockers.length}/${availableLockers.length} available lockers to card ${cardId} (zone: ${this.config.zone_id || 'all'}).`
+      );
       
       this.emit('show_available_lockers', {
         card_id: cardId,

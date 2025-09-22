@@ -618,8 +618,9 @@ export class LockerStateManager {
       return null;
     }
 
-    const cutoff = new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString();
-    const cutoffDate = new Date(cutoff);
+    const cutoffDate = new Date(Date.now() - withinHours * 60 * 60 * 1000);
+    const cutoffIso = cutoffDate.toISOString();
+    const cutoffSql = cutoffIso.replace('T', ' ').replace('Z', '').slice(0, 19);
 
     const selectColumns = `
       SELECT locker_id, timestamp, details, rfid_card
@@ -630,7 +631,7 @@ export class LockerStateManager {
     `;
 
     const fetchSingleRow = async (): Promise<RecentReleaseRow | undefined> => {
-      const params: (string | number)[] = [kioskId, EventType.RFID_RELEASE, cutoff, ownerKey];
+      const params: (string | number)[] = [kioskId, EventType.RFID_RELEASE, cutoffSql, ownerKey];
       const query = `${selectColumns} AND rfid_card = ? ORDER BY timestamp DESC LIMIT 1`;
 
       if (this.dbManager) {
@@ -642,7 +643,7 @@ export class LockerStateManager {
     };
 
     const fetchFallbackRows = async (): Promise<RecentReleaseRow[]> => {
-      const params: (string | number)[] = [kioskId, EventType.RFID_RELEASE, cutoff];
+      const params: (string | number)[] = [kioskId, EventType.RFID_RELEASE, cutoffSql];
       const query = `${selectColumns} ORDER BY timestamp DESC LIMIT 20`;
 
       if (this.dbManager) {
