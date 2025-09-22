@@ -200,8 +200,8 @@
                 Kartın bir dolabı en az bu kadar süre tuttuğu son 24 saat içinde tekrar gelirse aynı dolabı otomatik atar. 0 saat seçildiğinde kural devre dışı kalır.
             </small>
             <div class="min-hours-control">
-                <input id="recentHolderSlider" type="range" min="0" max="24" step="0.5" value="2">
-                <input id="recentHolderNumber" type="number" min="0" max="24" step="0.5" value="2">
+                <input id="recentHolderSlider" type="range" min="0" max="24" step="0.1" value="2">
+                <input id="recentHolderNumber" type="number" min="0" max="24" step="0.1" value="2">
                 <span id="recentHolderDisplay" class="min-hours-value">2 saat</span>
             </div>
         </div>
@@ -288,7 +288,8 @@
         const sanitized = typeof value === 'number' && !Number.isNaN(value)
             ? Math.min(24, Math.max(0, value))
             : 0;
-        currentMinHeldHours = Math.round(sanitized * 2) / 2;
+        const normalized = Math.round(sanitized * 10) / 10;
+        currentMinHeldHours = Number(normalized.toFixed(1));
 
         const slider = document.getElementById('recentHolderSlider');
         const numberInput = document.getElementById('recentHolderNumber');

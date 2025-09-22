@@ -1045,7 +1045,7 @@ export class ConfigManager {
     }
 
     const clamped = Math.min(24, Math.max(0, value));
-    return Math.round(clamped * 2) / 2;
+    return Math.round(clamped * 10) / 10;
   }
 
   /**

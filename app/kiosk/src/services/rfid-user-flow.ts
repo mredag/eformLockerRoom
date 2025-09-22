@@ -185,6 +185,7 @@ export class RfidUserFlow extends EventEmitter {
       const recentHolderThreshold = assignmentMode === 'automatic'
         ? await this.getRecentHolderThresholdHours()
         : 0;
+      let loggedRecentOwnerMessage = false;
 
       if (assignmentMode === 'automatic') {
         if (recentHolderThreshold > 0) {
@@ -234,6 +235,14 @@ export class RfidUserFlow extends EventEmitter {
               const previousLocker = availableLockers.find(locker => locker.id === recentRelease.lockerId);
 
               if (previousLocker) {
+                const thresholdDisplay = recentHolderThreshold.toLocaleString('en-US', {
+                  minimumFractionDigits: recentHolderThreshold % 1 === 0 ? 0 : 1,
+                  maximumFractionDigits: 1
+                });
+                console.log(
+                  `Card is recognized as the recent owner. Assigning the locker that was used within the last ${thresholdDisplay} hours.`
+                );
+                loggedRecentOwnerMessage = true;
                 console.log(
                   `[AUTO-ASSIGN] Reassigning previous locker ${previousLocker.id} to card ${cardId} (held ≈ ${heldHours}h).`
                 );
@@ -257,6 +266,7 @@ export class RfidUserFlow extends EventEmitter {
                 }
 
                 fallbackReason = autoResult.error_code || 'RECENT_LOCKER_ASSIGNMENT_FAILED';
+                loggedRecentOwnerMessage = false;
                 console.warn(
                   `[AUTO-ASSIGN] Failed to reassign previous locker ${previousLocker.id} for card ${cardId} (${fallbackReason}); falling back to normal automatic selection.`
                 );
@@ -266,6 +276,8 @@ export class RfidUserFlow extends EventEmitter {
                   reason: fallbackReason
                 });
               } else {
+                console.log('Card is not recognized as the recent owner. Assigning a new random locker.');
+                loggedRecentOwnerMessage = true;
                 console.log(
                   `[AUTO-ASSIGN] Previous locker ${recentRelease.lockerId} for card ${cardId} is not currently free; falling back to normal automatic selection.`
                 );
@@ -287,6 +299,11 @@ export class RfidUserFlow extends EventEmitter {
             error
           );
         }
+      }
+
+      if (assignmentMode === 'automatic' && !loggedRecentOwnerMessage) {
+        console.log('Card is not recognized as the recent owner. Assigning a new random locker.');
+        loggedRecentOwnerMessage = true;
       }
 
       if (assignmentMode === 'automatic') {

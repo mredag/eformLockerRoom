@@ -523,6 +523,21 @@ describe('ConfigManager', () => {
       expect(updatedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
       expect(updatedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(1.5);
     });
+
+    it('should round recent holder minimum hours to the nearest tenth', async () => {
+      await configManager.setKioskAssignmentConfig(
+        {
+          default_mode: 'automatic',
+          per_kiosk: {},
+          recent_holder_min_hours: 0.14
+        },
+        'test-user',
+        'Round recent holder threshold'
+      );
+
+      const updatedConfig = configManager.getConfiguration();
+      expect(updatedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(0.1);
+    });
   });
 
   describe('Error Handling', () => {
