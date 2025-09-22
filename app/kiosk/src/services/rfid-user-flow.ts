@@ -111,10 +111,14 @@ export class RfidUserFlow extends EventEmitter {
    * Handle RFID card scan event - main entry point for user flow
    * Implements the core RFID logic from requirements 1.1, 1.2
    */
-  async handleCardScanned(scanEvent: RfidScanEvent): Promise<UserFlowResult> {
+  async handleCardScanned(
+    scanEvent: RfidScanEvent,
+    options: { zoneId?: string } = {}
+  ): Promise<UserFlowResult> {
     try {
       const cardId = scanEvent.card_id;
-      
+      const zoneId = options.zoneId ?? this.config.zone_id;
+
       // Check if card already has an assigned locker (one card, one locker rule)
       let existingLocker: Locker | null;
       try {
@@ -134,7 +138,7 @@ export class RfidUserFlow extends EventEmitter {
         return await this.handleCardWithLocker(cardId, existingLocker);
       } else {
         // Card has no locker - show available lockers for selection
-        return await this.handleCardWithNoLocker(cardId);
+        return await this.handleCardWithNoLocker(cardId, zoneId);
       }
     } catch (error) {
       console.error('Error handling card scan:', error);
@@ -153,7 +157,7 @@ export class RfidUserFlow extends EventEmitter {
    * Requirement 1.1: Display available lockers when card has no assignment
    * Requirement 3.2: Zone-aware locker filtering
    */
-  async handleCardWithNoLocker(cardId: string): Promise<UserFlowResult> {
+  async handleCardWithNoLocker(cardId: string, zoneId?: string): Promise<UserFlowResult> {
     try {
       const debugLogs: string[] = [];
 
@@ -190,11 +194,12 @@ export class RfidUserFlow extends EventEmitter {
       };
 
       let availableLockers: Locker[];
+      const effectiveZoneId = zoneId ?? this.config.zone_id;
 
-      if (this.config.zone_id) {
+      if (effectiveZoneId) {
         // Zone-aware: Get available lockers filtered by zone
-        addInfoLog(`[AUTO-ASSIGN] Fetching available lockers for zone ${this.config.zone_id} (card: ${cardId}).`);
-        availableLockers = await this.getZoneAwareAvailableLockers(this.config.zone_id);
+        addInfoLog(`[AUTO-ASSIGN] Fetching available lockers for zone ${effectiveZoneId} (card: ${cardId}).`);
+        availableLockers = await this.getZoneAwareAvailableLockers(effectiveZoneId);
       } else {
         // Legacy: Get all available lockers
         addInfoLog(`[AUTO-ASSIGN] Fetching available lockers for kiosk ${this.config.kiosk_id} (card: ${cardId}).`);
@@ -205,7 +210,7 @@ export class RfidUserFlow extends EventEmitter {
       addInfoLog(`[AUTO-ASSIGN] Card ${cardId} resolved assignment mode: ${assignmentMode}.`);
 
       if (availableLockers.length === 0) {
-        const zoneMessage = this.config.zone_id ? ` (${this.config.zone_id} bölgesi)` : '';
+        const zoneMessage = effectiveZoneId ? ` (${effectiveZoneId} bölgesi)` : '';
         return {
           success: false,
           action: 'error',
@@ -345,7 +350,7 @@ export class RfidUserFlow extends EventEmitter {
             this.config.kiosk_id,
             {
               allowedLockerIds,
-              zoneId: this.config.zone_id
+              zoneId
             }
           );
         } catch (error) {
@@ -396,8 +401,8 @@ export class RfidUserFlow extends EventEmitter {
 
       if (fallbackReason) {
         try {
-          if (this.config.zone_id) {
-            availableLockers = await this.getZoneAwareAvailableLockers(this.config.zone_id);
+          if (zoneId) {
+            availableLockers = await this.getZoneAwareAvailableLockers(zoneId);
           } else {
             availableLockers = await this.lockerStateManager.getAvailableLockers(this.config.kiosk_id);
           }
@@ -411,17 +416,17 @@ export class RfidUserFlow extends EventEmitter {
 
       // Log zone context
       addInfoLog(
-        `[AUTO-ASSIGN] Presenting ${displayLockers.length}/${availableLockers.length} available lockers to card ${cardId} (zone: ${this.config.zone_id || 'all'}).`
+        `[AUTO-ASSIGN] Presenting ${displayLockers.length}/${availableLockers.length} available lockers to card ${cardId} (zone: ${effectiveZoneId || 'all'}).`
       );
-      
+
       this.emit('show_available_lockers', {
         card_id: cardId,
         lockers: displayLockers,
         total_available: availableLockers.length,
-        zone_id: this.config.zone_id // Include zone context in event
+        zone_id: effectiveZoneId // Include zone context in event
       });
 
-      const zoneMessage = this.config.zone_id ? ` (${this.config.zone_id} bölgesi)` : '';
+      const zoneMessage = effectiveZoneId ? ` (${effectiveZoneId} bölgesi)` : '';
       return {
         success: true,
         action: 'show_lockers',
