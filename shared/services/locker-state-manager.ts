@@ -1560,7 +1560,15 @@ export class LockerStateManager {
       }
     }
 
-    const payload = [
+    const payload: [
+      string,
+      number,
+      EventType,
+      string | null,
+      string | null,
+      string | null,
+      string
+    ] = [
       kioskId,
       lockerId,
       eventType,
@@ -1568,7 +1576,7 @@ export class LockerStateManager {
       deviceId,
       staffUser || null,
       JSON.stringify(details)
-    ] as const;
+    ];
 
     if (this.dbManager) {
       const connection = this.dbManager.getConnection();
