@@ -19,6 +19,7 @@ import { DatabaseManager } from '../database/database-manager';
 
 const DEFAULT_RECENT_HOLDER_MIN_HOURS = 2;
 const DEFAULT_OPEN_ONLY_WINDOW_HOURS = 1;
+const DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY = 10;
 
 /**
  * Manages the system's configuration, providing a centralized point for loading,
@@ -398,6 +399,30 @@ export class ConfigManager {
     }
 
     return DEFAULT_OPEN_ONLY_WINDOW_HOURS;
+  }
+
+  getMaxAvailableLockersDisplay(): number {
+    try {
+      const config = this.getConfiguration();
+      const assignment = config.services?.kiosk?.assignment;
+
+      if (assignment) {
+        if (typeof assignment.max_available_lockers_display === 'number') {
+          return this.sanitizeMaxAvailableLockersDisplay(
+            assignment.max_available_lockers_display
+          );
+        }
+
+        return DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY;
+      }
+    } catch (error) {
+      console.warn(
+        `Failed to read manual selection limit, defaulting to ${DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY}:`,
+        error
+      );
+    }
+
+    return DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY;
   }
 
   /**
@@ -787,7 +812,8 @@ export class ConfigManager {
             default_mode: 'manual',
             per_kiosk: {},
             recent_holder_min_hours: DEFAULT_RECENT_HOLDER_MIN_HOURS,
-            open_only_window_hours: DEFAULT_OPEN_ONLY_WINDOW_HOURS
+            open_only_window_hours: DEFAULT_OPEN_ONLY_WINDOW_HOURS,
+            max_available_lockers_display: DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY
           }
         },
         panel: {
@@ -1062,6 +1088,9 @@ export class ConfigManager {
       ),
       open_only_window_hours: this.sanitizeOpenOnlyWindowHours(
         assignment.open_only_window_hours ?? DEFAULT_OPEN_ONLY_WINDOW_HOURS
+      ),
+      max_available_lockers_display: this.sanitizeMaxAvailableLockersDisplay(
+        assignment.max_available_lockers_display ?? DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY
       )
     };
   }
@@ -1082,6 +1111,15 @@ export class ConfigManager {
 
     const clamped = Math.min(24, Math.max(0, value));
     return Math.round(clamped * 10) / 10;
+  }
+
+  private sanitizeMaxAvailableLockersDisplay(value: unknown): number {
+    if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
+      return DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY;
+    }
+
+    const clamped = Math.min(60, Math.max(1, Math.round(value)));
+    return clamped;
   }
 
   /**

@@ -504,7 +504,8 @@ describe('ConfigManager', () => {
           default_mode: 'manual',
           per_kiosk: {},
           recent_holder_min_hours: 1.5,
-          open_only_window_hours: 0.75
+          open_only_window_hours: 0.75,
+          max_available_lockers_display: 28
         },
         'test-user',
         'Reset kiosk assignment defaults'
@@ -519,12 +520,14 @@ describe('ConfigManager', () => {
       expect(savedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
       expect(savedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(1.5);
       expect(savedConfig.services.kiosk.assignment?.open_only_window_hours).toBe(0.8);
+      expect(savedConfig.services.kiosk.assignment?.max_available_lockers_display).toBe(28);
 
       const updatedConfig = configManager.getConfiguration();
       expect(updatedConfig.services.kiosk.assignment?.default_mode).toBe('manual');
       expect(updatedConfig.services.kiosk.assignment?.per_kiosk).toEqual({});
       expect(updatedConfig.services.kiosk.assignment?.recent_holder_min_hours).toBe(1.5);
       expect(updatedConfig.services.kiosk.assignment?.open_only_window_hours).toBe(0.8);
+      expect(updatedConfig.services.kiosk.assignment?.max_available_lockers_display).toBe(28);
     });
 
     it('should round recent holder minimum hours to the nearest tenth', async () => {
@@ -556,6 +559,34 @@ describe('ConfigManager', () => {
 
       const updatedConfig = configManager.getConfiguration();
       expect(updatedConfig.services.kiosk.assignment?.open_only_window_hours).toBe(0);
+    });
+
+    it('should clamp manual selection display limit between 1 and 60', async () => {
+      await configManager.setKioskAssignmentConfig(
+        {
+          default_mode: 'manual',
+          per_kiosk: {},
+          max_available_lockers_display: 120
+        },
+        'test-user',
+        'Clamp manual selection upper bound'
+      );
+
+      let updatedConfig = configManager.getConfiguration();
+      expect(updatedConfig.services.kiosk.assignment?.max_available_lockers_display).toBe(60);
+
+      await configManager.setKioskAssignmentConfig(
+        {
+          default_mode: 'manual',
+          per_kiosk: {},
+          max_available_lockers_display: 0
+        },
+        'test-user',
+        'Clamp manual selection lower bound'
+      );
+
+      updatedConfig = configManager.getConfiguration();
+      expect(updatedConfig.services.kiosk.assignment?.max_available_lockers_display).toBe(1);
     });
   });
 

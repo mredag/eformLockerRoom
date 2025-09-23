@@ -71,6 +71,7 @@ export interface KioskAssignmentConfig {
   per_kiosk?: Record<string, LockerAssignmentMode>;
   recent_holder_min_hours?: number;
   open_only_window_hours?: number;
+  max_available_lockers_display?: number;
 }
 
 export interface ServiceConfig {
