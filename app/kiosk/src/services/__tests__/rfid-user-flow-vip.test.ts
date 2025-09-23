@@ -18,7 +18,11 @@ describe('RfidUserFlow VIP Locker Handling', () => {
   let rfidUserFlow: RfidUserFlow;
   let mockLockerStateManager: vi.Mocked<LockerStateManager>;
   let mockModbusController: vi.Mocked<ModbusController>;
-  let mockConfigManager: { initialize: ReturnType<typeof vi.fn>; getKioskAssignmentMode: ReturnType<typeof vi.fn> };
+  let mockConfigManager: {
+    initialize: ReturnType<typeof vi.fn>;
+    getKioskAssignmentMode: ReturnType<typeof vi.fn>;
+    getMaxAvailableLockersDisplay: ReturnType<typeof vi.fn>;
+  };
 
   const config = {
     kiosk_id: 'test-kiosk',
@@ -40,7 +44,8 @@ describe('RfidUserFlow VIP Locker Handling', () => {
 
     mockConfigManager = {
       initialize: vi.fn().mockResolvedValue(undefined),
-      getKioskAssignmentMode: vi.fn().mockReturnValue('manual' as LockerAssignmentMode)
+      getKioskAssignmentMode: vi.fn().mockReturnValue('manual' as LockerAssignmentMode),
+      getMaxAvailableLockersDisplay: vi.fn().mockReturnValue(10)
     };
 
     rfidUserFlow = new RfidUserFlow(

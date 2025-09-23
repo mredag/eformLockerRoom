@@ -6,10 +6,14 @@ import { LockerAssignmentMode } from '@eform/shared/types/system-config';
 import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
 import { Permission } from '../services/permission-service';
 
+const MIN_MANUAL_LOCKER_LIMIT = 1;
+const MAX_MANUAL_LOCKER_LIMIT = 60;
+
 interface UpdateAssignmentBody {
   default_mode: LockerAssignmentMode;
   recent_holder_min_hours?: number;
   open_only_window_hours?: number;
+  max_available_lockers_display?: number;
 }
 
 interface UpdateAssignmentRequest extends FastifyRequest {
@@ -76,7 +80,10 @@ export class AssignmentSettingsRoutes {
           : this.configManager.getRecentHolderMinHours(),
         open_only_window_hours: typeof assignment.open_only_window_hours === 'number'
           ? assignment.open_only_window_hours
-          : this.configManager.getOpenOnlyWindowHours()
+          : this.configManager.getOpenOnlyWindowHours(),
+        max_available_lockers_display: typeof assignment.max_available_lockers_display === 'number'
+          ? assignment.max_available_lockers_display
+          : this.configManager.getMaxAvailableLockersDisplay()
       };
     } catch (error) {
       reply.code(500);
@@ -93,6 +100,7 @@ export class AssignmentSettingsRoutes {
       const defaultMode = body.default_mode;
       const minHoursRaw = body.recent_holder_min_hours;
       const openOnlyRaw = body.open_only_window_hours;
+      const manualLimitRaw = body.max_available_lockers_display;
 
       if (defaultMode !== 'manual' && defaultMode !== 'automatic') {
         reply.code(400);
@@ -111,6 +119,15 @@ export class AssignmentSettingsRoutes {
         return { success: false, error: 'Open-only window must be between 0 and 24 hours.' };
       }
 
+      const manualLimit = typeof manualLimitRaw === 'number' ? manualLimitRaw : MIN_MANUAL_LOCKER_LIMIT;
+      if (!Number.isInteger(manualLimit) || manualLimit < MIN_MANUAL_LOCKER_LIMIT || manualLimit > MAX_MANUAL_LOCKER_LIMIT) {
+        reply.code(400);
+        return {
+          success: false,
+          error: `Manuel seçim listesi sınırı ${MIN_MANUAL_LOCKER_LIMIT}-${MAX_MANUAL_LOCKER_LIMIT} arasında olmalıdır.`
+        };
+      }
+
       await this.configManager.initialize();
 
       const staffUser = (request as any).user?.username || 'panel-user';
@@ -121,7 +138,8 @@ export class AssignmentSettingsRoutes {
           default_mode: defaultMode,
           per_kiosk: currentAssignment?.per_kiosk ?? {},
           recent_holder_min_hours: minHours,
-          open_only_window_hours: openOnlyWindow
+          open_only_window_hours: openOnlyWindow,
+          max_available_lockers_display: manualLimit
         },
         staffUser,
         'Updated kiosk assignment settings via panel'

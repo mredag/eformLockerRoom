@@ -107,6 +107,28 @@ export class RfidUserFlow extends EventEmitter {
     return 0;
   }
 
+  private async getManualSelectionDisplayLimit(): Promise<number> {
+    await this.ensureConfigInitialized();
+
+    try {
+      if (typeof this.configManager.getMaxAvailableLockersDisplay === 'function') {
+        const limit = this.configManager.getMaxAvailableLockersDisplay();
+        if (typeof limit === 'number' && Number.isFinite(limit)) {
+          return Math.max(1, Math.round(limit));
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load manual selection display limit:', error);
+    }
+
+    if (typeof this.config.max_available_lockers_display === 'number'
+      && Number.isFinite(this.config.max_available_lockers_display)) {
+      return Math.max(1, Math.round(this.config.max_available_lockers_display));
+    }
+
+    return 10;
+  }
+
   /**
    * Handle RFID card scan event - main entry point for user flow
    * Implements the core RFID logic from requirements 1.1, 1.2
@@ -412,7 +434,9 @@ export class RfidUserFlow extends EventEmitter {
       }
 
       // Limit display to configured maximum
-      const displayLockers = availableLockers.slice(0, this.config.max_available_lockers_display);
+      const manualLimit = await this.getManualSelectionDisplayLimit();
+      this.config.max_available_lockers_display = manualLimit;
+      const displayLockers = availableLockers.slice(0, manualLimit);
 
       // Log zone context
       addInfoLog(

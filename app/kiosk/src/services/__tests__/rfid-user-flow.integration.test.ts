@@ -14,6 +14,7 @@ describe('RfidUserFlow integration - recent holder reassignment', () => {
     initialize: ReturnType<typeof vi.fn>;
     getKioskAssignmentMode: ReturnType<typeof vi.fn>;
     getRecentHolderMinHours: ReturnType<typeof vi.fn>;
+    getMaxAvailableLockersDisplay: ReturnType<typeof vi.fn>;
   };
 
   const kioskId = 'integration-kiosk';
@@ -76,7 +77,8 @@ describe('RfidUserFlow integration - recent holder reassignment', () => {
     configManager = {
       initialize: vi.fn().mockResolvedValue(undefined),
       getKioskAssignmentMode: vi.fn().mockReturnValue('automatic'),
-      getRecentHolderMinHours: vi.fn().mockReturnValue(2)
+      getRecentHolderMinHours: vi.fn().mockReturnValue(2),
+      getMaxAvailableLockersDisplay: vi.fn().mockReturnValue(10)
     };
   });
 
