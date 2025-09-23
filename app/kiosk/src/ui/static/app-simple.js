@@ -917,7 +917,7 @@ class SimpleKioskApp {
                         <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
                             <div class="owned-decision-badge" aria-hidden="true">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12" y2="16"></line></svg>
-                                <span>Son Açılış</span>
+                                <span>SON KEZ AÇILIR</span>
                             </div>
                             <div class="owned-decision-card-icon" aria-hidden="true">
                                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
