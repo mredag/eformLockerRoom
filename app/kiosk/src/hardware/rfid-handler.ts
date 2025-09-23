@@ -9,6 +9,22 @@ import { createHash } from 'crypto';
 // @ts-ignore
 import HID from 'node-hid';
 
+const HID_KEY_CODE_MAP: Record<number, string> = {
+  30: '1',
+  31: '2',
+  32: '3',
+  33: '4',
+  34: '5',
+  35: '6',
+  36: '7',
+  37: '8',
+  38: '9',
+  39: '0'
+};
+
+const HID_ENTER_KEY_CODE = 40;
+const MIN_CARD_SIGNIFICANT_DIGITS = 6;
+
 export interface RfidConfig {
   reader_type: 'hid' | 'keyboard';
   debounce_ms: number;
@@ -31,7 +47,7 @@ export class RfidHandler extends EventEmitter {
   private isConnected: boolean = false;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private cardBuffer: string = '';
-  private keyboardBuffer: number[] = [];
+  private activeKeyCodes: number[] = [];
 
   constructor(config: RfidConfig) {
     super();
@@ -107,6 +123,14 @@ export class RfidHandler extends EventEmitter {
    */
   private handleHidData(data: Buffer): void {
     try {
+      const keyboardResult = this.handleHidKeyboardReport(data);
+      if (keyboardResult.handled) {
+        if (keyboardResult.cardId) {
+          this.processCardScan(keyboardResult.cardId);
+        }
+        return;
+      }
+
       // Convert buffer to string and extract card ID
       const cardData = this.parseHidData(data);
       if (cardData) {
@@ -115,6 +139,58 @@ export class RfidHandler extends EventEmitter {
     } catch (error) {
       this.emit('error', error);
     }
+  }
+
+  private handleHidKeyboardReport(
+    data: Buffer
+  ): { handled: boolean; cardId: string | null } {
+    if (data.length < 3) {
+      return { handled: false, cardId: null };
+    }
+
+    const keyCodes = Array.from(data.slice(2));
+    const pressedCodes = keyCodes.filter(code => code !== 0);
+
+    if (pressedCodes.length === 0) {
+      this.activeKeyCodes = [];
+      return { handled: this.cardBuffer.length > 0, cardId: null };
+    }
+
+    const hasRecognizedCodes = pressedCodes.some(
+      code => code === HID_ENTER_KEY_CODE || HID_KEY_CODE_MAP[code] !== undefined
+    );
+
+    if (!hasRecognizedCodes) {
+      return { handled: false, cardId: null };
+    }
+
+    const newPresses = pressedCodes.filter(
+      code => !this.activeKeyCodes.includes(code)
+    );
+
+    let enterPressed = false;
+
+    for (const code of newPresses) {
+      if (code === HID_ENTER_KEY_CODE) {
+        enterPressed = true;
+        continue;
+      }
+
+      const digit = HID_KEY_CODE_MAP[code];
+      if (digit !== undefined) {
+        this.cardBuffer += digit;
+      }
+    }
+
+    this.activeKeyCodes = pressedCodes;
+
+    if (enterPressed) {
+      const completedCard = this.cardBuffer;
+      this.cardBuffer = '';
+      return { handled: true, cardId: completedCard };
+    }
+
+    return { handled: true, cardId: null };
   }
 
   /**
@@ -177,16 +253,22 @@ export class RfidHandler extends EventEmitter {
    */
   private processCardScan(rawCardId: string): void {
     const now = Date.now();
-    
+
     // Apply debouncing
     if (now - this.lastScanTime < this.config.debounce_ms) {
       return;
     }
-    
-    this.lastScanTime = now;
-    
+
     // Standardize and hash the card ID
     const standardizedCardId = this.standardizeCardId(rawCardId);
+    if (!standardizedCardId) {
+      console.warn('RFID scan ignored due to invalid card length', {
+        rawCardId
+      });
+      return;
+    }
+
+    this.lastScanTime = now;
     const hashedCardId = this.hashCardId(standardizedCardId);
     
     const scanEvent: RfidScanEvent = {
@@ -202,20 +284,29 @@ export class RfidHandler extends EventEmitter {
   /**
    * Standardize card ID format for consistent identification
    */
-  private standardizeCardId(cardId: string): string {
+  private standardizeCardId(cardId: string): string | null {
     // Remove any non-alphanumeric characters
     let standardized = cardId.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
-    
+
+    if (standardized.length === 0) {
+      return null;
+    }
+
+    const significantLength = standardized.replace(/^0+/, '').length;
+    if (significantLength < MIN_CARD_SIGNIFICANT_DIGITS) {
+      return null;
+    }
+
     // Ensure minimum length (pad with zeros if needed)
     if (standardized.length < 8) {
       standardized = standardized.padStart(8, '0');
     }
-    
+
     // Truncate to maximum reasonable length
     if (standardized.length > 16) {
       standardized = standardized.substring(0, 16);
     }
-    
+
     return standardized;
   }
 
@@ -302,7 +393,7 @@ export class RfidHandler extends EventEmitter {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     if (this.device) {
       try {
         this.device.close();
@@ -311,12 +402,12 @@ export class RfidHandler extends EventEmitter {
       }
       this.device = null;
     }
-    
+
     if (this.config.reader_type === 'keyboard') {
       process.stdin.setRawMode(false);
       process.stdin.pause();
     }
-    
+
     this.isConnected = false;
     this.emit('disconnected');
   }

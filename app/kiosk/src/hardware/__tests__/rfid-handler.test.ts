@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EventEmitter } from 'events';
+import { createHash } from 'crypto';
 import { RfidHandler, RfidConfig } from '../rfid-handler';
 
 // Mock node-hid
@@ -143,7 +143,7 @@ describe('RfidHandler', () => {
 
     it('should process HID data and emit card_scanned event', async () => {
       const testCardData = Buffer.from([0x12, 0x34, 0x56, 0x78]);
-      
+
       const scanPromise = new Promise((resolve) => {
         rfidHandler.on('card_scanned', (event) => {
           expect(event.card_id).toBeDefined();
@@ -228,6 +228,82 @@ describe('RfidHandler', () => {
       
       await scanPromise;
     });
+
+    it('should assemble HID keyboard digits and emit one scan on enter', async () => {
+      const digits = '0013966892';
+      const expectedHash = createHash('sha256')
+        .update(digits)
+        .digest('hex')
+        .substring(0, 16);
+
+      const scanPromise = new Promise(resolve => {
+        rfidHandler.on('card_scanned', event => {
+          expect(event.card_id).toBe(expectedHash);
+          resolve(event);
+        });
+      });
+
+      const dataHandler = mockHidDevice.on.mock.calls.find(call => call[0] === 'data')[1];
+
+      const keyMap: Record<string, number> = {
+        '0': 39,
+        '1': 30,
+        '2': 31,
+        '3': 32,
+        '4': 33,
+        '5': 34,
+        '6': 35,
+        '7': 36,
+        '8': 37,
+        '9': 38
+      };
+
+      for (const digit of digits) {
+        dataHandler(Buffer.from([0x00, 0x00, keyMap[digit], 0x00, 0x00, 0x00, 0x00, 0x00]));
+        // Simulate key release
+        dataHandler(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
+      }
+
+      // Press enter
+      dataHandler(Buffer.from([0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00]));
+      dataHandler(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
+
+      await scanPromise;
+    });
+
+    it('should ignore HID keyboard fragments shorter than minimum length', async () => {
+      const dataHandler = mockHidDevice.on.mock.calls.find(call => call[0] === 'data')[1];
+
+      let scanEmitted = false;
+      rfidHandler.on('card_scanned', () => {
+        scanEmitted = true;
+      });
+
+      const keyMap: Record<string, number> = {
+        '0': 39,
+        '1': 30,
+        '2': 31,
+        '3': 32,
+        '4': 33,
+        '5': 34,
+        '6': 35,
+        '7': 36,
+        '8': 37,
+        '9': 38
+      };
+
+      for (const digit of '5236') {
+        dataHandler(Buffer.from([0x00, 0x00, keyMap[digit], 0x00, 0x00, 0x00, 0x00, 0x00]));
+        dataHandler(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
+      }
+
+      dataHandler(Buffer.from([0x00, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00]));
+      dataHandler(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
+
+      await new Promise(resolve => setTimeout(resolve, config.debounce_ms + 50));
+
+      expect(scanEmitted).toBe(false);
+    });
   });
 
   describe('Card ID Standardization and Hashing', () => {
@@ -306,13 +382,14 @@ describe('RfidHandler', () => {
     });
 
     it('should handle device errors and attempt reconnection', async () => {
+      vi.useFakeTimers();
       let errorEmitted = false;
-      
+
       const reconnectPromise = new Promise((resolve) => {
         rfidHandler.on('error', () => {
           errorEmitted = true;
         });
-        
+
         rfidHandler.on('connected', () => {
           if (errorEmitted) {
             // Reconnection successful
@@ -321,14 +398,19 @@ describe('RfidHandler', () => {
           }
         });
       });
-      
+
       // Simulate device error
       const errorHandler = mockHidDevice.on.mock.calls.find(call => call[0] === 'error')[1];
       errorHandler(new Error('Device disconnected'));
-      
+
       expect(rfidHandler.isReaderConnected()).toBe(false);
-      
-      await reconnectPromise;
+
+      try {
+        await vi.runOnlyPendingTimersAsync();
+        await reconnectPromise;
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should ignore invalid HID data gracefully', () => {
