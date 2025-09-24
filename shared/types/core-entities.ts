@@ -120,7 +120,9 @@ export enum EventType {
   STAFF_OPEN = 'staff_open',
   STAFF_BLOCK = 'staff_block',
   STAFF_UNBLOCK = 'staff_unblock',
+  STAFF_RELEASE = 'staff_release',
   BULK_OPEN = 'bulk_open',
+  END_OF_DAY_OPEN = 'end_of_day_open',
   MASTER_PIN_USED = 'master_pin_used',
   
   // VIP events
