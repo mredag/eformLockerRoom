@@ -1381,61 +1381,70 @@ html, body {
 .owned-decision-overlay {
     position: fixed;
     inset: 0;
+    --overlay-block-padding: clamp(8px, 2vh, 24px);
     background: radial-gradient(circle at top, rgba(226, 232, 240, 0.92), rgba(148, 163, 184, 0.55));
     display: flex;
-    align-items: stretch;
+    align-items: center;
     justify-content: center;
-    padding: clamp(12px, 3vw, 36px);
+    padding: var(--overlay-block-padding) clamp(10px, 2.5vw, 30px);
     z-index: 9999;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .owned-decision-panel {
-    width: 100%;
-    max-width: 1240px;
+    width: min(1700px, 96vw);
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
 }
 
 .owned-decision-shell {
     position: relative;
     width: 100%;
-    min-height: 100%;
     background: linear-gradient(145deg, #ffffff, #f4f7ff 60%, #eef2ff 100%);
-    border-radius: 32px;
-    padding: clamp(20px, 4vh, 56px) clamp(24px, 5vw, 72px);
-    box-shadow: 0 32px 80px rgba(15, 23, 42, 0.2);
+    border-radius: 28px;
+    padding: clamp(28px, 5vh, 64px) clamp(32px, 6vw, 88px);
+    box-shadow: 0 32px 80px rgba(15, 23, 42, 0.22);
     display: flex;
     flex-direction: column;
-    gap: clamp(20px, 4vh, 48px);
+    gap: clamp(24px, 4.6vh, 54px);
     color: #0f172a;
     font-family: 'Inter', 'Roboto', 'Helvetica Neue', sans-serif;
+    max-height: calc(100vh - var(--overlay-block-padding) * 2);
+    min-height: min(100%, 640px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .owned-decision-close {
     position: absolute;
-    top: clamp(20px, 3vh, 36px);
-    right: clamp(20px, 3vw, 40px);
-    width: clamp(44px, 5vh, 54px);
-    height: clamp(44px, 5vh, 54px);
+    top: clamp(28px, 4vh, 48px);
+    right: clamp(28px, 4vh, 48px);
+    width: clamp(52px, 6vh, 64px);
+    height: clamp(52px, 6vh, 64px);
     border-radius: 50%;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: rgba(255, 255, 255, 0.85);
+    border: 2px solid rgba(148, 163, 184, 0.5);
+    background: rgba(255, 255, 255, 0.95);
     color: #1f2937;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .owned-decision-close:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 28px rgba(30, 64, 175, 0.25);
+    box-shadow: 0 18px 32px rgba(15, 23, 42, 0.28);
+    border-color: rgba(148, 163, 184, 0.7);
 }
 
 .owned-decision-close:focus-visible {
-    outline: 2px solid rgba(37, 99, 235, 0.8);
+    outline: 3px solid rgba(37, 99, 235, 0.8);
     outline-offset: 2px;
 }
 
@@ -1476,8 +1485,8 @@ html, body {
 }
 
 .owned-decision-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: clamp(18px, 4vw, 32px);
 }
 
@@ -1485,15 +1494,25 @@ html, body {
     position: relative;
     border: none;
     border-radius: 28px;
-    padding: clamp(28px, 6vh, 68px) clamp(32px, 6vw, 80px);
+    padding: clamp(24px, 5vh, 52px) clamp(28px, 5.2vw, 68px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: clamp(20px, 3vw, 40px);
+    gap: clamp(18px, 2.6vw, 32px);
     text-align: left;
     cursor: pointer;
     color: #ffffff;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#btn-finish-release {
+    order: 0;
+    padding: clamp(26px, 6vh, 84px) clamp(30px, 6vw, 90px);
+}
+
+#btn-open-only {
+    order: 1;
+    padding: clamp(18px, 3vh, 40px) clamp(24px, 4.5vw, 52px);
 }
 
 .owned-decision-button:hover {
@@ -1512,8 +1531,8 @@ html, body {
 }
 
 .owned-decision-button--primary {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    box-shadow: 0 18px 32px rgba(220, 38, 38, 0.35);
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    box-shadow: 0 18px 32px rgba(34, 197, 94, 0.35);
 }
 
 .owned-decision-card-icon {
@@ -1533,9 +1552,27 @@ html, body {
     flex: 1;
 }
 
+#btn-finish-release .owned-decision-card-icon {
+    width: clamp(110px, 18vh, 200px);
+    height: clamp(110px, 18vh, 200px);
+}
+
+#btn-open-only .owned-decision-card-icon {
+    width: clamp(60px, 7vh, 80px);
+    height: clamp(60px, 7vh, 80px);
+}
+
 .owned-decision-button-title {
     font-size: clamp(34px, 5vh, 52px);
     font-weight: 700;
+}
+
+#btn-finish-release .owned-decision-button-title {
+    font-size: clamp(42px, 6vh, 62px);
+}
+
+#btn-open-only .owned-decision-button-title {
+    font-size: clamp(24px, 3.4vh, 32px);
 }
 
 .owned-decision-button-title--glow {
@@ -1548,9 +1585,19 @@ html, body {
     color: rgba(255, 255, 255, 0.82);
 }
 
+#btn-finish-release .owned-decision-button-subtitle {
+    font-size: clamp(26px, 3.6vh, 36px);
+}
+
+#btn-open-only .owned-decision-button-subtitle {
+    font-size: clamp(16px, 2.6vh, 22px);
+}
+
 .owned-decision-chevron svg {
     display: block;
     color: rgba(255, 255, 255, 0.9);
+    width: clamp(36px, 4vw, 72px);
+    height: clamp(36px, 4vh, 96px);
 }
 
 .owned-decision-badge {
@@ -1582,19 +1629,168 @@ html, body {
     box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
 }
 
+@media (max-height: 820px) {
+    .owned-decision-shell {
+        padding: clamp(14px, 2.6vh, 30px) clamp(18px, 4.4vw, 52px);
+        gap: clamp(12px, 2vh, 20px);
+    }
+
+    .owned-decision-header {
+        gap: clamp(6px, 1.8vh, 16px);
+    }
+
+    .owned-decision-header-kicker {
+        font-size: clamp(16px, 2vh, 22px);
+    }
+
+    .owned-decision-title {
+        font-size: clamp(34px, 4.4vh, 48px);
+    }
+
+    #owned-decision-desc {
+        font-size: clamp(15px, 2vh, 20px);
+    }
+
+    .owned-decision-button {
+        padding: clamp(18px, 4vh, 38px) clamp(22px, 4.2vw, 52px);
+    }
+
+    .owned-decision-buttons {
+        gap: clamp(12px, 2.6vh, 20px);
+    }
+
+    #btn-finish-release {
+        padding: clamp(10px, 3vh, 28px) clamp(20px, 4vw, 48px);
+    }
+
+    #btn-open-only {
+        padding: clamp(8px, 1.6vh, 16px) clamp(12px, 2.6vw, 24px);
+    }
+
+    #btn-finish-release .owned-decision-card-icon {
+        width: clamp(40px, 6vh, 68px);
+        height: clamp(40px, 6vh, 68px);
+    }
+
+    #btn-open-only .owned-decision-card-icon {
+        width: clamp(22px, 3vh, 32px);
+        height: clamp(22px, 3vh, 32px);
+    }
+
+    .owned-decision-button-title {
+        font-size: clamp(18px, 2.8vh, 24px);
+    }
+
+    #btn-finish-release .owned-decision-button-title {
+        font-size: clamp(20px, 3vh, 26px);
+    }
+
+    #btn-open-only .owned-decision-button-title {
+        font-size: clamp(13px, 1.8vh, 16px);
+    }
+
+    .owned-decision-button-subtitle {
+        font-size: clamp(12px, 1.6vh, 15px);
+    }
+
+    #btn-finish-release .owned-decision-button-subtitle {
+        font-size: clamp(13px, 1.8vh, 16px);
+    }
+
+    .owned-decision-copy {
+        gap: clamp(5px, 1.4vh, 10px);
+    }
+
+    .owned-decision-chevron svg {
+        width: clamp(28px, 3vw, 48px);
+        height: clamp(28px, 4.2vh, 60px);
+    }
+
+    .owned-decision-info {
+        padding: clamp(14px, 2.4vh, 24px) clamp(18px, 3.6vw, 36px);
+        font-size: clamp(13px, 1.8vh, 18px);
+    }
+}
+
+@media (max-height: 760px) {
+    .owned-decision-shell {
+        padding: clamp(12px, 2.4vh, 24px) clamp(16px, 3.8vw, 44px);
+    }
+
+    #btn-finish-release {
+        padding: clamp(10px, 3.4vh, 32px) clamp(18px, 3.8vw, 44px);
+    }
+
+    #btn-open-only {
+        padding: clamp(8px, 1.8vh, 18px) clamp(12px, 2.8vw, 28px);
+    }
+
+    .owned-decision-title {
+        font-size: clamp(30px, 4vh, 44px);
+    }
+
+    #owned-decision-desc {
+        font-size: clamp(14px, 1.8vh, 18px);
+    }
+
+    .owned-decision-button {
+        padding: clamp(16px, 3.6vh, 30px) clamp(20px, 3.6vw, 44px);
+    }
+
+    #btn-finish-release .owned-decision-card-icon {
+        width: clamp(44px, 8vh, 72px);
+        height: clamp(44px, 8vh, 72px);
+    }
+
+    #btn-open-only .owned-decision-card-icon {
+        width: clamp(24px, 3.4vh, 36px);
+        height: clamp(24px, 3.4vh, 36px);
+    }
+
+    .owned-decision-button-title {
+        font-size: clamp(18px, 2.8vh, 24px);
+    }
+
+    #btn-finish-release .owned-decision-button-title {
+        font-size: clamp(20px, 3.2vh, 28px);
+    }
+
+    #btn-open-only .owned-decision-button-title {
+        font-size: clamp(14px, 2vh, 18px);
+    }
+
+    .owned-decision-button-subtitle {
+        font-size: clamp(12px, 1.8vh, 16px);
+    }
+
+    #btn-finish-release .owned-decision-button-subtitle {
+        font-size: clamp(13px, 2vh, 18px);
+    }
+
+    .owned-decision-badge {
+        padding: 6px 12px;
+        font-size: clamp(11px, 1.6vh, 14px);
+    }
+
+    .owned-decision-info {
+        padding: clamp(12px, 2.2vh, 20px) clamp(16px, 3.2vw, 32px);
+        font-size: clamp(12px, 1.7vh, 16px);
+    }
+
+    .owned-decision-chevron svg {
+        width: clamp(24px, 2.6vw, 40px);
+        height: clamp(24px, 3.6vh, 48px);
+    }
+}
+
 @media (max-width: 960px) {
     .owned-decision-panel {
         width: 100%;
     }
 
     .owned-decision-shell {
-        padding: clamp(20px, 6vh, 48px);
+        padding: clamp(18px, 5vh, 40px);
         border-radius: 28px;
-        min-height: 100%;
-    }
-
-    .owned-decision-buttons {
-        grid-template-columns: 1fr;
     }
 
     .owned-decision-button {
@@ -1604,6 +1800,14 @@ html, body {
 
     .owned-decision-copy {
         align-items: center;
+    }
+
+    #btn-finish-release {
+        padding: clamp(32px, 11vh, 112px) clamp(28px, 10vw, 90px);
+    }
+
+    #btn-open-only {
+        padding: clamp(16px, 4vh, 34px) clamp(20px, 8vw, 44px);
     }
 
     .owned-decision-chevron {
