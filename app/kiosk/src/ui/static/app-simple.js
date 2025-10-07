@@ -902,18 +902,6 @@ class SimpleKioskApp {
                         <p id="owned-decision-desc" class="owned-decision-desc">Dolabı tekrar açmak mı istiyorsunuz, yoksa teslim ederek başkalarının kullanımına açmak mı?</p>
                     </header>
                     <div class="owned-decision-buttons">
-                        <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
-                            <div class="owned-decision-card-icon" aria-hidden="true">
-                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M13 12h5"></path></svg>
-                            </div>
-                            <div class="owned-decision-copy">
-                                <span class="owned-decision-button-title owned-decision-button-title--glow">Eşya almak için aç</span>
-                                <span class="owned-decision-button-subtitle">Teslim etmeden dolabı açıp eşyalarınızı alabilirsiniz</span>
-                            </div>
-                            <div class="owned-decision-chevron" aria-hidden="true">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
-                            </div>
-                        </button>
                         <button id="btn-finish-release" class="owned-decision-button owned-decision-button--primary">
                             <div class="owned-decision-badge" aria-hidden="true">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12" y2="16"></line></svg>
@@ -925,6 +913,18 @@ class SimpleKioskApp {
                             <div class="owned-decision-copy">
                                 <span class="owned-decision-button-title">Dolabı teslim et ve kilidi aç</span>
                                 <span class="owned-decision-button-subtitle">Dolap kalıcı olarak başkalarının kullanımına açılır</span>
+                            </div>
+                            <div class="owned-decision-chevron" aria-hidden="true">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
+                            </div>
+                        </button>
+                        <button id="btn-open-only" class="owned-decision-button owned-decision-button--secondary">
+                            <div class="owned-decision-card-icon" aria-hidden="true">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M13 12h5"></path></svg>
+                            </div>
+                            <div class="owned-decision-copy">
+                                <span class="owned-decision-button-title owned-decision-button-title--glow">Eşya almak için aç</span>
+                                <span class="owned-decision-button-subtitle">Teslim etmeden dolabı açıp eşyalarınızı alabilirsiniz</span>
                             </div>
                             <div class="owned-decision-chevron" aria-hidden="true">
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>
