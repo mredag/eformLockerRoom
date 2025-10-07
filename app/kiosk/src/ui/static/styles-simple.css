@@ -1453,11 +1453,11 @@ html, body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(10px, 2vh, 24px);
+    gap: clamp(8px, 2vh, 24px);
 }
 
 .owned-decision-header-kicker {
-    font-size: clamp(22px, 2.8vh, 32px);
+    font-size: clamp(18px, 2.6vh, 30px);
     font-weight: 600;
     letter-spacing: 0.18em;
     color: #818cf8;
@@ -1465,7 +1465,7 @@ html, body {
 
 .owned-decision-title {
     margin: 0;
-    font-size: clamp(54px, 6.5vh, 90px);
+    font-size: clamp(36px, 6vh, 84px);
     font-weight: 700;
     letter-spacing: -0.02em;
     color: #111827;
@@ -1478,7 +1478,7 @@ html, body {
 
 #owned-decision-desc {
     margin: 0;
-    font-size: clamp(20px, 2.6vh, 30px);
+    font-size: clamp(16px, 2.4vh, 28px);
     line-height: 1.35;
     color: #334155;
     max-width: min(820px, 100%);
@@ -1548,7 +1548,7 @@ html, body {
 .owned-decision-copy {
     display: flex;
     flex-direction: column;
-    gap: clamp(10px, 2vh, 20px);
+    gap: clamp(8px, 1.8vh, 18px);
     flex: 1;
 }
 
@@ -1563,7 +1563,7 @@ html, body {
 }
 
 .owned-decision-button-title {
-    font-size: clamp(34px, 5vh, 52px);
+    font-size: clamp(26px, 4.4vh, 46px);
     font-weight: 700;
 }
 
@@ -1580,7 +1580,7 @@ html, body {
 }
 
 .owned-decision-button-subtitle {
-    font-size: clamp(22px, 3vh, 30px);
+    font-size: clamp(18px, 2.6vh, 28px);
     font-weight: 500;
     color: rgba(255, 255, 255, 0.82);
 }
@@ -1621,9 +1621,9 @@ html, body {
     background: rgba(248, 250, 252, 0.95);
     border: 1px solid rgba(203, 213, 225, 0.6);
     color: #1e293b;
-    padding: clamp(24px, 4vh, 40px) clamp(28px, 4.5vw, 60px);
+    padding: clamp(18px, 3.4vh, 36px) clamp(22px, 4vw, 52px);
     border-radius: 28px;
-    font-size: clamp(18px, 2.4vh, 24px);
+    font-size: clamp(16px, 2.2vh, 22px);
     line-height: 1.6;
     text-align: center;
     box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
@@ -1788,6 +1788,64 @@ html, body {
         width: 100%;
     }
 
+    .owned-decision-button {
+        padding: clamp(14px, 3.6vh, 32px) clamp(18px, 3.8vw, 46px);
+    }
+
+    #btn-finish-release {
+        padding: clamp(16px, 5vh, 60px) clamp(22px, 5.4vw, 70px);
+    }
+
+    #btn-open-only {
+        padding: clamp(10px, 2.2vh, 24px) clamp(16px, 3.2vw, 32px);
+    }
+
+    #btn-finish-release .owned-decision-card-icon {
+        width: clamp(76px, 12vh, 140px);
+        height: clamp(76px, 12vh, 140px);
+    }
+
+    #btn-open-only .owned-decision-card-icon {
+        width: clamp(46px, 5.4vh, 64px);
+        height: clamp(46px, 5.4vh, 64px);
+    }
+
+    .owned-decision-button-title {
+        font-size: clamp(22px, 3.6vh, 34px);
+    }
+
+    #btn-finish-release .owned-decision-button-title {
+        font-size: clamp(26px, 4vh, 38px);
+    }
+
+    #btn-open-only .owned-decision-button-title {
+        font-size: clamp(18px, 2.6vh, 24px);
+    }
+
+    .owned-decision-button-subtitle {
+        font-size: clamp(15px, 2.2vh, 22px);
+    }
+
+    #btn-finish-release .owned-decision-button-subtitle {
+        font-size: clamp(18px, 2.6vh, 24px);
+    }
+
+    .owned-decision-copy {
+        gap: clamp(6px, 1.4vh, 12px);
+    }
+
+    .owned-decision-chevron svg {
+        width: clamp(26px, 3vw, 44px);
+        height: clamp(26px, 3.6vh, 56px);
+    }
+
+    .owned-decision-info {
+        padding: clamp(14px, 2.6vh, 26px) clamp(18px, 3.4vw, 34px);
+        font-size: clamp(14px, 1.9vh, 18px);
+    }
+}
+
+@media (max-height: 760px) {
     .owned-decision-shell {
         padding: clamp(18px, 5vh, 40px);
         border-radius: 28px;
