@@ -1507,7 +1507,7 @@ html, body {
 
 #btn-finish-release {
     order: 0;
-    padding: clamp(26px, 6vh, 84px) clamp(30px, 6vw, 90px);
+    padding: clamp(90px, 16vh, 240px) clamp(36px, 7vw, 120px);
 }
 
 #btn-open-only {
@@ -1791,6 +1791,7 @@ html, body {
     .owned-decision-shell {
         padding: clamp(18px, 5vh, 40px);
         border-radius: 28px;
+        min-height: 100%;
     }
 
     .owned-decision-button {
@@ -1803,11 +1804,11 @@ html, body {
     }
 
     #btn-finish-release {
-        padding: clamp(32px, 11vh, 112px) clamp(28px, 10vw, 90px);
+        padding: clamp(72px, 18vh, 220px) clamp(32px, 10vw, 96px);
     }
 
     #btn-open-only {
-        padding: clamp(16px, 4vh, 34px) clamp(20px, 8vw, 44px);
+        padding: clamp(18px, 4vh, 36px) clamp(20px, 8vw, 44px);
     }
 
     .owned-decision-chevron {
