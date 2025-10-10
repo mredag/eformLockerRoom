@@ -524,8 +524,83 @@ describe('RfidHandler', () => {
       
       rfidHandler = new RfidHandler(config);
       await rfidHandler.initialize();
-      
+
       expect(rfidHandler.isReaderConnected()).toBe(true);
+    });
+  });
+
+  describe('Feature flag behaviours', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('merges HID multi-packet reports when enabled', async () => {
+      vi.useFakeTimers();
+      config.feature_flags = {
+        hidMultiPacketEnabled: true,
+        hidAggregationWindowMs: 20
+      };
+
+      rfidHandler = new RfidHandler(config);
+      await rfidHandler.initialize();
+
+      const dataHandler = mockHidDevice.on.mock.calls.find(call => call[0] === 'data')[1];
+      const scanSpy = vi.fn();
+      rfidHandler.on('card_scanned', scanSpy);
+
+      dataHandler(Buffer.from('0012', 'hex'));
+      dataHandler(Buffer.from('3456', 'hex'));
+
+      expect(scanSpy).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(25);
+
+      expect(scanSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('flushes keyboard buffer after timeout when enabled', async () => {
+      vi.useFakeTimers();
+      config.reader_type = 'keyboard';
+      config.feature_flags = {
+        keyboardTimeoutEnabled: true,
+        keyboardTimeoutMs: 500
+      };
+
+      rfidHandler = new RfidHandler(config);
+      await rfidHandler.initialize();
+
+      const dataHandler = mockStdin.on.mock.calls.find(call => call[0] === 'data')[1];
+      const scanSpy = vi.fn();
+      rfidHandler.on('card_scanned', scanSpy);
+
+      dataHandler('1234');
+
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(scanSpy).not.toHaveBeenCalled();
+    });
+
+    it('requires confirmation for short UIDs when strict length enabled', async () => {
+      config.feature_flags = {
+        strictMinLengthEnabled: true,
+        minSignificantLength: 8,
+        confirmationWindowMs: 500
+      };
+
+      rfidHandler = new RfidHandler(config);
+      await rfidHandler.initialize();
+
+      const dataHandler = mockHidDevice.on.mock.calls.find(call => call[0] === 'data')[1];
+      const scanSpy = vi.fn();
+      rfidHandler.on('card_scanned', scanSpy);
+
+      const shortBuffer = Buffer.from('00123456', 'hex');
+
+      dataHandler(shortBuffer);
+      expect(scanSpy).not.toHaveBeenCalled();
+
+      dataHandler(shortBuffer);
+      expect(scanSpy).toHaveBeenCalledTimes(1);
     });
   });
 });

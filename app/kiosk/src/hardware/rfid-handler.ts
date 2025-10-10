@@ -5,9 +5,15 @@
  */
 
 import { EventEmitter } from 'events';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 // @ts-ignore
 import HID from 'node-hid';
+import { kioskLogger } from '../lib/logger';
+
+const DEFAULT_MIN_SIGNIFICANT_LENGTH = 8;
+const DEFAULT_CONFIRMATION_WINDOW_MS = 1000;
+const DEFAULT_HID_AGGREGATION_WINDOW_MS = 50;
+const DEFAULT_KEYBOARD_TIMEOUT_MS = 1000;
 
 const HID_KEY_CODE_MAP: Record<number, string> = {
   30: '1',
@@ -25,12 +31,32 @@ const HID_KEY_CODE_MAP: Record<number, string> = {
 const HID_ENTER_KEY_CODE = 40;
 const MIN_CARD_SIGNIFICANT_DIGITS = 6;
 
+interface RfidFeatureFlags {
+  hidMultiPacketEnabled: boolean;
+  hidAggregationWindowMs: number;
+  keyboardTimeoutEnabled: boolean;
+  keyboardTimeoutMs: number;
+  strictMinLengthEnabled: boolean;
+  minSignificantLength: number;
+  confirmationWindowMs: number;
+}
+
+interface RfidSecurityConfig {
+  sharedSecret?: string;
+  kioskId?: string;
+  hmacHeader?: string;
+}
+
 export interface RfidConfig {
   reader_type: 'hid' | 'keyboard';
   debounce_ms: number;
   vendor_id?: number;
   product_id?: number;
   device_path?: string;
+  kiosk_id?: string;
+  operator_id?: string | null;
+  feature_flags?: Partial<RfidFeatureFlags>;
+  security?: RfidSecurityConfig;
 }
 
 export interface RfidScanEvent {
@@ -48,10 +74,44 @@ export class RfidHandler extends EventEmitter {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private cardBuffer: string = '';
   private activeKeyCodes: number[] = [];
+  private hidAggregationTimer: NodeJS.Timeout | null = null;
+  private hidReportBuffers: Buffer[] = [];
+  private pendingShortUid: { value: string; expiresAt: number } | null = null;
+  private keyboardFlushTimer: NodeJS.Timeout | null = null;
+  private featureFlags: RfidFeatureFlags;
+  private readonly securityConfig: RfidSecurityConfig;
+  private currentDeviceInfo: {
+    vendorId?: number;
+    productId?: number;
+    manufacturer?: string;
+    product?: string;
+    serialNumber?: string;
+  } | null = null;
 
   constructor(config: RfidConfig) {
     super();
     this.config = config;
+    this.featureFlags = {
+      hidMultiPacketEnabled: config.feature_flags?.hidMultiPacketEnabled ?? false,
+      hidAggregationWindowMs: config.feature_flags?.hidAggregationWindowMs ?? DEFAULT_HID_AGGREGATION_WINDOW_MS,
+      keyboardTimeoutEnabled: config.feature_flags?.keyboardTimeoutEnabled ?? false,
+      keyboardTimeoutMs: config.feature_flags?.keyboardTimeoutMs ?? DEFAULT_KEYBOARD_TIMEOUT_MS,
+      strictMinLengthEnabled: config.feature_flags?.strictMinLengthEnabled ?? false,
+      minSignificantLength: config.feature_flags?.minSignificantLength ?? DEFAULT_MIN_SIGNIFICANT_LENGTH,
+      confirmationWindowMs: config.feature_flags?.confirmationWindowMs ?? DEFAULT_CONFIRMATION_WINDOW_MS,
+    };
+    this.securityConfig = {
+      sharedSecret: config.security?.sharedSecret,
+      kioskId: config.security?.kioskId,
+      hmacHeader: config.security?.hmacHeader ?? 'X-Signature',
+    };
+  }
+
+  updateFeatureFlags(flags: Partial<RfidFeatureFlags>): void {
+    this.featureFlags = {
+      ...this.featureFlags,
+      ...flags
+    };
   }
 
   /**
@@ -101,6 +161,13 @@ export class RfidHandler extends EventEmitter {
     }
 
     this.device = new HID.HID(targetDevice.path!);
+    this.currentDeviceInfo = {
+      vendorId: targetDevice.vendorId,
+      productId: targetDevice.productId,
+      manufacturer: targetDevice.manufacturer,
+      product: targetDevice.product,
+      serialNumber: targetDevice.serialNumber
+    };
     this.device.on('data', this.handleHidData.bind(this));
     this.device.on('error', this.handleDeviceError.bind(this));
   }
@@ -126,19 +193,56 @@ export class RfidHandler extends EventEmitter {
       const keyboardResult = this.handleHidKeyboardReport(data);
       if (keyboardResult.handled) {
         if (keyboardResult.cardId) {
-          this.processCardScan(keyboardResult.cardId);
+          this.processCardScan(keyboardResult.cardId, {
+            rawBuffer: data,
+            readerMode: 'hid-keyboard'
+          });
         }
+        return;
+      }
+
+      if (this.featureFlags.hidMultiPacketEnabled) {
+        this.aggregateHidReport(data);
         return;
       }
 
       // Convert buffer to string and extract card ID
       const cardData = this.parseHidData(data);
       if (cardData) {
-        this.processCardScan(cardData);
+        this.processCardScan(cardData, {
+          rawBuffer: data,
+          readerMode: 'hid'
+        });
+      } else {
+        this.emitScanFailure('parse_failed', data);
       }
     } catch (error) {
       this.emit('error', error);
     }
+  }
+
+  private aggregateHidReport(data: Buffer): void {
+    this.hidReportBuffers.push(Buffer.from(data));
+
+    if (this.hidAggregationTimer) {
+      clearTimeout(this.hidAggregationTimer);
+    }
+
+    this.hidAggregationTimer = setTimeout(() => {
+      const aggregated = Buffer.concat(this.hidReportBuffers);
+      this.hidReportBuffers = [];
+      this.hidAggregationTimer = null;
+
+      const cardData = this.parseHidData(aggregated);
+      if (cardData) {
+        this.processCardScan(cardData, {
+          rawBuffer: aggregated,
+          readerMode: 'hid-multi-packet'
+        });
+      } else {
+        this.emitScanFailure('parse_failed', aggregated);
+      }
+    }, this.featureFlags.hidAggregationWindowMs);
   }
 
   private handleHidKeyboardReport(
@@ -200,14 +304,33 @@ export class RfidHandler extends EventEmitter {
     try {
       // Accumulate keyboard input until we get a complete card ID
       this.cardBuffer += data;
-      
+
+      if (this.featureFlags.keyboardTimeoutEnabled) {
+        if (this.keyboardFlushTimer) {
+          clearTimeout(this.keyboardFlushTimer);
+        }
+        this.keyboardFlushTimer = setTimeout(() => {
+          if (this.cardBuffer.length > 0) {
+            this.emitScanFailure('keyboard_timeout', Buffer.from(this.cardBuffer));
+            this.cardBuffer = '';
+          }
+        }, this.featureFlags.keyboardTimeoutMs);
+      }
+
       // Look for card termination (usually Enter key or specific pattern)
       if (data.includes('\r') || data.includes('\n')) {
         const cardId = this.cardBuffer.trim();
         this.cardBuffer = '';
-        
+        if (this.keyboardFlushTimer) {
+          clearTimeout(this.keyboardFlushTimer);
+          this.keyboardFlushTimer = null;
+        }
+
         if (cardId.length > 0) {
-          this.processCardScan(cardId);
+          this.processCardScan(cardId, {
+            rawString: cardId,
+            readerMode: 'keyboard'
+          });
         }
       }
     } catch (error) {
@@ -222,92 +345,124 @@ export class RfidHandler extends EventEmitter {
     // This is a generic parser - specific readers may need custom parsing
     // Common formats: Wiegand 26-bit, 34-bit, or raw hex data
     
-    if (data.length < 4) {
+    if (data.length === 0) {
       return null;
     }
 
-    // Try to extract card ID from common HID formats
-    let cardId = '';
-    
-    // Method 1: Direct hex conversion
-    if (data.length >= 4) {
-      const hex = data.toString('hex').toUpperCase();
-      if (hex.length >= 8) {
-        cardId = hex.substring(0, 8);
-      }
+    const hex = data.toString('hex').toUpperCase();
+    const trimmed = hex.replace(/(00)+$/g, '');
+    if (trimmed.length > 0) {
+      return trimmed;
     }
 
-    // Method 2: Wiegand 26-bit format
-    if (!cardId && data.length >= 4) {
-      const value = data.readUInt32BE(0);
-      if (value > 0) {
-        cardId = value.toString(16).toUpperCase().padStart(8, '0');
-      }
-    }
-
-    return cardId || null;
+    return hex.length > 0 ? hex : null;
   }
 
   /**
    * Process a card scan with debouncing
    */
-  private processCardScan(rawCardId: string): void {
+  private processCardScan(rawCardId: string, context?: { rawBuffer?: Buffer; rawString?: string; readerMode?: string }): void {
     const now = Date.now();
 
-    // Apply debouncing
     if (now - this.lastScanTime < this.config.debounce_ms) {
       return;
     }
 
-    // Standardize and hash the card ID
-    const standardizedCardId = this.standardizeCardId(rawCardId);
+    const standardization = this.standardizeCardId(rawCardId);
+    const standardizedCardId = standardization?.value ?? null;
+    const significantLength = standardization?.significantLength ?? 0;
+    const rawHex = standardization?.rawHex ?? rawCardId.toUpperCase();
+
+    const requestId = randomUUID();
+    const readerMode = context?.readerMode ?? this.config.reader_type;
+
+    kioskLogger.info('RFID_SCAN_ATTEMPT', {
+      kiosk_id: this.config.kiosk_id,
+      operator_id: this.config.operator_id ?? null,
+      reader_mode: readerMode,
+      raw_uid_hex: rawHex,
+      raw_uid_len: rawHex.length,
+      significant_len: significantLength,
+      vendor_id: this.currentDeviceInfo?.vendorId ?? this.config.vendor_id ?? null,
+      product_id: this.currentDeviceInfo?.productId ?? this.config.product_id ?? null,
+      firmware_str: this.currentDeviceInfo?.serialNumber ?? null,
+      request_id: requestId,
+      ts_iso: new Date(now).toISOString()
+    });
+
     if (!standardizedCardId) {
-      console.warn('RFID scan ignored due to invalid card length', {
-        rawCardId
-      });
+      this.emitScanFailure('invalid_length', context?.rawBuffer ?? Buffer.from(rawCardId));
       return;
+    }
+
+    if (this.featureFlags.strictMinLengthEnabled && significantLength < this.featureFlags.minSignificantLength) {
+      if (this.pendingShortUid && this.pendingShortUid.value === standardizedCardId && this.pendingShortUid.expiresAt > now) {
+        this.pendingShortUid = null;
+      } else {
+        this.pendingShortUid = {
+          value: standardizedCardId,
+          expiresAt: now + this.featureFlags.confirmationWindowMs
+        };
+        this.emitScanFailure('short_uid_first_read', context?.rawBuffer ?? Buffer.from(rawCardId));
+        return;
+      }
     }
 
     this.lastScanTime = now;
     const hashedCardId = this.hashCardId(standardizedCardId);
-    
+
     const scanEvent: RfidScanEvent = {
       card_id: hashedCardId,
       scan_time: new Date(),
       reader_id: this.getReaderId(),
-      signal_strength: undefined // Could be extracted from some readers
+      signal_strength: undefined
     };
-    
+
+    kioskLogger.info('RFID_SCAN_SUCCESS', {
+      kiosk_id: this.config.kiosk_id,
+      operator_id: this.config.operator_id ?? null,
+      reader_mode: readerMode,
+      raw_uid_hex: rawHex,
+      raw_uid_len: rawHex.length,
+      card_hash: hashedCardId,
+      vendor_id: this.currentDeviceInfo?.vendorId ?? this.config.vendor_id ?? null,
+      product_id: this.currentDeviceInfo?.productId ?? this.config.product_id ?? null,
+      firmware_str: this.currentDeviceInfo?.serialNumber ?? null,
+      request_id: requestId,
+      ts_iso: new Date(now).toISOString()
+    });
+
     this.emit('card_scanned', scanEvent);
   }
 
-  /**
-   * Standardize card ID format for consistent identification
-   */
-  private standardizeCardId(cardId: string): string | null {
-    // Remove any non-alphanumeric characters
-    let standardized = cardId.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+  private standardizeCardId(cardId: string): { value: string; significantLength: number; rawHex: string } | null {
+    const rawHex = cardId.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
 
-    if (standardized.length === 0) {
+    if (rawHex.length === 0) {
       return null;
     }
 
-    const significantLength = standardized.replace(/^0+/, '').length;
+    const significantLength = rawHex.replace(/^0+/, '').length || (rawHex.includes('0') ? 1 : 0);
+
     if (significantLength < MIN_CARD_SIGNIFICANT_DIGITS) {
       return null;
     }
 
-    // Ensure minimum length (pad with zeros if needed)
+    let standardized = rawHex;
+
     if (standardized.length < 8) {
       standardized = standardized.padStart(8, '0');
     }
 
-    // Truncate to maximum reasonable length
-    if (standardized.length > 16) {
-      standardized = standardized.substring(0, 16);
+    if (standardized.length > 32) {
+      standardized = standardized.substring(0, 32);
     }
 
-    return standardized;
+    return {
+      value: standardized,
+      significantLength,
+      rawHex
+    };
   }
 
   /**
@@ -339,6 +494,21 @@ export class RfidHandler extends EventEmitter {
     this.isConnected = false;
     this.emit('error', error);
     this.scheduleReconnect();
+  }
+
+  private emitScanFailure(reason: string, rawData: Buffer): void {
+    kioskLogger.warn('RFID_SCAN_FAIL', {
+      kiosk_id: this.config.kiosk_id,
+      operator_id: this.config.operator_id ?? null,
+      reader_mode: this.config.reader_type,
+      vendor_id: this.currentDeviceInfo?.vendorId ?? this.config.vendor_id ?? null,
+      product_id: this.currentDeviceInfo?.productId ?? this.config.product_id ?? null,
+      firmware_str: this.currentDeviceInfo?.serialNumber ?? null,
+      raw_uid_hex: rawData.toString('hex').toUpperCase(),
+      raw_uid_len: rawData.length,
+      reason,
+      ts_iso: new Date().toISOString()
+    });
   }
 
   /**
