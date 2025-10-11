@@ -116,6 +116,21 @@ export interface RelayCard {
   enabled: boolean;
 }
 
+export interface RfidFeatureFlagConfig {
+  hid_multi_packet_enabled?: boolean;
+  hid_aggregation_window_ms?: number;
+  keyboard_timeout_enabled?: boolean;
+  keyboard_timeout_ms?: number;
+  strict_min_len?: boolean;
+  min_significant_length?: number;
+  confirmation_window_ms?: number;
+}
+
+export interface ApiFeatureFlagConfig {
+  idempotency_enabled?: boolean;
+  hmac_required?: boolean;
+}
+
 export interface HardwareConfig {
   modbus: {
     port: string;
@@ -141,6 +156,7 @@ export interface HardwareConfig {
     fallback_to_keyboard?: boolean;
     vendor_id?: string | null;
     product_id?: string | null;
+    feature_flags?: RfidFeatureFlagConfig;
   };
   display?: {
     type: string;
@@ -222,6 +238,8 @@ export interface ZoneConfig {
 
 export interface FeaturesConfig {
   zones_enabled: boolean;
+  rfid?: RfidFeatureFlagConfig;
+  api?: ApiFeatureFlagConfig;
 }
 
 export interface MonitoringConfig {

@@ -769,7 +769,17 @@ export class ConfigManager {
         hardware_platform: 'raspberry_pi_4'
       },
       features: {
-        zones_enabled: true
+        zones_enabled: true,
+        rfid: {
+          hid_multi_packet_enabled: false,
+          keyboard_timeout_enabled: false,
+          strict_min_len: false,
+          min_significant_length: 8
+        },
+        api: {
+          idempotency_enabled: false,
+          hmac_required: false
+        }
       },
       zones: [
         {
@@ -880,7 +890,16 @@ export class ConfigManager {
           auto_detect: true,
           fallback_to_keyboard: true,
           vendor_id: null,
-          product_id: null
+          product_id: null,
+          feature_flags: {
+            hid_multi_packet_enabled: false,
+            hid_aggregation_window_ms: 50,
+            keyboard_timeout_enabled: false,
+            keyboard_timeout_ms: 1000,
+            strict_min_len: false,
+            min_significant_length: 8,
+            confirmation_window_ms: 1000
+          }
         },
         display: {
           type: 'touchscreen',
