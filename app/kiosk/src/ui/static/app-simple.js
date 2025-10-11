@@ -157,6 +157,9 @@ class SimpleKioskApp {
         this.rfidBuffer = '';
         this.rfidTimeout = null;
         this.rfidDebounceDelay = 500; // Debounce RFID input
+        this.pendingCardScan = null;
+        this.pendingCardTimeout = null;
+        this.pendingCardTtlMs = 8000;
         
         // DOM element cache for performance
         this.elements = {};
@@ -566,12 +569,9 @@ class SimpleKioskApp {
      */
     setupRfidListener() {
         document.addEventListener('keydown', (event) => {
-            // Only process RFID input in idle mode
-            if (this.state.mode !== 'idle') return;
-            
             // Ignore input if user is in an input field
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-            
+
             // Handle Enter key (end of RFID scan)
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -612,24 +612,68 @@ class SimpleKioskApp {
      */
     processRfidInput() {
         if (this.rfidBuffer.length === 0) return;
-        
+
         const cardId = this.rfidBuffer.trim();
         this.rfidBuffer = '';
-        
+
         if (this.rfidTimeout) {
             clearTimeout(this.rfidTimeout);
             this.rfidTimeout = null;
         }
-        
+
+        const now = Date.now();
+
         // Debounce rapid card scans
-        if (this.lastCardScan && (Date.now() - this.lastCardScan) < this.rfidDebounceDelay) {
+        if (this.lastCardScan && (now - this.lastCardScan) < this.rfidDebounceDelay) {
             console.log('🚫 RFID input debounced');
             return;
         }
-        
-        this.lastCardScan = Date.now();
+
+        // Queue card scans while kiosk is busy
+        if (['loading', 'session', 'error'].includes(this.state.mode)) {
+            this.lastCardScan = now;
+            this.pendingCardScan = { cardId, timestamp: now };
+
+            if (this.pendingCardTimeout) {
+                clearTimeout(this.pendingCardTimeout);
+            }
+
+            this.pendingCardTimeout = setTimeout(() => {
+                if (this.pendingCardScan && (Date.now() - this.pendingCardScan.timestamp) >= this.pendingCardTtlMs) {
+                    console.warn('⌛ Pending RFID card scan expired');
+                    this.pendingCardScan = null;
+                    this.pendingCardTimeout = null;
+                }
+            }, this.pendingCardTtlMs);
+
+            console.log(`📥 RFID card buffered during ${this.state.mode} state: ${cardId}`);
+            return;
+        }
+
+        this.lastCardScan = now;
         console.log(`🎯 RFID card detected: ${cardId}`);
-        
+
+        this.handleCardScan(cardId);
+    }
+
+    /**
+     * Consume pending card scan if available
+     */
+    consumePendingCardScan() {
+        if (!this.pendingCardScan) {
+            return;
+        }
+
+        const { cardId } = this.pendingCardScan;
+        this.pendingCardScan = null;
+
+        if (this.pendingCardTimeout) {
+            clearTimeout(this.pendingCardTimeout);
+            this.pendingCardTimeout = null;
+        }
+
+        this.lastCardScan = Date.now();
+        console.log(`📤 Processing buffered RFID card: ${cardId}`);
         this.handleCardScan(cardId);
     }
 
@@ -1955,6 +1999,8 @@ class SimpleKioskApp {
         this.endSession();
         this.showScreen('idle');
         console.log('💤 Showing idle state');
+
+        this.consumePendingCardScan();
     }
 
     /**
