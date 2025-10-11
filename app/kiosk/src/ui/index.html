@@ -129,10 +129,17 @@
             </div>
 
             <!-- Loading State -->
-            <div id="loading-screen" class="screen">
-                <div class="loading-message">
-                    <div class="loading-spinner"></div>
-                    <h2 class="loading-text" id="loading-text">İşlem yapılıyor...</h2>
+            <div id="loading-screen" class="screen screen-overlay" aria-live="assertive">
+                <div class="loading-shell" role="alert">
+                    <div class="loading-visual" aria-hidden="true">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-progress">Kartınız doğrulanıyor</div>
+                    </div>
+                    <div class="loading-copy">
+                        <p class="loading-eyebrow">Lütfen kartınızı okutma alanında tutun</p>
+                        <h2 class="loading-text" id="loading-text">İşlem yapılıyor...</h2>
+                        <p class="loading-subtext" id="loading-subtext">Bu işlem birkaç saniye sürebilir. Lütfen ekrandaki yönlendirmeleri izleyin.</p>
+                    </div>
                 </div>
             </div>
 
@@ -164,12 +171,15 @@
             </div>
 
             <!-- Feedback Screen -->
-            <div id="feedback-screen" class="screen">
-                <div class="feedback-message">
-                    <div id="feedback-icon" class="feedback-icon">
-                        <!-- SVG icon will be injected here -->
+            <div id="feedback-screen" class="screen screen-overlay" aria-live="assertive">
+                <div class="feedback-shell" role="alert">
+                    <div class="feedback-message">
+                        <div id="feedback-icon" class="feedback-icon">
+                            <!-- SVG icon will be injected here -->
+                        </div>
+                        <h2 id="feedback-text" class="feedback-text"></h2>
+                        <p class="feedback-subtext">Birazdan ana ekrana döneceksiniz.</p>
                     </div>
-                    <h2 id="feedback-text" class="feedback-text"></h2>
                 </div>
             </div>
         </main>

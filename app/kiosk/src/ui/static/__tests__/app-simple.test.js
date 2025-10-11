@@ -23,8 +23,18 @@ const dom = new JSDOM(`
             <span id="countdown-value">30</span>
         </div>
     </div>
-    <div id="loading-screen" style="display: none;">
-        <div id="loading-text">Yükleniyor...</div>
+    <div id="loading-screen" class="screen screen-overlay" style="display: none;">
+        <div class="loading-shell">
+            <div class="loading-visual">
+                <div class="loading-spinner"></div>
+                <div class="loading-progress">Kartınız doğrulanıyor</div>
+            </div>
+            <div class="loading-copy">
+                <p class="loading-eyebrow">Lütfen kartınızı okutma alanında tutun</p>
+                <h2 id="loading-text" class="loading-text">Yükleniyor...</h2>
+                <p class="loading-subtext">Bu işlem birkaç saniye sürebilir.</p>
+            </div>
+        </div>
     </div>
     <div id="error-screen" style="display: none;">
         <div id="error-text">Hata</div>
