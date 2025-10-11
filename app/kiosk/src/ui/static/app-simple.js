@@ -159,7 +159,7 @@ class SimpleKioskApp {
         this.rfidDebounceDelay = 500; // Debounce RFID input
         this.pendingCardScan = null;
         this.pendingCardTimeout = null;
-        this.pendingCardTtlMs = 8000;
+        this.pendingCardIdleGraceMs = 5000; // Keep buffered scans alive slightly beyond the active session
         
         // DOM element cache for performance
         this.elements = {};
@@ -608,6 +608,18 @@ class SimpleKioskApp {
     }
 
     /**
+     * Compute how long to retain a pending RFID card scan while the kiosk is busy
+     */
+    getPendingCardBufferDurationMs() {
+        const activeSessionSeconds = Math.max(
+            this.sessionTimeoutSeconds || 0,
+            this.state && typeof this.state.countdown === 'number' ? this.state.countdown : 0
+        );
+        const sessionMs = Math.max(activeSessionSeconds, 0) * 1000;
+        return sessionMs + this.pendingCardIdleGraceMs;
+    }
+
+    /**
      * Process RFID input with debouncing
      */
     processRfidInput() {
@@ -638,13 +650,16 @@ class SimpleKioskApp {
                 clearTimeout(this.pendingCardTimeout);
             }
 
+            const pendingCardTtlMs = this.getPendingCardBufferDurationMs();
+
             this.pendingCardTimeout = setTimeout(() => {
-                if (this.pendingCardScan && (Date.now() - this.pendingCardScan.timestamp) >= this.pendingCardTtlMs) {
-                    console.warn('⌛ Pending RFID card scan expired');
+                const ttlMs = this.getPendingCardBufferDurationMs();
+                if (this.pendingCardScan && (Date.now() - this.pendingCardScan.timestamp) >= ttlMs) {
+                    console.warn(`⌛ Pending RFID card scan expired after ${ttlMs}ms`);
                     this.pendingCardScan = null;
                     this.pendingCardTimeout = null;
                 }
-            }, this.pendingCardTtlMs);
+            }, pendingCardTtlMs);
 
             console.log(`📥 RFID card buffered during ${this.state.mode} state: ${cardId}`);
             return;
