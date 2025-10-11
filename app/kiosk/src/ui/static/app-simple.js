@@ -732,7 +732,10 @@ class SimpleKioskApp {
                     }
 
                     if (flowResult && flowResult.action === 'open_locker') {
-                        this.showFeedbackScreen(flowResult.message || 'Dolap açıldı', 'success');
+                        const feedbackMessage = flowResult.lockerId !== undefined
+                            ? this.buildLockerActionMessage(flowResult, 'Eşyalarınızı alın')
+                            : this.ensureDolapPrefix(flowResult?.message || 'Dolap açıldı');
+                        this.showFeedbackScreen(feedbackMessage, 'success');
                         return;
                     }
 
@@ -908,8 +911,11 @@ class SimpleKioskApp {
             const result = await response.json();
             
             if (result.success) {
-                // Use the server's message which contains the correct display name
-                this.showFeedbackScreen(result.message.replace('ve serbest bırakıldı', '- Eşyalarınızı alın'), 'success');
+                const releaseMessage = this.buildLockerActionMessage(
+                    lockerId !== undefined ? { lockerId } : result,
+                    'Eşyalarınızı alın'
+                );
+                this.showFeedbackScreen(releaseMessage, 'success');
             } else {
                 // Check for specific error types from server response
                 if (result.error === 'hardware_unavailable') {
@@ -1176,8 +1182,11 @@ class SimpleKioskApp {
 
             const result = await response.json();
             if (result.success) {
+                const message = result.lockerId !== undefined
+                    ? this.buildLockerActionMessage(result, 'Eşyalarınızı alın')
+                    : this.ensureDolapPrefix(result.message || 'Dolap açıldı - Eşyalarınızı alın');
                 // Keep ownership; just inform and return to idle shortly
-                this.showFeedbackScreen(result.message || 'Dolap açıldı', 'success');
+                this.showFeedbackScreen(message, 'success');
             } else {
                 if (result.error === 'hardware_unavailable') {
                     throw new Error('HARDWARE_OFFLINE');
@@ -1597,8 +1606,8 @@ class SimpleKioskApp {
             
             if (result.success) {
                 this.endSession();
-                // Use the server's message which contains the correct display name
-                this.showLoadingState(result.message.replace('ve atandı', '- Eşyalarınızı yerleştirin'));
+                const successMessage = this.buildLockerActionMessage(result, 'Eşyalarınızı yerleştirin');
+                this.showLoadingState(successMessage);
                 setTimeout(() => {
                     this.showIdleState();
                 }, 3000);
@@ -2001,9 +2010,91 @@ class SimpleKioskApp {
         if (!this.state.availableLockers) {
             return `Dolap ${lockerId}`;
         }
-        
+
         const locker = this.state.availableLockers.find(l => l.id === lockerId);
         return locker ? (locker.displayName || `Dolap ${lockerId}`) : `Dolap ${lockerId}`;
+    }
+
+    buildLockerActionMessage(context, actionSuffix) {
+        const lockerId = this.extractLockerId(context);
+        let lockerLabel = null;
+
+        if (lockerId !== null && lockerId !== undefined && `${lockerId}`.trim() !== '') {
+            lockerLabel = `Dolap ${lockerId}`;
+        } else {
+            const messageLabel = this.extractLockerLabelFromMessage(context);
+            if (messageLabel) {
+                lockerLabel = messageLabel;
+            }
+        }
+
+        if (!lockerLabel) {
+            lockerLabel = 'Dolap';
+        } else if (!/^dolap/i.test(lockerLabel)) {
+            lockerLabel = `Dolap ${lockerLabel}`.trim();
+        }
+
+        const baseMessage = `${lockerLabel} açıldı`;
+        const suffix = typeof actionSuffix === 'string' ? actionSuffix.trim() : '';
+        return suffix ? `${baseMessage} - ${suffix}` : baseMessage;
+    }
+
+    extractLockerId(context) {
+        if (context === null || context === undefined) {
+            return null;
+        }
+
+        if (typeof context === 'number' || (typeof context === 'string' && context.trim() !== '')) {
+            return context;
+        }
+
+        if (typeof context === 'object') {
+            if (context.lockerId !== undefined && context.lockerId !== null) {
+                return context.lockerId;
+            }
+
+            if (context.id !== undefined && context.id !== null) {
+                return context.id;
+            }
+        }
+
+        return null;
+    }
+
+    extractLockerLabelFromMessage(context) {
+        const message = typeof context === 'string'
+            ? context
+            : (context && typeof context.message === 'string' ? context.message : '');
+
+        if (!message) {
+            return null;
+        }
+
+        const match = message.match(/^(.+?)\s+açıldı/i);
+        if (!match || !match[1]) {
+            return null;
+        }
+
+        const label = match[1].trim();
+        if (!label) {
+            return null;
+        }
+
+        return /^dolap/i.test(label) ? label : `Dolap ${label}`;
+    }
+
+    ensureDolapPrefix(message) {
+        if (typeof message !== 'string') {
+            return message;
+        }
+
+        const trimmed = message.trim();
+        if (/^dolap/i.test(trimmed)) {
+            return trimmed;
+        }
+
+        const normalized = trimmed.replace(/^([0-9]+)\s+(açıldı)/i, 'Dolap $1 $2');
+        return normalized;
     }
 
     /**
@@ -2038,12 +2129,14 @@ class SimpleKioskApp {
     showLoadingState(message) {
         this.state.mode = 'loading';
         
+        const normalizedMessage = this.ensureDolapPrefix(message);
+
         if (this.elements.loadingText) {
-            this.elements.loadingText.textContent = message;
+            this.elements.loadingText.textContent = normalizedMessage;
         }
-        
+
         this.showScreen('loading');
-        console.log(`⏳ Loading: ${message}`);
+        console.log(`⏳ Loading: ${normalizedMessage}`);
     }
 
     /**
@@ -2207,7 +2300,8 @@ class SimpleKioskApp {
         }
 
         // Set message
-        textElement.textContent = message;
+        const normalizedMessage = this.ensureDolapPrefix(message);
+        textElement.textContent = normalizedMessage;
 
         // Set icon based on type
         iconContainer.innerHTML = ''; // Clear previous icon

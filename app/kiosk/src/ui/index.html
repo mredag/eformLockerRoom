@@ -130,16 +130,10 @@
 
             <!-- Loading State -->
             <div id="loading-screen" class="screen screen-overlay" aria-live="assertive">
-                <div class="loading-shell" role="alert">
-                    <div class="loading-visual" aria-hidden="true">
-                        <div class="loading-spinner"></div>
-                        <div class="loading-progress">Kartınız doğrulanıyor</div>
-                    </div>
-                    <div class="loading-copy">
-                        <p class="loading-eyebrow">Lütfen kartınızı okutma alanında tutun</p>
-                        <h2 class="loading-text" id="loading-text">İşlem yapılıyor...</h2>
-                        <p class="loading-subtext" id="loading-subtext">Bu işlem birkaç saniye sürebilir. Lütfen ekrandaki yönlendirmeleri izleyin.</p>
-                    </div>
+                <div class="loading-panel" role="alert">
+                    <div class="loading-spinner" aria-hidden="true"></div>
+                    <p id="loading-text" class="loading-message">İşlem yapılıyor...</p>
+                    <p class="loading-note">Lütfen bekleyin.</p>
                 </div>
             </div>
 
