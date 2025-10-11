@@ -157,9 +157,16 @@ class SimpleKioskApp {
         this.rfidBuffer = '';
         this.rfidTimeout = null;
         this.rfidDebounceDelay = 500; // Debounce RFID input
-        
+        this.pendingCardScan = null;
+        this.pendingCardTimeout = null;
+        this.pendingCardIdleGraceMs = 5000; // Keep buffered scans alive slightly beyond the active session
+
         // DOM element cache for performance
         this.elements = {};
+
+        // Cache locker display names from layout/API responses so feedback screens can
+        // consistently use the operator-facing label instead of raw relay ids
+        this.lockerNameCache = new Map();
         
         // Memory management - Pi Optimized
         this.lastCleanup = Date.now();
@@ -566,12 +573,9 @@ class SimpleKioskApp {
      */
     setupRfidListener() {
         document.addEventListener('keydown', (event) => {
-            // Only process RFID input in idle mode
-            if (this.state.mode !== 'idle') return;
-            
             // Ignore input if user is in an input field
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-            
+
             // Handle Enter key (end of RFID scan)
             if (event.key === 'Enter') {
                 event.preventDefault();
@@ -608,28 +612,87 @@ class SimpleKioskApp {
     }
 
     /**
+     * Compute how long to retain a pending RFID card scan while the kiosk is busy
+     */
+    getPendingCardBufferDurationMs() {
+        const activeSessionSeconds = Math.max(
+            this.sessionTimeoutSeconds || 0,
+            this.state && typeof this.state.countdown === 'number' ? this.state.countdown : 0
+        );
+        const sessionMs = Math.max(activeSessionSeconds, 0) * 1000;
+        return sessionMs + this.pendingCardIdleGraceMs;
+    }
+
+    /**
      * Process RFID input with debouncing
      */
     processRfidInput() {
         if (this.rfidBuffer.length === 0) return;
-        
+
         const cardId = this.rfidBuffer.trim();
         this.rfidBuffer = '';
-        
+
         if (this.rfidTimeout) {
             clearTimeout(this.rfidTimeout);
             this.rfidTimeout = null;
         }
-        
+
+        const now = Date.now();
+
         // Debounce rapid card scans
-        if (this.lastCardScan && (Date.now() - this.lastCardScan) < this.rfidDebounceDelay) {
+        if (this.lastCardScan && (now - this.lastCardScan) < this.rfidDebounceDelay) {
             console.log('🚫 RFID input debounced');
             return;
         }
-        
-        this.lastCardScan = Date.now();
+
+        // Queue card scans while kiosk is busy
+        if (['loading', 'session', 'error'].includes(this.state.mode)) {
+            this.lastCardScan = now;
+            this.pendingCardScan = { cardId, timestamp: now };
+
+            if (this.pendingCardTimeout) {
+                clearTimeout(this.pendingCardTimeout);
+            }
+
+            const pendingCardTtlMs = this.getPendingCardBufferDurationMs();
+
+            this.pendingCardTimeout = setTimeout(() => {
+                const ttlMs = this.getPendingCardBufferDurationMs();
+                if (this.pendingCardScan && (Date.now() - this.pendingCardScan.timestamp) >= ttlMs) {
+                    console.warn(`⌛ Pending RFID card scan expired after ${ttlMs}ms`);
+                    this.pendingCardScan = null;
+                    this.pendingCardTimeout = null;
+                }
+            }, pendingCardTtlMs);
+
+            console.log(`📥 RFID card buffered during ${this.state.mode} state: ${cardId}`);
+            return;
+        }
+
+        this.lastCardScan = now;
         console.log(`🎯 RFID card detected: ${cardId}`);
-        
+
+        this.handleCardScan(cardId);
+    }
+
+    /**
+     * Consume pending card scan if available
+     */
+    consumePendingCardScan() {
+        if (!this.pendingCardScan) {
+            return;
+        }
+
+        const { cardId } = this.pendingCardScan;
+        this.pendingCardScan = null;
+
+        if (this.pendingCardTimeout) {
+            clearTimeout(this.pendingCardTimeout);
+            this.pendingCardTimeout = null;
+        }
+
+        this.lastCardScan = Date.now();
+        console.log(`📤 Processing buffered RFID card: ${cardId}`);
         this.handleCardScan(cardId);
     }
 
@@ -673,7 +736,10 @@ class SimpleKioskApp {
                     }
 
                     if (flowResult && flowResult.action === 'open_locker') {
-                        this.showFeedbackScreen(flowResult.message || 'Dolap açıldı', 'success');
+                        const feedbackMessage = flowResult.lockerId !== undefined
+                            ? this.buildLockerActionMessage(flowResult, 'Eşyalarınızı alın')
+                            : this.ensureDolapPrefix(flowResult?.message || 'Dolap açıldı');
+                        this.showFeedbackScreen(feedbackMessage, 'success');
                         return;
                     }
 
@@ -849,8 +915,11 @@ class SimpleKioskApp {
             const result = await response.json();
             
             if (result.success) {
-                // Use the server's message which contains the correct display name
-                this.showFeedbackScreen(result.message.replace('ve serbest bırakıldı', '- Eşyalarınızı alın'), 'success');
+                const releaseMessage = this.buildLockerActionMessage(
+                    lockerId !== undefined ? { lockerId } : result,
+                    'Eşyalarınızı alın'
+                );
+                this.showFeedbackScreen(releaseMessage, 'success');
             } else {
                 // Check for specific error types from server response
                 if (result.error === 'hardware_unavailable') {
@@ -941,8 +1010,14 @@ class SimpleKioskApp {
         // Update content with locker id
         const lockerLabel = document.getElementById('owned-decision-locker');
         if (lockerLabel) {
-            const resolvedName = displayName || `Dolap ${lockerId}`;
+            const formattedDisplayName = this.formatLockerLabel(displayName);
+            const resolvedName = formattedDisplayName
+                || (lockerId !== undefined && lockerId !== null ? this.getLockerDisplayName(lockerId) : null)
+                || 'Dolap';
             lockerLabel.textContent = resolvedName;
+            if (lockerId !== undefined && lockerId !== null) {
+                this.cacheLockerDisplayName(lockerId, resolvedName);
+            }
         }
 
         overlay.style.display = 'flex';
@@ -1117,8 +1192,11 @@ class SimpleKioskApp {
 
             const result = await response.json();
             if (result.success) {
+                const message = result.lockerId !== undefined
+                    ? this.buildLockerActionMessage(result, 'Eşyalarınızı alın')
+                    : this.ensureDolapPrefix(result.message || 'Dolap açıldı - Eşyalarınızı alın');
                 // Keep ownership; just inform and return to idle shortly
-                this.showFeedbackScreen(result.message || 'Dolap açıldı', 'success');
+                this.showFeedbackScreen(message, 'success');
             } else {
                 if (result.error === 'hardware_unavailable') {
                     throw new Error('HARDWARE_OFFLINE');
@@ -1198,17 +1276,23 @@ class SimpleKioskApp {
             // Normalize to UI shape and keep ONLY available lockers
             const lockers = rawLockers
                 .filter(l => (l.status === 'Free' || l.status === 'available' || l.status === 'Boş'))
-                .map(l => ({
-                    id: l.id,
-                    status: 'available',
-                    displayName: l.display_name || l.displayName || `Dolap ${l.id}`,
-                    is_vip: !!l.is_vip
-                }));
+                .map(l => {
+                    const lockerDisplayName = this.formatLockerLabel(l.display_name || l.displayName || `${l.id}`) || `Dolap ${l.id}`;
+                    return {
+                        id: l.id,
+                        status: 'available',
+                        displayName: lockerDisplayName,
+                        is_vip: !!l.is_vip
+                    };
+                });
 
             if (lockers.length > 0) {
                 this.state.selectedCard = cardId;
                 this.state.sessionId = sessionId;
                 this.state.availableLockers = lockers;
+                lockers.forEach(locker => {
+                    this.cacheLockerDisplayName(locker.id, locker.displayName);
+                });
                 if (fallbackReason) {
                     this.showToast('Manuel seçim', 'Otomatik atama tamamlanamadı, lütfen dolap seçin.');
                 }
@@ -1538,8 +1622,8 @@ class SimpleKioskApp {
             
             if (result.success) {
                 this.endSession();
-                // Use the server's message which contains the correct display name
-                this.showLoadingState(result.message.replace('ve atandı', '- Eşyalarınızı yerleştirin'));
+                const successMessage = this.buildLockerActionMessage(result, 'Eşyalarınızı yerleştirin');
+                this.showLoadingState(successMessage);
                 setTimeout(() => {
                     this.showIdleState();
                 }, 3000);
@@ -1614,7 +1698,8 @@ class SimpleKioskApp {
             if (hasAvailableLockers) {
                 const mergedLockers = this.state.availableLockers.map(locker => {
                     const layoutLocker = layoutLockerMap.get(locker.id);
-                    const displayName = layoutLocker?.displayName || locker.displayName || `Dolap ${locker.id}`;
+                    const displayName = this.formatLockerLabel(layoutLocker?.displayName || locker.displayName || `${locker.id}`) || `Dolap ${locker.id}`;
+                    this.cacheLockerDisplayName(locker.id, displayName);
                     return {
                         ...locker,
                         displayName,
@@ -1636,17 +1721,22 @@ class SimpleKioskApp {
 
             const lockersToRender = hasAvailableLockers
                 ? this.state.availableLockers
-                : layoutLockers.map(locker => ({
-                    id: locker.id,
-                    displayName: locker.displayName,
-                    status: 'available',
-                    cardId: locker.cardId,
-                    relayId: locker.relayId,
-                    slaveAddress: locker.slaveAddress,
-                    size: locker.size
-                }));
+                : layoutLockers.map(locker => {
+                    const displayName = this.formatLockerLabel(locker.displayName || `${locker.id}`) || `Dolap ${locker.id}`;
+                    return {
+                        id: locker.id,
+                        displayName,
+                        status: 'available',
+                        cardId: locker.cardId,
+                        relayId: locker.relayId,
+                        slaveAddress: locker.slaveAddress,
+                        size: locker.size
+                    };
+                });
 
             lockersToRender.forEach(locker => {
+                const displayName = this.formatLockerLabel(locker.displayName || `${locker.id}`) || `Dolap ${locker.id}`;
+                this.cacheLockerDisplayName(locker.id, displayName);
                 const tile = document.createElement('div');
                 const statusClass = locker.status || 'available';
                 tile.className = `locker-tile ${statusClass}`;
@@ -1664,7 +1754,7 @@ class SimpleKioskApp {
 
                 tile.setAttribute('role', 'button');
                 tile.setAttribute('tabindex', statusClass === 'available' ? '0' : '-1');
-                tile.setAttribute('aria-label', `Dolap ${locker.displayName || locker.id}, ${this.getStatusText(statusClass)}`);
+                tile.setAttribute('aria-label', `${displayName}, ${this.getStatusText(statusClass)}`);
 
                 // Add touch-friendly attributes (Requirements 8.1, 8.2, 8.3)
                 tile.setAttribute('data-touch-target', 'true');
@@ -1672,7 +1762,7 @@ class SimpleKioskApp {
 
                 // Enhanced visual content with hardware info
                 tile.innerHTML = `
-                    <div class="locker-number">${locker.displayName || locker.id}</div>
+                    <div class="locker-number">${displayName}</div>
                     <div class="locker-size">${locker.size || ''}</div>
                     <div class="locker-status">${this.getStatusText(statusClass)}</div>
                 `;
@@ -1827,12 +1917,14 @@ class SimpleKioskApp {
      */
     updateLockerStatuses(lockers) {
         lockers.forEach(locker => {
+            const displayName = this.formatLockerLabel(locker.displayName || `${locker.id}`) || `Dolap ${locker.id}`;
+            this.cacheLockerDisplayName(locker.id, displayName);
             const tile = this.elements.lockerGrid.querySelector(`[data-locker-id="${locker.id}"]`);
             if (tile) {
                 tile.className = `locker-tile ${locker.status}`;
                 tile.dataset.status = locker.status;
-                tile.setAttribute('aria-label', `Dolap ${locker.displayName || locker.id}, ${this.getStatusText(locker.status)}`);
-                
+                tile.setAttribute('aria-label', `${displayName}, ${this.getStatusText(locker.status)}`);
+
                 const statusElement = tile.querySelector('.locker-status');
                 if (statusElement) {
                     statusElement.textContent = this.getStatusText(locker.status);
@@ -1867,8 +1959,9 @@ class SimpleKioskApp {
 
         // Create locker tiles with enhanced visual clarity and touch optimization
         lockers.forEach(locker => {
+            const displayName = this.formatLockerLabel(locker.displayName || `${locker.id}`) || `Dolap ${locker.id}`;
+            this.cacheLockerDisplayName(locker.id, displayName);
             const statusClass = locker.status || 'available';
-            const displayName = locker.displayName || `Dolap ${locker.id}`;
             const statusText = this.getStatusText(statusClass);
             const tile = document.createElement('div');
             tile.className = `locker-tile ${statusClass}`;
@@ -1877,7 +1970,7 @@ class SimpleKioskApp {
             // Add accessibility attributes
             tile.setAttribute('role', 'button');
             tile.setAttribute('tabindex', statusClass === 'available' ? '0' : '-1');
-            tile.setAttribute('aria-label', `Dolap ${displayName}, ${statusText}`);
+            tile.setAttribute('aria-label', `${displayName}, ${statusText}`);
 
             // Add touch-friendly attributes (Requirements 8.1, 8.2, 8.3)
             if (statusClass === 'available') {
@@ -1939,12 +2032,277 @@ class SimpleKioskApp {
      * Get locker display name by ID
      */
     getLockerDisplayName(lockerId) {
-        if (!this.state.availableLockers) {
-            return `Dolap ${lockerId}`;
+        const numericId = this.normalizeLockerIdValue(lockerId);
+
+        if (numericId !== null && this.lockerNameCache.has(numericId)) {
+            return this.lockerNameCache.get(numericId);
         }
-        
-        const locker = this.state.availableLockers.find(l => l.id === lockerId);
-        return locker ? (locker.displayName || `Dolap ${lockerId}`) : `Dolap ${lockerId}`;
+
+        if (Array.isArray(this.state.availableLockers) && this.state.availableLockers.length > 0) {
+            const locker = this.state.availableLockers.find(l => {
+                const candidate = this.normalizeLockerIdValue(l.id);
+                if (numericId !== null && candidate !== null) {
+                    return candidate === numericId;
+                }
+                if (lockerId === undefined || lockerId === null) {
+                    return false;
+                }
+                return `${l.id}`.trim() === `${lockerId}`.trim();
+            });
+
+            if (locker) {
+                const formatted = this.formatLockerLabel(locker.displayName || `${locker.id}`);
+                if (numericId !== null && formatted) {
+                    this.lockerNameCache.set(numericId, formatted);
+                }
+                return formatted || 'Dolap';
+            }
+        }
+
+        const fallbackSource = (() => {
+            if (lockerId !== undefined && lockerId !== null && `${lockerId}`.trim() !== '') {
+                return `${lockerId}`.trim();
+            }
+            if (numericId !== null) {
+                return `${numericId}`;
+            }
+            return '';
+        })();
+
+        const fallback = fallbackSource ? this.formatLockerLabel(fallbackSource) : null;
+        if (numericId !== null && fallback) {
+            this.lockerNameCache.set(numericId, fallback);
+        }
+
+        return fallback || 'Dolap';
+    }
+
+    cacheLockerDisplayName(lockerId, displayName) {
+        const numericId = this.normalizeLockerIdValue(lockerId);
+        if (numericId === null) {
+            return;
+        }
+
+        const formatted = this.formatLockerLabel(displayName) || this.formatLockerLabel(`${numericId}`);
+        if (formatted) {
+            this.lockerNameCache.set(numericId, formatted);
+        }
+    }
+
+    formatLockerLabel(label) {
+        if (label === null || label === undefined) {
+            return null;
+        }
+
+        const trimmed = `${label}`.trim();
+        if (!trimmed) {
+            return null;
+        }
+
+        if (/^dolap/i.test(trimmed)) {
+            return trimmed;
+        }
+
+        return `Dolap ${trimmed}`;
+    }
+
+    normalizeLockerIdValue(value) {
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        if (typeof value === 'number' && !Number.isNaN(value)) {
+            return value;
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (!trimmed) {
+                return null;
+            }
+            if (!/^-?\d+$/.test(trimmed)) {
+                return null;
+            }
+            const parsed = parseInt(trimmed, 10);
+            return Number.isNaN(parsed) ? null : parsed;
+        }
+
+        return null;
+    }
+
+    extractLockerDisplayName(context) {
+        if (!context || typeof context !== 'object') {
+            return null;
+        }
+
+        const candidateKeys = [
+            'displayName',
+            'display_name',
+            'lockerDisplayName',
+            'locker_display_name',
+            'lockerName',
+            'locker_name',
+            'lockerLabel',
+            'locker_label'
+        ];
+
+        for (const key of candidateKeys) {
+            if (Object.prototype.hasOwnProperty.call(context, key)) {
+                const value = context[key];
+                if (typeof value === 'string' && value.trim() !== '') {
+                    return value.trim();
+                }
+            }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(context, 'name')) {
+            const value = context.name;
+            if (typeof value === 'string' && value.trim() !== '') {
+                const associatedLockerId = this.extractLockerId(context);
+                if (associatedLockerId !== null) {
+                    return value.trim();
+                }
+            }
+        }
+
+        const nestedSources = [context.locker, context.data, context.payload];
+        for (const source of nestedSources) {
+            if (source && typeof source === 'object') {
+                const nested = this.extractLockerDisplayName(source);
+                if (nested) {
+                    return nested;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    buildLockerActionMessage(context, actionSuffix) {
+        const lockerId = this.extractLockerId(context);
+        let lockerLabel = null;
+
+        const directDisplayName = this.extractLockerDisplayName(context);
+        if (directDisplayName) {
+            lockerLabel = this.formatLockerLabel(directDisplayName);
+            if (lockerLabel && lockerId !== null && lockerId !== undefined) {
+                this.cacheLockerDisplayName(lockerId, lockerLabel);
+            }
+        }
+
+        if (!lockerLabel && lockerId !== null && lockerId !== undefined) {
+            const resolved = this.getLockerDisplayName(lockerId);
+            const formatted = this.formatLockerLabel(resolved);
+            if (formatted) {
+                lockerLabel = formatted;
+            }
+        }
+
+        if (!lockerLabel) {
+            const messageLabel = this.extractLockerLabelFromMessage(context);
+            if (messageLabel) {
+                lockerLabel = this.formatLockerLabel(messageLabel);
+                if (lockerLabel && lockerId !== null && lockerId !== undefined) {
+                    this.cacheLockerDisplayName(lockerId, lockerLabel);
+                }
+            }
+        }
+
+        if (!lockerLabel && lockerId !== null && lockerId !== undefined) {
+            lockerLabel = this.formatLockerLabel(`${lockerId}`);
+            if (lockerLabel) {
+                this.cacheLockerDisplayName(lockerId, lockerLabel);
+            }
+        }
+
+        if (!lockerLabel) {
+            lockerLabel = 'Dolap';
+        }
+
+        const baseMessage = `${lockerLabel} açıldı`;
+        const suffix = typeof actionSuffix === 'string' ? actionSuffix.trim() : '';
+        return suffix ? `${baseMessage} - ${suffix}` : baseMessage;
+    }
+
+    extractLockerId(context) {
+        if (context === null || context === undefined) {
+            return null;
+        }
+
+        if (typeof context === 'number') {
+            return Number.isNaN(context) ? null : context;
+        }
+
+        if (typeof context === 'string') {
+            return this.normalizeLockerIdValue(context);
+        }
+
+        if (typeof context === 'object') {
+            const candidateKeys = ['lockerId', 'locker_id', 'opened_locker', 'id'];
+            for (const key of candidateKeys) {
+                if (Object.prototype.hasOwnProperty.call(context, key)) {
+                    const normalized = this.normalizeLockerIdValue(context[key]);
+                    if (normalized !== null) {
+                        return normalized;
+                    }
+                }
+            }
+
+            const nestedSources = [context.locker, context.data, context.payload];
+            for (const source of nestedSources) {
+                const nested = this.extractLockerId(source);
+                if (nested !== null) {
+                    return nested;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    extractLockerLabelFromMessage(context) {
+        const message = typeof context === 'string'
+            ? context
+            : (context && typeof context.message === 'string' ? context.message : '');
+
+        if (!message) {
+            return null;
+        }
+
+        const match = message.match(/^(.+?)\s+açıldı/i);
+        if (!match || !match[1]) {
+            return null;
+        }
+
+        const label = match[1].trim();
+        return label || null;
+    }
+
+    ensureDolapPrefix(message) {
+        if (typeof message !== 'string') {
+            return message;
+        }
+
+        const trimmed = message.trim();
+        if (/^dolap/i.test(trimmed)) {
+            return trimmed;
+        }
+
+        const numericNormalized = trimmed.replace(/^([0-9]+)\s+(açıldı)/i, 'Dolap $1 $2');
+        if (numericNormalized !== trimmed) {
+            return numericNormalized;
+        }
+
+        const genericMatch = trimmed.match(/^([^\s]+)\s+(açıldı)(.*)$/i);
+        if (genericMatch) {
+            const [, label, verb, remainder] = genericMatch;
+            const formatted = this.formatLockerLabel(label);
+            if (formatted) {
+                return `${formatted} ${verb}${remainder}`;
+            }
+        }
+
+        return trimmed;
     }
 
     /**
@@ -1955,6 +2313,8 @@ class SimpleKioskApp {
         this.endSession();
         this.showScreen('idle');
         console.log('💤 Showing idle state');
+
+        this.consumePendingCardScan();
     }
 
     /**
@@ -1977,12 +2337,14 @@ class SimpleKioskApp {
     showLoadingState(message) {
         this.state.mode = 'loading';
         
+        const normalizedMessage = this.ensureDolapPrefix(message);
+
         if (this.elements.loadingText) {
-            this.elements.loadingText.textContent = message;
+            this.elements.loadingText.textContent = normalizedMessage;
         }
-        
+
         this.showScreen('loading');
-        console.log(`⏳ Loading: ${message}`);
+        console.log(`⏳ Loading: ${normalizedMessage}`);
     }
 
     /**
@@ -2146,7 +2508,8 @@ class SimpleKioskApp {
         }
 
         // Set message
-        textElement.textContent = message;
+        const normalizedMessage = this.ensureDolapPrefix(message);
+        textElement.textContent = normalizedMessage;
 
         // Set icon based on type
         iconContainer.innerHTML = ''; // Clear previous icon

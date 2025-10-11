@@ -129,10 +129,11 @@
             </div>
 
             <!-- Loading State -->
-            <div id="loading-screen" class="screen">
-                <div class="loading-message">
-                    <div class="loading-spinner"></div>
-                    <h2 class="loading-text" id="loading-text">İşlem yapılıyor...</h2>
+            <div id="loading-screen" class="screen screen-overlay" aria-live="assertive">
+                <div class="loading-panel" role="alert">
+                    <div class="loading-spinner" aria-hidden="true"></div>
+                    <p id="loading-text" class="loading-message">İşlem yapılıyor...</p>
+                    <p class="loading-note">Lütfen bekleyin.</p>
                 </div>
             </div>
 
@@ -164,12 +165,15 @@
             </div>
 
             <!-- Feedback Screen -->
-            <div id="feedback-screen" class="screen">
-                <div class="feedback-message">
-                    <div id="feedback-icon" class="feedback-icon">
-                        <!-- SVG icon will be injected here -->
+            <div id="feedback-screen" class="screen screen-overlay" aria-live="assertive">
+                <div class="feedback-shell" role="alert">
+                    <div class="feedback-message">
+                        <div id="feedback-icon" class="feedback-icon">
+                            <!-- SVG icon will be injected here -->
+                        </div>
+                        <h2 id="feedback-text" class="feedback-text"></h2>
+                        <p class="feedback-subtext">Birazdan ana ekrana döneceksiniz.</p>
                     </div>
-                    <h2 id="feedback-text" class="feedback-text"></h2>
                 </div>
             </div>
         </main>

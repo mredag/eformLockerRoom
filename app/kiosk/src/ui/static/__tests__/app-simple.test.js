@@ -23,8 +23,18 @@ const dom = new JSDOM(`
             <span id="countdown-value">30</span>
         </div>
     </div>
-    <div id="loading-screen" style="display: none;">
-        <div id="loading-text">Yükleniyor...</div>
+    <div id="loading-screen" class="screen screen-overlay" style="display: none;">
+        <div class="loading-shell">
+            <div class="loading-visual">
+                <div class="loading-spinner"></div>
+                <div class="loading-progress">Kartınız doğrulanıyor</div>
+            </div>
+            <div class="loading-copy">
+                <p class="loading-eyebrow">Lütfen kartınızı okutma alanında tutun</p>
+                <h2 id="loading-text" class="loading-text">Yükleniyor...</h2>
+                <p class="loading-subtext">Bu işlem birkaç saniye sürebilir.</p>
+            </div>
+        </div>
     </div>
     <div id="error-screen" style="display: none;">
         <div id="error-text">Hata</div>
@@ -451,15 +461,25 @@ describe('SimpleKioskApp', () => {
     });
   });
 
-  describe('Display Name Fix', () => {
+  describe('Locker message formatting', () => {
+    test('ensureDolapPrefix adds Dolap when missing', () => {
+      const normalized = app.ensureDolapPrefix('3 açıldı - Eşyalarınızı yerleştirin');
+      expect(normalized).toBe('Dolap 3 açıldı - Eşyalarınızı yerleştirin');
+    });
+
+    test('ensureDolapPrefix keeps existing Dolap prefix', () => {
+      const normalized = app.ensureDolapPrefix('Dolap 4 açıldı - Eşyalarınızı alın');
+      expect(normalized).toBe('Dolap 4 açıldı - Eşyalarınızı alın');
+    });
+
     test('should use server response message for locker release (Bug Fix)', async () => {
       // Mock API response with custom display name
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           success: true,
-          lockerId: 5,
-          message: '0Emre 1 açıldı ve serbest bırakıldı'
+          lockerId: 1,
+          message: '1 açıldı ve serbest bırakıldı'
         })
       });
 
@@ -475,10 +495,10 @@ describe('SimpleKioskApp', () => {
           });
           
           const result = await response.json();
-          
+
           if (result.success) {
-            // Use server's message instead of local name
-            this.showLoadingState(result.message.replace('ve serbest bırakıldı', '- Eşyalarınızı alın'));
+            const message = this.buildLockerActionMessage(result, 'Eşyalarınızı alın');
+            this.showLoadingState(message);
           }
         } catch (error) {
           this.showErrorState('HARDWARE_ERROR');
@@ -487,9 +507,8 @@ describe('SimpleKioskApp', () => {
 
       await app.openAndReleaseLocker('test-card', 5);
       
-      // Should show the custom display name from server, not generic "Dolap 5"
-      expect(app.elements.loadingText.textContent).toBe('0Emre 1 açıldı - Eşyalarınızı alın');
-      expect(app.elements.loadingText.textContent).not.toBe('Dolap 5 açıldı - Eşyalarınızı alın');
+      // Should add Dolap prefix while preserving locker number
+      expect(app.elements.loadingText.textContent).toBe('Dolap 1 açıldı - Eşyalarınızı alın');
     });
 
     test('should use server response message for locker assignment (Consistency)', async () => {
@@ -498,8 +517,8 @@ describe('SimpleKioskApp', () => {
         ok: true,
         json: async () => ({
           success: true,
-          lockerId: 3,
-          message: '0Emre 2 açıldı ve atandı'
+          lockerId: 2,
+          message: '2 açıldı ve atandı'
         })
       });
 
@@ -519,10 +538,10 @@ describe('SimpleKioskApp', () => {
           });
           
           const result = await response.json();
-          
+
           if (result.success) {
-            // Use server's message instead of local name
-            this.showLoadingState(result.message.replace('ve atandı', '- Eşyalarınızı yerleştirin'));
+            const message = this.buildLockerActionMessage(result, 'Eşyalarınızı yerleştirin');
+            this.showLoadingState(message);
           }
         } catch (error) {
           this.showErrorState('ASSIGNMENT_FAILED');
@@ -532,8 +551,8 @@ describe('SimpleKioskApp', () => {
       app.state.selectedCard = 'test-card';
       await app.selectLocker(3);
       
-      // Should show the custom display name from server
-      expect(app.elements.loadingText.textContent).toBe('0Emre 2 açıldı - Eşyalarınızı yerleştirin');
+      // Should show Dolap prefix with locker number
+      expect(app.elements.loadingText.textContent).toBe('Dolap 2 açıldı - Eşyalarınızı yerleştirin');
     });
   });
 
