@@ -61,8 +61,10 @@ export class RfidHandler extends EventEmitter {
   private keyboardIdleTimer: NodeJS.Timeout | null = null;
   private hidReportBuffers: Buffer[] = [];
   private hidFinalizeTimer: NodeJS.Timeout | null = null;
-  private shortScanState: { expiresAt: number } | null = null;
-  private confirmationState: { uid: string; expiresAt: number } | null = null;
+  private shortScanState: { uid: string; expiresAt: number } | null = null;
+  private confirmationState:
+    | { uid: string; expiresAt: number; remainingReads: number }
+    | null = null;
 
   constructor(config: RfidConfig) {
     super();
@@ -348,70 +350,108 @@ export class RfidHandler extends EventEmitter {
       ? ENFORCED_MIN_CARD_SIGNIFICANT_DIGITS
       : LEGACY_MIN_CARD_SIGNIFICANT_DIGITS;
 
-    if (standardization.significantLength < minDigits) {
-      if (this.isFullUidEnforcementEnabled()) {
-        this.shortScanState = { expiresAt: now + CONFIRMATION_WINDOW_MS };
-        this.confirmationState = null;
-        this.logScanFailure('SHORT_UID', {
+    const enforcementEnabled = this.isFullUidEnforcementEnabled();
+    const isShortUid = standardization.significantLength < minDigits;
+
+    if (isShortUid) {
+      if (enforcementEnabled) {
+        const existingShort = this.shortScanState;
+        if (
+          !existingShort ||
+          existingShort.expiresAt < now ||
+          existingShort.uid !== standardization.standardized
+        ) {
+          this.shortScanState = {
+            uid: standardization.standardized,
+            expiresAt: now + CONFIRMATION_WINDOW_MS
+          };
+          this.confirmationState = {
+            uid: standardization.standardized,
+            expiresAt: now + CONFIRMATION_WINDOW_MS,
+            remainingReads: 1
+          };
+          this.logScanFailure('SHORT_UID', {
+            rawHex,
+            rawBytes,
+            standardizedHex: standardization.standardized,
+            standardizedBytes: standardization.standardized.length / 2,
+            source: scan.source,
+            requestId,
+            confirmationRemainingReads: 1
+          });
+          return;
+        }
+      } else {
+        this.logScanFailure('SHORT_UID_LEGACY', {
           rawHex,
           rawBytes,
-          standardizedHex: standardization.standardized,
-          standardizedBytes: standardization.standardized.length / 2,
           source: scan.source,
           requestId
         });
         return;
       }
-
-      // Legacy mode simply ignores shorter reads silently
-      this.logScanFailure('SHORT_UID_LEGACY', {
-        rawHex,
-        rawBytes,
-        source: scan.source,
-        requestId
-      });
-      return;
     }
 
-    if (this.isFullUidEnforcementEnabled()) {
+    if (enforcementEnabled) {
       if (this.shortScanState && this.shortScanState.expiresAt >= now) {
-        if (!this.confirmationState) {
+        if (!this.confirmationState || this.confirmationState.expiresAt < now) {
           this.confirmationState = {
             uid: standardization.standardized,
-            expiresAt: now + CONFIRMATION_WINDOW_MS
+            expiresAt: now + CONFIRMATION_WINDOW_MS,
+            remainingReads: 1
           };
+          this.shortScanState.expiresAt = now + CONFIRMATION_WINDOW_MS;
           this.logScanFailure('CONFIRMATION_REQUIRED', {
             rawHex,
             rawBytes,
             standardizedHex: standardization.standardized,
             standardizedBytes: standardization.standardized.length / 2,
             source: scan.source,
-            requestId
+            requestId,
+            confirmationRemainingReads: 1
           });
           return;
         }
 
-        if (this.confirmationState.expiresAt < now) {
-          this.shortScanState = null;
-          this.confirmationState = null;
-        } else if (this.confirmationState.uid !== standardization.standardized) {
+        if (this.confirmationState.uid !== standardization.standardized) {
           this.confirmationState = {
             uid: standardization.standardized,
-            expiresAt: now + CONFIRMATION_WINDOW_MS
+            expiresAt: now + CONFIRMATION_WINDOW_MS,
+            remainingReads: 1
           };
+          this.shortScanState.expiresAt = now + CONFIRMATION_WINDOW_MS;
           this.logScanFailure('CONFIRMATION_MISMATCH', {
             rawHex,
             rawBytes,
             standardizedHex: standardization.standardized,
             standardizedBytes: standardization.standardized.length / 2,
             source: scan.source,
-            requestId
+            requestId,
+            confirmationRemainingReads: 1
           });
           return;
-        } else {
-          this.shortScanState = null;
-          this.confirmationState = null;
         }
+
+        if (this.confirmationState.remainingReads > 0) {
+          this.confirmationState.remainingReads -= 1;
+          if (this.confirmationState.remainingReads > 0) {
+            this.confirmationState.expiresAt = now + CONFIRMATION_WINDOW_MS;
+            this.shortScanState.expiresAt = now + CONFIRMATION_WINDOW_MS;
+            this.logScanFailure('CONFIRMATION_REQUIRED', {
+              rawHex,
+              rawBytes,
+              standardizedHex: standardization.standardized,
+              standardizedBytes: standardization.standardized.length / 2,
+              source: scan.source,
+              requestId,
+              confirmationRemainingReads: this.confirmationState.remainingReads
+            });
+            return;
+          }
+        }
+
+        this.shortScanState = null;
+        this.confirmationState = null;
       } else {
         this.shortScanState = null;
         this.confirmationState = null;
@@ -529,6 +569,7 @@ export class RfidHandler extends EventEmitter {
     standardizedBytes?: number;
     source: 'hid' | 'keyboard';
     requestId?: string;
+    confirmationRemainingReads?: number;
   }): void {
     const requestId = context.requestId ?? randomUUID();
 
@@ -541,7 +582,7 @@ export class RfidHandler extends EventEmitter {
       rawBytes = prepared.rawBytes;
     }
 
-    console.warn('RFID_SCAN_FAIL', {
+    const logPayload: Record<string, unknown> = {
       request_id: requestId,
       reason,
       raw_uid_hex: rawHex ?? '',
@@ -554,7 +595,13 @@ export class RfidHandler extends EventEmitter {
       product_id: this.config.product_id ?? null,
       kiosk_id: this.config.kiosk_id ?? 'unknown',
       timestamp: new Date().toISOString()
-    });
+    };
+
+    if (context.confirmationRemainingReads !== undefined) {
+      logPayload.confirmation_remaining_reads = context.confirmationRemainingReads;
+    }
+
+    console.warn('RFID_SCAN_FAIL', logPayload);
   }
 
   /**

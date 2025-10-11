@@ -707,18 +707,30 @@ class SimpleKioskApp {
 
         if (validation.significantLength < this.rfidMinSignificantLength) {
             this.rfidShortReadExpiresAt = now + this.rfidShortWindowMs;
-            this.rfidConfirmationState = null;
-            console.warn('RFID input below minimum length - requesting immediate rescan:', validation.standardized);
-            this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
-            this.suspendRfidInput('short-read', 300);
-            return;
+            const confirmation = this.rfidConfirmationState;
+            const confirmationActive = confirmation && confirmation.expiresAt >= now;
+            const matchesPending = confirmationActive && confirmation.uid === validation.standardized;
+
+            if (!matchesPending) {
+                this.rfidConfirmationState = {
+                    uid: validation.standardized,
+                    expiresAt: now + this.rfidShortWindowMs,
+                    remainingReads: 1
+                };
+                console.warn('RFID input below minimum length - requesting immediate rescan:', validation.standardized);
+                this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                this.suspendRfidInput('short-read', 300);
+                return;
+            }
         }
 
         if (this.rfidShortReadExpiresAt && this.rfidShortReadExpiresAt >= now) {
             if (!this.rfidConfirmationState || this.rfidConfirmationState.expiresAt < now) {
+                this.rfidShortReadExpiresAt = now + this.rfidShortWindowMs;
                 this.rfidConfirmationState = {
                     uid: validation.standardized,
-                    expiresAt: now + this.rfidShortWindowMs
+                    expiresAt: now + this.rfidShortWindowMs,
+                    remainingReads: 1
                 };
                 console.warn('RFID confirmation required - waiting for consistent rescan');
                 this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
@@ -727,14 +739,28 @@ class SimpleKioskApp {
             }
 
             if (this.rfidConfirmationState.uid !== validation.standardized) {
+                this.rfidShortReadExpiresAt = now + this.rfidShortWindowMs;
                 this.rfidConfirmationState = {
                     uid: validation.standardized,
-                    expiresAt: now + this.rfidShortWindowMs
+                    expiresAt: now + this.rfidShortWindowMs,
+                    remainingReads: 1
                 };
                 console.warn('RFID confirmation mismatch - restarting confirmation window');
                 this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
                 this.suspendRfidInput('short-read-mismatch', 300);
                 return;
+            }
+
+            if (this.rfidConfirmationState.remainingReads > 0) {
+                this.rfidConfirmationState.remainingReads -= 1;
+                if (this.rfidConfirmationState.remainingReads > 0) {
+                    this.rfidConfirmationState.expiresAt = now + this.rfidShortWindowMs;
+                    this.rfidShortReadExpiresAt = this.rfidConfirmationState.expiresAt;
+                    console.warn('RFID confirmation pending - awaiting additional consistent rescan');
+                    this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                    this.suspendRfidInput('short-read-confirm', 300);
+                    return;
+                }
             }
 
             this.rfidShortReadExpiresAt = 0;
