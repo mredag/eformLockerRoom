@@ -425,6 +425,26 @@ export class ConfigManager {
     return DEFAULT_MAX_AVAILABLE_LOCKERS_DISPLAY;
   }
 
+  isRfidFullUidEnforcementEnabled(kioskId?: string): boolean {
+    try {
+      const config = this.getConfiguration();
+      const featureConfig = config.features?.rfid_full_uid_enforcement;
+
+      if (!featureConfig) {
+        return false;
+      }
+
+      if (kioskId && featureConfig.kiosk_overrides && Object.prototype.hasOwnProperty.call(featureConfig.kiosk_overrides, kioskId)) {
+        return Boolean(featureConfig.kiosk_overrides[kioskId]);
+      }
+
+      return Boolean(featureConfig.enabled);
+    } catch (error) {
+      console.warn('Failed to evaluate RFID full UID enforcement feature flag:', error);
+      return false;
+    }
+  }
+
   /**
    * Updates a top-level section of the configuration, validates the changes,
    * saves the new configuration, and logs the event.
@@ -769,7 +789,11 @@ export class ConfigManager {
         hardware_platform: 'raspberry_pi_4'
       },
       features: {
-        zones_enabled: true
+        zones_enabled: true,
+        rfid_full_uid_enforcement: {
+          enabled: false,
+          kiosk_overrides: {}
+        }
       },
       zones: [
         {

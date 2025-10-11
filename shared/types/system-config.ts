@@ -220,8 +220,14 @@ export interface ZoneConfig {
   enabled: boolean;
 }
 
+export interface RfidFullUidEnforcementConfig {
+  enabled: boolean;
+  kiosk_overrides?: Record<string, boolean>;
+}
+
 export interface FeaturesConfig {
   zones_enabled: boolean;
+  rfid_full_uid_enforcement?: RfidFullUidEnforcementConfig;
 }
 
 export interface MonitoringConfig {
