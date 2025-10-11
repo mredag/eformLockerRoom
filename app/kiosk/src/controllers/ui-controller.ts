@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { createHash } from 'crypto';
 import { LockerStateManager } from '../../../../shared/services/locker-state-manager';
 import { LockerNamingService } from '../../../../shared/services/locker-naming-service';
 import { ModbusController } from '../hardware/modbus-controller';
@@ -10,6 +11,34 @@ import { ConfigManager } from '../../../../shared/services/config-manager';
 import { LockerAssignmentMode } from '../../../../shared/types/system-config';
 import { RfidUserFlow, UserFlowResult } from '../services/rfid-user-flow';
 import { Locker, RfidScanEvent } from '@eform/shared/types/core-entities';
+
+const ENFORCED_MIN_CARD_SIGNIFICANT_DIGITS = 8;
+const MAX_STANDARDIZED_LENGTH = 64;
+const CONFIRMATION_WINDOW_MS = 4000;
+
+type ShortScanState = {
+  expiresAt: number;
+  confirmation?: {
+    uid: string;
+    expiresAt: number;
+  };
+};
+
+class CardValidationError extends Error {
+  public readonly code: 'INVALID_UID' | 'SHORT_UID' | 'CONFIRMATION_REQUIRED' | 'CONFIRMATION_MISMATCH';
+  public readonly details?: Record<string, any>;
+
+  constructor(
+    code: 'INVALID_UID' | 'SHORT_UID' | 'CONFIRMATION_REQUIRED' | 'CONFIRMATION_MISMATCH',
+    message: string,
+    details?: Record<string, any>
+  ) {
+    super(message);
+    this.name = 'CardValidationError';
+    this.code = code;
+    this.details = details;
+  }
+}
 
 export class UiController {
   private lockerStateManager: LockerStateManager;
@@ -23,6 +52,7 @@ export class UiController {
   private pinAttempts: Map<string, { count: number; lockoutEnd?: number }> = new Map();
   private readonly maxAttempts = 5;
   private readonly lockoutMinutes = 5;
+  private shortScanStates: Map<string, ShortScanState> = new Map();
 
   constructor(
     lockerStateManager: LockerStateManager,
@@ -48,6 +78,139 @@ export class UiController {
 
     this.setupSessionManagerEvents();
     this.setupHardwareErrorHandling();
+  }
+
+  private standardizeCardId(
+    raw: string
+  ): { standardized: string; significantLength: number; totalLength: number; effectiveLength: number } | null {
+    if (!raw || typeof raw !== 'string') {
+      return null;
+    }
+
+    let standardized = raw.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+
+    if (standardized.length === 0) {
+      return null;
+    }
+
+    if (standardized.length % 2 !== 0) {
+      standardized = `0${standardized}`;
+    }
+
+    if (standardized.length > MAX_STANDARDIZED_LENGTH) {
+      standardized = standardized.substring(0, MAX_STANDARDIZED_LENGTH);
+    }
+
+    const trimmed = standardized.replace(/^0+/, '');
+    const significantLength = trimmed.length;
+    const totalLength = standardized.length;
+    const effectiveLength = significantLength > 0 ? Math.max(significantLength, totalLength) : 0;
+
+    return {
+      standardized,
+      significantLength,
+      totalLength,
+      effectiveLength
+    };
+  }
+
+  private hashCardId(standardized: string): string {
+    return createHash('sha256').update(standardized).digest('hex').substring(0, 16);
+  }
+
+  private clearExpiredShortScanState(kioskId: string, now: number): void {
+    const state = this.shortScanStates.get(kioskId);
+    if (state && state.expiresAt < now) {
+      this.shortScanStates.delete(kioskId);
+    }
+  }
+
+  private enforceShortScanConfirmation(kioskId: string, standardized: string, now: number): void {
+    const state = this.shortScanStates.get(kioskId);
+
+    if (!state) {
+      return;
+    }
+
+    if (state.expiresAt < now) {
+      this.shortScanStates.delete(kioskId);
+      return;
+    }
+
+    if (!state.confirmation || state.confirmation.expiresAt < now) {
+      state.confirmation = {
+        uid: standardized,
+        expiresAt: now + CONFIRMATION_WINDOW_MS
+      };
+
+      throw new CardValidationError('CONFIRMATION_REQUIRED', 'RFID confirmation required before proceeding', {
+        standardized_uid_hex: standardized
+      });
+    }
+
+    if (state.confirmation.uid !== standardized) {
+      state.confirmation = {
+        uid: standardized,
+        expiresAt: now + CONFIRMATION_WINDOW_MS
+      };
+
+      throw new CardValidationError('CONFIRMATION_MISMATCH', 'RFID confirmation mismatch detected', {
+        standardized_uid_hex: standardized
+      });
+    }
+
+    this.shortScanStates.delete(kioskId);
+  }
+
+  private normalizeCardId(
+    cardId: string,
+    kioskId: string,
+    rawUidHex?: string | null
+  ): {
+    ownerKey: string;
+    standardizedUid?: string;
+    significantLength?: number;
+    totalLength?: number;
+    effectiveLength?: number;
+  } {
+    const now = Date.now();
+
+    if (!rawUidHex && /^[0-9a-f]{16}$/i.test(cardId)) {
+      this.clearExpiredShortScanState(kioskId, now);
+      this.shortScanStates.delete(kioskId);
+      return { ownerKey: cardId.toLowerCase() };
+    }
+
+    const source = rawUidHex ?? cardId;
+    const standardization = this.standardizeCardId(source);
+
+    if (!standardization) {
+      throw new CardValidationError('INVALID_UID', 'RFID input did not contain hexadecimal digits', {
+        raw_uid_hex: source
+      });
+    }
+
+    if (standardization.effectiveLength < ENFORCED_MIN_CARD_SIGNIFICANT_DIGITS) {
+      this.shortScanStates.set(kioskId, { expiresAt: now + CONFIRMATION_WINDOW_MS });
+      throw new CardValidationError('SHORT_UID', 'RFID input below minimum length', {
+        standardized_uid_hex: standardization.standardized,
+        significant_length: standardization.significantLength,
+        effective_length: standardization.effectiveLength,
+        total_length: standardization.totalLength
+      });
+    }
+
+    this.enforceShortScanConfirmation(kioskId, standardization.standardized, now);
+
+    const ownerKey = this.hashCardId(standardization.standardized);
+
+    return {
+      ownerKey,
+      standardizedUid: standardization.standardized,
+      significantLength: standardization.significantLength,
+      totalLength: standardization.totalLength,
+      effectiveLength: standardization.effectiveLength
+    };
   }
 
   setRfidUserFlow(flow: RfidUserFlow): void {
@@ -258,11 +421,12 @@ export class UiController {
 
 
   private async handleCardScanned(request: FastifyRequest, reply: FastifyReply) {
-    const { card_id, kiosk_id, zone, zone_id } = request.body as {
+    const { card_id, kiosk_id, zone, zone_id, raw_uid_hex } = request.body as {
       card_id: string;
       kiosk_id: string;
       zone?: string;
       zone_id?: string;
+      raw_uid_hex?: string;
     };
 
     const requestedZone = zone ?? zone_id;
@@ -273,8 +437,25 @@ export class UiController {
     }
 
     try {
-      return await this.processCardScan(card_id, kiosk_id, requestedZone);
+      const normalized = this.normalizeCardId(card_id, kiosk_id, raw_uid_hex);
+      return await this.processCardScan(normalized.ownerKey, kiosk_id, requestedZone, normalized.standardizedUid);
     } catch (error) {
+      if (error instanceof CardValidationError) {
+        reply.code(400);
+        console.warn('RFID validation failed:', {
+          kiosk_id,
+          reason: error.code,
+          details: error.details
+        });
+
+        return {
+          error: 'rfid_validation_failed',
+          message: 'Kart okunamadı - Tekrar deneyin',
+          reason: error.code,
+          details: error.details
+        };
+      }
+
       console.error('Error handling card scan:', error);
       reply.code(500);
       return {
@@ -284,8 +465,8 @@ export class UiController {
     }
   }
 
-  private async processCardScan(cardId: string, kioskId: string, requestedZone?: string) {
-    console.log(`🎯 Card scanned: ${cardId} on kiosk ${kioskId}${requestedZone ? ` (zone: ${requestedZone})` : ''}`);
+  private async processCardScan(cardId: string, kioskId: string, requestedZone?: string, rawUidHex?: string | null) {
+    console.log(`🎯 Card scanned: ${cardId} on kiosk ${kioskId}${requestedZone ? ` (zone: ${requestedZone})` : ''}${rawUidHex ? ` raw=${rawUidHex}` : ''}`);
 
     const zoneFilter = await this.resolveZoneFilter(requestedZone);
 
@@ -296,7 +477,9 @@ export class UiController {
     const scanEvent: RfidScanEvent = {
       card_id: cardId,
       scan_time: new Date(),
-      reader_id: 'kiosk-ui'
+      reader_id: 'kiosk-ui',
+      raw_uid_hex: rawUidHex ?? undefined,
+      standardized_uid_hex: rawUidHex ?? undefined
     };
 
     let flowResult: UserFlowResult;
@@ -1084,20 +1267,24 @@ export class UiController {
   private async checkCardLocker(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { cardId } = request.params as { cardId: string };
+      const { kiosk_id, raw_uid_hex } = request.query as { kiosk_id?: string; raw_uid_hex?: string };
 
       if (!cardId) {
         reply.code(400);
         return { error: 'cardId is required' };
       }
 
+      const kioskId = kiosk_id || 'kiosk-1';
+      const normalized = this.normalizeCardId(cardId, kioskId, raw_uid_hex);
+
       await this.ensureConfigInitialized();
       const openOnlyWindowHours = typeof this.configManager.getOpenOnlyWindowHours === 'function'
         ? this.configManager.getOpenOnlyWindowHours()
         : 1;
 
-      console.log(`🔍 Checking existing locker for card: ${cardId}`);
+      console.log(`🔍 Checking existing locker for card: ${normalized.ownerKey} raw=${normalized.standardizedUid ?? raw_uid_hex ?? 'n/a'}`);
 
-      const existingLocker = await this.lockerStateManager.checkExistingOwnership(cardId, 'rfid');
+      const existingLocker = await this.lockerStateManager.checkExistingOwnership(normalized.ownerKey, 'rfid');
 
       if (existingLocker) {
         const ownedAt = existingLocker.owned_at ? new Date(existingLocker.owned_at).toISOString() : null;
@@ -1111,17 +1298,26 @@ export class UiController {
           openOnlyWindowHours,
           message: `Dolap ${(existingLocker.display_name || existingLocker.id)} zaten atanmış`
         };
-      } else {
-        return {
-          hasLocker: false,
-          openOnlyWindowHours,
-          message: 'Atanmış dolap yok'
-        };
       }
+
+      return {
+        hasLocker: false,
+        openOnlyWindowHours,
+        message: 'Atanmış dolap yok'
+      };
     } catch (error) {
+      if (error instanceof CardValidationError) {
+        reply.code(400);
+        console.warn('RFID validation failed during locker lookup:', {
+          reason: error.code,
+          details: error.details
+        });
+        return { error: 'rfid_validation_failed', reason: error.code, details: error.details };
+      }
+
       console.error('Error checking card locker:', error);
       reply.code(500);
-      return { 
+      return {
         error: 'server_error',
         message: 'Sistem hatası - Tekrar deneyin'
       };
@@ -1133,42 +1329,43 @@ export class UiController {
    */
   private async assignLocker(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { cardId, lockerId, kioskId } = request.body as { 
-        cardId: string; 
-        lockerId: number; 
-        kioskId: string; 
+      const { cardId, lockerId, kioskId, rawUidHex } = request.body as {
+        cardId: string;
+        lockerId: number;
+        kioskId: string;
+        rawUidHex?: string;
       };
-      
+
       if (!cardId || !lockerId || !kioskId) {
         reply.code(400);
-        return { 
+        return {
           error: 'missing_parameters',
           message: 'Gerekli parametreler eksik'
         };
       }
 
-      console.log(`🎯 Assigning locker ${lockerId} to card ${cardId} on kiosk ${kioskId}`);
+      const normalized = this.normalizeCardId(cardId, kioskId, rawUidHex);
 
-      // Assign locker to card
-      const assigned = await this.lockerStateManager.assignLocker(kioskId, lockerId, 'rfid', cardId);
-      
+      console.log(`🎯 Assigning locker ${lockerId} to card ${normalized.ownerKey} on kiosk ${kioskId} raw=${normalized.standardizedUid ?? rawUidHex ?? 'n/a'}`);
+
+      const assigned = await this.lockerStateManager.assignLocker(kioskId, lockerId, 'rfid', normalized.ownerKey);
+
       if (!assigned) {
-        console.error(`❌ Failed to assign locker ${lockerId} to card ${cardId}`);
-        return { 
+        console.error(`❌ Failed to assign locker ${lockerId} to card ${normalized.ownerKey}`);
+        return {
           success: false,
           error: 'assignment_failed',
           message: 'Dolap atanamadı - Farklı dolap seçin'
         };
       }
 
-      console.log(`✅ Locker ${lockerId} assigned to card ${cardId}, attempting to open`);
+      console.log(`✅ Locker ${lockerId} assigned to card ${normalized.ownerKey}, attempting to open`);
 
-      // Open the locker after successful assignment with enhanced error handling
-      console.log(`🔧 Attempting to open locker ${lockerId} for card ${cardId}`);
-      
+      console.log(`🔧 Attempting to open locker ${lockerId} for card ${normalized.ownerKey}`);
+
       let opened = false;
       let hardwareError: string | null = null;
-      
+
       try {
         opened = await this.modbusController.openLocker(lockerId);
       } catch (error) {
@@ -1176,59 +1373,70 @@ export class UiController {
         console.error(`❌ Hardware error opening locker ${lockerId}: ${hardwareError}`);
         opened = false;
       }
-      
+
       if (opened) {
-        // Confirm ownership after successful opening
         await this.lockerStateManager.confirmOwnership(kioskId, lockerId);
-        
-        console.log(`✅ Locker ${lockerId} successfully opened for card ${cardId}`);
-        
+
+        console.log(`✅ Locker ${lockerId} successfully opened for card ${normalized.ownerKey}`);
+
         const lockerName = await this.getLockerDisplayName(kioskId, lockerId);
-        return { 
+        return {
           success: true,
           lockerId,
           message: `${lockerName} açıldı ve atandı`
         };
-      } else {
-        // Enhanced hardware failure handling - release the assignment (Requirement 4.5)
-        console.error(`❌ Failed to open locker ${lockerId}, releasing assignment`);
-        
-        try {
-          await this.lockerStateManager.releaseLocker(kioskId, lockerId, cardId);
-          console.log(`✅ Successfully released assignment for locker ${lockerId}`);
-        } catch (releaseError) {
-          console.error(`❌ Failed to release locker assignment: ${releaseError instanceof Error ? releaseError.message : String(releaseError)}`);
-          // Continue with error response even if release fails
+      }
+
+      console.error(`❌ Failed to open locker ${lockerId}, releasing assignment`);
+
+      try {
+        await this.lockerStateManager.releaseLocker(kioskId, lockerId, normalized.ownerKey);
+        console.log(`✅ Successfully released assignment for locker ${lockerId}`);
+      } catch (releaseError) {
+        console.error(`❌ Failed to release locker assignment: ${releaseError instanceof Error ? releaseError.message : String(releaseError)}`);
+      }
+
+      const hardwareStatus = this.modbusController.getHardwareStatus();
+      let errorMessage = 'Dolap açılamadı - Tekrar deneyin';
+      let errorCode = 'hardware_failed';
+
+      if (!hardwareStatus.available) {
+        errorMessage = 'Sistem bakımda - Görevliye başvurun';
+        errorCode = 'hardware_unavailable';
+      } else if (hardwareError) {
+        errorMessage = 'Bağlantı hatası - Tekrar deneyin';
+        errorCode = 'connection_error';
+      }
+
+      return {
+        success: false,
+        error: errorCode,
+        message: errorMessage,
+        hardware_status: {
+          available: hardwareStatus.available,
+          error_rate: hardwareStatus.diagnostics.errorRate,
+          connection_errors: hardwareStatus.diagnostics.connectionErrors
         }
-        
-        // Determine appropriate error message based on hardware status (Requirement 4.4)
-        const hardwareStatus = this.modbusController.getHardwareStatus();
-        let errorMessage = 'Dolap açılamadı - Tekrar deneyin';
-        let errorCode = 'hardware_failed';
-        
-        if (!hardwareStatus.available) {
-          errorMessage = 'Sistem bakımda - Görevliye başvurun';
-          errorCode = 'hardware_unavailable';
-        } else if (hardwareError) {
-          errorMessage = 'Bağlantı hatası - Tekrar deneyin';
-          errorCode = 'connection_error';
-        }
-        
-        return { 
+      };
+    } catch (error) {
+      if (error instanceof CardValidationError) {
+        reply.code(400);
+        console.warn('RFID validation failed during locker assignment:', {
+          reason: error.code,
+          details: error.details
+        });
+        return {
           success: false,
-          error: errorCode,
-          message: errorMessage,
-          hardware_status: {
-            available: hardwareStatus.available,
-            error_rate: hardwareStatus.diagnostics.errorRate,
-            connection_errors: hardwareStatus.diagnostics.connectionErrors
-          }
+          error: 'rfid_validation_failed',
+          message: 'Kart okunamadı - Tekrar deneyin',
+          reason: error.code,
+          details: error.details
         };
       }
-    } catch (error) {
+
       console.error('Error assigning locker:', error);
       reply.code(500);
-      return { 
+      return {
         success: false,
         error: 'server_error',
         message: 'Sistem hatası - Tekrar deneyin'
@@ -1241,26 +1449,29 @@ export class UiController {
    */
   private async releaseLocker(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { cardId, kioskId } = request.body as { 
-        cardId: string; 
-        kioskId: string; 
+      const { cardId, kioskId, rawUidHex } = request.body as {
+        cardId: string;
+        kioskId: string;
+        rawUidHex?: string;
       };
-      
+
       if (!cardId || !kioskId) {
         reply.code(400);
-        return { 
+        return {
           error: 'missing_parameters',
           message: 'Gerekli parametreler eksik'
         };
       }
 
-      console.log(`🔓 Releasing locker for card ${cardId} on kiosk ${kioskId}`);
+      const normalized = this.normalizeCardId(cardId, kioskId, rawUidHex);
+
+      console.log(`🔓 Releasing locker for card ${normalized.ownerKey} on kiosk ${kioskId} raw=${normalized.standardizedUid ?? rawUidHex ?? 'n/a'}`);
 
       // Find existing locker for this card
-      const existingLocker = await this.lockerStateManager.checkExistingOwnership(cardId, 'rfid');
-      
+      const existingLocker = await this.lockerStateManager.checkExistingOwnership(normalized.ownerKey, 'rfid');
+
       if (!existingLocker) {
-        return { 
+        return {
           success: false,
           error: 'no_locker',
           message: 'Atanmış dolap bulunamadı'
@@ -1269,10 +1480,10 @@ export class UiController {
 
       // Open the locker with enhanced error handling
       console.log(`🔧 Attempting to open locker ${existingLocker.id} for release`);
-      
+
       let opened = false;
       let hardwareError: string | null = null;
-      
+
       try {
         opened = await this.modbusController.openLocker(existingLocker.id);
       } catch (error) {
@@ -1280,49 +1491,62 @@ export class UiController {
         console.error(`❌ Hardware error opening locker ${existingLocker.id} for release: ${hardwareError}`);
         opened = false;
       }
-      
+
       if (opened) {
-        // Release the assignment
-        await this.lockerStateManager.releaseLocker(kioskId, existingLocker.id, cardId);
-        
-        console.log(`✅ Locker ${existingLocker.id} opened and released for card ${cardId}`);
-        
+        await this.lockerStateManager.releaseLocker(kioskId, existingLocker.id, normalized.ownerKey);
+
+        console.log(`✅ Locker ${existingLocker.id} opened and released for card ${normalized.ownerKey}`);
+
         const lockerName = await this.getLockerDisplayName(kioskId, existingLocker.id);
-        return { 
+        return {
           success: true,
           lockerId: existingLocker.id,
           message: `${lockerName} açıldı ve serbest bırakıldı`
         };
-      } else {
-        console.error(`❌ Failed to open locker ${existingLocker.id} for release`);
-        
-        // Determine appropriate error message based on hardware status (Requirement 4.4)
-        const hardwareStatus = this.modbusController.getHardwareStatus();
-        let errorMessage = 'Dolap açılamadı - Tekrar deneyin';
-        let errorCode = 'hardware_failed';
-        
-        if (!hardwareStatus.available) {
-          errorMessage = 'Sistem bakımda - Görevliye başvurun';
-          errorCode = 'hardware_unavailable';
-        } else if (hardwareError) {
-          errorMessage = 'Bağlantı hatası - Tekrar deneyin';
-          errorCode = 'connection_error';
+      }
+
+      console.error(`❌ Failed to open locker ${existingLocker.id} for release`);
+
+      const hardwareStatus = this.modbusController.getHardwareStatus();
+      let errorMessage = 'Dolap açılamadı - Tekrar deneyin';
+      let errorCode = 'hardware_failed';
+
+      if (!hardwareStatus.available) {
+        errorMessage = 'Sistem bakımda - Görevliye başvurun';
+        errorCode = 'hardware_unavailable';
+      } else if (hardwareError) {
+        errorMessage = 'Bağlantı hatası - Tekrar deneyin';
+        errorCode = 'connection_error';
+      }
+
+      return {
+        success: false,
+        error: errorCode,
+        message: errorMessage,
+        hardware_status: {
+          available: hardwareStatus.available,
+          error_rate: hardwareStatus.diagnostics.errorRate
         }
-        
-        return { 
+      };
+    } catch (error) {
+      if (error instanceof CardValidationError) {
+        reply.code(400);
+        console.warn('RFID validation failed during locker release:', {
+          reason: error.code,
+          details: error.details
+        });
+        return {
           success: false,
-          error: errorCode,
-          message: errorMessage,
-          hardware_status: {
-            available: hardwareStatus.available,
-            error_rate: hardwareStatus.diagnostics.errorRate
-          }
+          error: 'rfid_validation_failed',
+          message: 'Kart okunamadı - Tekrar deneyin',
+          reason: error.code,
+          details: error.details
         };
       }
-    } catch (error) {
+
       console.error('Error releasing locker:', error);
       reply.code(500);
-      return { 
+      return {
         success: false,
         error: 'server_error',
         message: 'Sistem hatası - Tekrar deneyin'
@@ -1424,7 +1648,7 @@ export class UiController {
    */
   private async openLockerAgain(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { cardId, kioskId } = request.body as { cardId: string; kioskId: string };
+      const { cardId, kioskId, rawUidHex } = request.body as { cardId: string; kioskId: string; rawUidHex?: string };
 
       if (!cardId || !kioskId) {
         reply.code(400);
@@ -1435,8 +1659,10 @@ export class UiController {
         };
       }
 
+      const normalized = this.normalizeCardId(cardId, kioskId, rawUidHex);
+
       // Find existing locker by card
-      const existingLocker = await this.lockerStateManager.checkExistingOwnership(cardId, 'rfid');
+      const existingLocker = await this.lockerStateManager.checkExistingOwnership(normalized.ownerKey, 'rfid');
       if (!existingLocker) {
         reply.code(404);
         return {
@@ -1488,6 +1714,21 @@ export class UiController {
         }
       };
     } catch (error) {
+      if (error instanceof CardValidationError) {
+        reply.code(400);
+        console.warn('RFID validation failed when opening locker again:', {
+          reason: error.code,
+          details: error.details
+        });
+        return {
+          success: false,
+          error: 'rfid_validation_failed',
+          message: 'Kart okunamadı - Tekrar deneyin',
+          reason: error.code,
+          details: error.details
+        };
+      }
+
       console.error('Error opening locker again:', error);
       reply.code(500);
       return {

@@ -430,6 +430,9 @@ export interface RfidScanEvent {
   scan_time: Date;
   reader_id: string;
   signal_strength?: number;
+  request_id?: string;
+  raw_uid_hex?: string;
+  standardized_uid_hex?: string;
 }
 
 export interface RelayStatus {

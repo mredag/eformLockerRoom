@@ -76,20 +76,40 @@ if (!modbusConfig.port) {
   process.exit(1);
 }
 
+const KIOSK_ID = process.env.KIOSK_ID || "kiosk-1";
+const KIOSK_ZONE = process.env.KIOSK_ZONE; // Zone for this kiosk (e.g., "mens", "womens")
+const ZONE = process.env.ZONE || "main"; // Legacy zone field for heartbeat
+const GATEWAY_URL = process.env.GATEWAY_URL || "http://127.0.0.1:3000";
+const VERSION = process.env.npm_package_version || "1.0.0";
+const PORT = parseInt(process.env.PORT || "3002");
+
 // RFID configuration
 const rfidConfig = {
   reader_type: (process.env.RFID_READER_TYPE as "hid" | "keyboard") || "hid",
   debounce_ms: 1000,
   vendor_id: parseInt(process.env.RFID_VENDOR_ID || "0x0"),
   product_id: parseInt(process.env.RFID_PRODUCT_ID || "0x0"),
+  kiosk_id: KIOSK_ID,
 };
 
 const modbusController = new ModbusController(modbusConfig);
 const rfidHandler = new RfidHandler(rfidConfig);
 
+(async () => {
+  try {
+    const { ConfigManager } = await import("../../../shared/services/config-manager");
+    const configManager = ConfigManager.getInstance();
+    await configManager.initialize();
+    const enforcementEnabled = configManager.isRfidFullUidEnforcementEnabled(KIOSK_ID);
+    rfidHandler.setFullUidEnforcement(enforcementEnabled);
+  } catch (error) {
+    console.warn("Failed to apply RFID full UID enforcement flag:", error);
+  }
+})();
+
 // RFID User Flow configuration (will be updated with validated zone)
 let rfidUserFlowConfig = {
-  kiosk_id: process.env.KIOSK_ID || "kiosk-1",
+  kiosk_id: KIOSK_ID,
   max_available_lockers_display: parseInt(
     process.env.MAX_AVAILABLE_LOCKERS || "10"
   ),
@@ -105,14 +125,6 @@ const uiController = new UiController(
   lockerNamingService
 );
 const i18nController = new KioskI18nController(fastify);
-
-// Get kiosk ID from environment or config
-const KIOSK_ID = process.env.KIOSK_ID || "kiosk-1";
-const KIOSK_ZONE = process.env.KIOSK_ZONE; // Zone for this kiosk (e.g., "mens", "womens")
-const ZONE = process.env.ZONE || "main"; // Legacy zone field for heartbeat
-const GATEWAY_URL = process.env.GATEWAY_URL || "http://127.0.0.1:3000";
-const VERSION = process.env.npm_package_version || "1.0.0";
-const PORT = parseInt(process.env.PORT || "3002");
 
 // Initialize heartbeat client
 const heartbeatClient = new HeartbeatClient({

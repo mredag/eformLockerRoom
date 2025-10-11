@@ -18,6 +18,7 @@ class SimpleKioskApp {
             sessionId: null,
             countdown: 0,
             selectedCard: null,
+            selectedCardRaw: null,
             availableLockers: [],
             errorMessage: null,
             errorType: null,
@@ -157,7 +158,14 @@ class SimpleKioskApp {
         this.rfidBuffer = '';
         this.rfidTimeout = null;
         this.rfidDebounceDelay = 500; // Debounce RFID input
-        
+        this.lastCardScan = 0;
+        this.rfidMinSignificantLength = 8;
+        this.rfidShortWindowMs = 4000;
+        this.rfidShortReadExpiresAt = 0;
+        this.rfidConfirmationState = null;
+        this.lastStandardizedUid = null;
+        this.rfidResumeAcceptAfter = 0;
+
         // DOM element cache for performance
         this.elements = {};
         
@@ -566,33 +574,88 @@ class SimpleKioskApp {
      */
     setupRfidListener() {
         document.addEventListener('keydown', (event) => {
-            // Only process RFID input in idle mode
-            if (this.state.mode !== 'idle') return;
-            
-            // Ignore input if user is in an input field
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-            
-            // Handle Enter key (end of RFID scan)
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                this.processRfidInput();
+
+            const isCardInputKey = event.key === 'Enter' || (event.key.length === 1 && /[A-Za-z0-9]/.test(event.key));
+
+            if (this.state.mode !== 'idle') {
+                if (isCardInputKey) {
+                    this.suspendRfidInput('busy-mode', 400);
+                    event.preventDefault();
+                }
                 return;
             }
-            
-            // Handle alphanumeric characters (RFID card data)
+
+            if (!this.isRfidInputAllowed()) {
+                if (isCardInputKey) {
+                    event.preventDefault();
+                }
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                this.processRfidInput().catch((error) => {
+                    console.error('RFID input processing failed:', error);
+                });
+                return;
+            }
+
             if (event.key.length === 1 && /[A-Za-z0-9]/.test(event.key)) {
                 event.preventDefault();
                 this.addToRfidBuffer(event.key);
             }
         });
-        
+
         console.log('🔍 RFID listener setup complete');
+    }
+
+    isRfidInputAllowed() {
+        return Date.now() >= this.rfidResumeAcceptAfter;
+    }
+
+    deferRfidResume(reason = 'suspend', delayMs = 250) {
+        const resumeAt = Date.now() + delayMs;
+        if (resumeAt > this.rfidResumeAcceptAfter) {
+            this.rfidResumeAcceptAfter = resumeAt;
+            return true;
+        }
+        return false;
+    }
+
+    clearRfidBuffer(reason = 'manual') {
+        if (this.rfidTimeout) {
+            clearTimeout(this.rfidTimeout);
+            this.rfidTimeout = null;
+        }
+
+        if (this.rfidBuffer && this.rfidBuffer.length > 0) {
+            const log = typeof console.debug === 'function' ? console.debug.bind(console) : console.log.bind(console);
+            log(`[RFID] Clearing buffered input (${reason}): ${this.rfidBuffer}`);
+        }
+
+        this.rfidBuffer = '';
+    }
+
+    suspendRfidInput(reason = 'suspend', resumeDelayMs = 250) {
+        const hadBuffer = this.rfidBuffer && this.rfidBuffer.length > 0;
+        this.clearRfidBuffer(reason);
+        const extended = this.deferRfidResume(reason, resumeDelayMs);
+
+        if (hadBuffer || extended) {
+            const log = typeof console.debug === 'function' ? console.debug.bind(console) : console.log.bind(console);
+            log(`[RFID] Input suspended for ${resumeDelayMs}ms (${reason})`);
+        }
     }
 
     /**
      * Add character to RFID buffer with timeout
      */
     addToRfidBuffer(char) {
+        if (!this.isRfidInputAllowed()) {
+            return;
+        }
+
         this.rfidBuffer += char;
         
         // Clear existing timeout
@@ -602,41 +665,350 @@ class SimpleKioskApp {
         
         // Set new timeout to clear buffer
         this.rfidTimeout = setTimeout(() => {
-            this.rfidBuffer = '';
-            this.rfidTimeout = null;
-        }, 2000);
+            const buffered = this.rfidBuffer.trim();
+            this.clearRfidBuffer('keyboard-timeout');
+
+            if (buffered.length > 0) {
+                console.warn('RFID buffer timeout - discarding incomplete input:', buffered);
+            }
+        }, 1000);
     }
 
     /**
      * Process RFID input with debouncing
      */
-    processRfidInput() {
+    async processRfidInput() {
         if (this.rfidBuffer.length === 0) return;
-        
-        const cardId = this.rfidBuffer.trim();
-        this.rfidBuffer = '';
-        
-        if (this.rfidTimeout) {
-            clearTimeout(this.rfidTimeout);
-            this.rfidTimeout = null;
+
+        if (!this.isRfidInputAllowed()) {
+            this.clearRfidBuffer('resume-delay-enter');
+            return;
         }
-        
+
+        const rawInput = this.rfidBuffer.trim();
+        this.clearRfidBuffer('enter');
+
         // Debounce rapid card scans
         if (this.lastCardScan && (Date.now() - this.lastCardScan) < this.rfidDebounceDelay) {
             console.log('🚫 RFID input debounced');
             return;
         }
-        
-        this.lastCardScan = Date.now();
-        console.log(`🎯 RFID card detected: ${cardId}`);
-        
-        this.handleCardScan(cardId);
+
+        const validation = this.standardizeCardInput(rawInput);
+
+        if (!validation) {
+            console.warn('RFID input discarded - no valid hex digits detected:', rawInput);
+            this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+            this.suspendRfidInput('invalid-input', 200);
+            return;
+        }
+
+        const now = Date.now();
+
+        const effectiveLength = validation.effectiveLength ?? validation.significantLength;
+
+        if (effectiveLength < this.rfidMinSignificantLength) {
+            this.rfidShortReadExpiresAt = now + this.rfidShortWindowMs;
+            const confirmation = this.rfidConfirmationState;
+            const confirmationActive = confirmation && confirmation.expiresAt >= now;
+            const matchesPending = confirmationActive && confirmation.uid === validation.standardized;
+
+            if (!matchesPending) {
+                this.rfidConfirmationState = {
+                    uid: validation.standardized,
+                    expiresAt: now + this.rfidShortWindowMs,
+                    remainingReads: 1
+                };
+                console.warn('RFID input below minimum length - requesting immediate rescan:', validation.standardized);
+                this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                this.suspendRfidInput('short-read', 300);
+                return;
+            }
+        }
+
+        if (this.rfidShortReadExpiresAt && this.rfidShortReadExpiresAt >= now) {
+            if (!this.rfidConfirmationState || this.rfidConfirmationState.expiresAt < now) {
+                this.rfidShortReadExpiresAt = now + this.rfidShortWindowMs;
+                this.rfidConfirmationState = {
+                    uid: validation.standardized,
+                    expiresAt: now + this.rfidShortWindowMs,
+                    remainingReads: 1
+                };
+                console.warn('RFID confirmation required - waiting for consistent rescan');
+                this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                this.suspendRfidInput('short-read-confirm', 300);
+                return;
+            }
+
+            if (this.rfidConfirmationState.uid !== validation.standardized) {
+                this.rfidShortReadExpiresAt = now + this.rfidShortWindowMs;
+                this.rfidConfirmationState = {
+                    uid: validation.standardized,
+                    expiresAt: now + this.rfidShortWindowMs,
+                    remainingReads: 1
+                };
+                console.warn('RFID confirmation mismatch - restarting confirmation window');
+                this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                this.suspendRfidInput('short-read-mismatch', 300);
+                return;
+            }
+
+            if (this.rfidConfirmationState.remainingReads > 0) {
+                this.rfidConfirmationState.remainingReads -= 1;
+                if (this.rfidConfirmationState.remainingReads > 0) {
+                    this.rfidConfirmationState.expiresAt = now + this.rfidShortWindowMs;
+                    this.rfidShortReadExpiresAt = this.rfidConfirmationState.expiresAt;
+                    console.warn('RFID confirmation pending - awaiting additional consistent rescan');
+                    this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                    this.suspendRfidInput('short-read-confirm', 300);
+                    return;
+                }
+            }
+
+            this.rfidShortReadExpiresAt = 0;
+            this.rfidConfirmationState = null;
+        } else {
+            this.rfidShortReadExpiresAt = 0;
+            this.rfidConfirmationState = null;
+        }
+
+        const ownerKey = await this.hashStandardizedUid(validation.standardized);
+        if (!ownerKey) {
+            console.error('Failed to derive owner key from RFID input');
+            this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+            return;
+        }
+
+        this.lastCardScan = now;
+        this.lastStandardizedUid = validation.standardized;
+
+        console.log(`🎯 RFID card detected: ${validation.standardized} (owner_key: ${ownerKey})`);
+
+        this.suspendRfidInput('scan-complete', this.rfidDebounceDelay);
+        this.handleCardScan(ownerKey, validation.standardized);
+    }
+
+    standardizeCardInput(rawInput) {
+        if (!rawInput || typeof rawInput !== 'string') {
+            return null;
+        }
+
+        let standardized = rawInput.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+
+        if (standardized.length === 0) {
+            return null;
+        }
+
+        if (standardized.length % 2 !== 0) {
+            standardized = `0${standardized}`;
+        }
+
+        if (standardized.length > 64) {
+            standardized = standardized.substring(0, 64);
+        }
+
+        const trimmed = standardized.replace(/^0+/, '');
+        const significantLength = trimmed.length;
+        const totalLength = standardized.length;
+        const effectiveLength = significantLength > 0 ? Math.max(significantLength, totalLength) : 0;
+
+        return {
+            standardized,
+            significantLength,
+            effectiveLength,
+            totalLength,
+            byteLength: Math.ceil(totalLength / 2)
+        };
+    }
+
+    async hashStandardizedUid(standardized) {
+        if (!standardized || typeof standardized !== 'string') {
+            return null;
+        }
+
+        try {
+            const subtle = this.getSubtleCrypto();
+
+            if (subtle) {
+                const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+                const data = encoder ? encoder.encode(standardized) : this.encodeUtf8(standardized);
+                const digest = await subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(digest));
+                const hex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                return hex.substring(0, 16);
+            }
+
+            console.warn('Web Crypto API unavailable - using JS SHA-256 fallback');
+            const fallbackHex = this.computeSha256Hex(standardized);
+            return fallbackHex.substring(0, 16);
+        } catch (error) {
+            console.error('Failed to hash RFID input:', error);
+            return null;
+        }
+    }
+
+    getSubtleCrypto() {
+        if (typeof window === 'undefined') {
+            return null;
+        }
+
+        if (window.crypto && window.crypto.subtle) {
+            return window.crypto.subtle;
+        }
+
+        if (window.crypto && window.crypto.webkitSubtle) {
+            return window.crypto.webkitSubtle;
+        }
+
+        if (window.crypto && window.crypto.webcrypto && window.crypto.webcrypto.subtle) {
+            return window.crypto.webcrypto.subtle;
+        }
+
+        return null;
+    }
+
+    computeSha256Hex(message) {
+        const bytes = this.encodeUtf8(message);
+
+        const k = new Uint32Array([
+            0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+            0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+            0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+            0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+            0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+            0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+            0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+            0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+        ]);
+
+        const h = new Uint32Array([
+            0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+            0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+        ]);
+
+        const lengthBits = bytes.length * 8;
+        const withPadding = ((bytes.length + 9 + 63) >> 6) << 6;
+        const padded = new Uint8Array(withPadding);
+        padded.set(bytes);
+        padded[bytes.length] = 0x80;
+
+        const view = new DataView(padded.buffer);
+        view.setUint32(padded.length - 8, Math.floor(lengthBits / 0x100000000), false);
+        view.setUint32(padded.length - 4, lengthBits >>> 0, false);
+
+        const w = new Uint32Array(64);
+
+        for (let i = 0; i < padded.length; i += 64) {
+            for (let j = 0; j < 16; j++) {
+                w[j] = view.getUint32(i + j * 4, false);
+            }
+
+            for (let j = 16; j < 64; j++) {
+                const s0 = this.rotr(w[j - 15], 7) ^ this.rotr(w[j - 15], 18) ^ (w[j - 15] >>> 3);
+                const s1 = this.rotr(w[j - 2], 17) ^ this.rotr(w[j - 2], 19) ^ (w[j - 2] >>> 10);
+                w[j] = (((w[j - 16] + s0) >>> 0) + ((w[j - 7] + s1) >>> 0)) >>> 0;
+            }
+
+            let a = h[0];
+            let b = h[1];
+            let c = h[2];
+            let d = h[3];
+            let e = h[4];
+            let f = h[5];
+            let g = h[6];
+            let zz = h[7];
+
+            for (let j = 0; j < 64; j++) {
+                const s1 = this.rotr(e, 6) ^ this.rotr(e, 11) ^ this.rotr(e, 25);
+                const ch = (e & f) ^ (~e & g);
+                const temp1 = (((((zz + s1) >>> 0) + ch) >>> 0) + ((k[j] + w[j]) >>> 0)) >>> 0;
+                const s0 = this.rotr(a, 2) ^ this.rotr(a, 13) ^ this.rotr(a, 22);
+                const maj = (a & b) ^ (a & c) ^ (b & c);
+                const temp2 = (s0 + maj) >>> 0;
+
+                zz = g;
+                g = f;
+                f = e;
+                e = (d + temp1) >>> 0;
+                d = c;
+                c = b;
+                b = a;
+                a = (temp1 + temp2) >>> 0;
+            }
+
+            h[0] = (h[0] + a) >>> 0;
+            h[1] = (h[1] + b) >>> 0;
+            h[2] = (h[2] + c) >>> 0;
+            h[3] = (h[3] + d) >>> 0;
+            h[4] = (h[4] + e) >>> 0;
+            h[5] = (h[5] + f) >>> 0;
+            h[6] = (h[6] + g) >>> 0;
+            h[7] = (h[7] + zz) >>> 0;
+        }
+
+        let hex = '';
+        for (let i = 0; i < h.length; i++) {
+            hex += h[i].toString(16).padStart(8, '0');
+        }
+
+        return hex;
+    }
+
+    rotr(value, amount) {
+        return (value >>> amount) | (value << (32 - amount));
+    }
+
+    encodeUtf8(str) {
+        if (typeof TextEncoder !== 'undefined') {
+            return new TextEncoder().encode(str);
+        }
+
+        const bytes = [];
+        for (let i = 0; i < str.length; i++) {
+            let code = str.charCodeAt(i);
+
+            if (code < 0x80) {
+                bytes.push(code);
+            } else if (code < 0x800) {
+                bytes.push(
+                    0xc0 | (code >> 6),
+                    0x80 | (code & 0x3f)
+                );
+            } else if (code >= 0xd800 && code <= 0xdbff) {
+                const next = str.charCodeAt(++i);
+                const combined = ((code - 0xd800) << 10) + (next - 0xdc00) + 0x10000;
+                bytes.push(
+                    0xf0 | (combined >> 18),
+                    0x80 | ((combined >> 12) & 0x3f),
+                    0x80 | ((combined >> 6) & 0x3f),
+                    0x80 | (combined & 0x3f)
+                );
+            } else {
+                bytes.push(
+                    0xe0 | (code >> 12),
+                    0x80 | ((code >> 6) & 0x3f),
+                    0x80 | (code & 0x3f)
+                );
+            }
+        }
+
+        return new Uint8Array(bytes);
+    }
+
+    formatCardForDisplay(rawUidHex, ownerKey) {
+        const source = rawUidHex && rawUidHex.length > 0 ? rawUidHex : ownerKey || '';
+
+        if (source.length <= 8) {
+            return source;
+        }
+
+        return `${source.slice(0, 4)}…${source.slice(-4)}`;
     }
 
     /**
      * Handle RFID card scan with session cancellation
      */
-    async handleCardScan(cardId) {
+    async handleCardScan(cardId, rawUidHex = null) {
         try {
             // Cancel any existing session when new card is scanned (Requirement 3.5)
             if (this.state.mode === 'session' && this.state.sessionId) {
@@ -644,27 +1016,28 @@ class SimpleKioskApp {
                 this.endSession();
                 await this.cancelExistingSession();
             }
-            
-            this.showLoadingState('Kart kontrol ediliyor...');
-            this.showToast('Kart okundu', `Hoşgeldiniz! Kart: -${cardId}`);
 
-            
+            this.showLoadingState('Kart kontrol ediliyor...');
+            this.showToast('Kart okundu', `Hoşgeldiniz! Kart: -${this.formatCardForDisplay(rawUidHex, cardId)}`);
+
+
             // Check if card already has a locker assigned
-            const existingLocker = await this.checkExistingLocker(cardId);
-            
+            const existingLocker = await this.checkExistingLocker(cardId, rawUidHex);
+
             if (existingLocker) {
                 // Decision screen: open only vs. finish & release (Idea 5)
                 this.state.selectedCard = cardId;
+                this.state.selectedCardRaw = rawUidHex;
                 await this.showOwnedDecision(cardId, existingLocker.lockerId, existingLocker.displayName, {
                     ownedAt: existingLocker.ownedAt,
                     reservedAt: existingLocker.reservedAt
                 });
             } else {
                 try {
-                    const flowResult = await this.requestLockerFlow(cardId);
+                    const flowResult = await this.requestLockerFlow(cardId, rawUidHex);
 
                     if (flowResult && Array.isArray(flowResult.debug_logs) && flowResult.debug_logs.length > 0) {
-                        const groupLabel = `[AUTO-ASSIGN][UI] Decision trace for card ${cardId}`;
+                        const groupLabel = `[AUTO-ASSIGN][UI] Decision trace for card ${rawUidHex || cardId}`;
                         console.groupCollapsed(groupLabel);
                         flowResult.debug_logs.forEach((entry, index) => {
                             console.log(`↳ [${index + 1}]`, entry);
@@ -678,7 +1051,7 @@ class SimpleKioskApp {
                     }
 
                     if (flowResult && flowResult.action === 'show_lockers') {
-                        await this.startLockerSelection(cardId, flowResult);
+                        await this.startLockerSelection(cardId, rawUidHex, flowResult);
                         return;
                     }
 
@@ -694,7 +1067,7 @@ class SimpleKioskApp {
                     console.warn('Failed to request locker flow, falling back to manual fetch:', flowError);
                 }
 
-                await this.startLockerSelection(cardId);
+                await this.startLockerSelection(cardId, rawUidHex);
             }
 
         } catch (error) {
@@ -739,9 +1112,14 @@ class SimpleKioskApp {
     /**
      * Check if card has existing locker assignment with enhanced error handling
      */
-    async checkExistingLocker(cardId) {
+    async checkExistingLocker(cardId, rawUidHex = null) {
         try {
-            const response = await fetch(`/api/card/${cardId}/locker`, {
+            const params = new URLSearchParams({ kiosk_id: this.kioskId });
+            if (rawUidHex) {
+                params.set('raw_uid_hex', rawUidHex);
+            }
+
+            const response = await fetch(`/api/card/${cardId}/locker?${params.toString()}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
@@ -793,7 +1171,7 @@ class SimpleKioskApp {
         }
     }
 
-    async requestLockerFlow(cardId) {
+    async requestLockerFlow(cardId, rawUidHex = null) {
         const payload = {
             card_id: cardId,
             kiosk_id: this.kioskId
@@ -801,6 +1179,10 @@ class SimpleKioskApp {
 
         if (this.kioskZone) {
             payload.zone = this.kioskZone;
+        }
+
+        if (rawUidHex) {
+            payload.raw_uid_hex = rawUidHex;
         }
 
         const response = await fetch('/api/rfid/handle-card', {
@@ -832,7 +1214,8 @@ class SimpleKioskApp {
                 },
                 body: JSON.stringify({
                     cardId: cardId,
-                    kioskId: this.kioskId
+                    kioskId: this.kioskId,
+                    rawUidHex: this.state.selectedCardRaw || this.lastStandardizedUid
                 })
             });
             
@@ -1102,7 +1485,11 @@ class SimpleKioskApp {
             const response = await fetch('/api/locker/open-again', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cardId: cardId, kioskId: this.kioskId })
+                body: JSON.stringify({
+                    cardId: cardId,
+                    kioskId: this.kioskId,
+                    rawUidHex: this.state.selectedCardRaw || this.lastStandardizedUid
+                })
             });
 
             if (!response.ok) {
@@ -1143,7 +1530,7 @@ class SimpleKioskApp {
     /**
      * Start locker selection session with enhanced error handling
      */
-    async startLockerSelection(cardId, flowPayload = null) {
+    async startLockerSelection(cardId, rawUidHex = null, flowPayload = null) {
         try {
             this.showLoadingState('Müsait dolaplar yükleniyor...');
 
@@ -1207,6 +1594,7 @@ class SimpleKioskApp {
 
             if (lockers.length > 0) {
                 this.state.selectedCard = cardId;
+                this.state.selectedCardRaw = rawUidHex || this.state.selectedCardRaw || this.lastStandardizedUid;
                 this.state.sessionId = sessionId;
                 this.state.availableLockers = lockers;
                 if (fallbackReason) {
@@ -1239,7 +1627,7 @@ class SimpleKioskApp {
 
         const cardIdElement = document.querySelector('.card-id');
         if (cardIdElement) {
-            cardIdElement.textContent = `Kart: - ${this.state.selectedCard}`;
+            cardIdElement.textContent = `Kart: - ${this.formatCardForDisplay(this.state.selectedCardRaw, this.state.selectedCard)}`;
         }
 
         this.renderLockerGrid();
@@ -1518,7 +1906,8 @@ class SimpleKioskApp {
                 body: JSON.stringify({
                     cardId: this.state.selectedCard,
                     lockerId: lockerId,
-                    kioskId: this.kioskId
+                    kioskId: this.kioskId,
+                    rawUidHex: this.state.selectedCardRaw || this.lastStandardizedUid
                 })
             });
             
@@ -1954,6 +2343,7 @@ class SimpleKioskApp {
         this.state.mode = 'idle';
         this.endSession();
         this.showScreen('idle');
+        this.suspendRfidInput('idle-state', 200);
         console.log('💤 Showing idle state');
     }
 
@@ -1961,8 +2351,9 @@ class SimpleKioskApp {
      * Show session state
      */
     showSessionState() {
+        this.suspendRfidInput('session-state', 400);
         this.showScreen('session');
-        
+
         // Show session timer
         if (this.elements.sessionTimer) {
             this.elements.sessionTimer.style.display = 'block';
@@ -1976,11 +2367,12 @@ class SimpleKioskApp {
      */
     showLoadingState(message) {
         this.state.mode = 'loading';
-        
+        this.suspendRfidInput('loading-state', 400);
+
         if (this.elements.loadingText) {
             this.elements.loadingText.textContent = message;
         }
-        
+
         this.showScreen('loading');
         console.log(`⏳ Loading: ${message}`);
     }
@@ -1991,7 +2383,8 @@ class SimpleKioskApp {
     showErrorState(errorCode, customMessage = null) {
         this.state.mode = 'error';
         this.state.errorType = errorCode;
-        
+        this.suspendRfidInput('error-state', 400);
+
         // Get zone-aware error details from catalog
         const errorInfo = this.getZoneAwareErrorMessage(errorCode) || this.errorMessages.UNKNOWN_ERROR;
         const message = customMessage || errorInfo.message;
@@ -2134,6 +2527,7 @@ class SimpleKioskApp {
      */
     showFeedbackScreen(message, type = 'success') {
         this.state.mode = 'feedback';
+        this.suspendRfidInput('feedback-state', 400);
 
         const iconContainer = this.elements.feedbackIcon;
         const textElement = this.elements.feedbackText;
@@ -2296,8 +2690,13 @@ class SimpleKioskApp {
         // Clear session state completely
         this.state.sessionId = null;
         this.state.selectedCard = null;
+        this.state.selectedCardRaw = null;
         this.state.availableLockers = [];
         this.state.countdown = 0;
+
+        this.lastStandardizedUid = null;
+        this.rfidShortReadExpiresAt = 0;
+        this.rfidConfirmationState = null;
         
         // Clear locker grid
         if (this.elements.lockerGrid) {
@@ -2363,6 +2762,7 @@ class SimpleKioskApp {
             console.log('🧹 Clearing orphaned session data');
             this.state.sessionId = null;
             this.state.selectedCard = null;
+            this.state.selectedCardRaw = null;
             this.state.availableLockers = [];
         }
         

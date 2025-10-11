@@ -157,8 +157,34 @@ describe('RfidHandler', () => {
       // Simulate HID data reception
       const dataHandler = mockHidDevice.on.mock.calls.find(call => call[0] === 'data')[1];
       dataHandler(testCardData);
-      
+
       await scanPromise;
+    });
+
+    it('should assemble HID multi-report payload into a single scan', async () => {
+      vi.useFakeTimers();
+      try {
+        const dataHandler = mockHidDevice.on.mock.calls.find(call => call[0] === 'data')[1];
+
+        const chunkOne = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+        const chunkTwo = Buffer.from([0xca, 0xfe, 0xba, 0xbe]);
+
+        const scanPromise = new Promise((resolve) => {
+          rfidHandler.on('card_scanned', (event) => {
+            resolve(event);
+          });
+        });
+
+        dataHandler(chunkOne);
+        await vi.advanceTimersByTimeAsync(10);
+        dataHandler(chunkTwo);
+        await vi.advanceTimersByTimeAsync(120);
+
+        const event: any = await scanPromise;
+        expect(event.raw_uid_hex).toBe(Buffer.concat([chunkOne, chunkTwo]).toString('hex').toUpperCase());
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should apply debouncing to prevent duplicate scans', async () => {
@@ -269,6 +295,125 @@ describe('RfidHandler', () => {
       dataHandler(Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]));
 
       await scanPromise;
+    });
+
+    it('should discard keyboard input after inactivity timeout', async () => {
+      vi.useFakeTimers();
+      try {
+        config.reader_type = 'keyboard';
+        await rfidHandler.disconnect();
+        rfidHandler = new RfidHandler(config);
+
+        const scanSpy = vi.fn();
+        rfidHandler.on('card_scanned', scanSpy);
+
+        await rfidHandler.initialize();
+        const keyboardHandler = mockStdin.on.mock.calls.filter(call => call[0] === 'data').pop()?.[1];
+        expect(keyboardHandler).toBeDefined();
+
+        keyboardHandler?.('1234');
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(scanSpy).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('should require confirmation after short read when enforcement enabled', async () => {
+      config.reader_type = 'keyboard';
+      config.debounce_ms = 0;
+      await rfidHandler.disconnect();
+
+      const enforcementConfig: RfidConfig = {
+        reader_type: 'keyboard',
+        debounce_ms: 0,
+        full_uid_enforcement: true
+      };
+
+      rfidHandler = new RfidHandler(enforcementConfig);
+
+      const events: any[] = [];
+      rfidHandler.on('card_scanned', (event) => {
+        events.push(event);
+      });
+
+      await rfidHandler.initialize();
+      const keyboardHandler = mockStdin.on.mock.calls.filter(call => call[0] === 'data').pop()?.[1];
+      expect(keyboardHandler).toBeDefined();
+
+      keyboardHandler?.('1234\r');
+      await new Promise(resolve => setImmediate(resolve));
+      expect(events).toHaveLength(0);
+
+      keyboardHandler?.('ABCDEF01\r');
+      await new Promise(resolve => setImmediate(resolve));
+      expect(events).toHaveLength(0);
+
+      keyboardHandler?.('ABCDEF01\r');
+      await new Promise(resolve => setImmediate(resolve));
+      expect(events).toHaveLength(1);
+      expect(events[0].standardized_uid_hex).toBe('ABCDEF01');
+    });
+
+    it('should accept confirmed short UID on immediate rescan', async () => {
+      config.reader_type = 'keyboard';
+      config.debounce_ms = 0;
+      await rfidHandler.disconnect();
+
+      const enforcementConfig: RfidConfig = {
+        reader_type: 'keyboard',
+        debounce_ms: 0,
+        full_uid_enforcement: true
+      };
+
+      rfidHandler = new RfidHandler(enforcementConfig);
+
+      const events: any[] = [];
+      rfidHandler.on('card_scanned', (event) => {
+        events.push(event);
+      });
+
+      await rfidHandler.initialize();
+      const keyboardHandler = mockStdin.on.mock.calls.filter(call => call[0] === 'data').pop()?.[1];
+      expect(keyboardHandler).toBeDefined();
+
+      keyboardHandler?.('000123\r');
+      await new Promise(resolve => setImmediate(resolve));
+      expect(events).toHaveLength(0);
+
+      keyboardHandler?.('000123\r');
+      await new Promise(resolve => setImmediate(resolve));
+      expect(events).toHaveLength(1);
+      expect(events[0].standardized_uid_hex).toBe('000123');
+    });
+
+    it('should treat UIDs with leading zeros above threshold as full reads', async () => {
+      config.reader_type = 'keyboard';
+      config.debounce_ms = 0;
+      await rfidHandler.disconnect();
+
+      const enforcementConfig: RfidConfig = {
+        reader_type: 'keyboard',
+        debounce_ms: 0,
+        full_uid_enforcement: true
+      };
+
+      rfidHandler = new RfidHandler(enforcementConfig);
+
+      const events: any[] = [];
+      rfidHandler.on('card_scanned', (event) => {
+        events.push(event);
+      });
+
+      await rfidHandler.initialize();
+      const keyboardHandler = mockStdin.on.mock.calls.filter(call => call[0] === 'data').pop()?.[1];
+      expect(keyboardHandler).toBeDefined();
+
+      keyboardHandler?.('0006851540\r');
+      await new Promise(resolve => setImmediate(resolve));
+      expect(events).toHaveLength(1);
+      expect(events[0].standardized_uid_hex).toBe('0006851540');
     });
 
     it('should ignore HID keyboard fragments shorter than minimum length', async () => {
