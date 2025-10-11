@@ -3244,7 +3244,7 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showSuccess(`⚡ ${displayName} başarıyla aktive edildi! Röle sesini duymalısınız.`);
+                    showSuccess(`⚡ ${displayName} başarıyla aktive edildi! Dolabın açıldığını doğrulayın.`);
                     console.log(`✅ Direct relay activation successful for locker ${lockerId}`);
                     
                     // Refresh after a short delay
@@ -3289,7 +3289,7 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showSuccess(`🔓 ${displayName} açma komutu gönderildi! Röle sesini duymalısınız.`);
+                    showSuccess(`🔓 ${displayName} açma komutu gönderildi! Dolabın açıldığını doğrulayın.`);
                     console.log(`✅ Locker open command sent - Command ID: ${data.command_id}`);
                     
                     // Refresh the locker data after a short delay
