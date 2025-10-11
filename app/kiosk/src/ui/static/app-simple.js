@@ -889,7 +889,8 @@ class SimpleKioskApp {
      */
     async openAndReleaseLocker(cardId, lockerId) {
         try {
-            this.showLoadingState('Dolap açılıyor...');
+            const releaseContext = lockerId !== undefined ? { lockerId } : null;
+            this.showLoadingState(this.buildReleaseLoadingMessage(releaseContext));
             
             const response = await fetch('/api/locker/release', {
                 method: 'POST',
@@ -2179,6 +2180,19 @@ class SimpleKioskApp {
     }
 
     buildLockerActionMessage(context, actionSuffix) {
+        const lockerLabel = this.resolveLockerLabel(context);
+        const baseMessage = `${lockerLabel} açıldı`;
+        const suffix = typeof actionSuffix === 'string' ? actionSuffix.trim() : '';
+        return suffix ? `${baseMessage} - ${suffix}` : baseMessage;
+    }
+
+    buildReleaseLoadingMessage(context) {
+        const lockerLabel = this.resolveLockerLabel(context);
+        const thankYouLine = 'Dolabı teslim ettiğiniz için teşekkür ederiz.';
+        return `${lockerLabel} açılıyor...\n${thankYouLine}`;
+    }
+
+    resolveLockerLabel(context) {
         const lockerId = this.extractLockerId(context);
         let lockerLabel = null;
 
@@ -2219,9 +2233,7 @@ class SimpleKioskApp {
             lockerLabel = 'Dolap';
         }
 
-        const baseMessage = `${lockerLabel} açıldı`;
-        const suffix = typeof actionSuffix === 'string' ? actionSuffix.trim() : '';
-        return suffix ? `${baseMessage} - ${suffix}` : baseMessage;
+        return lockerLabel;
     }
 
     extractLockerId(context) {

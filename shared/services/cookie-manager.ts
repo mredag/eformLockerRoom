@@ -113,7 +113,7 @@ export class CookieManager {
       'strict';
 
     const maxAgeEnv = Number(process.env.SESSION_MAX_AGE_SECONDS ?? NaN);
-    const maxAge = Number.isFinite(maxAgeEnv) ? Math.max(0, Math.floor(maxAgeEnv)) : 8 * 60 * 60; // default 8 hours
+    const maxAge = Number.isFinite(maxAgeEnv) ? Math.max(0, Math.floor(maxAgeEnv)) : 24 * 60 * 60; // default 24 hours
 
     return {
       path: this.DEFAULT_PATH,
