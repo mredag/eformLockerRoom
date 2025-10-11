@@ -164,6 +164,7 @@ class SimpleKioskApp {
         this.rfidShortReadExpiresAt = 0;
         this.rfidConfirmationState = null;
         this.lastStandardizedUid = null;
+        this.rfidResumeAcceptAfter = 0;
 
         // DOM element cache for performance
         this.elements = {};
@@ -573,13 +574,25 @@ class SimpleKioskApp {
      */
     setupRfidListener() {
         document.addEventListener('keydown', (event) => {
-            // Only process RFID input in idle mode
-            if (this.state.mode !== 'idle') return;
-            
-            // Ignore input if user is in an input field
             if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') return;
-            
-            // Handle Enter key (end of RFID scan)
+
+            const isCardInputKey = event.key === 'Enter' || (event.key.length === 1 && /[A-Za-z0-9]/.test(event.key));
+
+            if (this.state.mode !== 'idle') {
+                if (isCardInputKey) {
+                    this.suspendRfidInput('busy-mode', 400);
+                    event.preventDefault();
+                }
+                return;
+            }
+
+            if (!this.isRfidInputAllowed()) {
+                if (isCardInputKey) {
+                    event.preventDefault();
+                }
+                return;
+            }
+
             if (event.key === 'Enter') {
                 event.preventDefault();
                 this.processRfidInput().catch((error) => {
@@ -587,21 +600,62 @@ class SimpleKioskApp {
                 });
                 return;
             }
-            
-            // Handle alphanumeric characters (RFID card data)
+
             if (event.key.length === 1 && /[A-Za-z0-9]/.test(event.key)) {
                 event.preventDefault();
                 this.addToRfidBuffer(event.key);
             }
         });
-        
+
         console.log('🔍 RFID listener setup complete');
+    }
+
+    isRfidInputAllowed() {
+        return Date.now() >= this.rfidResumeAcceptAfter;
+    }
+
+    deferRfidResume(reason = 'suspend', delayMs = 250) {
+        const resumeAt = Date.now() + delayMs;
+        if (resumeAt > this.rfidResumeAcceptAfter) {
+            this.rfidResumeAcceptAfter = resumeAt;
+            return true;
+        }
+        return false;
+    }
+
+    clearRfidBuffer(reason = 'manual') {
+        if (this.rfidTimeout) {
+            clearTimeout(this.rfidTimeout);
+            this.rfidTimeout = null;
+        }
+
+        if (this.rfidBuffer && this.rfidBuffer.length > 0) {
+            const log = typeof console.debug === 'function' ? console.debug.bind(console) : console.log.bind(console);
+            log(`[RFID] Clearing buffered input (${reason}): ${this.rfidBuffer}`);
+        }
+
+        this.rfidBuffer = '';
+    }
+
+    suspendRfidInput(reason = 'suspend', resumeDelayMs = 250) {
+        const hadBuffer = this.rfidBuffer && this.rfidBuffer.length > 0;
+        this.clearRfidBuffer(reason);
+        const extended = this.deferRfidResume(reason, resumeDelayMs);
+
+        if (hadBuffer || extended) {
+            const log = typeof console.debug === 'function' ? console.debug.bind(console) : console.log.bind(console);
+            log(`[RFID] Input suspended for ${resumeDelayMs}ms (${reason})`);
+        }
     }
 
     /**
      * Add character to RFID buffer with timeout
      */
     addToRfidBuffer(char) {
+        if (!this.isRfidInputAllowed()) {
+            return;
+        }
+
         this.rfidBuffer += char;
         
         // Clear existing timeout
@@ -612,8 +666,7 @@ class SimpleKioskApp {
         // Set new timeout to clear buffer
         this.rfidTimeout = setTimeout(() => {
             const buffered = this.rfidBuffer.trim();
-            this.rfidBuffer = '';
-            this.rfidTimeout = null;
+            this.clearRfidBuffer('keyboard-timeout');
 
             if (buffered.length > 0) {
                 console.warn('RFID buffer timeout - discarding incomplete input:', buffered);
@@ -627,13 +680,13 @@ class SimpleKioskApp {
     async processRfidInput() {
         if (this.rfidBuffer.length === 0) return;
 
-        const rawInput = this.rfidBuffer.trim();
-        this.rfidBuffer = '';
-
-        if (this.rfidTimeout) {
-            clearTimeout(this.rfidTimeout);
-            this.rfidTimeout = null;
+        if (!this.isRfidInputAllowed()) {
+            this.clearRfidBuffer('resume-delay-enter');
+            return;
         }
+
+        const rawInput = this.rfidBuffer.trim();
+        this.clearRfidBuffer('enter');
 
         // Debounce rapid card scans
         if (this.lastCardScan && (Date.now() - this.lastCardScan) < this.rfidDebounceDelay) {
@@ -646,6 +699,7 @@ class SimpleKioskApp {
         if (!validation) {
             console.warn('RFID input discarded - no valid hex digits detected:', rawInput);
             this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+            this.suspendRfidInput('invalid-input', 200);
             return;
         }
 
@@ -656,6 +710,7 @@ class SimpleKioskApp {
             this.rfidConfirmationState = null;
             console.warn('RFID input below minimum length - requesting immediate rescan:', validation.standardized);
             this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+            this.suspendRfidInput('short-read', 300);
             return;
         }
 
@@ -667,6 +722,7 @@ class SimpleKioskApp {
                 };
                 console.warn('RFID confirmation required - waiting for consistent rescan');
                 this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                this.suspendRfidInput('short-read-confirm', 300);
                 return;
             }
 
@@ -677,6 +733,7 @@ class SimpleKioskApp {
                 };
                 console.warn('RFID confirmation mismatch - restarting confirmation window');
                 this.showToast('Kart okunamadı', 'Kartınızı tekrar okutun');
+                this.suspendRfidInput('short-read-mismatch', 300);
                 return;
             }
 
@@ -699,6 +756,7 @@ class SimpleKioskApp {
 
         console.log(`🎯 RFID card detected: ${validation.standardized} (owner_key: ${ownerKey})`);
 
+        this.suspendRfidInput('scan-complete', this.rfidDebounceDelay);
         this.handleCardScan(ownerKey, validation.standardized);
     }
 
@@ -2100,6 +2158,7 @@ class SimpleKioskApp {
         this.state.mode = 'idle';
         this.endSession();
         this.showScreen('idle');
+        this.suspendRfidInput('idle-state', 200);
         console.log('💤 Showing idle state');
     }
 
@@ -2107,8 +2166,9 @@ class SimpleKioskApp {
      * Show session state
      */
     showSessionState() {
+        this.suspendRfidInput('session-state', 400);
         this.showScreen('session');
-        
+
         // Show session timer
         if (this.elements.sessionTimer) {
             this.elements.sessionTimer.style.display = 'block';
@@ -2122,11 +2182,12 @@ class SimpleKioskApp {
      */
     showLoadingState(message) {
         this.state.mode = 'loading';
-        
+        this.suspendRfidInput('loading-state', 400);
+
         if (this.elements.loadingText) {
             this.elements.loadingText.textContent = message;
         }
-        
+
         this.showScreen('loading');
         console.log(`⏳ Loading: ${message}`);
     }
@@ -2137,7 +2198,8 @@ class SimpleKioskApp {
     showErrorState(errorCode, customMessage = null) {
         this.state.mode = 'error';
         this.state.errorType = errorCode;
-        
+        this.suspendRfidInput('error-state', 400);
+
         // Get zone-aware error details from catalog
         const errorInfo = this.getZoneAwareErrorMessage(errorCode) || this.errorMessages.UNKNOWN_ERROR;
         const message = customMessage || errorInfo.message;
@@ -2280,6 +2342,7 @@ class SimpleKioskApp {
      */
     showFeedbackScreen(message, type = 'success') {
         this.state.mode = 'feedback';
+        this.suspendRfidInput('feedback-state', 400);
 
         const iconContainer = this.elements.feedbackIcon;
         const textElement = this.elements.feedbackText;
