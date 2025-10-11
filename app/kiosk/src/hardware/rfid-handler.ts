@@ -351,7 +351,8 @@ export class RfidHandler extends EventEmitter {
       : LEGACY_MIN_CARD_SIGNIFICANT_DIGITS;
 
     const enforcementEnabled = this.isFullUidEnforcementEnabled();
-    const isShortUid = standardization.significantLength < minDigits;
+    const effectiveLength = standardization.effectiveLength;
+    const isShortUid = effectiveLength < minDigits;
 
     if (isShortUid) {
       if (enforcementEnabled) {
@@ -374,7 +375,7 @@ export class RfidHandler extends EventEmitter {
             rawHex,
             rawBytes,
             standardizedHex: standardization.standardized,
-            standardizedBytes: standardization.standardized.length / 2,
+            standardizedBytes: standardization.byteLength,
             source: scan.source,
             requestId,
             confirmationRemainingReads: 1
@@ -405,7 +406,7 @@ export class RfidHandler extends EventEmitter {
             rawHex,
             rawBytes,
             standardizedHex: standardization.standardized,
-            standardizedBytes: standardization.standardized.length / 2,
+            standardizedBytes: standardization.byteLength,
             source: scan.source,
             requestId,
             confirmationRemainingReads: 1
@@ -424,7 +425,7 @@ export class RfidHandler extends EventEmitter {
             rawHex,
             rawBytes,
             standardizedHex: standardization.standardized,
-            standardizedBytes: standardization.standardized.length / 2,
+            standardizedBytes: standardization.byteLength,
             source: scan.source,
             requestId,
             confirmationRemainingReads: 1
@@ -441,7 +442,7 @@ export class RfidHandler extends EventEmitter {
               rawHex,
               rawBytes,
               standardizedHex: standardization.standardized,
-              standardizedBytes: standardization.standardized.length / 2,
+              standardizedBytes: standardization.byteLength,
               source: scan.source,
               requestId,
               confirmationRemainingReads: this.confirmationState.remainingReads
@@ -466,7 +467,7 @@ export class RfidHandler extends EventEmitter {
       rawHex,
       rawBytes,
       standardizedHex: standardization.standardized,
-      standardizedBytes: standardization.standardized.length / 2,
+      standardizedBytes: standardization.byteLength,
       hashedCardId,
       source: scan.source
     });
@@ -487,7 +488,9 @@ export class RfidHandler extends EventEmitter {
   /**
    * Standardize card ID format for consistent identification
    */
-  private standardizeCardId(rawHex: string): { standardized: string; significantLength: number } | null {
+  private standardizeCardId(
+    rawHex: string
+  ): { standardized: string; significantLength: number; totalLength: number; byteLength: number; effectiveLength: number } | null {
     let standardized = rawHex.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
 
     if (standardized.length === 0) {
@@ -502,11 +505,18 @@ export class RfidHandler extends EventEmitter {
       standardized = standardized.substring(0, MAX_STANDARDIZED_LENGTH);
     }
 
-    const significantLength = standardized.replace(/^0+/, '').length;
+    const trimmed = standardized.replace(/^0+/, '');
+    const significantLength = trimmed.length;
+    const totalLength = standardized.length;
+    const byteLength = Math.ceil(totalLength / 2);
+    const effectiveLength = significantLength > 0 ? Math.max(significantLength, totalLength) : 0;
 
     return {
       standardized,
-      significantLength
+      significantLength,
+      totalLength,
+      byteLength,
+      effectiveLength
     };
   }
 

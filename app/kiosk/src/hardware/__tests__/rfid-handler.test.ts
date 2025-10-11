@@ -378,9 +378,37 @@ describe('RfidHandler', () => {
       const keyboardHandler = mockStdin.on.mock.calls.filter(call => call[0] === 'data').pop()?.[1];
       expect(keyboardHandler).toBeDefined();
 
-      keyboardHandler?.('0006851540\r');
+      keyboardHandler?.('000123\r');
       await new Promise(resolve => setImmediate(resolve));
       expect(events).toHaveLength(0);
+
+      keyboardHandler?.('000123\r');
+      await new Promise(resolve => setImmediate(resolve));
+      expect(events).toHaveLength(1);
+      expect(events[0].standardized_uid_hex).toBe('000123');
+    });
+
+    it('should treat UIDs with leading zeros above threshold as full reads', async () => {
+      config.reader_type = 'keyboard';
+      config.debounce_ms = 0;
+      await rfidHandler.disconnect();
+
+      const enforcementConfig: RfidConfig = {
+        reader_type: 'keyboard',
+        debounce_ms: 0,
+        full_uid_enforcement: true
+      };
+
+      rfidHandler = new RfidHandler(enforcementConfig);
+
+      const events: any[] = [];
+      rfidHandler.on('card_scanned', (event) => {
+        events.push(event);
+      });
+
+      await rfidHandler.initialize();
+      const keyboardHandler = mockStdin.on.mock.calls.filter(call => call[0] === 'data').pop()?.[1];
+      expect(keyboardHandler).toBeDefined();
 
       keyboardHandler?.('0006851540\r');
       await new Promise(resolve => setImmediate(resolve));
