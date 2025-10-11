@@ -80,7 +80,9 @@ export class UiController {
     this.setupHardwareErrorHandling();
   }
 
-  private standardizeCardId(raw: string): { standardized: string; significantLength: number } | null {
+  private standardizeCardId(
+    raw: string
+  ): { standardized: string; significantLength: number; totalLength: number; effectiveLength: number } | null {
     if (!raw || typeof raw !== 'string') {
       return null;
     }
@@ -99,11 +101,16 @@ export class UiController {
       standardized = standardized.substring(0, MAX_STANDARDIZED_LENGTH);
     }
 
-    const significantLength = standardized.replace(/^0+/, '').length;
+    const trimmed = standardized.replace(/^0+/, '');
+    const significantLength = trimmed.length;
+    const totalLength = standardized.length;
+    const effectiveLength = significantLength > 0 ? Math.max(significantLength, totalLength) : 0;
 
     return {
       standardized,
-      significantLength
+      significantLength,
+      totalLength,
+      effectiveLength
     };
   }
 
@@ -159,7 +166,13 @@ export class UiController {
     cardId: string,
     kioskId: string,
     rawUidHex?: string | null
-  ): { ownerKey: string; standardizedUid?: string; significantLength?: number } {
+  ): {
+    ownerKey: string;
+    standardizedUid?: string;
+    significantLength?: number;
+    totalLength?: number;
+    effectiveLength?: number;
+  } {
     const now = Date.now();
 
     if (!rawUidHex && /^[0-9a-f]{16}$/i.test(cardId)) {
@@ -177,11 +190,13 @@ export class UiController {
       });
     }
 
-    if (standardization.significantLength < ENFORCED_MIN_CARD_SIGNIFICANT_DIGITS) {
+    if (standardization.effectiveLength < ENFORCED_MIN_CARD_SIGNIFICANT_DIGITS) {
       this.shortScanStates.set(kioskId, { expiresAt: now + CONFIRMATION_WINDOW_MS });
       throw new CardValidationError('SHORT_UID', 'RFID input below minimum length', {
         standardized_uid_hex: standardization.standardized,
-        significant_length: standardization.significantLength
+        significant_length: standardization.significantLength,
+        effective_length: standardization.effectiveLength,
+        total_length: standardization.totalLength
       });
     }
 
@@ -192,7 +207,9 @@ export class UiController {
     return {
       ownerKey,
       standardizedUid: standardization.standardized,
-      significantLength: standardization.significantLength
+      significantLength: standardization.significantLength,
+      totalLength: standardization.totalLength,
+      effectiveLength: standardization.effectiveLength
     };
   }
 
