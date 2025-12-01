@@ -1,0 +1,14 @@
+# Portable Kiosk Python Dependencies
+# Most functionality uses Python standard library only
+
+# No external packages required for core functionality
+# The following are optional enhancements:
+
+# For better HTTP handling (optional)
+# requests>=2.28.0
+
+# For async operations (optional, future enhancement)
+# aiohttp>=3.8.0
+
+# For system monitoring (optional)
+# psutil>=5.9.0

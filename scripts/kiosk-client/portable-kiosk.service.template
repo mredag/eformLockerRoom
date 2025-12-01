@@ -1,0 +1,21 @@
+[Unit]
+Description=Portable Kiosk Launcher
+After=graphical.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@KIOSK_USER@
+Group=@KIOSK_USER@
+WorkingDirectory=@INSTALL_DIR@
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/@KIOSK_USER@/.Xauthority
+ExecStartPre=/bin/sleep 5
+ExecStart=@INSTALL_DIR@/venv/bin/python @INSTALL_DIR@/portable_launcher.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
