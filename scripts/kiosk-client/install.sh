@@ -479,8 +479,14 @@ EOF
 
 systemctl daemon-reload
 systemctl enable "${SERVICE_NAME}"
+systemctl start "${SERVICE_NAME}" || true
 
-log_success "Systemd service installed"
+# Verify service is enabled
+if systemctl is-enabled "${SERVICE_NAME}" > /dev/null 2>&1; then
+    log_success "Systemd service installed and enabled"
+else
+    log_warn "Service may not be properly enabled, manually run: sudo systemctl enable ${SERVICE_NAME}"
+fi
 
 # =============================================================================
 # Sudoers Configuration (for USB reset)
