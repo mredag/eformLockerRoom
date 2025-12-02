@@ -3,6 +3,7 @@ import { configManager } from '@eform/shared/services/config-manager';
 import { DatabaseManager } from '@eform/shared/database/database-manager';
 import { LockerStateManager } from '@eform/shared/services/locker-state-manager';
 import { EventRepository } from '@eform/shared/database/event-repository';
+import { EventType } from '@eform/shared/types/core-entities';
 import { CommandQueueManager } from '@eform/shared/services/command-queue-manager';
 import { requirePermission, requireCsrfToken } from '../middleware/auth-middleware';
 import { Permission } from '../services/permission-service';
@@ -463,13 +464,15 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       const success = await lockerStateManager.blockLocker(kioskId, lockerId_num);
       
       if (success) {
-        await eventRepository.logEvent({
-          kiosk_id: kioskId,
-          locker_id: lockerId_num,
-          event_type: 'staff_block',
-          staff_user: user.username,
-          details: { reason }
-        });
+        await eventRepository.logEvent(
+          kioskId,
+          EventType.STAFF_BLOCK,
+          { reason },
+          lockerId_num,
+          undefined,
+          undefined,
+          user.username
+        );
 
         // Broadcast locker state update via WebSocket
         await broadcastLockerUpdate(lockerStateManager, kioskId, lockerId_num);
@@ -506,13 +509,15 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       const success = await lockerStateManager.unblockLocker(kioskId, lockerId_num);
       
       if (success) {
-        await eventRepository.logEvent({
-          kiosk_id: kioskId,
-          locker_id: lockerId_num,
-          event_type: 'staff_unblock',
-          staff_user: user.username,
-          details: {}
-        });
+        await eventRepository.logEvent(
+          kioskId,
+          EventType.STAFF_UNBLOCK,
+          {},
+          lockerId_num,
+          undefined,
+          undefined,
+          user.username
+        );
 
         // Broadcast locker state update via WebSocket
         await broadcastLockerUpdate(lockerStateManager, kioskId, lockerId_num);
@@ -558,13 +563,15 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       const success = await lockerStateManager.releaseLocker(kioskId, lockerId_num);
       
       if (success) {
-        await eventRepository.logEvent({
-          kiosk_id: kioskId,
-          locker_id: lockerId_num,
-          event_type: 'staff_release',
-          staff_user: user.username,
-          details: { reason: reason || 'Manual release' }
-        });
+        await eventRepository.logEvent(
+          kioskId,
+          EventType.STAFF_RELEASE,
+          { reason: reason || 'Manual release' },
+          lockerId_num,
+          undefined,
+          undefined,
+          user.username
+        );
 
         // Broadcast locker state update via WebSocket
         await broadcastLockerUpdate(lockerStateManager, kioskId, lockerId_num);
@@ -812,13 +819,15 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
           
           if (success) {
             successCount++;
-            await eventRepository.logEvent({
-              kiosk_id: locker.kiosk_id,
-              locker_id: locker.id,
-              event_type: 'staff_open',
-              staff_user: user.username,
-              details: { reason: 'End of day opening', end_of_day: true }
-            });
+            await eventRepository.logEvent(
+              locker.kiosk_id,
+              EventType.STAFF_OPEN,
+              { reason: 'End of day opening', end_of_day: true },
+              locker.id,
+              undefined,
+              undefined,
+              user.username
+            );
           }
 
           // Wait between operations
@@ -831,16 +840,19 @@ export async function lockerRoutes(fastify: FastifyInstance, options: LockerRout
       const csvContent = csvRows.join('\n');
 
       // Log end of day operation
-      await eventRepository.logEvent({
-        kiosk_id: kioskId || 'all',
-        event_type: 'end_of_day_open',
-        staff_user: user.username,
-        details: {
+      await eventRepository.logEvent(
+        kioskId || 'all',
+        EventType.END_OF_DAY_OPEN,
+        {
           total_count: targetLockers.length,
           success_count: successCount,
           exclude_vip: excludeVip
-        }
-      });
+        },
+        undefined,
+        undefined,
+        undefined,
+        user.username
+      );
 
       reply
         .header('Content-Type', 'text/csv')

@@ -976,6 +976,9 @@
             <button class="btn btn-success" onclick="releaseSelectedLockers()" id="release-btn" disabled>
                 Select lockers first
             </button>
+            <button class="btn btn-danger" onclick="releaseAllOwnedLockers()" id="release-all-btn" disabled>
+                Tüm Sahipli Dolapları Serbest Bırak
+            </button>
             <button class="btn btn-primary" onclick="refreshSelectedLockers()" id="refresh-btn" disabled>
                 Select lockers first
             </button>
@@ -2548,6 +2551,17 @@
             document.getElementById('stat-owned').textContent = stats.owned;
             document.getElementById('stat-reserved').textContent = stats.reserved;
             document.getElementById('stat-blocked').textContent = stats.blocked;
+
+            const releaseAllBtn = document.getElementById('release-all-btn');
+            if (releaseAllBtn) {
+                if (stats.owned > 0) {
+                    releaseAllBtn.disabled = false;
+                    releaseAllBtn.textContent = `Tüm Sahipli Dolapları Serbest Bırak (${stats.owned})`;
+                } else {
+                    releaseAllBtn.disabled = true;
+                    releaseAllBtn.textContent = 'Tüm Sahipli Dolapları Serbest Bırak';
+                }
+            }
         }
 
         function applyDefaultKioskSelection() {
@@ -2744,13 +2758,42 @@
 
         async function releaseSelectedLockers() {
             if (selectedLockers.size === 0) return;
-            
+
             showActionModal('Dolapları Serbest Bırak', 'release');
+        }
+
+        async function releaseAllOwnedLockers() {
+            const kioskFilter = document.getElementById('kiosk-filter');
+            const kioskId = kioskFilter ? kioskFilter.value : '';
+
+            if (!kioskId) {
+                showToast('Hata', 'Önce bir kiosk seçin', 'error');
+                return;
+            }
+
+            if (!Array.isArray(lockers) || lockers.length === 0) {
+                showToast('Bilgi', 'Serbest bırakılacak dolap bulunamadı', 'info');
+                return;
+            }
+
+            const ownedLockers = lockers.filter(locker => locker && locker.status === 'Owned');
+
+            if (ownedLockers.length === 0) {
+                showToast('Bilgi', 'Serbest bırakılacak sahipli dolap yok', 'info');
+                return;
+            }
+
+            const releaseTargets = ownedLockers.map(locker => ({
+                kioskId: locker.kiosk_id,
+                lockerId: locker.id
+            }));
+
+            showActionModal(`Tüm Sahipli Dolapları Serbest Bırak (${ownedLockers.length})`, 'release-all', releaseTargets);
         }
 
         async function refreshSelectedLockers() {
             if (selectedLockers.size === 0) return;
-            
+
             showToast('Yenileme', 'Seçili dolaplar yenileniyor...', 'info');
             
             try {
@@ -2761,41 +2804,53 @@
             }
         }
 
-        function showActionModal(title, action) {
+        function showActionModal(title, action, lockersOverride = null) {
             document.getElementById('modal-title').textContent = title;
+            document.getElementById('reason').value = '';
             document.getElementById('action-modal').style.display = 'block';
-            
+
             const form = document.getElementById('action-form');
             form.onsubmit = async (e) => {
                 e.preventDefault();
-                await performAction(action);
+                await performAction(action, lockersOverride);
             };
         }
 
-        async function performAction(action) {
+        async function performAction(action, lockersOverride = null) {
             const reason = document.getElementById('reason').value;
-            const selectedArray = Array.from(selectedLockers).map(key => {
-                // Split from the right to handle kiosk IDs with dashes (e.g., 'kiosk-1-1' -> kioskId='kiosk-1', lockerId='1')
-                const lastDashIndex = key.lastIndexOf('-');
-                const kioskId = key.substring(0, lastDashIndex);
-                const lockerId = key.substring(lastDashIndex + 1);
-                return { kioskId, lockerId: parseInt(lockerId) };
-            });
+            let targetLockers = lockersOverride;
+
+            if (!targetLockers) {
+                targetLockers = Array.from(selectedLockers).map(key => {
+                    // Split from the right to handle kiosk IDs with dashes (e.g., 'kiosk-1-1' -> kioskId='kiosk-1', lockerId='1')
+                    const lastDashIndex = key.lastIndexOf('-');
+                    const kioskId = key.substring(0, lastDashIndex);
+                    const lockerId = key.substring(lastDashIndex + 1);
+                    return { kioskId, lockerId: parseInt(lockerId) };
+                });
+            }
+
+            if (!Array.isArray(targetLockers) || targetLockers.length === 0) {
+                showToast('Hata', 'İşlem için dolap seçilmedi', 'error');
+                return;
+            }
 
             try {
                 if (action === 'open') {
                     // Use single locker API for single selections, bulk API for multiple
-                    if (selectedArray.length === 1) {
-                        await performSingleOpen(selectedArray[0], reason);
+                    if (targetLockers.length === 1) {
+                        await performSingleOpen(targetLockers[0], reason);
                     } else {
-                        await performBulkOpen(selectedArray, reason);
+                        await performBulkOpen(targetLockers, reason);
                     }
                 } else if (action === 'release') {
-                    await performBulkRelease(selectedArray, reason);
+                    await performBulkRelease(targetLockers, reason);
+                } else if (action === 'release-all') {
+                    await performBulkRelease(targetLockers, reason || 'Panelden toplu serbest bırakma');
                 } else {
-                    await performIndividualActions(action, selectedArray, reason);
+                    await performIndividualActions(action, targetLockers, reason);
                 }
-                
+
                 closeModal();
                 selectedLockers.clear();
                 updateSelectedCount();
