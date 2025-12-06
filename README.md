@@ -4,6 +4,18 @@
 
 A comprehensive locker management solution designed for Raspberry Pi with Waveshare relay cards, featuring RFID/QR access, multi-language support, VIP user management, and enterprise-grade security.
 
+## RFID Reliability Controls
+
+Locker kiosks now ship with hardened RFID parsing behind feature flags. Configure these in `config/system.json` under `features.rfid` or `hardware.rfid.feature_flags`:
+
+| Flag | Purpose | Default |
+| --- | --- | --- |
+| `hid_multi_packet_enabled` | Merge rapid HID packets before validation. | `false` |
+| `keyboard_timeout_enabled` | Flush keyboard-mode buffers after inactivity (configure `keyboard_timeout_ms`). | `false` |
+| `strict_min_len` | Require an immediate second read when significant UID length is below `min_significant_length`. | `false` |
+
+Set `features.api.idempotency_enabled` and `features.api.hmac_required` prior to rollout to gradually enforce resilient assign/release calls.
+
 ## ðŸš€ Quick Start
 
 ### ðŸ¥§ Raspberry Pi Management

@@ -21,7 +21,7 @@ import { QrHandler } from "./controllers/qr-handler";
 import { UiController } from "./controllers/ui-controller";
 import { RfidUserFlow } from "./services/rfid-user-flow";
 import { ModbusController } from "./hardware/modbus-controller";
-import { RfidHandler } from "./hardware/rfid-handler";
+import { RfidHandler, RfidConfig } from "./hardware/rfid-handler";
 import { HeartbeatClient } from "./services/heartbeat-client";
 import {
   KioskSecurityMiddleware,
@@ -76,16 +76,57 @@ if (!modbusConfig.port) {
   process.exit(1);
 }
 
+const DEFAULT_KIOSK_ID = process.env.KIOSK_ID || "kiosk-1";
+
+const defaultRfidFeatureFlags = {
+  hidMultiPacketEnabled: false,
+  hidAggregationWindowMs: 50,
+  keyboardTimeoutEnabled: false,
+  keyboardTimeoutMs: 1000,
+  strictMinLengthEnabled: false,
+  minSignificantLength: 8,
+  confirmationWindowMs: 1000,
+};
+
 // RFID configuration
-const rfidConfig = {
+const rfidConfig: RfidConfig = {
   reader_type: (process.env.RFID_READER_TYPE as "hid" | "keyboard") || "hid",
   debounce_ms: 1000,
   vendor_id: parseInt(process.env.RFID_VENDOR_ID || "0x0"),
   product_id: parseInt(process.env.RFID_PRODUCT_ID || "0x0"),
+  kiosk_id: DEFAULT_KIOSK_ID,
+  operator_id: null,
+  feature_flags: defaultRfidFeatureFlags,
 };
 
 const modbusController = new ModbusController(modbusConfig);
 const rfidHandler = new RfidHandler(rfidConfig);
+
+async function applyRfidFeatureFlagsFromConfig(): Promise<void> {
+  try {
+    const { ConfigManager } = await import("../../../shared/services/config-manager");
+    const configManager = ConfigManager.getInstance();
+    await configManager.initialize();
+    const config = configManager.getConfiguration();
+    const featureFlags = config.hardware?.rfid?.feature_flags || config.hardware?.rfid?.features || config.features?.rfid;
+
+    if (featureFlags) {
+      rfidHandler.updateFeatureFlags({
+        hidMultiPacketEnabled: featureFlags.hid_multi_packet_enabled ?? defaultRfidFeatureFlags.hidMultiPacketEnabled,
+        hidAggregationWindowMs: featureFlags.hid_aggregation_window_ms ?? defaultRfidFeatureFlags.hidAggregationWindowMs,
+        keyboardTimeoutEnabled: featureFlags.keyboard_timeout_enabled ?? defaultRfidFeatureFlags.keyboardTimeoutEnabled,
+        keyboardTimeoutMs: featureFlags.keyboard_timeout_ms ?? defaultRfidFeatureFlags.keyboardTimeoutMs,
+        strictMinLengthEnabled: featureFlags.strict_min_len ?? defaultRfidFeatureFlags.strictMinLengthEnabled,
+        minSignificantLength: featureFlags.min_significant_length ?? defaultRfidFeatureFlags.minSignificantLength,
+        confirmationWindowMs: featureFlags.confirmation_window_ms ?? defaultRfidFeatureFlags.confirmationWindowMs,
+      });
+    }
+  } catch (error) {
+    console.warn("Failed to load RFID feature flags from configuration", error);
+  }
+}
+
+void applyRfidFeatureFlagsFromConfig();
 
 // RFID User Flow configuration (will be updated with validated zone)
 let rfidUserFlowConfig = {
@@ -107,7 +148,7 @@ const uiController = new UiController(
 const i18nController = new KioskI18nController(fastify);
 
 // Get kiosk ID from environment or config
-const KIOSK_ID = process.env.KIOSK_ID || "kiosk-1";
+const KIOSK_ID = DEFAULT_KIOSK_ID;
 const KIOSK_ZONE = process.env.KIOSK_ZONE; // Zone for this kiosk (e.g., "mens", "womens")
 const ZONE = process.env.ZONE || "main"; // Legacy zone field for heartbeat
 const GATEWAY_URL = process.env.GATEWAY_URL || "http://127.0.0.1:3000";
