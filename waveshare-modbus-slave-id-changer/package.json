@@ -1,0 +1,24 @@
+{
+  "name": "waveshare-modbus-slave-id-changer",
+  "version": "1.0.0",
+  "description": "Windows utility for configuring Waveshare Modbus RTU Relay card slave addresses",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "scan": "node index.js scan",
+    "read": "node index.js read",
+    "set": "node index.js set"
+  },
+  "keywords": [
+    "modbus",
+    "waveshare",
+    "relay",
+    "rs485",
+    "slave-address"
+  ],
+  "author": "eForm Locker System",
+  "license": "MIT",
+  "dependencies": {
+    "serialport": "^12.0.0"
+  }
+}
